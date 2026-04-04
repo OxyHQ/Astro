@@ -1,0 +1,207 @@
+diff --git a/components/components_chromium_strings.grd b/components/components_chromium_strings.grd
+index dc9a4c1e54c6a..9b48d827ca726 100644
+--- a/components/components_chromium_strings.grd
++++ b/components/components_chromium_strings.grd
+@@ -196,7 +196,7 @@
+       <if expr="not is_android and not is_ios">
+         <message name="IDS_ERRORPAGES_SUGGESTION_NETWORK_PREDICTION_BODY" desc="When a page fails to load, sometimes we suggest disabling predicting network actions.  These are details below a header for non Android devices.">
+           Go to
+-          the Chromium menu &gt;
++          the Astro menu &gt;
+           <ph name="SETTINGS_TITLE">&lt;span&gt;$1&lt;/span&gt;<ex>Settings</ex></ph>
+           &gt;
+           <ph name="ADVANCED_TITLE">&lt;span&gt;$2&lt;/span&gt;<ex>Under the Hood</ex></ph>
+@@ -205,12 +205,12 @@
+           again for improved performance.
+         </message>
+         <message name="IDS_ERRORPAGES_SUGGESTION_FIREWALL_CONFIG_HEADER" desc="When a webpage fails to load, in some cases we suggest reconfiguring the firewall.  This is a header above some details.">
+-          Allow Chromium to access the network in your firewall or antivirus
++          Allow Astro to access the network in your firewall or antivirus
+           settings.
+         </message>
+       </if>
+       <message name="IDS_ERRORPAGES_SUMMARY_BLOCKED_BY_CLIENT" desc="Summary in the error page when a request is blocked by the browser.">
+-        This page has been blocked by Chromium
++        This page has been blocked by Astro
+       </message>
+       <if expr="is_macosx">
+         <message name="IDS_ERRORPAGES_SUGGESTION_PROXY_DISABLE_PLATFORM" desc="macOS instructions for disabling use of a proxy server.">
+@@ -223,7 +223,7 @@
+       <if expr="is_linux">
+         <message name="IDS_ERRORPAGES_SUGGESTION_PROXY_DISABLE_PLATFORM" desc="Linux instructions for disabling use of a proxy server.">
+           Go to
+-          the Chromium menu &gt;
++          the Astro menu &gt;
+           <ph name="SETTINGS_TITLE">&lt;span&gt;$1&lt;/span&gt;<ex>Settings</ex></ph>
+           &gt;
+           <ph name="SYSTEM_TITLE">&lt;span&gt;$2&lt;/span&gt;<ex>System</ex></ph>
+@@ -235,7 +235,7 @@
+       <if expr="is_win">
+         <message name="IDS_ERRORPAGES_SUGGESTION_PROXY_DISABLE_PLATFORM" desc="Windows instructions for disabling use of a proxy server.">
+           Go to
+-          the Chromium menu &gt;
++          the Astro menu &gt;
+           <ph name="SETTINGS_TITLE">&lt;span&gt;$1&lt;/span&gt;<ex>Settings</ex></ph>
+           &gt;
+           <ph name="SYSTEM_TITLE">&lt;span&gt;$2&lt;/span&gt;<ex>System</ex></ph>
+@@ -246,46 +246,46 @@
+           and deselect &quot;Automatically detect settings&quot;.
+         </message>
+         <message name="IDS_PAYMENTS_AUTOFILL_MANDATORY_REAUTH_PROMPT" desc="Message to be displayed to the user in the device authentication prompt when they click on the mandatory auth toggle on the Payments settings page, irrespective to enable or disable it. When mandatory auth toggle is enabled, we would authenticate the user before autofilling in the payment details.">
+-          Chromium is trying to modify settings for filling payment methods.
++          Astro is trying to modify settings for filling payment methods.
+         </message>
+         <message name="IDS_PAYMENTS_AUTOFILL_EDIT_CARD_MANDATORY_REAUTH_PROMPT" desc="Message to be displayed to the user in the device authentication prompt when they try to edit a local card on the Payments settings page if the mandatory auth toggle is enabled. If the user auth was succesful, we would then show the edit card dialog.">
+-          Chromium is trying to edit payment methods.
++          Astro is trying to edit payment methods.
+         </message>
+       </if>
+ 
+       <!-- About Flags UI -->
+       <if expr="not is_chromeos">
+-        <message name="IDS_FLAGS_UI_RELAUNCH_NOTICE" desc="Notifies the user that they need to relaunch Chromium. Shown next to a button that says 'Relaunch Now'.">
+-          Your changes will take effect the next time you relaunch Chromium.
++        <message name="IDS_FLAGS_UI_RELAUNCH_NOTICE" desc="Notifies the user that they need to relaunch Astro. Shown next to a button that says 'Relaunch Now'.">
++          Your changes will take effect the next time you relaunch Astro.
+         </message>
+       </if>
+       <if expr="is_chromeos">
+-        <message name="IDS_FLAGS_UI_RELAUNCH_NOTICE" desc="Notifies the user that they need to restart ChromiumOS. Shown next to a button that says 'Restart Now'.">
++        <message name="IDS_FLAGS_UI_RELAUNCH_NOTICE" desc="Notifies the user that they need to restart AstroOS. Shown next to a button that says 'Restart Now'.">
+           Your changes will take effect the next time you restart your device.
+         </message>
+       </if>
+ 
+       <!-- chrome://crashes strings -->
+       <message name="IDS_CRASH_DISABLED_MESSAGE" desc="The explanatory message for chrome://crashes when crash reporting is disabled">
+-        Crash reporting is not available in Chromium.
++        Crash reporting is not available in Astro.
+       </message>
+ 
+       <!-- Version UI -->
+-      <message name="IDS_SHORT_PRODUCT_LOGO_ALT_TEXT" desc="Alt text for the Chromium logo image.">
+-        Chromium logo
++      <message name="IDS_SHORT_PRODUCT_LOGO_ALT_TEXT" desc="Alt text for the Astro logo image.">
++        Astro logo
+       </message>
+ 
+       <message name="IDS_VERSION_UI_LICENSE" desc="The label below the copyright message, containing the URLs.">
+-        Chromium is made possible by the <ph name="BEGIN_LINK_CHROMIUM">&lt;a target="_blank" href="$1" aria-description="$3"&gt;</ph>Chromium<ph name="END_LINK_CHROMIUM">&lt;/a&gt;</ph> open source project and other <ph name="BEGIN_LINK_OSS">&lt;a target="_blank" href="$2" aria-description="$3"&gt;</ph>open source software<ph name="END_LINK_OSS">&lt;/a&gt;</ph>.
++        Astro is made possible by the <ph name="BEGIN_LINK_CHROMIUM">&lt;a target="_blank" href="$1" aria-description="$3"&gt;</ph>Chromium<ph name="END_LINK_CHROMIUM">&lt;/a&gt;</ph> open source project and other <ph name="BEGIN_LINK_OSS">&lt;a target="_blank" href="$2" aria-description="$3"&gt;</ph>open source software<ph name="END_LINK_OSS">&lt;/a&gt;</ph>.
+       </message>
+ 
+       <if expr="is_chromeos">
+         <message name="IDS_VERSION_UI_LICENSE_CHROMIUM" desc="The label below the copyright message, containing the link to the Chromium project.">
+-          Chromium is made possible by the <ph name="BEGIN_LINK_CHROMIUM">&lt;a target="_blank" href="$1"&gt;</ph>Chromium<ph name="END_LINK_CHROMIUM">&lt;/a&gt;</ph> open source project.
++          Astro is made possible by the <ph name="BEGIN_LINK_CHROMIUM">&lt;a target="_blank" href="$1"&gt;</ph>Chromium<ph name="END_LINK_CHROMIUM">&lt;/a&gt;</ph> open source project.
+         </message>
+ 
+         <message name="IDS_VERSION_UI_LICENSE_OTHER" desc="The label below the copyright message, containing the link to other open source software.">
+-          Chromium is also made possible by other <ph name="BEGIN_LINK_OSS">&lt;a href='#'&gt;</ph>open source software<ph name="END_LINK_OSS">&lt;/a&gt;</ph>.
++          Astro is also made possible by other <ph name="BEGIN_LINK_OSS">&lt;a href='#'&gt;</ph>open source software<ph name="END_LINK_OSS">&lt;/a&gt;</ph>.
+         </message>
+       </if>
+ 
+@@ -298,24 +298,24 @@
+         </then>
+         <else>
+           <message name="IDS_PAGE_INFO_INTERNAL_PAGE" desc="Message to display in the page info bubble when the page you are on is a chrome:// page or about:something.">
+-            You're viewing a secure Chromium page
++            You're viewing a secure Astro page
+           </message>
+         </else>
+       </if>
+ 
+       <!-- Session Crash -->
+       <message name="IDS_SESSION_CRASHED_VIEW_MESSAGE" desc="Message shown when the last session didn't exit cleanly.">
+-        Chromium didn't shut down correctly.
++        Astro didn't shut down correctly.
+       </message>
+ 
+       <!-- Device Chooser Prompt -->
+       <message name="IDS_BLUETOOTH_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH" desc="Text shown in the Chooser when browser does not have Bluetooth permission. The '&#10;' is a newline character to force the desired line wrapping.">
+-        Chromium needs Bluetooth access to continue &#10; pairing. <ph name="IDS_BLUETOOTH_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK">$1<ex>Open Preferences</ex></ph>
++        Astro needs Bluetooth access to continue &#10; pairing. <ph name="IDS_BLUETOOTH_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK">$1<ex>Open Preferences</ex></ph>
+       </message>
+ 
+       <!-- Internal debug pages disabled interstitial. -->
+       <message name="IDS_INTERNAL_DEBUG_PAGES_DISABLED_BODY" desc="This is the text, with a link, that appears below the heading for the page that appears when the user attempts to load an internal developer debugging page when such pages are disabled by a pref. It instructs the user on how to enable the pref if they wish.">
+-        These pages are intended for use by Chromium developers, and may not be actively maintained or tested. To enable them, navigate to <ph name="BEGIN_LINK">&lt;a href="$1"&gt;</ph>chrome://chrome-urls<ph name="LINK_END">&lt;/a&gt;</ph>, click the button to enable debug pages, and then navigate to this page again.
++        These pages are intended for use by Astro developers, and may not be actively maintained or tested. To enable them, navigate to <ph name="BEGIN_LINK">&lt;a href="$1"&gt;</ph>chrome://chrome-urls<ph name="LINK_END">&lt;/a&gt;</ph>, click the button to enable debug pages, and then navigate to this page again.
+       </message>
+     </messages>
+   </release>
+diff --git a/components/privacy_sandbox_strings.grd b/components/privacy_sandbox_strings.grd
+index 14f41bfac412b..d0a4aed48f189 100644
+--- a/components/privacy_sandbox_strings.grd
++++ b/components/privacy_sandbox_strings.grd
+@@ -308,7 +308,7 @@
+         </then>
+         <else>
+           <message name="IDS_MODE_B_ROLLBACK_DESCRIPTION" desc="Description text on the 3PCD rollback notice. Explains to the user that their settings state has been updated to allow third-party cookies and that this can be changed in settings." formatter_data="android_java">
+-            Your current Chromium settings have been updated to allow websites to access third-party cookies. You can change this setting any time.
++            Your current Astro settings have been updated to allow websites to access third-party cookies. You can change this setting any time.
+           </message>
+         </else>
+       </if>
+@@ -428,13 +428,13 @@
+         </then>
+         <else>
+           <message name="IDS_SETTINGS_SITE_SUGGESTED_ADS_CURRENT_SITES_DESCRIPTION_V2" desc="This string signals to users that they have the ability to block any website they don’t want using their activity. “Auto-deletes” means “automatically deletes”." formatter_data="android_java">
+-            You can block sites you don't want. Chromium also auto-deletes sites from the list that are older than 30 days.
++            You can block sites you don't want. Astro also auto-deletes sites from the list that are older than 30 days.
+           </message>
+           <message name="IDS_SETTINGS_SITE_SUGGESTED_ADS_PAGE_LEARN_MORE_BULLET_3_V2" desc="This string appears in the “More about site-suggested ads” dialog. “Activity data” refers to information about a user's actions or behaviors on the internet.">
+-            Chromium deletes any activity data that you've shared with sites after 30 days. If you visit a site again it may reappear on the list. Learn more about <ph name="BEGIN_LINK1">&lt;a href="$1" aria-description="$2" target="_blank"&gt;</ph>managing your ad privacy in Chromium<ph name="LINK_END1">&lt;/a&gt;</ph>.
++            Astro deletes any activity data that you've shared with sites after 30 days. If you visit a site again it may reappear on the list. Learn more about <ph name="BEGIN_LINK1">&lt;a href="$1" aria-description="$2" target="_blank"&gt;</ph>managing your ad privacy in Astro<ph name="LINK_END1">&lt;/a&gt;</ph>.
+           </message>
+           <message name="IDS_SETTINGS_SITE_SUGGESTED_ADS_PAGE_LEARN_MORE_BULLET_3_V2_CLANK" desc="This string appears in the “More about site-suggested ads” dialog. “Activity data” refers to information about a user's actions or behaviors on the internet." formatter_data="android_java">
+-            Chromium deletes any activity data that you've shared with sites after 30 days. If you visit a site again it may reappear on the list. Learn more about <ph name="BEGIN_LINK">&lt;link&gt;</ph>managing your ad privacy in Chromium<ph name="END_LINK">&lt;/link&gt;</ph>.
++            Astro deletes any activity data that you've shared with sites after 30 days. If you visit a site again it may reappear on the list. Learn more about <ph name="BEGIN_LINK">&lt;link&gt;</ph>managing your ad privacy in Astro<ph name="END_LINK">&lt;/link&gt;</ph>.
+           </message>
+         </else>
+       </if>
+@@ -518,13 +518,13 @@
+         </then>
+         <else>
+           <message name="IDS_SETTINGS_PRIVACY_GUIDE_AD_TOPICS_WHEN_ON_BULLET1" desc="A part of the feature description of Ad Topics card in the Privacy Guide." formatter_data="android_java">
+-            Chromium notes topics of interest based on your recent browsing history. For example, things like Sports, Apparel, and more
++            Astro notes topics of interest based on your recent browsing history. For example, things like Sports, Apparel, and more
+           </message>
+           <message name="IDS_SETTINGS_PRIVACY_GUIDE_AD_TOPICS_WHEN_ON_BULLET3" desc="A part of the feature description of Ad Topics card in the Privacy Guide." formatter_data="android_java">
+-            Chromium auto-deletes ad topics that are older than 4 weeks
++            Astro auto-deletes ad topics that are older than 4 weeks
+           </message>
+           <message name="IDS_SETTINGS_PRIVACY_GUIDE_AD_TOPICS_THINGS_TO_CONSIDER_BULLET1" desc="A part of the things to consider section of the Ad Topics card in the Privacy Guide." formatter_data="android_java">
+-            You can see your ad topics in Chromium settings and block the ones you don't want shared with sites
++            You can see your ad topics in Astro settings and block the ones you don't want shared with sites
+           </message>
+         </else>
+       </if>
+@@ -552,7 +552,7 @@
+         </then>
+         <else>
+           <message name="IDS_SETTINGS_AD_TOPICS_PAGE_ACTIVE_TOPICS_DESCRIPTION" desc="A description that appears beneath the 'Active topics' label." formatter_data="android_java">
+-            Chromium auto-deletes ad topics that are older than 4 weeks
++            Astro auto-deletes ad topics that are older than 4 weeks
+           </message>
+         </else>
+       </if>
+@@ -595,7 +595,7 @@
+         </then>
+         <else>
+           <message name="IDS_SETTINGS_COOKIES_BLOCK_THIRD_PARTY_SETTINGS_ALLOW_BULLET_THREE" desc="This text is for a bullet that provides detail about the first setting option. It describes the key new detail that now applies to this setting option." formatter_data="android_java">
+-            When you're in Incognito mode, Chromium blocks sites from using third-party cookies
++            When you're in Incognito mode, Astro blocks sites from using third-party cookies
+           </message>
+         </else>
+       </if>
+@@ -633,7 +633,7 @@
+         </then>
+         <else>
+           <message name="IDS_PRIVACY_GUIDE_COOKIE_SETTINGS_ALLOW_THINGS_TO_CONSIDER_BULLET_TWO" desc="This text is for a bullet that provides key considerations about the first setting option. It describes the key new detail that now applies to this setting option.">
+-            When you're in Incognito mode, Chromium blocks sites from using third-party cookies
++            When you're in Incognito mode, Astro blocks sites from using third-party cookies
+           </message>
+         </else>
+       </if>

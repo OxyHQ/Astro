@@ -1,18 +1,24 @@
 diff --git a/chrome/app/theme/chromium/BRANDING b/chrome/app/theme/chromium/BRANDING
-index f8363d5b294fe..8025e2f0b032a 100644
+index f8363d5b294fe..a2f39faba9922 100644
 --- a/chrome/app/theme/chromium/BRANDING
 +++ b/chrome/app/theme/chromium/BRANDING
-@@ -1,9 +1,9 @@
- COMPANY_FULLNAME=The Chromium Authors
- COMPANY_SHORTNAME=The Chromium Authors
+@@ -1,10 +1,10 @@
+-COMPANY_FULLNAME=The Chromium Authors
+-COMPANY_SHORTNAME=The Chromium Authors
 -PRODUCT_FULLNAME=Chromium
 -PRODUCT_SHORTNAME=Chromium
 -PRODUCT_INSTALLER_FULLNAME=Chromium Installer
 -PRODUCT_INSTALLER_SHORTNAME=Chromium Installer
+-COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Chromium Authors. All rights reserved.
+-MAC_BUNDLE_ID=org.chromium.Chromium
+-MAC_CREATOR_CODE=Cr24
++COMPANY_FULLNAME=Oxy
++COMPANY_SHORTNAME=Oxy
 +PRODUCT_FULLNAME=Astro
 +PRODUCT_SHORTNAME=Astro
 +PRODUCT_INSTALLER_FULLNAME=Astro Installer
 +PRODUCT_INSTALLER_SHORTNAME=Astro Installer
- COPYRIGHT=Copyright @LASTCHANGE_YEAR@ The Chromium Authors. All rights reserved.
- MAC_BUNDLE_ID=org.chromium.Chromium
- MAC_CREATOR_CODE=Cr24
++COPYRIGHT=Copyright @LASTCHANGE_YEAR@ Oxy. All rights reserved.
++MAC_BUNDLE_ID=so.oxy.Astro
++MAC_CREATOR_CODE=OxAs
+ MAC_TEAM_ID=

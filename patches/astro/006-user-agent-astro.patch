@@ -1,0 +1,26 @@
+diff --git a/components/version_info/version_info_with_user_agent.cc b/components/version_info/version_info_with_user_agent.cc
+index 1bdda99788b59..e293c9e75342c 100644
+--- a/components/version_info/version_info_with_user_agent.cc
++++ b/components/version_info/version_info_with_user_agent.cc
+@@ -10,7 +10,7 @@
+ namespace version_info {
+ 
+ std::string GetProductNameAndVersionForReducedUserAgent() {
+-  return base::StrCat({"Chrome/", GetMajorVersionNumber(), ".0.0.0"});
++  return base::StrCat({"Chrome/", GetMajorVersionNumber(), ".0.0.0 Astro/", GetMajorVersionNumber(), ".0.0.0"});
+ }
+ 
+ }  // namespace version_info
+diff --git a/components/version_info/version_info_with_user_agent.h b/components/version_info/version_info_with_user_agent.h
+index beb5a2c97a796..ded3d431baa5a 100644
+--- a/components/version_info/version_info_with_user_agent.h
++++ b/components/version_info/version_info_with_user_agent.h
+@@ -19,7 +19,7 @@ std::string GetProductNameAndVersionForReducedUserAgent();
+ // Returns the product name and version information for the User-Agent header,
+ // in the format: Chrome/<major_version>.<minor_version>.<build>.<patch>.
+ constexpr std::string_view GetProductNameAndVersionForUserAgent() {
+-  return "Chrome/" PRODUCT_VERSION;
++  return "Chrome/" PRODUCT_VERSION " Astro/" PRODUCT_VERSION;
+ }
+ 
+ }  // namespace version_info
