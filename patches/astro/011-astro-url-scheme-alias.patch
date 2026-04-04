@@ -1,5 +1,5 @@
 diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
-index 08949a69415df..bc7d3f29f6c65 100644
+index 08949a69415df..492b6fb10409b 100644
 --- a/chrome/browser/browser_about_handler.cc
 +++ b/chrome/browser/browser_about_handler.cc
 @@ -9,15 +9,21 @@
@@ -24,7 +24,7 @@ index 08949a69415df..bc7d3f29f6c65 100644
  #include "components/policy/core/browser/url_list/policy_blocklist_service.h"
  #include "components/policy/core/browser/url_list/url_blocklist_manager.h"
  #include "content/public/common/content_features.h"
-@@ -50,6 +56,39 @@ bool HandleChromeAboutAndChromeSyncRewrite(
+@@ -50,6 +56,38 @@ bool HandleChromeAboutAndChromeSyncRewrite(
    DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
           !url->SchemeIs(url::kAboutScheme));
  
@@ -40,8 +40,7 @@ index 08949a69415df..bc7d3f29f6c65 100644
 +      prefs->SetString(oxy::kOxyUserId, params.user_id);
 +      prefs->SetString(oxy::kOxyUsername, params.username);
 +      prefs->SetString(oxy::kOxyUserAvatar, params.avatar_url);
-+      prefs->SetString(oxy::kOxyTokenExpiry,
-+                       base::NumberToString(params.expires_at));
++      prefs->SetString(oxy::kOxyTokenExpiry, params.expires_at);
 +
 +      // Store tokens in encrypted OS credential store
 +      oxy::OxyAuthTokenStore::StoreAccessToken(params.access_token);

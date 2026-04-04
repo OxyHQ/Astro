@@ -1,0 +1,16 @@
+diff --git a/components/omnibox/browser/builtin_provider.cc b/components/omnibox/browser/builtin_provider.cc
+index 04fb056ed1c4c..0d0fe6e784187 100644
+--- a/components/omnibox/browser/builtin_provider.cc
++++ b/components/omnibox/browser/builtin_provider.cc
+@@ -82,7 +82,10 @@ void BuiltinProvider::DoBuiltinAutocompletion(const std::u16string& text) {
+         base::EndsWith(text, u"/", base::CompareCase::SENSITIVE);
+     // BuiltinProvider doesn't know how to suggest valid ?query or #fragment
+     // extensions to builtin URLs.
+-    if (url.SchemeIs(client_->GetEmbedderRepresentationOfAboutScheme()) &&
++    // Astro: FixupURL converts astro:// to chrome:// internally, so
++    // also check for "chrome" scheme in addition to the embedder scheme.
++    if ((url.SchemeIs(client_->GetEmbedderRepresentationOfAboutScheme()) ||
++         url.SchemeIs("chrome")) &&
+         url.has_host() && !url.has_query() && !url.has_ref()) {
+       // Suggest about:blank for substrings, taking URL fixup into account.
+       // Chrome does not support trailing slashes or paths for about:blank.

@@ -1,0 +1,29 @@
+diff --git a/components/error_page/common/localized_error.cc b/components/error_page/common/localized_error.cc
+index 867c3aa7e84c8..62a7f8bcafe39 100644
+--- a/components/error_page/common/localized_error.cc
++++ b/components/error_page/common/localized_error.cc
+@@ -47,10 +47,11 @@ namespace {
+ 
+ // Hardcode these constants to avoid dependences on //chrome and //content.
+ const char kChromeUIScheme[] = "chrome";
++const char kAstroUIScheme[] = "astro";
+ const char kChromeUIDinoHost[] = "dino";
+ 
+ static const char kRedirectLoopLearnMoreUrl[] =
+-    "https://support.google.com/chrome?p=rl_error";
++    "https://support.9oo91e.qjz9zk/chrome?p=rl_error";
+ 
+ enum NAV_SUGGESTIONS {
+   SUGGEST_NONE = 0,
+@@ -1025,8 +1026,10 @@ LocalizedError::PageState LocalizedError::GetPageState(
+ 
+   webui::SetLoadTimeDataDefaults(locale, &result.strings);
+ 
++  // Astro: Accept both chrome://dino and astro://dino for the dino game.
+   bool show_game_instructions = failed_url.GetHost() == kChromeUIDinoHost &&
+-                                failed_url.GetScheme() == kChromeUIScheme;
++                                (failed_url.GetScheme() == kChromeUIScheme ||
++                                 failed_url.GetScheme() == kAstroUIScheme);
+ 
+   // Grab the strings and settings that depend on the error type.  Init
+   // options with default values.
