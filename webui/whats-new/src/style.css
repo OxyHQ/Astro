@@ -87,13 +87,102 @@ html.dark body::before {
     );
 }
 
+/* ── Timeline container ── */
+
+.timeline {
+  position: relative;
+  padding-left: 3rem;
+}
+
+@media (min-width: 640px) {
+  .timeline {
+    padding-left: 3.5rem;
+  }
+}
+
+/* ── Timeline vertical line ── */
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-oxy-border);
+}
+
+/* Drawing animation: the line grows as you scroll */
+.timeline::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0;
+  width: 1px;
+  height: var(--timeline-progress, 0%);
+  background: linear-gradient(
+    to bottom,
+    var(--color-oxy-primary),
+    var(--color-oxy-primary-light)
+  );
+  transition: height 0.3s ease-out;
+}
+
+/* ── Timeline dot ── */
+
+.timeline-dot {
+  position: absolute;
+  left: -3rem;
+  top: 1.75rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-oxy-border);
+  box-shadow: 0 0 0 3px var(--color-oxy-bg);
+  z-index: 2;
+  transition:
+    background-color 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
+@media (min-width: 640px) {
+  .timeline-dot {
+    left: -3.5rem;
+  }
+}
+
+/* When the card is revealed, the dot activates */
+.timeline-dot.active {
+  background: var(--color-oxy-primary);
+  box-shadow: 0 0 0 3px var(--color-oxy-bg);
+}
+
+/* Pulse animation when dot first activates */
+@keyframes dotPulse {
+  0% {
+    box-shadow: 0 0 0 3px var(--color-oxy-bg), 0 0 0 3px rgba(196, 110, 222, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 3px var(--color-oxy-bg), 0 0 0 10px rgba(196, 110, 222, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 3px var(--color-oxy-bg), 0 0 0 10px rgba(196, 110, 222, 0);
+  }
+}
+
+.timeline-dot.pulse {
+  animation: dotPulse 0.8s ease-out forwards;
+}
+
 /* ── Feature card ── */
 
 .feature-card {
+  position: relative;
+  overflow: hidden;
   background: var(--color-oxy-surface);
   border: 1px solid var(--color-oxy-border);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 0;
   transition:
     transform 0.25s cubic-bezier(0.2, 0, 0, 1),
     box-shadow 0.25s ease,
@@ -110,44 +199,118 @@ html.dark .feature-card:hover {
   box-shadow: 0 12px 40px rgba(196, 110, 222, 0.12);
 }
 
-/* ── Feature icon container ── */
+/* Alternating subtle tint on even cards */
+.feature-card:nth-child(even) {
+  background: color-mix(in srgb, var(--color-oxy-surface) 97%, var(--color-oxy-primary) 3%);
+}
+
+html.dark .feature-card:nth-child(even) {
+  background: color-mix(in srgb, var(--color-oxy-surface) 95%, var(--color-oxy-primary) 5%);
+}
+
+/* Gradient accent bar at the top of each card */
+.feature-card-accent {
+  height: 3px;
+  background: linear-gradient(to right, var(--color-oxy-primary), rgba(196, 110, 222, 0.2), transparent);
+  border-radius: 1rem 1rem 0 0;
+}
+
+.feature-card-body {
+  padding: 1.5rem;
+}
+
+/* ── Feature icon badge ── */
 
 .feature-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: rgba(196, 110, 222, 0.08);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(196, 110, 222, 0.1);
   color: var(--color-oxy-primary);
   flex-shrink: 0;
   transition: background-color 0.2s ease;
 }
 
 .feature-card:hover .feature-icon {
-  background: rgba(196, 110, 222, 0.14);
+  background: rgba(196, 110, 222, 0.16);
+}
+
+/* ── NEW badge ── */
+
+.badge-new {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: var(--color-oxy-primary);
+  background: rgba(196, 110, 222, 0.1);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  line-height: 1.4;
+}
+
+/* ── Version badge glow ── */
+
+.version-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  background: rgba(196, 110, 222, 0.1);
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-oxy-primary);
+  border: 1px solid rgba(196, 110, 222, 0.2);
+}
+
+.version-badge::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: 0 0 20px rgba(196, 110, 222, 0.15), 0 0 40px rgba(196, 110, 222, 0.05);
+  pointer-events: none;
+}
+
+html.dark .version-badge::before {
+  box-shadow: 0 0 24px rgba(196, 110, 222, 0.2), 0 0 48px rgba(196, 110, 222, 0.08);
 }
 
 /* ── Get Started button ── */
 
 .btn-primary {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.875rem 2rem;
+  padding: 1rem 2.5rem;
   border-radius: 9999px;
   background: var(--color-oxy-primary);
   color: #ffffff;
   font-weight: 600;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   border: none;
   cursor: pointer;
+  overflow: hidden;
   transition:
     background-color 0.2s ease,
     transform 0.15s ease,
     box-shadow 0.2s ease;
+}
+
+@media (max-width: 639px) {
+  .btn-primary {
+    width: 100%;
+  }
 }
 
 .btn-primary:hover {
@@ -160,23 +323,113 @@ html.dark .feature-card:hover {
   transform: translateY(0) scale(0.98);
 }
 
-/* ── Timeline connector ── */
+/* ── Sparkle / confetti hover effect on button ── */
 
-.timeline-dot {
+.btn-primary .sparkle-container {
   position: absolute;
-  left: -29px;
-  top: 1.75rem;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-oxy-primary);
-  box-shadow: 0 0 0 4px var(--color-oxy-bg);
-  z-index: 1;
-  transition: box-shadow 0.3s ease;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
 }
 
-html.dark .timeline-dot {
-  box-shadow: 0 0 0 4px var(--color-oxy-bg);
+.btn-primary .sparkle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.btn-primary:hover .sparkle {
+  animation: sparkleFloat 0.7s ease-out forwards;
+}
+
+.btn-primary:hover .sparkle:nth-child(1) {
+  left: 15%;
+  bottom: 20%;
+  animation-delay: 0s;
+}
+.btn-primary:hover .sparkle:nth-child(2) {
+  left: 30%;
+  bottom: 10%;
+  animation-delay: 0.08s;
+}
+.btn-primary:hover .sparkle:nth-child(3) {
+  left: 50%;
+  bottom: 25%;
+  animation-delay: 0.15s;
+}
+.btn-primary:hover .sparkle:nth-child(4) {
+  left: 65%;
+  bottom: 15%;
+  animation-delay: 0.05s;
+}
+.btn-primary:hover .sparkle:nth-child(5) {
+  left: 80%;
+  bottom: 20%;
+  animation-delay: 0.12s;
+}
+.btn-primary:hover .sparkle:nth-child(6) {
+  left: 25%;
+  bottom: 30%;
+  animation-delay: 0.18s;
+}
+.btn-primary:hover .sparkle:nth-child(7) {
+  left: 70%;
+  bottom: 30%;
+  animation-delay: 0.1s;
+}
+.btn-primary:hover .sparkle:nth-child(8) {
+  left: 45%;
+  bottom: 15%;
+  animation-delay: 0.2s;
+}
+
+@keyframes sparkleFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.5);
+  }
+}
+
+/* Shimmer sweep on hover */
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.15) 45%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.15) 55%,
+    transparent 70%
+  );
+  transform: translateX(-150%);
+  transition: none;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.btn-primary:hover::after {
+  animation: shimmerSweep 0.6s ease-out forwards;
+}
+
+@keyframes shimmerSweep {
+  to {
+    transform: translateX(150%);
+  }
 }
 
 /* ── Animations ── */
@@ -220,16 +473,6 @@ html.dark .timeline-dot {
   to {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-
-@keyframes pulseGlow {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(196, 110, 222, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 0 8px rgba(196, 110, 222, 0);
   }
 }
 

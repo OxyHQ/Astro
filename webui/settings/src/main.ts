@@ -56,17 +56,11 @@ const SECTION_RENDERERS: Record<string, () => string> = {
 const navList = document.getElementById("nav-list") as HTMLDivElement;
 const sectionsContainer = document.getElementById("sections") as HTMLDivElement;
 const searchInput = document.getElementById("search-input") as HTMLInputElement;
-const searchHint = document.getElementById("search-hint") as HTMLElement;
-const menuBtn = document.getElementById("menu-btn") as HTMLButtonElement;
+const menuBtn = document.getElementById("menu-btn") as HTMLButtonElement | null;
 const sidebar = document.getElementById("sidebar") as HTMLElement;
 const sidebarOverlay = document.getElementById(
   "sidebar-overlay",
 ) as HTMLElement;
-const themeToggle = document.getElementById(
-  "theme-toggle",
-) as HTMLButtonElement;
-const iconSun = document.getElementById("icon-sun") as SVGElement;
-const iconMoon = document.getElementById("icon-moon") as SVGElement;
 
 // ── State ──
 
@@ -80,12 +74,12 @@ function renderNav(): void {
     (item) => `
     <a
       href="#${item.id}"
-      class="sidebar-link flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-oxy-text-secondary ${
+      class="sidebar-link flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-oxy-text-secondary ${
         item.id === activeSection ? "active" : ""
       }"
       data-nav-id="${item.id}"
     >
-      <span class="shrink-0 opacity-80">${item.icon}</span>
+      <span class="shrink-0 opacity-70">${item.icon}</span>
       <span>${item.label}</span>
     </a>
   `,
@@ -238,32 +232,6 @@ function closeSidebar(): void {
   sidebarOverlay.classList.remove("open");
 }
 
-// ── Theme toggle ──
-
-function isDark(): boolean {
-  return document.documentElement.classList.contains("dark");
-}
-
-function applyThemeIcons(): void {
-  iconSun.classList.toggle("hidden", !isDark());
-  iconMoon.classList.toggle("hidden", isDark());
-}
-
-function toggleTheme(): void {
-  const dark = !isDark();
-  document.documentElement.classList.toggle("dark", dark);
-  localStorage.setItem("astro-theme", dark ? "dark" : "light");
-  applyThemeIcons();
-
-  // Also update the theme-mode select if visible
-  const themeSelect = document.querySelector<HTMLSelectElement>(
-    '[data-select-id="theme-mode"]',
-  );
-  if (themeSelect) {
-    themeSelect.value = dark ? "dark" : "light";
-  }
-}
-
 // ── Reset settings ──
 
 function bindResetButton(): void {
@@ -314,7 +282,6 @@ function handleKeyboard(e: KeyboardEvent): void {
 // Render
 renderNav();
 renderAllSections();
-applyThemeIcons();
 
 // Handle initial hash
 const initialHash = window.location.hash.slice(1);
@@ -334,23 +301,12 @@ setupScrollSpy();
 // Event listeners
 document.addEventListener("keydown", handleKeyboard);
 
-searchInput.addEventListener("focus", () => {
-  searchHint?.classList.add("hidden");
-});
-
-searchInput.addEventListener("blur", () => {
-  if (searchInput.value === "") {
-    searchHint?.classList.remove("hidden");
-  }
-});
-
 searchInput.addEventListener("input", () => {
   applySearch(searchInput.value);
 });
 
-menuBtn.addEventListener("click", openSidebar);
+menuBtn?.addEventListener("click", openSidebar);
 sidebarOverlay.addEventListener("click", closeSidebar);
-themeToggle.addEventListener("click", toggleTheme);
 
 // Listen for hash changes
 window.addEventListener("hashchange", () => {
@@ -364,6 +320,5 @@ window.addEventListener("hashchange", () => {
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
   if (!localStorage.getItem("astro-theme")) {
     document.documentElement.classList.toggle("dark", e.matches);
-    applyThemeIcons();
   }
 });

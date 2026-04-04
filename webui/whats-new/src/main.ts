@@ -13,6 +13,8 @@ const getStartedBtn = document.getElementById(
   "get-started-btn",
 ) as HTMLButtonElement;
 
+const timeline = document.getElementById("timeline") as HTMLElement;
+
 // ── Theme ──
 
 function applySystemThemeListener(): void {
@@ -21,6 +23,38 @@ function applySystemThemeListener(): void {
       document.documentElement.classList.toggle("dark", e.matches);
     }
   });
+}
+
+// ── Timeline scroll progress ──
+// Draws the vertical accent line as the user scrolls down
+
+function initTimelineProgress(): void {
+  if (!timeline) return;
+
+  function updateProgress(): void {
+    const rect = timeline.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+
+    // How far the viewport has scrolled into the timeline
+    const timelineTop = rect.top;
+    const timelineHeight = rect.height;
+
+    // Calculate progress: 0 at top of timeline, 100 at bottom
+    const scrolledPast = viewportHeight * 0.5 - timelineTop;
+    const progress = Math.min(
+      100,
+      Math.max(0, (scrolledPast / timelineHeight) * 100),
+    );
+
+    timeline.style.setProperty("--timeline-progress", `${progress}%`);
+  }
+
+  // Use passive scroll listener for performance
+  window.addEventListener("scroll", updateProgress, { passive: true });
+  window.addEventListener("resize", updateProgress, { passive: true });
+
+  // Initial calculation
+  updateProgress();
 }
 
 // ── Scroll-triggered animations (IntersectionObserver) ──
@@ -47,6 +81,18 @@ function initRevealAnimations(): void {
         const el = entry.target as HTMLElement;
         el.style.animationDelay = `${revealedCount * 0.1}s`;
         el.classList.add("visible");
+
+        // Activate the timeline dot when its card is revealed
+        const dot = el.querySelector(".timeline-dot");
+        if (dot) {
+          setTimeout(
+            () => {
+              dot.classList.add("active", "pulse");
+            },
+            revealedCount * 100 + 200,
+          );
+        }
+
         observer.unobserve(el);
         revealedCount++;
       }
@@ -145,6 +191,7 @@ function handleKeyboard(e: KeyboardEvent): void {
 
 applySystemThemeListener();
 initRevealAnimations();
+initTimelineProgress();
 
 // Event listeners
 getStartedBtn.addEventListener("click", handleGetStarted);

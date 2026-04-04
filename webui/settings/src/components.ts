@@ -131,8 +131,8 @@ export function SectionCard(
 ): string {
   return `
     <section id="section-${sectionId}" class="section-card animate-section" data-section="${sectionId}">
-      <div class="border-b border-oxy-border-subtle px-6 py-4">
-        <h2 class="text-base font-semibold text-oxy-text">${title}</h2>
+      <div class="border-b border-oxy-border-subtle px-5 py-3">
+        <h2 class="text-sm font-semibold text-oxy-text">${title}</h2>
       </div>
       ${rows.join("")}
     </section>

@@ -66,20 +66,23 @@ html.dark body {
 .sidebar-link {
   transition:
     background-color 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    border-color 0.15s ease;
+  border-left: 2px solid transparent;
 }
 
 .sidebar-link:hover {
-  background-color: var(--color-oxy-border-subtle);
+  background-color: var(--color-oxy-surface);
 }
 
 .sidebar-link.active {
-  background-color: var(--color-oxy-primary);
-  color: white;
+  border-left-color: var(--color-oxy-primary);
+  color: var(--color-oxy-primary);
+  background-color: rgba(196, 110, 222, 0.05);
 }
 
 .sidebar-link.active:hover {
-  background-color: var(--color-oxy-primary-dark);
+  background-color: rgba(196, 110, 222, 0.08);
 }
 
 /* ── Toggle switch ── */
@@ -204,7 +207,7 @@ html.dark .setting-select {
 .section-card {
   background: var(--color-oxy-surface);
   border: 1px solid var(--color-oxy-border);
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
   transition:
     box-shadow 0.2s ease,
@@ -225,8 +228,8 @@ html.dark .section-card:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
-  gap: 24px;
+  padding: 12px 20px;
+  gap: 20px;
   border-bottom: 1px solid var(--color-oxy-border-subtle);
   transition: background-color 0.1s ease;
 }
@@ -257,6 +260,17 @@ html.dark .setting-row:hover {
 .search-box:focus-within {
   border-color: var(--color-oxy-primary);
   box-shadow: 0 0 0 3px rgba(196, 110, 222, 0.1);
+}
+
+.search-box-sidebar {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.search-box-sidebar:focus-within {
+  border-color: var(--color-oxy-primary);
+  box-shadow: 0 0 0 2px rgba(196, 110, 222, 0.08);
 }
 
 .search-input {
