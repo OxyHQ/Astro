@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/ui/browser_actions.cc b/chrome/browser/ui/browser_actions.cc
+--- a/chrome/browser/ui/browser_actions.cc
++++ b/chrome/browser/ui/browser_actions.cc
+@@ -80,6 +80,7 @@
+ #include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
+ #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
+ #include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
++#include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
+ #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
+ #include "chrome/browser/ui/views/tabs/recent_activity_bubble_dialog_view.h"
+@@ -262,6 +263,15 @@
+                               kActionSidePanelShowMerchantTrust, bwi, false))
+           .Build());
+
++  // Oxy: Register Alia AI side panel action.
++  root_action_item_->AddChild(
++      actions::ActionItem::Builder(
++          CreateToggleSidePanelActionCallback(
++              SidePanelEntryKey(SidePanelEntryId::kAlia), bwi))
++          .SetActionId(kActionSidePanelShowAlia)
++          .SetText(u"Alia")
++          .SetTooltipText(u"Alia AI Assistant")
++          .SetImage(ui::ImageModel::FromVectorIcon(kAliaSparkIcon, ui::kColorIcon))
++          .SetProperty(actions::kActionItemPinnableKey,
++                       std::underlying_type_t<actions::ActionPinnableState>(
++                           actions::ActionPinnableState::kPinnable))
++          .Build());
++
+   if (side_panel::history_clusters::
+           IsHistoryClustersSidePanelSupportedForProfile(profile) &&

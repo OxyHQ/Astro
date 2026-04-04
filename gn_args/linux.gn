@@ -45,6 +45,9 @@ use_system_freetype = false
 use_gnome_keyring = false
 use_sysroot = true
 
+# Hardware acceleration
+use_vaapi = false
+
 # Target
 target_os = "linux"
 target_cpu = "x64"

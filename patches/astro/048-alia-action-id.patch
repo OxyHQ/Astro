@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/ui/actions/chrome_action_id.h b/chrome/browser/ui/actions/chrome_action_id.h
+--- a/chrome/browser/ui/actions/chrome_action_id.h
++++ b/chrome/browser/ui/actions/chrome_action_id.h
+@@ -573,7 +573,9 @@
+   E(kActionSidePanelShowSideSearch) \
+   E(kActionSidePanelShowUserNote) \
+-  E(kActionSidePanelShowMerchantTrust)
++  E(kActionSidePanelShowMerchantTrust) \
++  /* Oxy: Alia AI side panel */ \
++  E(kActionSidePanelShowAlia)
+
+ #define TOOLBAR_PINNABLE_ACTION_IDS \
+   E(kActionHome, IDC_HOME) \

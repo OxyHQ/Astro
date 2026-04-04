@@ -3,6 +3,8 @@
 
 source_set("oxy") {
   sources = [
+    "oxy_alia_side_panel.cc",
+    "oxy_alia_side_panel.h",
     "oxy_auth_callback_handler.cc",
     "oxy_auth_callback_handler.h",
     "oxy_auth_navigation_throttle.cc",
@@ -17,8 +19,8 @@ source_set("oxy") {
 
   deps = [
     "//base",
-    "//chrome/browser/oxy/adblock",
     "//chrome/browser/profiles",
+    "//chrome/browser/ui",
     "//components/keyed_service/core",
     "//components/os_crypt/sync",
     "//components/prefs",
@@ -27,6 +29,8 @@ source_set("oxy") {
     "//net",
     "//services/network/public/cpp",
     "//services/network/public/mojom",
+    "//ui/views",
+    "//ui/views/controls/webview",
     "//url",
   ]
 }

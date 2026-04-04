@@ -4,6 +4,7 @@
 #define CHROME_BROWSER_OXY_OXY_COOKIE_SIGNIN_OBSERVER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/memory/raw_ptr.h"
@@ -54,11 +55,11 @@ class OxyCookieSigninObserver : public KeyedService,
 
   // API calls to fetch user profile and tokens using the session ID.
   void FetchUserProfile(const std::string& session_id);
-  void OnUserProfileFetched(const std::string& session_id,
-                            std::unique_ptr<std::string> response_body);
+  void OnUserProfileFetched(
+                            std::optional<std::string> response_body);
 
   void FetchSessionTokens(const std::string& session_id);
-  void OnSessionTokensFetched(std::unique_ptr<std::string> response_body);
+  void OnSessionTokensFetched(std::optional<std::string> response_body);
 
   raw_ptr<Profile> profile_;
   mojo::Receiver<network::mojom::CookieChangeListener> receiver_{this};
@@ -66,6 +67,7 @@ class OxyCookieSigninObserver : public KeyedService,
   // Loaders are kept alive until their callbacks fire.
   std::unique_ptr<network::SimpleURLLoader> user_profile_loader_;
   std::unique_ptr<network::SimpleURLLoader> session_tokens_loader_;
+  std::string pending_session_id_;
 
   base::WeakPtrFactory<OxyCookieSigninObserver> weak_factory_{this};
 };

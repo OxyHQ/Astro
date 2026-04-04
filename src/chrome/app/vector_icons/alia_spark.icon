@@ -1,0 +1,19 @@
+// Copyright 2026 Oxy. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+//
+// Alia AI assistant icon — a four-pointed spark/star shape.
+// Represents the Alia AI side panel in Astro browser.
+
+CANVAS_DIMENSIONS, 24,
+FILL_RULE_NONZERO,
+// Four-pointed spark centered at (12, 12)
+MOVE_TO, 12, 2,
+R_CUBIC_TO, 0.28f, 2.8f, 1.4f, 5.6f, 3.2f, 7.4f,
+R_CUBIC_TO, 1.8f, 1.8f, 4.6f, 2.92f, 7.4f, 3.2f,
+R_CUBIC_TO, -2.8f, 0.28f, -5.6f, 1.4f, -7.4f, 3.2f,
+R_CUBIC_TO, -1.8f, 1.8f, -2.92f, 4.6f, -3.2f, 7.4f,
+R_CUBIC_TO, -0.28f, -2.8f, -1.4f, -5.6f, -3.2f, -7.4f,
+R_CUBIC_TO, -1.8f, -1.8f, -4.6f, -2.92f, -7.4f, -3.2f,
+R_CUBIC_TO, 2.8f, -0.28f, 5.6f, -1.4f, 7.4f, -3.2f,
+R_CUBIC_TO, 1.8f, -1.8f, 2.92f, -4.6f, 3.2f, -7.4f,
+CLOSE

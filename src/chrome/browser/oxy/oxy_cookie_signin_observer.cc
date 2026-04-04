@@ -157,6 +157,7 @@ void OxyCookieSigninObserver::HandleOxySessionCookie(
   prefs->SetString(kOxySessionId, session_id);
 
   // Fetch the user profile from the API to complete the sign-in.
+  pending_session_id_ = session_id;
   FetchUserProfile(session_id);
 }
 
@@ -189,24 +190,23 @@ void OxyCookieSigninObserver::FetchUserProfile(
   user_profile_loader_->DownloadToString(
       url_loader_factory,
       base::BindOnce(&OxyCookieSigninObserver::OnUserProfileFetched,
-                     weak_factory_.GetWeakPtr(), session_id),
+                     weak_factory_.GetWeakPtr()),
       kMaxResponseBodySize);
 }
 
 void OxyCookieSigninObserver::OnUserProfileFetched(
-    const std::string& session_id,
-    std::unique_ptr<std::string> response_body) {
+    std::optional<std::string> response_body) {
   // Release the loader now that the request is complete.
   user_profile_loader_.reset();
 
-  if (!response_body) {
+  if (!response_body.has_value()) {
     LOG(WARNING) << "Oxy: Failed to fetch user profile (no response)";
     return;
   }
 
   // Parse the JSON response.
   // The API returns { data: { _id, username, email, avatar, name, ... } }
-  auto json = base::JSONReader::Read(*response_body, base::JSON_PARSE_RFC);
+  auto json = base::JSONReader::Read(response_body.value(), base::JSON_PARSE_RFC);
   if (!json || !json->is_dict()) {
     LOG(WARNING) << "Oxy: Failed to parse user profile response";
     return;
@@ -215,7 +215,7 @@ void OxyCookieSigninObserver::OnUserProfileFetched(
   const auto& root = json->GetDict();
 
   // The API wraps the user object in a "data" field.
-  const base::Value::Dict* user_dict = root.FindDict("data");
+  const base::DictValue* user_dict = root.FindDict("data");
   if (!user_dict) {
     // Fall back to reading directly from root if no wrapper.
     user_dict = &root;
@@ -249,7 +249,7 @@ void OxyCookieSigninObserver::OnUserProfileFetched(
             << " (cookie-based flow)";
 
   // Now fetch the access/refresh tokens for authenticated API requests.
-  FetchSessionTokens(session_id);
+  FetchSessionTokens(pending_session_id_);
 }
 
 // --------------------------------------------------------------------------
@@ -284,23 +284,23 @@ void OxyCookieSigninObserver::FetchSessionTokens(
 }
 
 void OxyCookieSigninObserver::OnSessionTokensFetched(
-    std::unique_ptr<std::string> response_body) {
+    std::optional<std::string> response_body) {
   // Release the loader.
   session_tokens_loader_.reset();
 
-  if (!response_body) {
+  if (!response_body.has_value()) {
     LOG(WARNING) << "Oxy: Failed to fetch session tokens (no response)";
     return;
   }
 
-  auto json = base::JSONReader::Read(*response_body, base::JSON_PARSE_RFC);
+  auto json = base::JSONReader::Read(response_body.value(), base::JSON_PARSE_RFC);
   if (!json || !json->is_dict()) {
     LOG(WARNING) << "Oxy: Failed to parse session tokens response";
     return;
   }
 
   const auto& root = json->GetDict();
-  const base::Value::Dict* data = root.FindDict("data");
+  const base::DictValue* data = root.FindDict("data");
   if (!data) {
     data = &root;
   }
