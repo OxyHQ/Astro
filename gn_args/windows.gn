@@ -1,0 +1,44 @@
+# Astro by Oxy - Windows Release Build
+# De-Googled Chromium with Oxy integration
+
+# Branding
+google_chrome_branding = false
+is_official_build = true
+chrome_pgo_phase = 0
+
+# De-Google flags (from ungoogled-chromium + Astro additions)
+build_with_tflite_lib = false
+clang_use_chrome_plugins = false
+disable_fieldtrial_testing_config = true
+enable_hangout_services_extension = false
+enable_mdns = false
+enable_nacl = false
+enable_remoting = false
+enable_reporting = false
+enable_service_discovery = false
+enable_supervised_users = false
+enable_widevine = true
+exclude_unwind_tables = true
+safe_browsing_mode = 0
+treat_warnings_as_errors = false
+use_official_google_api_keys = false
+use_unofficial_version_number = false
+google_api_key = ""
+google_default_client_id = ""
+google_default_client_secret = ""
+
+# Build optimization
+is_debug = false
+symbol_level = 0
+blink_symbol_level = 0
+enable_iterator_debugging = false
+is_component_build = false
+use_lld = true
+
+# Proprietary codecs (media playback)
+proprietary_codecs = true
+ffmpeg_branding = "Chrome"
+
+# Windows target
+target_os = "win"
+target_cpu = "x64"
