@@ -1,0 +1,13 @@
+diff --git a/chrome/browser/autocomplete/chrome_autocomplete_provider_client.cc b/chrome/browser/autocomplete/chrome_autocomplete_provider_client.cc
+index c7cbf975e1aa7..ba68b2b322355 100644
+--- a/chrome/browser/autocomplete/chrome_autocomplete_provider_client.cc
++++ b/chrome/browser/autocomplete/chrome_autocomplete_provider_client.cc
+@@ -374,7 +374,7 @@ std::string ChromeAutocompleteProviderClient::GetAcceptLanguages() const {
+ std::string
+ ChromeAutocompleteProviderClient::GetEmbedderRepresentationOfAboutScheme()
+     const {
+-  return content::kChromeUIScheme;
++  return "astro";
+ }
+ 
+ std::vector<std::u16string> ChromeAutocompleteProviderClient::GetBuiltinURLs() {

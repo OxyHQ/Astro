@@ -1,0 +1,18 @@
+diff --git a/components/omnibox/browser/location_bar_model_impl.cc b/components/omnibox/browser/location_bar_model_impl.cc
+index b0ee27ccb439a..b5b22d810a79c 100644
+--- a/components/omnibox/browser/location_bar_model_impl.cc
++++ b/components/omnibox/browser/location_bar_model_impl.cc
+@@ -120,6 +120,13 @@ std::u16string LocationBarModelImpl::GetFormattedURL(
+ 
+   GURL url(GetURL());
+ 
++  // Astro: Display astro:// instead of chrome:// in the omnibox
++  if (url.SchemeIs("chrome")) {
++    GURL::Replacements replacements;
++    replacements.SetSchemeStr("astro");
++    url = url.ReplaceComponents(replacements);
++  }
++
+ #if BUILDFLAG(IS_IOS)
+   // On iOS, the blob: display URLs should be simply the domain name. However,
+   // url_formatter parses everything past blob: as path, not domain, so swap
