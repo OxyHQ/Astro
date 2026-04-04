@@ -2,6 +2,10 @@
 
 #include "chrome/browser/oxy/oxy_auth_navigation_throttle.h"
 
+#include <algorithm>
+
+#include "base/base64.h"
+#include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "chrome/browser/oxy/oxy_auth_callback_handler.h"
 #include "chrome/browser/oxy/oxy_auth_token_store.h"
@@ -55,6 +59,38 @@ OxyAuthNavigationThrottle::CheckForAuthCallback() {
   auto params = ParseOxyAuthCallback(url);
   if (!params.is_valid) {
     return content::NavigationThrottle::PROCEED;
+  }
+
+  // If user_id not in URL params, extract from JWT access_token.
+  if (params.user_id.empty() && !params.access_token.empty()) {
+    // JWT format: header.payload.signature (base64url encoded)
+    size_t first_dot = params.access_token.find('.');
+    size_t second_dot = params.access_token.find('.', first_dot + 1);
+    if (first_dot != std::string::npos && second_dot != std::string::npos) {
+      std::string payload_b64 = params.access_token.substr(
+          first_dot + 1, second_dot - first_dot - 1);
+      // Base64url to base64.
+      std::replace(payload_b64.begin(), payload_b64.end(), '-', '+');
+      std::replace(payload_b64.begin(), payload_b64.end(), '_', '/');
+      // Pad if needed.
+      while (payload_b64.size() % 4 != 0)
+        payload_b64 += '=';
+
+      std::string payload;
+      if (base::Base64Decode(payload_b64, &payload)) {
+        auto json = base::JSONReader::Read(payload, base::JSON_PARSE_RFC);
+        if (json && json->is_dict()) {
+          const std::string* user_id =
+              json->GetDict().FindString("userId");
+          if (user_id)
+            params.user_id = *user_id;
+          const std::string* session_id =
+              json->GetDict().FindString("sessionId");
+          if (session_id && params.session_id.empty())
+            params.session_id = *session_id;
+        }
+      }
+    }
   }
 
   // Get profile and store tokens.

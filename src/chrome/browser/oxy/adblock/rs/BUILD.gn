@@ -1,0 +1,33 @@
+# Copyright 2026 Oxy. All rights reserved.
+# Use of this source code is governed by a BSD-style license.
+
+import("//build/rust/rust_static_library.gni")
+
+rust_static_library("adblock_engine_ffi") {
+  crate_name = "astro_adblock_ffi"
+  crate_root = "src/lib.rs"
+  allow_unsafe = true
+  edition = "2021"
+
+  sources = [
+    "src/convert.rs",
+    "src/engine.rs",
+    "src/filter_set.rs",
+    "src/lib.rs",
+    "src/result.rs",
+  ]
+
+  visibility = [ "//chrome/browser/oxy/adblock:*" ]
+
+  cxx_bindings = [ "src/lib.rs" ]
+
+  deps = [
+    "//third_party/rust/adblock/v0_9:lib",
+    "//third_party/rust/serde_json/v1:lib",
+  ]
+
+  features = [
+    "css-validation",
+    "full-regex-handling",
+  ]
+}

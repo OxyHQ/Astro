@@ -1,0 +1,38 @@
+# Copyright 2026 Oxy. All rights reserved.
+# Use of this source code is governed by a BSD-style license.
+
+source_set("adblock") {
+  sources = [
+    "adblock_domain_resolver.cc",
+    "adblock_domain_resolver.h",
+    "astro_adblock_engine.cc",
+    "astro_adblock_engine.h",
+    "astro_adblock_resource_type.cc",
+    "astro_adblock_resource_type.h",
+    "astro_adblock_service.cc",
+    "astro_adblock_service.h",
+    "astro_adblock_service_factory.cc",
+    "astro_adblock_service_factory.h",
+    "astro_adblock_url_loader_throttle.cc",
+    "astro_adblock_url_loader_throttle.h",
+  ]
+
+  deps = [
+    "rs:adblock_engine_ffi",
+    "//base",
+    "//chrome/browser/profiles",
+    "//chrome/browser/profiles:profile",
+    "//components/keyed_service/content",
+    "//components/keyed_service/core",
+    "//components/prefs",
+    "//content/public/browser",
+    "//net",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+    "//third_party/blink/public/common",
+    "//url",
+  ]
+
+  # Pull in CXX-generated headers from the Rust FFI bridge.
+  public_deps = [ "rs:adblock_engine_ffi_cxx_generated_gen" ]
+}
