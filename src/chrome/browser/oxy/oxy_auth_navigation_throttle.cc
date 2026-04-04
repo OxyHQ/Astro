@@ -18,7 +18,7 @@ namespace oxy {
 void OxyAuthNavigationThrottle::MaybeCreateAndAdd(
     content::NavigationThrottleRegistry& registry) {
   const GURL& url = registry.GetNavigationHandle().GetURL();
-  if (IsOxyAuthCallback(url)) {
+  if (IsOxyAuthCallback(url) || (url.SchemeIs("https") && url.host() == "auth.oxy.so")) {
     registry.AddThrottle(
         std::make_unique<OxyAuthNavigationThrottle>(registry));
   }
