@@ -1,5 +1,5 @@
 diff --git a/components/error_page/common/localized_error.cc b/components/error_page/common/localized_error.cc
-index 867c3aa7e84c8..62a7f8bcafe39 100644
+index 867c3aa7e84c8..43f0e1875ae0e 100644
 --- a/components/error_page/common/localized_error.cc
 +++ b/components/error_page/common/localized_error.cc
 @@ -47,10 +47,11 @@ namespace {
@@ -27,3 +27,37 @@ index 867c3aa7e84c8..62a7f8bcafe39 100644
  
    // Grab the strings and settings that depend on the error type.  Init
    // options with default values.
+@@ -1063,8 +1066,15 @@ LocalizedError::PageState LocalizedError::GetPageState(
+     options.suggestions &= ~SUGGEST_CONTACT_ADMINISTRATOR;
+   }
+ 
++  // Astro: Display astro:// instead of chrome:// in error pages.
++  GURL display_url = failed_url;
++  if (failed_url.SchemeIs(kChromeUIScheme)) {
++    GURL::Replacements replacements;
++    replacements.SetSchemeStr(kAstroUIScheme);
++    display_url = failed_url.ReplaceComponents(replacements);
++  }
+   std::u16string failed_url_string(url_formatter::FormatUrl(
+-      failed_url, url_formatter::kFormatUrlOmitNothing,
++      display_url, url_formatter::kFormatUrlOmitNothing,
+       base::UnescapeRule::NORMAL, nullptr, nullptr, nullptr));
+   // URLs are always LTR.
+   if (base::i18n::IsRTL())
+@@ -1227,8 +1237,15 @@ LocalizedError::PageState LocalizedError::GetPageStateForOverriddenErrorPage(
+     result.strings.Set("title",
+                        url_formatter::IDNToUnicode(failed_url.GetHost()));
+   } else {
++    // Astro: Display astro:// instead of chrome:// in error pages.
++    GURL error_display_url = failed_url;
++    if (failed_url.SchemeIs(kChromeUIScheme)) {
++      GURL::Replacements replacements;
++      replacements.SetSchemeStr(kAstroUIScheme);
++      error_display_url = failed_url.ReplaceComponents(replacements);
++    }
+     std::u16string failed_url_string(url_formatter::FormatUrl(
+-        failed_url, url_formatter::kFormatUrlOmitNothing,
++        error_display_url, url_formatter::kFormatUrlOmitNothing,
+         base::UnescapeRule::NORMAL, nullptr, nullptr, nullptr));
+     // URLs are always LTR.
+     if (base::i18n::IsRTL())

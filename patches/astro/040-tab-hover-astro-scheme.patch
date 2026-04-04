@@ -1,0 +1,22 @@
+diff --git a/chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.cc b/chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.cc
+index 61d463e5e6e68..7a4169a69cb2f 100644
+--- a/chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.cc
++++ b/chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.cc
+@@ -610,6 +610,17 @@ void TabHoverCardBubbleView::UpdateCardContent(
+   title_label_->SetData({title, is_filename});
+   domain_label_->SetData({domain, false, gfx::ELIDE_HEAD});
+ 
++  // Astro: Replace chrome:// with astro:// in domain label for consistency.
++  {
++    static const std::u16string kChrome = u"chrome://";
++    static const std::u16string kAstro = u"astro://";
++    auto domain_text = std::u16string(domain_label_->GetText());
++    if (domain_text.find(kChrome) == 0) {
++      domain_text.replace(0, kChrome.size(), kAstro);
++      domain_label_->SetData({domain_text, /*is_filename*/ false});
++    }
++  }
++
+   CollaborationMessagingRowData collaboration_messaging_data =
+       GetCollaborationMessagingData(tab_data);
+   bool show_collaboration_messaging =
