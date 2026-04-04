@@ -3,6 +3,7 @@
 
 source_set("adblock") {
   sources = [
+    # Phase 1: Core engine + network blocking
     "adblock_domain_resolver.cc",
     "adblock_domain_resolver.h",
     "astro_adblock_engine.cc",
@@ -15,6 +16,26 @@ source_set("adblock") {
     "astro_adblock_service_factory.h",
     "astro_adblock_url_loader_throttle.cc",
     "astro_adblock_url_loader_throttle.h",
+
+    # Phase 2: Cosmetic filtering + blocked count
+    "astro_adblock_tab_helper.cc",
+    "astro_adblock_tab_helper.h",
+
+    # Phase 3: UI (toolbar button, bubble, settings WebUI)
+    "astro_adblock_bubble_view.cc",
+    "astro_adblock_bubble_view.h",
+    "astro_adblock_toolbar_button.cc",
+    "astro_adblock_toolbar_button.h",
+    "webui/astro_adblock_ui.cc",
+    "webui/astro_adblock_ui.h",
+    "webui/astro_adblock_ui_handler.cc",
+    "webui/astro_adblock_ui_handler.h",
+
+    # Phase 4: Filter list auto-update
+    "astro_adblock_filter_list_catalog.cc",
+    "astro_adblock_filter_list_catalog.h",
+    "astro_adblock_filter_list_updater.cc",
+    "astro_adblock_filter_list_updater.h",
   ]
 
   deps = [
@@ -22,14 +43,19 @@ source_set("adblock") {
     "//base",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui",
     "//components/keyed_service/content",
     "//components/keyed_service/core",
     "//components/prefs",
+    "//components/vector_icons",
     "//content/public/browser",
     "//net",
     "//services/network/public/cpp",
     "//services/network/public/mojom",
     "//third_party/blink/public/common",
+    "//ui/base",
+    "//ui/gfx",
+    "//ui/views",
     "//url",
   ]
 

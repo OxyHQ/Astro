@@ -1,0 +1,28 @@
+diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+--- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
++++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+@@ -20,6 +20,7 @@
+ #include "chrome/browser/ui/webui/accessibility/accessibility_ui.h"
+ #include "chrome/browser/ui/webui/autofill_and_password_manager_internals/autofill_internals_ui.h"
+ #include "chrome/browser/ui/webui/autofill_and_password_manager_internals/password_manager_internals_ui.h"
++#include "chrome/browser/oxy/adblock/webui/astro_adblock_ui.h"
+ #include "chrome/browser/ui/webui/bluetooth_internals/bluetooth_internals_ui.h"
+ #include "chrome/browser/ui/webui/browsing_topics/browsing_topics_internals_ui.h"
+ #include "chrome/browser/ui/webui/chrome_urls/chrome_urls_ui.h"
+@@ -150,6 +151,7 @@
+ void RegisterChromeWebUIConfigs() {
+   auto& map = content::WebUIConfigMap::GetInstance();
+
++  map.AddWebUIConfig(std::make_unique<oxy::adblock::AstroAdBlockUIConfig>());
+   map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
+   map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
+   map.AddWebUIConfig(
+@@ -180,6 +182,7 @@
+--- a/chrome/browser/prefs/browser_prefs.cc
++++ b/chrome/browser/prefs/browser_prefs.cc
+@@ -1727,6 +1727,7 @@
+   registry->RegisterBooleanPref("oxy.adblock.enabled", true);
+   registry->RegisterDictionaryPref("oxy.adblock.site_overrides");
++  registry->RegisterStringPref("oxy.adblock.custom_rules", "");
+
+   dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
