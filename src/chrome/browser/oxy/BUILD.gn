@@ -17,6 +17,7 @@ source_set("oxy") {
 
   deps = [
     "//base",
+    "//chrome/browser/oxy/adblock",
     "//chrome/browser/profiles",
     "//components/keyed_service/core",
     "//components/os_crypt/sync",
@@ -24,6 +25,7 @@ source_set("oxy") {
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//net",
+    "//services/network/public/cpp",
     "//services/network/public/mojom",
     "//url",
   ]

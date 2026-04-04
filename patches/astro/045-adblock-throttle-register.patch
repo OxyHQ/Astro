@@ -1,0 +1,32 @@
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -5,6 +5,8 @@
+ #include "chrome/browser/chrome_content_browser_client.h"
+
+ #include <algorithm>
++#include "chrome/browser/oxy/adblock/astro_adblock_service_factory.h"
++#include "chrome/browser/oxy/adblock/astro_adblock_url_loader_throttle.h"
+ #include <functional>
+ #include <iterator>
+ #include <map>
+@@ -5913,6 +5915,17 @@
+   if (signin_throttle) {
+     result.push_back(std::move(signin_throttle));
+   }
+
++  // Astro: Built-in ad and tracker blocking.
++  if (auto* adblock_service =
++          oxy::adblock::AstroAdBlockServiceFactory::GetForProfile(profile)) {
++    GURL tab_url;
++    if (auto* wc = wc_getter.Run()) {
++      tab_url = wc->GetLastCommittedURL();
++    }
++    if (auto throttle = oxy::adblock::AstroAdBlockURLLoaderThrottle::MaybeCreate(
++            adblock_service, tab_url)) {
++      result.push_back(std::move(throttle));
++    }
++  }
++
+   return result;
+ }

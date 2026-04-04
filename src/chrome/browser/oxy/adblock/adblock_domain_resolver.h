@@ -6,10 +6,7 @@
 
 #include <string>
 
-// Forward-declare the CXX-generated struct.
-namespace oxy::adblock {
-struct DomainPosition;
-}
+#include "chrome/browser/oxy/adblock/rs/src/lib.rs.h"
 
 namespace oxy::adblock {
 

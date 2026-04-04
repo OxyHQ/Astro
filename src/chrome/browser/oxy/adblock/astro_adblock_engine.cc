@@ -61,12 +61,15 @@ bool AstroAdBlockEngine::LoadFromCache(const base::FilePath& cache_path) {
     return false;
   }
 
+  // Create a fresh engine for deserialization to avoid state contamination.
+  auto fresh_engine = new_engine();
   std::vector<uint8_t> bytes(data.begin(), data.end());
-  if (!engine_deserialize(*engine_, bytes)) {
+  if (!engine_deserialize(*fresh_engine, bytes)) {
     LOG(WARNING) << "Failed to deserialize ad block engine cache";
     return false;
   }
 
+  engine_ = std::move(fresh_engine);
   is_ready_ = true;
   LOG(INFO) << "Astro ad block engine loaded from cache ("
             << data.size() << " bytes)";
