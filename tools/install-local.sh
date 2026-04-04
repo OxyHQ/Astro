@@ -39,11 +39,8 @@ if [[ -f "$ICON_SRC" ]] && command -v convert &>/dev/null; then
             convert "$ICON_SRC" -resize "${size}x${size}" "$icon_dir/astro-browser.png"
         fi
     done
-    # Also install SVG if available
-    if [[ -f "$PROJECT_ROOT/branding/astro-logo.svg" ]]; then
-        mkdir -p "$ICON_BASE/scalable/apps"
-        cp "$PROJECT_ROOT/branding/astro-logo.svg" "$ICON_BASE/scalable/apps/astro-browser.svg"
-    fi
+    # Note: astro-logo.svg is the icon symbol only, not the full app logo.
+    # GNOME prefers scalable SVG over PNG, so we don't install it as the app icon.
 elif [[ -f "$ICON_SRC" ]]; then
     echo "  Installing icon (512px only, install imagemagick for all sizes)..."
     mkdir -p "$ICON_BASE/512x512/apps"
