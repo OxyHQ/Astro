@@ -1,0 +1,22 @@
+diff --git a/chrome/browser/resources/new_tab_page/logo.ts b/chrome/browser/resources/new_tab_page/logo.ts
+index 2b3b9a41d197b..19bb533016416 100644
+--- a/chrome/browser/resources/new_tab_page/logo.ts
++++ b/chrome/browser/resources/new_tab_page/logo.ts
+@@ -23,7 +23,7 @@ import {NewTabPageProxy} from './new_tab_page_proxy.js';
+ import {$$} from './utils.js';
+ import {WindowProxy} from './window_proxy.js';
+ 
+-// Shows the Google logo or a doodle if available.
++// Shows the Astro logo or a doodle if available.
+ export class LogoElement extends CrLitElement {
+   static get is() {
+     return 'ntp-logo';
+@@ -40,7 +40,7 @@ export class LogoElement extends CrLitElement {
+   static override get properties() {
+     return {
+       /**
+-       * If true displays the Google logo single-colored.
++       * If true displays the logo single-colored.
+        */
+       singleColored: {
+         reflect: true,

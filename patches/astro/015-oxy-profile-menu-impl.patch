@@ -1,0 +1,136 @@
+diff --git a/chrome/browser/ui/views/profiles/profile_menu_view.cc b/chrome/browser/ui/views/profiles/profile_menu_view.cc
+index 45a1311ce508b..acd73dbfd1dc9 100644
+--- a/chrome/browser/ui/views/profiles/profile_menu_view.cc
++++ b/chrome/browser/ui/views/profiles/profile_menu_view.cc
+@@ -85,7 +85,6 @@
+ #include "components/signin/core/browser/signin_error_controller.h"
+ #include "components/signin/public/base/consent_level.h"
+ #include "components/signin/public/base/signin_metrics.h"
+-#include "components/signin/public/base/signin_pref_names.h"
+ #include "components/signin/public/base/signin_switches.h"
+ #include "components/signin/public/identity_manager/account_info.h"
+ #include "components/signin/public/identity_manager/identity_manager.h"
+@@ -96,6 +95,7 @@
+ #include "components/vector_icons/vector_icons.h"
+ #include "device/fido/public/features.h"
+ #include "net/base/url_util.h"
++#include "url/gurl.h"
+ #include "ui/base/interaction/element_tracker.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/models/image_model.h"
+@@ -121,6 +121,10 @@
+ #include "chrome/browser/web_applications/os_integration/mac/app_shim_registry.h"
+ #endif
+ 
++// Oxy authentication integration
++#include "chrome/browser/oxy/oxy_auth_service.h"
++#include "chrome/browser/oxy/oxy_auth_token_store.h"
++
+ namespace {
+ 
+ std::u16string GetSyncErrorButtonText(
+@@ -1017,9 +1021,7 @@ void ProfileMenuView::MaybeBuildChromeAccountSettingsButtonWithSync() {
+   // Show the settings button when signed in to Chrome or to the web, or if
+   // signin is disallowed.
+   const bool should_show_settings_button =
+-      !identity_manager->GetExtendedAccountInfoForAccountsWithRefreshToken()
+-           .empty() ||
+-      !profile().GetPrefs()->GetBoolean(prefs::kSigninAllowed);
++      false;
+   if (!should_show_settings_button) {
+     return;
+   }
+@@ -1041,25 +1043,6 @@ void ProfileMenuView::MaybeBuildChromeAccountSettingsButtonWithSync() {
+ }
+ 
+ void ProfileMenuView::MaybeBuildGoogleServicesSettingsButton() {
+-  CHECK(!profile().IsGuestSession());
+-
+-  signin::IdentityManager* identity_manager =
+-      IdentityManagerFactory::GetForProfile(&profile());
+-
+-  if (!identity_manager) {
+-    return;
+-  }
+-
+-  // Show the services settings button  if signin is disallowed.
+-  if (profile().GetPrefs()->GetBoolean(prefs::kSigninAllowed)) {
+-    return;
+-  }
+-  AddFeatureButton(
+-      l10n_util::GetStringUTF16(IDS_PROFILE_MENU_OPEN_ACCOUNT_SETTINGS),
+-      base::BindRepeating(
+-          &ProfileMenuView::OnGoogleServicesSettingsButtonClicked,
+-          base::Unretained(this)),
+-      vector_icons::kSettingsChromeRefreshIcon);
+ }
+ 
+ void ProfileMenuView::MaybeBuildManageGoogleAccountButton() {
+@@ -1176,6 +1159,8 @@ void ProfileMenuView::BuildFeatureButtons() {
+   CHECK(!profile().IsGuestSession());
+   signin::IdentityManager* identity_manager =
+       IdentityManagerFactory::GetForProfile(&profile());
++  // Oxy sign-in button (shown before other feature buttons).
++  BuildOxySignInButton();
+   // May add the button asynchronously, order is not be guaranteed.
+   MaybeBuildBatchUploadButton();
+   BuildAutofillSettingsButton();
+@@ -1249,6 +1234,58 @@ void ProfileMenuView::BuildOtherProfilesSection(
+   }
+ }
+ 
++void ProfileMenuView::BuildOxySignInButton() {
++  PrefService* prefs = profile().GetPrefs();
++  std::string oxy_username = prefs->GetString(oxy::kOxyUsername);
++  std::string oxy_user_id = prefs->GetString(oxy::kOxyUserId);
++
++  if (oxy_user_id.empty()) {
++    // Not signed in to Oxy: show "Sign in with Oxy" button.
++    AddFeatureButton(
++        u"Sign in with Oxy",
++        base::BindRepeating(&ProfileMenuView::OnOxySignInButtonClicked,
++                            base::Unretained(this)),
++        vector_icons::kSettingsChromeRefreshIcon);
++  } else {
++    // Signed in to Oxy: show username and sign-out option.
++    std::u16string label =
++        u"Oxy \u00B7 " + base::UTF8ToUTF16(oxy_username);
++    AddFeatureButton(
++        label,
++        base::BindRepeating(&ProfileMenuView::OnOxySignOutButtonClicked,
++                            base::Unretained(this)),
++        vector_icons::kSettingsChromeRefreshIcon);
++  }
++}
++
++void ProfileMenuView::OnOxySignInButtonClicked() {
++  // Build the Oxy auth URL from constants defined in oxy_auth_service.h.
++  GURL auth_url(std::string(oxy::kOxyAuthUrl) + "/login");
++  auth_url = net::AppendQueryParameter(auth_url, "client_id", "astro-browser");
++  auth_url = net::AppendQueryParameter(auth_url, "redirect_uri",
++                                       "astro://auth/callback");
++  auth_url = net::AppendQueryParameter(auth_url, "response_type", "token");
++
++  // Open in a new foreground tab.
++  NavigateParams params(&browser(), auth_url, ui::PAGE_TRANSITION_LINK);
++  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
++  Navigate(&params);
++}
++
++void ProfileMenuView::OnOxySignOutButtonClicked() {
++  // Clear stored tokens and user prefs.
++  oxy::OxyAuthTokenStore::ClearTokens();
++  PrefService* prefs = profile().GetPrefs();
++  prefs->ClearPref(oxy::kOxySessionId);
++  prefs->ClearPref(oxy::kOxyUserId);
++  prefs->ClearPref(oxy::kOxyUsername);
++  prefs->ClearPref(oxy::kOxyUserAvatar);
++  prefs->ClearPref(oxy::kOxyTokenExpiry);
++
++  // Close the menu so it rebuilds on next open.
++  GetWidget()->CloseWithReason(views::Widget::ClosedReason::kUnspecified);
++}
++
+ void ProfileMenuView::BuildProfileManagementFeatureButtons() {
+   CHECK(!profile().IsGuestSession());
+ 

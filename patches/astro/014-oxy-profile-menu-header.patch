@@ -1,0 +1,16 @@
+diff --git a/chrome/browser/ui/views/profiles/profile_menu_view.h b/chrome/browser/ui/views/profiles/profile_menu_view.h
+index 3b3f7dcf4b9fb..62190b01c9457 100644
+--- a/chrome/browser/ui/views/profiles/profile_menu_view.h
++++ b/chrome/browser/ui/views/profiles/profile_menu_view.h
+@@ -143,6 +143,11 @@ class ProfileMenuView : public ProfileMenuViewBase {
+ 
+   void BuildProfileManagementFeatureButtons();
+ 
++  // Oxy integration: builds a sign-in or user-info row in the feature buttons.
++  void BuildOxySignInButton();
++  void OnOxySignInButtonClicked();
++  void OnOxySignOutButtonClicked();
++
+   const raw_ref<Browser> browser_;
+   signin::ProfileMenuAvatarButtonPromoInfo promo_info_;
+   // If the profile menu opening originated from a Promo on the AvatarButton.

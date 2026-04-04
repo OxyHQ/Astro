@@ -1,0 +1,24 @@
+diff --git a/chrome/browser/resources/new_tab_page/logo.css b/chrome/browser/resources/new_tab_page/logo.css
+index 5b98bf9929251..e841a748f0ef7 100644
+--- a/chrome/browser/resources/new_tab_page/logo.css
++++ b/chrome/browser/resources/new_tab_page/logo.css
+@@ -29,14 +29,15 @@
+ }
+ 
+ :host([single-colored]) #logo {
+-  -webkit-mask-image: url(./icons/google_logo.svg);
+-  -webkit-mask-repeat: no-repeat;
+-  -webkit-mask-size: 100%;
+-  background-color: var(--ntp-logo-color);
++  background-image: url(./icons/google_logo.svg);
++  background-repeat: no-repeat;
++  background-size: contain;
+ }
+ 
+ :host(:not([single-colored])) #logo {
+   background-image: url(./icons/google_logo.svg);
++  background-repeat: no-repeat;
++  background-size: contain;
+ }
+ 
+ #imageDoodle {
