@@ -1,0 +1,33 @@
+diff --git a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+index 9a684d5155d53..3745d4ed51e29 100644
+--- a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
++++ b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+@@ -19,6 +19,7 @@
+ #include "chrome/browser/history/history_service_factory.h"
+ #include "chrome/browser/interstitials/enterprise_util.h"
+ #include "chrome/browser/lookalikes/lookalike_url_navigation_throttle.h"
++#include "chrome/browser/oxy/oxy_auth_navigation_throttle.h"
+ #include "chrome/browser/plugins/pdf_iframe_navigation_throttle.h"
+ #include "chrome/browser/policy/chrome_policy_blocklist_service_factory.h"
+ #include "chrome/browser/policy/policy_util.h"
+@@ -418,10 +419,6 @@ void CreateAndAddChromeThrottlesForNavigation(
+           Profile::FromBrowserContext(context)),
+       SafeSearchFactory::GetForBrowserContext(context)));
+ 
+-  // Before setting up SSL error detection, configure SSLErrorHandler to invoke
+-  // the relevant extension API whenever an SSL interstitial is shown.
+-  SSLErrorHandler::SetClientCallbackOnInterstitialsShown(
+-      base::BindRepeating(&MaybeTriggerSecurityInterstitialShownEvent));
+   registry.AddThrottle(std::make_unique<SSLErrorNavigationThrottle>(
+       registry, base::BindOnce(&HandleSSLErrorWrapper),
+       base::BindOnce(&IsInHostedApp),
+@@ -611,6 +608,9 @@ void CreateAndAddChromeThrottlesForNavigation(
+ 
+   dom_distiller::DistillerReferrerThrottle::MaybeCreateAndAdd(registry);
+ 
++  // Oxy auth callback interception (browser + renderer-initiated navigations).
++  oxy::OxyAuthNavigationThrottle::MaybeCreateAndAdd(registry);
++
+ #if BUILDFLAG(ENABLE_GLIC)
+   glic::GlicNavigationThrottle::MaybeCreateAndAdd(registry);
+ #endif  // BUILDFLAG(ENABLE_GLIC)

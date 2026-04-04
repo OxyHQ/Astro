@@ -1,5 +1,5 @@
 diff --git a/components/url_formatter/url_fixer.cc b/components/url_formatter/url_fixer.cc
-index 553623e616997..8658aeabfface 100644
+index 553623e616997..08f290473e661 100644
 --- a/components/url_formatter/url_fixer.cc
 +++ b/components/url_formatter/url_fixer.cc
 @@ -10,6 +10,7 @@
@@ -18,7 +18,17 @@ index 553623e616997..8658aeabfface 100644
  const char kDevToolsScheme[] = "devtools";
  const char kChromeUIDefaultHost[] = "version";
  const char kViewSourceScheme[] = "view-source";
-@@ -584,7 +586,7 @@ GURL FixupURLInternal(const std::string& text,
+@@ -476,7 +478,8 @@ std::string SegmentURLInternal(std::string* text, url::Parsed* parts) {
+       (*text)[semicolon] = ':';
+       if (GetValidScheme(*text, &parts->scheme, &scheme) &&
+           (url::IsStandard(scheme) || scheme == url::kAboutScheme ||
+-           scheme == kChromeUIScheme || scheme == url::kFileScheme)) {
++           scheme == kChromeUIScheme || scheme == kAstroScheme ||
++           scheme == url::kFileScheme)) {
+         found_scheme = true;
+       } else {
+         (*text)[semicolon] = ';';
+@@ -584,7 +587,7 @@ GURL FixupURLInternal(const std::string& text,
    std::string scheme(SegmentURLInternal(&trimmed, &parts));
  
    // For view-source: URLs, we strip "view-source:", do fixup, and stick it back
@@ -27,7 +37,7 @@ index 553623e616997..8658aeabfface 100644
    if (scheme == kViewSourceScheme) {
      // Reject "view-source:view-source:..." to avoid deep recursion.
      std::string view_source(kViewSourceScheme + std::string(":"));
-@@ -597,6 +599,10 @@ GURL FixupURLInternal(const std::string& text,
+@@ -597,6 +600,10 @@ GURL FixupURLInternal(const std::string& text,
      }
    }
  
@@ -38,7 +48,7 @@ index 553623e616997..8658aeabfface 100644
    // We handle the file scheme separately.
    if (scheme == url::kFileScheme) {
      return GURL(parts.scheme.is_valid() ? text : FixupPath(text));
-@@ -621,11 +627,14 @@ GURL FixupURLInternal(const std::string& text,
+@@ -621,11 +628,14 @@ GURL FixupURLInternal(const std::string& text,
  
    // For some schemes whose layouts we understand, we rebuild the URL.
    bool chrome_url =
@@ -56,7 +66,7 @@ index 553623e616997..8658aeabfface 100644
      url.append(url::kStandardSchemeSeparator);
  
      // We need to check whether the |username| is valid because it is our
-@@ -639,6 +648,8 @@ GURL FixupURLInternal(const std::string& text,
+@@ -639,6 +649,8 @@ GURL FixupURLInternal(const std::string& text,
  
      FixupHost(trimmed, parts.host, parts.scheme.is_valid(), desired_tld, &url);
      if (chrome_url && !parts.host.is_valid()) {
@@ -65,7 +75,7 @@ index 553623e616997..8658aeabfface 100644
        url.append(kChromeUIDefaultHost);
      }
      FixupPort(trimmed, parts.port, &url);
-@@ -745,7 +756,11 @@ bool IsEquivalentScheme(const std::string& scheme1,
+@@ -745,7 +757,11 @@ bool IsEquivalentScheme(const std::string& scheme1,
                          const std::string& scheme2) {
    return scheme1 == scheme2 ||
           (scheme1 == url::kAboutScheme && scheme2 == kChromeUIScheme) ||
