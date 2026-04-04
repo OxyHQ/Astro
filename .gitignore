@@ -1,0 +1,20 @@
+# Chromium source (too large for git)
+chromium/
+depot_tools/
+.ungoogled-chromium/
+
+# Build artifacts
+releases/
+*.tar.gz
+*.deb
+*.rpm
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

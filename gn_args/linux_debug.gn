@@ -1,0 +1,29 @@
+# Astro by Oxy - Linux Debug Build
+
+google_chrome_branding = false
+is_official_build = false
+
+# De-Google flags (same as release)
+enable_hangout_services_extension = false
+enable_google_now = false
+enable_nacl = false
+enable_reporting = false
+enable_supervised_users = false
+safe_browsing_mode = 0
+use_official_google_api_keys = false
+google_api_key = ""
+google_default_client_id = ""
+google_default_client_secret = ""
+
+# Debug settings
+is_debug = true
+symbol_level = 2
+is_component_build = true
+use_lld = true
+
+# Proprietary codecs
+proprietary_codecs = true
+ffmpeg_branding = "Chrome"
+
+target_os = "linux"
+target_cpu = "x64"
