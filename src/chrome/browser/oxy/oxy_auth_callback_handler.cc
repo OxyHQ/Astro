@@ -8,9 +8,17 @@
 namespace oxy {
 
 bool IsOxyAuthCallback(const GURL& url) {
-  return (url.SchemeIs("astro") || url.SchemeIs("chrome")) &&
-         url.host() == "auth" &&
-         url.path() == "/callback";
+  // Match astro://auth/callback or chrome://auth/callback
+  if ((url.SchemeIs("astro") || url.SchemeIs("chrome")) &&
+      url.host() == "auth" && url.path() == "/callback") {
+    return true;
+  }
+  // Match https://auth.oxy.so/redirect/astro (HTTPS callback for web compat)
+  if (url.SchemeIs("https") && url.host() == "auth.oxy.so" &&
+      url.path() == "/redirect/astro") {
+    return true;
+  }
+  return false;
 }
 
 OxyAuthCallbackParams ParseOxyAuthCallback(const GURL& url) {

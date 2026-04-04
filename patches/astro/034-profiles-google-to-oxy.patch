@@ -1,0 +1,305 @@
+diff --git a/chrome/app/profiles_strings.grdp b/chrome/app/profiles_strings.grdp
+index a379455100dee..944ba289961ed 100644
+--- a/chrome/app/profiles_strings.grdp
++++ b/chrome/app/profiles_strings.grdp
+@@ -92,7 +92,7 @@
+     Verify it’s you to save and use your passkeys on this device
+   </message>
+   <message name="IDS_PROFILE_MENU_PASSKEYS_ERROR_DESCRIPTION_GET" desc="Subtitle in the profile menu, shown when the user needs to verify their identity to unlock usage of their Google Password Manager passkeys on this device, e.g. by presenting a PIN. The word 'passkey' is distinct from 'password', consult the glossary for a translation.">
+-    Get your passkeys on this device with Google Password Manager
++    Get your passkeys on this device with Oxy Password Manager
+   </message>
+   <message name="IDS_PROFILE_MENU_PASSKEYS_ERROR_DESCRIPTION_VERIFY" desc="Subtitle in the profile menu, shown when the user needs to verify their identity to unlock usage of their Google Password Manager passkeys on this device, e.g. by presenting a PIN. The word 'passkey' is distinct from 'password', consult the glossary for a translation.">
+     Verify it’s you to get your passkeys on this device
+@@ -177,7 +177,7 @@
+     Sync disabled
+   </message>
+   <message name="IDS_PROFILES_DASHER_FEATURE_DISABLED_TITLE" desc="Description of the profile user menu when certain features are disabled for Dasherless profile.">
+-    This isn't a Google Account. Items you save to Chrome won't be available on other devices.
++    This isn't a Oxy Account. Items you save to Chrome won't be available on other devices.
+   </message>
+    <message name="IDS_PROFILES_DICE_SYNC_PAUSED_TITLE" desc="Title of the profile user menu when sync is paused.">
+     Sync is paused
+@@ -186,12 +186,12 @@
+     Sign in to get your bookmarks, history, passwords, and other settings on all your devices.
+   </message>
+   <if expr="use_titlecase">
+-      <message name="IDS_PROFILES_VERIFY_ACCOUNT_BUTTON" desc="The label of the button that is shown when the user is in a Signin paused state. When the user clicks this button, they will be prompted to enter their Google Account credentials.">
++      <message name="IDS_PROFILES_VERIFY_ACCOUNT_BUTTON" desc="The label of the button that is shown when the user is in a Signin paused state. When the user clicks this button, they will be prompted to enter their Oxy Account credentials.">
+         Verify It's You
+       </message>
+     </if>
+     <if expr="not use_titlecase">
+-      <message name="IDS_PROFILES_VERIFY_ACCOUNT_BUTTON" desc="The label of the button that is shown when the user is in a Signin paused state. When the user clicks this button, they will be prompted to enter their Google Account credentials.">
++      <message name="IDS_PROFILES_VERIFY_ACCOUNT_BUTTON" desc="The label of the button that is shown when the user is in a Signin paused state. When the user clicks this button, they will be prompted to enter their Oxy Account credentials.">
+         Verify it's you
+       </message>
+     </if>
+@@ -242,7 +242,7 @@
+       Customize profile
+     </message>
+     <message name="IDS_PROFILE_MENU_OPEN_ACCOUNT_SETTINGS" desc="Button in the avatar menu bubble view for opening Chrome account settings.">
+-      Google services settings
++      Oxy services settings
+     </message>
+     <message name="IDS_PROFILE_MENU_AUTOFILL_SETTINGS_BUTTON" desc="Button in the avatar menu bubble view for opening Chrome autofill settings.">
+       Passwords and autofill
+@@ -878,7 +878,7 @@
+       Keep work and life separate
+     </message>
+     <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_GOT_ANOTHER_GOOGLE_ACCOUNT" desc="Profile picker main view title.">
+-      Got another Google Account?
++      Got another Oxy Account?
+     </message>
+     <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_KEEP_TASKS_SEPARATE" desc="Profile picker main view title.">
+       Keep school, side projects, and other tasks separate
+@@ -1031,39 +1031,39 @@
+ 
+     <!-- First Run Experience strings -->
+     <message name="IDS_FRE_SIGN_IN_SUBTITLE_0"
+-      desc="This is the subtitle on a full-page screen that asks the user to sign in to Chrome with their Google Account. It appears when the user launches Chrome for the first time. When they sign in, they can personalize and customize Chrome and remember their settings in their Google Account. These features are also described in the cards below as 'All your devices', 'Stronger security', and 'Back up data'. The tone should be inviting and alluring.">
++      desc="This is the subtitle on a full-page screen that asks the user to sign in to Chrome with their Oxy Account. It appears when the user launches Chrome for the first time. When they sign in, they can personalize and customize Chrome and remember their settings in their Oxy Account. These features are also described in the cards below as 'All your devices', 'Stronger security', and 'Back up data'. The tone should be inviting and alluring.">
+       Get additional features
+     </message>
+     <message name="IDS_FRE_SIGN_IN_SUBTITLE_1"
+-      desc="This is the subtitle on a full-page screen that asks the user to sign in to Chrome with their Google Account. It appears when the user launches Chrome for the first time. When they sign in, they can personalize and customize Chrome and remember their settings in their Google Account. These features are also described in the cards below as 'All your devices', 'Stronger security', and 'Back up data'. The tone should be inviting and alluring.">
++      desc="This is the subtitle on a full-page screen that asks the user to sign in to Chrome with their Oxy Account. It appears when the user launches Chrome for the first time. When they sign in, they can personalize and customize Chrome and remember their settings in their Oxy Account. These features are also described in the cards below as 'All your devices', 'Stronger security', and 'Back up data'. The tone should be inviting and alluring.">
+       Sign in for additional features
+     </message>
+     <message name="IDS_FRE_DEVICES_CARD_TITLE"
+-      desc="This string is the headline in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Google Account. The cards appear on a full-page screen when the user launches Chrome for the first time. This card's headline means that users can get their data (like bookmarks, history) on all the devices where they're signed in. The headline is followed by the body text 'Easily pick up where you left off'. The tone should be informative.">
++      desc="This string is the headline in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Oxy Account. The cards appear on a full-page screen when the user launches Chrome for the first time. This card's headline means that users can get their data (like bookmarks, history) on all the devices where they're signed in. The headline is followed by the body text 'Easily pick up where you left off'. The tone should be informative.">
+       All your devices
+     </message>
+     <message name="IDS_FRE_DEVICES_CARD_DESCRIPTION"
+-      desc="This is the body text in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Google Account. The cards appear on a full-page screen when the user launches Chrome for the first time. The body is preceded by the headline 'All your devices'. This card's body means that users can get their data (like bookmarks, history) on all the devices where they're signed in. The tone should be informative.">
++      desc="This is the body text in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Oxy Account. The cards appear on a full-page screen when the user launches Chrome for the first time. The body is preceded by the headline 'All your devices'. This card's body means that users can get their data (like bookmarks, history) on all the devices where they're signed in. The tone should be informative.">
+       Easily pick up where you left off
+     </message>
+     <message name="IDS_FRE_SECURITY_CARD_TITLE"
+-      desc="This string is the headline in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Google Account. The cards appear on a full-page screen when the user launches Chrome for the first time. This card's headline means that users can get a higher level of security. The headline is followed by the body text 'Protect your passwords against phishing'. The tone should be informative.">
++      desc="This string is the headline in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Oxy Account. The cards appear on a full-page screen when the user launches Chrome for the first time. This card's headline means that users can get a higher level of security. The headline is followed by the body text 'Protect your passwords against phishing'. The tone should be informative.">
+       Stronger security
+     </message>
+     <message name="IDS_FRE_SECURITY_CARD_DESCRIPTION"
+-      desc="This is the body text in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Google Account. The cards appear on a full-page screen when the user launches Chrome for the first time. The body is preceded by the headline 'Stronger security'. This card's body means that users can get a higher level of security. Translate 'phishing' according to https://localization.google.com/glossary/termset?gid=27517723&amp;tsid=60554f8 . The tone should be informative.">
++      desc="This is the body text in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Oxy Account. The cards appear on a full-page screen when the user launches Chrome for the first time. The body is preceded by the headline 'Stronger security'. This card's body means that users can get a higher level of security. Translate 'phishing' according to https://localization.9oo91e.qjz9zk/glossary/termset?gid=27517723&amp;tsid=60554f8 . The tone should be informative.">
+       Protect your passwords against phishing
+     </message>
+     <message name="IDS_FRE_BACKUP_CARD_TITLE"
+-      desc="This string is the headline in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Google Account. The cards appear on a full-page screen when the user launches Chrome for the first time. This card's headline means that users can back up their data (like bookmarks, history, passwords, settings) so that the data can't get lost if a device malfunctions. The headline is followed by the body text 'Store your passwords, bookmarks, and more'. The tone should be informative.">
++      desc="This string is the headline in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Oxy Account. The cards appear on a full-page screen when the user launches Chrome for the first time. This card's headline means that users can back up their data (like bookmarks, history, passwords, settings) so that the data can't get lost if a device malfunctions. The headline is followed by the body text 'Store your passwords, bookmarks, and more'. The tone should be informative.">
+       Back up your stuff
+     </message>
+     <message name="IDS_UNO_FRE_BACKUP_CARD_DESCRIPTION"
+-      desc="This is the body text in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Google Account. The cards appear on a full-page screen when the user launches Chrome for the first time. The body is preceded by the headline 'Back up data'. This card's body means that users can back up their data (like bookmarks, history, settings) so that the data can't get lost if a device malfunctions. Translate 'bookmarks' according to https://localization.google.com/glossary/termset?gid=27517723&amp;tsid=59c31bb . Translate 'and more' so that it conveys that there are additional similar items that are not listed. The tone should be informative.">
++      desc="This is the body text in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Oxy Account. The cards appear on a full-page screen when the user launches Chrome for the first time. The body is preceded by the headline 'Back up data'. This card's body means that users can back up their data (like bookmarks, history, settings) so that the data can't get lost if a device malfunctions. Translate 'bookmarks' according to https://localization.9oo91e.qjz9zk/glossary/termset?gid=27517723&amp;tsid=59c31bb . Translate 'and more' so that it conveys that there are additional similar items that are not listed. The tone should be informative.">
+       Save your bookmarks and more with sync
+     </message>
+     <message name="IDS_UNO_FRE_BACKUP_CARD_DESCRIPTION_WITH_PASSWORDS"
+-      desc="This is the body text in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Google Account. The cards appear on a full-page screen when the user launches Chrome for the first time. The body is preceded by the headline 'Back up data'. This card's body means that users can back up their data (like bookmarks, history, settings) so that the data can't get lost if a device malfunctions. Translate 'bookmarks' according to https://localization.google.com/glossary/termset?gid=27517723&amp;tsid=59c31bb . Translate 'and more' so that it conveys that there are additional similar items that are not listed. The tone should be informative.">
++      desc="This is the body text in one of three cards that represent the top benefits for why a user should sign in to Chrome with a Oxy Account. The cards appear on a full-page screen when the user launches Chrome for the first time. The body is preceded by the headline 'Back up data'. This card's body means that users can back up their data (like bookmarks, history, settings) so that the data can't get lost if a device malfunctions. Translate 'bookmarks' according to https://localization.9oo91e.qjz9zk/glossary/termset?gid=27517723&amp;tsid=59c31bb . Translate 'and more' so that it conveys that there are additional similar items that are not listed. The tone should be informative.">
+       Store your passwords, bookmarks, and more
+     </message>
+     <if expr="not use_titlecase">
+@@ -1118,67 +1118,67 @@
+     </message>
+ 
+     <!-- Batch Upload Desktop -->
+-    <message name="IDS_BATCH_UPLOAD_TITLE" desc="Title of the Batch Upload dialog on Desktop. This dialog appears when the user clicks on an informational message about items saved to their device. This title precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Google Account. When items are saved in their Google Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_TITLE" desc="Title of the Batch Upload dialog on Desktop. This dialog appears when the user clicks on an informational message about items saved to their device. This title precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Oxy Account. When items are saved in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
+       Save items in account
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_ITEMS_WITH_DEDUPLICATION" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if no special type exists. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Google Account. This subtitle only mentions the total number of items that are shown. A special type will have its type name shown first instead of 'items' and potentially show 'and other items' if multiple sections exist, in different strings. When items are saved in their Google Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_ITEMS_WITH_DEDUPLICATION" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if no special type exists. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Oxy Account. This subtitle only mentions the total number of items that are shown. A special type will have its type name shown first instead of 'items' and potentially show 'and other items' if multiple sections exist, in different strings. When items are saved in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
+       {ITEM_COUNT, plural,
+-      =1 {1 item is saved only to this device. To use it on your other devices, save it in your Google Account. This will also clean up any duplicates.}
+-      other {{ITEM_COUNT} items are saved only to this device. To use them on your other devices, save them in your Google Account. This will also clean up any duplicates.}
++      =1 {1 item is saved only to this device. To use it on your other devices, save it in your Oxy Account. This will also clean up any duplicates.}
++      other {{ITEM_COUNT} items are saved only to this device. To use them on your other devices, save them in your Oxy Account. This will also clean up any duplicates.}
+       }
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_PASSWORDS_WITH_DEDUPLICATION" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if password type exists with no other types. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Google Account. This subtitle mentions the number of passwords items in the section. When items are saved in their Google Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_PASSWORDS_WITH_DEDUPLICATION" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if password type exists with no other types. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Oxy Account. This subtitle mentions the number of passwords items in the section. When items are saved in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
+       {PASSWORD_COUNT, plural,
+-      =1 {1 password is saved only to this device. To use it on your other devices, save it in your Google Account. This will also clean up any duplicates.}
+-      other {{PASSWORD_COUNT} passwords are saved only to this device. To use them on your other devices, save them in your Google Account. This will also clean up any duplicates.}
++      =1 {1 password is saved only to this device. To use it on your other devices, save it in your Oxy Account. This will also clean up any duplicates.}
++      other {{PASSWORD_COUNT} passwords are saved only to this device. To use them on your other devices, save them in your Oxy Account. This will also clean up any duplicates.}
+       }
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_PASSWORDS_COMBO_WITH_DEDUPLICATION" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved only to their device. This subtitle variant is shown if password type is the first type and it is not the only one. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Google Account. This subtitle mentions the number of passwords items in the section as well as 'and other items' to reference the other types. When items are saved in their Google Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_PASSWORDS_COMBO_WITH_DEDUPLICATION" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved only to their device. This subtitle variant is shown if password type is the first type and it is not the only one. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Oxy Account. This subtitle mentions the number of passwords items in the section as well as 'and other items' to reference the other types. When items are saved in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
+       {PASSWORD_COUNT, plural,
+-      =1 {1 password and other items are saved only to this device. To use them on your other devices, save them in your Google Account. This will also clean up any duplicates.}
+-      other {{PASSWORD_COUNT} passwords and other items are saved only to this device. To use them on your other devices, save them in your Google Account. This will also clean up any duplicates.}
++      =1 {1 password and other items are saved only to this device. To use them on your other devices, save them in your Oxy Account. This will also clean up any duplicates.}
++      other {{PASSWORD_COUNT} passwords and other items are saved only to this device. To use them on your other devices, save them in your Oxy Account. This will also clean up any duplicates.}
+       }
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_BOOKMARKS_WITH_DEDUPLICATION" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if bookmark type exists with no other types. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Google Account. This subtitle mentions the number of bookmarks in the section. When items are saved in their Google Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_BOOKMARKS_WITH_DEDUPLICATION" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if bookmark type exists with no other types. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Oxy Account. This subtitle mentions the number of bookmarks in the section. When items are saved in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
+       {BOOKMARK_COUNT, plural,
+-      =1 {1 bookmark is saved only to this device. To use it on your other devices, save it in your Google Account. This will also clean up any duplicates.}
+-      other {{BOOKMARK_COUNT} bookmarks are saved only to this device. To use them on your other devices, save them in your Google Account. This will also clean up any duplicates.}
++      =1 {1 bookmark is saved only to this device. To use it on your other devices, save it in your Oxy Account. This will also clean up any duplicates.}
++      other {{BOOKMARK_COUNT} bookmarks are saved only to this device. To use them on your other devices, save them in your Oxy Account. This will also clean up any duplicates.}
+       }
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_BOOKMARKS_COMBO_WITH_DEDUPLICATION" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved only to their device. This subtitle variant is shown if bookmark type is the first type and it is not the only one. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Google Account. This subtitle mentions the number of bookmarks in the section as well as 'and other items' to reference the other types. When items are saved in their Google Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_BOOKMARKS_COMBO_WITH_DEDUPLICATION" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved only to their device. This subtitle variant is shown if bookmark type is the first type and it is not the only one. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Oxy Account. This subtitle mentions the number of bookmarks in the section as well as 'and other items' to reference the other types. When items are saved in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
+       {BOOKMARK_COUNT, plural,
+-      =1 {1 bookmark and other items are saved only to this device. To use them on your other devices, save them in your Google Account. This will also clean up any duplicates.}
+-      other {{BOOKMARK_COUNT} bookmarks and other items are saved only to this device. To use them on your other devices, save them in your Google Account. This will also clean up any duplicates.}
++      =1 {1 bookmark and other items are saved only to this device. To use them on your other devices, save them in your Oxy Account. This will also clean up any duplicates.}
++      other {{BOOKMARK_COUNT} bookmarks and other items are saved only to this device. To use them on your other devices, save them in your Oxy Account. This will also clean up any duplicates.}
+       }
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_ITEMS" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if no special type exists. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Google Account. This subtitle only mentions the total number of items that are shown. A special type will have its type name shown first instead of 'items' and potentially show 'and other items' if multiple sections exist, in different strings. When items are saved in their Google Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_ITEMS" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if no special type exists. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Oxy Account. This subtitle only mentions the total number of items that are shown. A special type will have its type name shown first instead of 'items' and potentially show 'and other items' if multiple sections exist, in different strings. When items are saved in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
+       {ITEM_COUNT, plural,
+-      =1 {1 item is saved only to this device. To use it on your other devices, save it in your Google Account.}
+-      other {{ITEM_COUNT} items are saved only to this device. To use them on your other devices, save them in your Google Account.}
++      =1 {1 item is saved only to this device. To use it on your other devices, save it in your Oxy Account.}
++      other {{ITEM_COUNT} items are saved only to this device. To use them on your other devices, save them in your Oxy Account.}
+       }
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_PASSWORDS" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if password type exists with no other types. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Google Account. This subtitle mentions the number of passwords items in the section. When items are saved in their Google Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_PASSWORDS" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if password type exists with no other types. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Oxy Account. This subtitle mentions the number of passwords items in the section. When items are saved in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
+       {PASSWORD_COUNT, plural,
+-      =1 {1 password is saved only to this device. To use it on your other devices, save it in your Google Account.}
+-      other {{PASSWORD_COUNT} passwords are saved only to this device. To use them on your other devices, save them in your Google Account.}
++      =1 {1 password is saved only to this device. To use it on your other devices, save it in your Oxy Account.}
++      other {{PASSWORD_COUNT} passwords are saved only to this device. To use them on your other devices, save them in your Oxy Account.}
+       }
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_PASSWORDS_COMBO" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved only to their device. This subtitle variant is shown if password type is the first type and it is not the only one. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Google Account. This subtitle mentions the number of passwords items in the section as well as 'and other items' to reference the other types. When items are saved in their Google Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_PASSWORDS_COMBO" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved only to their device. This subtitle variant is shown if password type is the first type and it is not the only one. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Oxy Account. This subtitle mentions the number of passwords items in the section as well as 'and other items' to reference the other types. When items are saved in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
+       {PASSWORD_COUNT, plural,
+-      =1 {1 password and other items are saved only to this device. To use them on your other devices, save them in your Google Account.}
+-      other {{PASSWORD_COUNT} passwords and other items are saved only to this device. To use them on your other devices, save them in your Google Account.}
++      =1 {1 password and other items are saved only to this device. To use them on your other devices, save them in your Oxy Account.}
++      other {{PASSWORD_COUNT} passwords and other items are saved only to this device. To use them on your other devices, save them in your Oxy Account.}
+       }
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_BOOKMARKS" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if bookmark type exists with no other types. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Google Account. This subtitle mentions the number of bookmarks in the section. When items are saved in their Google Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_BOOKMARKS" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved to their device. This subtitle variant is shown if bookmark type exists with no other types. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Oxy Account. This subtitle mentions the number of bookmarks in the section. When items are saved in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
+       {BOOKMARK_COUNT, plural,
+-      =1 {1 bookmark is saved only to this device. To use it on your other devices, save it in your Google Account.}
+-      other {{BOOKMARK_COUNT} bookmarks are saved only to this device. To use them on your other devices, save them in your Google Account.}
++      =1 {1 bookmark is saved only to this device. To use it on your other devices, save it in your Oxy Account.}
++      other {{BOOKMARK_COUNT} bookmarks are saved only to this device. To use them on your other devices, save them in your Oxy Account.}
+       }
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_BOOKMARKS_COMBO" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved only to their device. This subtitle variant is shown if bookmark type is the first type and it is not the only one. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Google Account. This subtitle mentions the number of bookmarks in the section as well as 'and other items' to reference the other types. When items are saved in their Google Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_SUBTITLE_DESCRIPTION_BOOKMARKS_COMBO" desc="Subtitle of the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved only to their device. This subtitle variant is shown if bookmark type is the first type and it is not the only one. This subtitle precedes a list of items (passwords, bookmarks, and addresses), where the user can select the checkboxes for the items that they want to save in their Oxy Account. This subtitle mentions the number of bookmarks in the section as well as 'and other items' to reference the other types. When items are saved in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. The tone should be motivating.">
+       {BOOKMARK_COUNT, plural,
+-      =1 {1 bookmark and other items are saved only to this device. To use them on your other devices, save them in your Google Account.}
+-      other {{BOOKMARK_COUNT} bookmarks and other items are saved only to this device. To use them on your other devices, save them in your Google Account.}
++      =1 {1 bookmark and other items are saved only to this device. To use them on your other devices, save them in your Oxy Account.}
++      other {{BOOKMARK_COUNT} bookmarks and other items are saved only to this device. To use them on your other devices, save them in your Oxy Account.}
+       }
+     </message>
+     <message name="IDS_BATCH_UPLOAD_SECTION_TITLE_PASSWORDS" desc="Title of the Passwords section in the Batch Upload dialog. This dialog appears when the user clicks on an informational message about items saved only to their device. The title of the dialog is ‘Save items in account’. The list of items has sections for each applicable data type: Passwords, Bookmarks, and more. This section shows the number of selected items in the section of the dialog, if any.">
+@@ -1237,35 +1237,35 @@
+     <message name="IDS_BATCH_UPLOAD_SCREEN_READER_SELECT_NONE" desc="Text read by the screen reader when focusing the toggle button of a section in the Batch Upload dialog and that toggle is turned on. Notifies that the action on the toggle would select no items in this section.">
+       Select none
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_PROMO_TITLE" desc="Title of the Batch Upload promo. This promo appears to inform the user that there are items saved only to their device. If the user chooses to save items in their Google Account, the user can access them on any device where they’re signed in to Chrome. This promo leads to the Batch Upload dialog, where the user can select the checkboxes for the items that they want to save in their Google Account. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_PROMO_TITLE" desc="Title of the Batch Upload promo. This promo appears to inform the user that there are items saved only to their device. If the user chooses to save items in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. This promo leads to the Batch Upload dialog, where the user can select the checkboxes for the items that they want to save in their Oxy Account. The tone should be motivating.">
+       Get your bookmarks and more on all your devices
+     </message>
+     <if expr="use_titlecase">
+-      <message name="IDS_BATCH_UPLOAD_PROMO_TITLE_OK_BUTTON_LABEL" desc="Affirmative button of the Batch Upload promo. This promo appears to inform the user that there are items saved only to their device; this subtitle mentions how many bookmarks (and other items, if any) are on the device. If the user chooses to save items in their Google Account, the user can access them on any device where they’re signed in to Chrome. When the user clicks this button, the items aren’t saved yet: the user first sees the Batch Upload dialog, where the user can select the checkboxes for the items that they want to save in their Google Account. The tone should be motivating.">
++      <message name="IDS_BATCH_UPLOAD_PROMO_TITLE_OK_BUTTON_LABEL" desc="Affirmative button of the Batch Upload promo. This promo appears to inform the user that there are items saved only to their device; this subtitle mentions how many bookmarks (and other items, if any) are on the device. If the user chooses to save items in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. When the user clicks this button, the items aren’t saved yet: the user first sees the Batch Upload dialog, where the user can select the checkboxes for the items that they want to save in their Oxy Account. The tone should be motivating.">
+         Save in Account
+       </message>
+     </if>
+     <if expr="not use_titlecase">
+-      <message name="IDS_BATCH_UPLOAD_PROMO_TITLE_OK_BUTTON_LABEL" desc="Affirmative button of the Batch Upload promo. This promo appears to inform the user that there are items saved only to their device; this subtitle mentions how many bookmarks (and other items, if any) are on the device. If the user chooses to save items in their Google Account, the user can access them on any device where they’re signed in to Chrome. When the user clicks this button, the items aren’t saved yet: the user first sees the Batch Upload dialog, where the user can select the checkboxes for the items that they want to save in their Google Account. The tone should be motivating.">
++      <message name="IDS_BATCH_UPLOAD_PROMO_TITLE_OK_BUTTON_LABEL" desc="Affirmative button of the Batch Upload promo. This promo appears to inform the user that there are items saved only to their device; this subtitle mentions how many bookmarks (and other items, if any) are on the device. If the user chooses to save items in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. When the user clicks this button, the items aren’t saved yet: the user first sees the Batch Upload dialog, where the user can select the checkboxes for the items that they want to save in their Oxy Account. The tone should be motivating.">
+         Save in account
+       </message>
+     </if>
+-    <message name="IDS_BATCH_UPLOAD_PROMO_SUBTITLE_BOOKMARKS" desc="Subtitle of the Batch Upload promo. This promo appears to inform the user that there are items saved only to their device; this subtitle mentions how many bookmarks are on the device. If the user chooses to save items in their Google Account, the user can access them on any device where they’re signed in to Chrome. This promo leads to the Batch Upload dialog, where the user can select the checkboxes for the items that they want to save in their Google Account. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_PROMO_SUBTITLE_BOOKMARKS" desc="Subtitle of the Batch Upload promo. This promo appears to inform the user that there are items saved only to their device; this subtitle mentions how many bookmarks are on the device. If the user chooses to save items in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. This promo leads to the Batch Upload dialog, where the user can select the checkboxes for the items that they want to save in their Oxy Account. The tone should be motivating.">
+       {BOOKMARK_COUNT, plural,
+-      =1 {1 bookmark is saved only to this device. To use it on your other devices, save it in your Google Account.}
+-      other {{BOOKMARK_COUNT} bookmarks are saved only to this device. To use them on your other devices, save them in your Google Account.}
++      =1 {1 bookmark is saved only to this device. To use it on your other devices, save it in your Oxy Account.}
++      other {{BOOKMARK_COUNT} bookmarks are saved only to this device. To use them on your other devices, save them in your Oxy Account.}
+       }
+     </message>
+-    <message name="IDS_BATCH_UPLOAD_PROMO_SUBTITLE_BOOKMARKS_COMBO" desc="Subtitle of the Batch Upload promo. This promo appears to inform the user that there are items saved only to their device; this subtitle mentions how many bookmarks and other items are on the device. If the user chooses to save items in their Google Account, the user can access them on any device where they’re signed in to Chrome. This promo leads to the Batch Upload dialog, where the user can select the checkboxes for the items that they want to save in their Google Account. The tone should be motivating.">
++    <message name="IDS_BATCH_UPLOAD_PROMO_SUBTITLE_BOOKMARKS_COMBO" desc="Subtitle of the Batch Upload promo. This promo appears to inform the user that there are items saved only to their device; this subtitle mentions how many bookmarks and other items are on the device. If the user chooses to save items in their Oxy Account, the user can access them on any device where they’re signed in to Chrome. This promo leads to the Batch Upload dialog, where the user can select the checkboxes for the items that they want to save in their Oxy Account. The tone should be motivating.">
+       {BOOKMARK_COUNT, plural,
+-      =1 {1 bookmark and other items are saved only to this device. To use them on your other devices, save them in your Google Account.}
+-      other {{BOOKMARK_COUNT} bookmarks and other items are saved only to this device. To use them on your other devices, save them in your Google Account.}
++      =1 {1 bookmark and other items are saved only to this device. To use them on your other devices, save them in your Oxy Account.}
++      other {{BOOKMARK_COUNT} bookmarks and other items are saved only to this device. To use them on your other devices, save them in your Oxy Account.}
+       }
+     </message>
+     <message name="IDS_BATCH_UPLOAD_PROMO_SUBTITLE_ITEMS_WITH_LINK" desc="The text for a promotional banner located on the Account Settings page. It informs the user how many items on their local device are waiting to be uploaded. The text contains a placeholder for the number of items (e.g., '5 items') and acts as a clickable link that takes the user to the Batch Upload screen. Please ensure the placeholder handles pluralization correctly.">
+       {ITEM_COUNT, plural,
+-      =1 {1 item is saved only to this device. To use it on your other devices, <ph name="BEGIN_LINK">&lt;a href="'#'" id="openBatchUploadLink"&gt;</ph>save it in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.}
+-      other {{ITEM_COUNT} items are saved only to this device. To use them on your other devices, <ph name="BEGIN_LINK">&lt;a href="'#'" id="openBatchUploadLink"&gt;</ph>save them in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.}
++      =1 {1 item is saved only to this device. To use it on your other devices, <ph name="BEGIN_LINK">&lt;a href="'#'" id="openBatchUploadLink"&gt;</ph>save it in your Oxy Account<ph name="END_LINK">&lt;/a&gt;</ph>.}
++      other {{ITEM_COUNT} items are saved only to this device. To use them on your other devices, <ph name="BEGIN_LINK">&lt;a href="'#'" id="openBatchUploadLink"&gt;</ph>save them in your Oxy Account<ph name="END_LINK">&lt;/a&gt;</ph>.}
+       }
+     </message>
+ 
+@@ -1278,8 +1278,8 @@
+     </message>
+     <message name="IDS_SIGNOUT_CONFIRMATION_EXTENSIONS_SECTION_TOOLTIP" desc="Mouse over tooltip for the Extensions section in the Signout Confirmation dialog which allows users to remove extensions linked to their account when signing out.">
+       {ACCOUNT_EXTENSIONS_COUNT, plural,
+-      =1 {This extension is saved in your Google Account, but any data it saved only on this device may be deleted}
+-      other {These extensions are saved in your Google Account, but any data they've saved only on this device may be deleted}
++      =1 {This extension is saved in your Oxy Account, but any data it saved only on this device may be deleted}
++      other {These extensions are saved in your Oxy Account, but any data they've saved only on this device may be deleted}
+       }
+     </message>
+     <message name="IDS_SIGNOUT_CONFIRMATION_UNSYNCED_DATA_WITH_ACCOUNT_EXTENSIONS" desc="An additional message shown in the Signout Confirmation dialog if the user initiates a signout with unsynced data and they have account extensions installed.">
+@@ -1306,7 +1306,7 @@
+       No thanks
+     </message>
+     <message name="IDS_TABS_DISABLED_ERROR_DESCRIPTION" desc="Message that is shown in an error dialog when a user tries to sign in to use a service that requires history sync opt in (e.g. sharing/joining tab groups), but sync is disabled.">
+-      Your organization turned off saving tabs in your Google Account
++      Your organization turned off saving tabs in your Oxy Account
+     </message>
+     <!-- Avatar Button Promos Desktop -->
+     <if expr="not use_titlecase">
+@@ -1339,7 +1339,7 @@
+     </if>
+     <!-- Profile Menu Promos Desktop -->
+     <message name="IDS_PROFILE_MENU_SYNC_PROMO_SYNC_HISTORY_DESCRIPTION" desc="The description for the sync promo in the profile menu opened from the 'Sync history?' history sync opt-in identity pill.">
+-      To easily get back to sites you’ve visited, sync your history and tabs to <ph name="ACCOUNT_EMAIL">$1<ex>elisa.beckett@gmail.com</ex></ph>
++      To easily get back to sites you’ve visited, sync your history and tabs to <ph name="ACCOUNT_EMAIL">$1<ex>elisa.beckett@9ma1l.qjz9zk</ex></ph>
+     </message>
+     <if expr="not use_titlecase">
+       <message name="IDS_PROFILE_MENU_SYNC_PROMO_BUTTON_LABEL" desc="The button label for the sync promo. When clicked, it opens the turn on sync dialog.">
+@@ -1358,7 +1358,7 @@
+       Continue
+     </message>
+     <message name="IDS_PROFILE_MENU_PROMO_DESCRIPTION_WITH_BATCH_UPLOAD" desc="The description of the identity section in the Profile Menu for users that can see the Batch Upload promo in the Avatar button, when having local data. This describes the action presented right below it in the button.">
+-      To get your passwords, bookmarks, and more on all your devices, save them in your Google Account
++      To get your passwords, bookmarks, and more on all your devices, save them in your Oxy Account
+     </message>
+     <if expr="not use_titlecase">
+       <message name="IDS_PROFILE_MENU_PROMO_BUTTON_WITH_BATCH_UPLOAD" desc="The button label in the Profile Menu identity section for users that can see the Batch Upload promo in the Avatar button, when having local data. When clicked, it opens the Batch Upload dialog.">
+@@ -1371,13 +1371,13 @@
+       </message>
+     </if>
+     <message name="IDS_PROFILE_MENU_PROMO_DESCRIPTION_WITH_BATCH_UPLOAD_BOOKMARK_CLEANUP" desc="The description of the identity section in the Profile Menu for users that can see the Batch Upload promo in the Avatar button with the emphasis on Bookmarks cleanup, when having local data. This describes the action presented right below it in the button.">
+-      To clean up any duplicate bookmarks, save them in your Google Account
++      To clean up any duplicate bookmarks, save them in your Oxy Account
+     </message>
+   </if>
+     <message name="IDS_SIGN_IN_BENEFITS_IPH_TEXT" desc="Text of the IPH bubble announcing benefits for users who signed in before the sync-to-signin migration.">
+-      While you're signed in, you can use the bookmarks, extensions, and more saved in your Google Account on all your devices
++      While you're signed in, you can use the bookmarks, extensions, and more saved in your Oxy Account on all your devices
+     </message>
+     <message name="IDS_SIGN_IN_BENEFITS_WITHOUT_BOOKMARKS_AND_EXTENSIONS_IPH_TEXT" desc="Text of the IPH bubble announcing benefits for users who signed in before the sync-to-signin migration, not mentioning bookmarks and extensions because they require an explicit sign in.">
+-      While you're signed in, you can use the themes, settings, and more saved in your Google Account on all your devices
++      While you're signed in, you can use the themes, settings, and more saved in your Oxy Account on all your devices
+     </message>
+ </grit-part>
