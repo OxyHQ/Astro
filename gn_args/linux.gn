@@ -12,11 +12,10 @@ clang_use_chrome_plugins = false
 disable_fieldtrial_testing_config = true
 enable_hangout_services_extension = false
 enable_mdns = false
-enable_nacl = false
 enable_remoting = false
 enable_reporting = false
 enable_service_discovery = false
-enable_supervised_users = false
+enable_supervised_users = true
 enable_widevine = true
 exclude_unwind_tables = true
 safe_browsing_mode = 0
@@ -40,9 +39,9 @@ use_thin_lto = true
 proprietary_codecs = true
 ffmpeg_branding = "Chrome"
 
-# System libraries (use system versions where available)
-use_system_harfbuzz = true
-use_system_freetype = true
+# System libraries (use bundled versions for build reliability)
+use_system_harfbuzz = false
+use_system_freetype = false
 use_gnome_keyring = false
 use_sysroot = true
 
