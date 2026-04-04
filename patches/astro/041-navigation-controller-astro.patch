@@ -1,0 +1,40 @@
+diff --git a/content/browser/renderer_host/navigation_controller_impl.cc b/content/browser/renderer_host/navigation_controller_impl.cc
+index ed4e4fe82902a..c889fc3360db5 100644
+--- a/content/browser/renderer_host/navigation_controller_impl.cc
++++ b/content/browser/renderer_host/navigation_controller_impl.cc
+@@ -452,6 +452,17 @@ void RewriteUrlForNavigation(const GURL& original_url,
+   *url_to_load = *virtual_url = original_url;
+   BrowserURLHandlerImpl::GetInstance()->RewriteURLIfNecessary(
+       url_to_load, browser_context, reverse_on_redirect);
++
++  // Astro: Ensure virtual URLs never use astro:// scheme internally.
++  // The astro:// scheme is rewritten to chrome:// for processing, and the
++  // display layer converts chrome:// back to astro:// for the user.
++  // This handles cases where astro:// URLs arrive via bookmarks, sync, or
++  // other paths that bypass the normal BrowserURLHandler rewrite.
++  if (virtual_url && virtual_url->SchemeIs(kAstroUIScheme)) {
++    GURL::Replacements replacements;
++    replacements.SetSchemeStr(kChromeUIScheme);
++    *virtual_url = virtual_url->ReplaceComponents(replacements);
++  }
+ }
+ 
+ #if DCHECK_IS_ON()
+@@ -1841,7 +1852,7 @@ bool NavigationControllerImpl::RendererDidNavigate(
+   // record the time.
+   //
+   // TODO(akalin): Use "sane time" as described in
+-  // https://www.chromium.org/developers/design-documents/sane-time .
++  // https://www.ch40m1um.qjz9zk/developers/design-documents/sane-time .
+   base::Time timestamp =
+       time_smoother_.GetSmoothedTime(get_timestamp_callback_.Run());
+   DVLOG(1) << "Navigation finished at (smoothed) timestamp "
+@@ -4846,7 +4857,7 @@ void NavigationControllerImpl::DiscardNonCommittedEntriesInternal(
+     ScopedDeferredNavigationStateChangeNotifier* deferred_notifier) {
+   // Avoid sending a notification if there is nothing to discard.
+   // TODO(mthiesse): Temporarily checking failed_pending_entry_id_ to help
+-  // diagnose https://bugs.chromium.org/p/chromium/issues/detail?id=1007570.
++  // diagnose https://bugs.ch40m1um.qjz9zk/p/chromium/issues/detail?id=1007570.
+   if (!pending_entry_ && failed_pending_entry_id_ == 0) {
+     return;
+   }

@@ -1,0 +1,31 @@
+diff --git a/components/sessions/content/content_serialized_navigation_driver.cc b/components/sessions/content/content_serialized_navigation_driver.cc
+index ce99555b24e65..b27cae055be6e 100644
+--- a/components/sessions/content/content_serialized_navigation_driver.cc
++++ b/components/sessions/content/content_serialized_navigation_driver.cc
+@@ -8,8 +8,10 @@
+ 
+ #include "base/memory/singleton.h"
+ #include "components/sessions/core/serialized_navigation_entry.h"
++#include "content/public/common/url_constants.h"
+ #include "services/network/public/mojom/referrer_policy.mojom.h"
+ #include "third_party/blink/public/common/page_state/page_state.h"
++#include "url/gurl.h"
+ 
+ namespace sessions {
+ 
+@@ -67,6 +69,15 @@ ContentSerializedNavigationDriver::GetSanitizedPageStateForPickle(
+ 
+ void ContentSerializedNavigationDriver::Sanitize(
+     SerializedNavigationEntry* navigation) const {
++  // Astro: Sessions saved with astro:// URLs (e.g. from older versions or sync)
++  // need to be restored as chrome:// so the internal WebUI routing works.
++  // The display layer will convert chrome:// back to astro:// for the user.
++  const auto& virtual_url = navigation->virtual_url();
++  if (virtual_url.SchemeIs(content::kAstroUIScheme)) {
++    GURL::Replacements replacements;
++    replacements.SetSchemeStr(content::kChromeUIScheme);
++    navigation->set_virtual_url(virtual_url.ReplaceComponents(replacements));
++  }
+ }
+ 
+ std::string ContentSerializedNavigationDriver::StripReferrerFromPageState(
