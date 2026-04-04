@@ -1,0 +1,19 @@
+diff --git a/components/omnibox/browser/omnibox_text_util.cc b/components/omnibox/browser/omnibox_text_util.cc
+index 67865669203bb..4322be44e8ea0 100644
+--- a/components/omnibox/browser/omnibox_text_util.cc
++++ b/components/omnibox/browser/omnibox_text_util.cc
+@@ -259,6 +259,14 @@ void AdjustTextForCopy(int sel_min,
+     *write_url = true;
+     *text = base::UTF8ToUTF16(url_from_text->spec());
+   }
++
++  // Astro: Rewrite chrome:// to astro:// when copying URL
++  if (url_from_text && url_from_text->SchemeIs("chrome")) {
++    GURL::Replacements replacements;
++    replacements.SetSchemeStr("astro");
++    *url_from_text = url_from_text->ReplaceComponents(replacements);
++    *text = base::UTF8ToUTF16(url_from_text->spec());
++  }
+ }
+ 
+ }  // namespace omnibox

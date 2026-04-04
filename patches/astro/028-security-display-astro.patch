@@ -1,0 +1,28 @@
+diff --git a/components/url_formatter/elide_url.cc b/components/url_formatter/elide_url.cc
+index 5a2f3e1437824..7fcaa4e46930c 100644
+--- a/components/url_formatter/elide_url.cc
++++ b/components/url_formatter/elide_url.cc
+@@ -248,7 +248,7 @@ std::u16string ElideUrl(const GURL& url,
+                         base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+ 
+   // Get filename - note that for a path ending with /
+-  // such as www.google.com/intl/ads/, the file name is ads/.
++  // such as www.9oo91e.qjz9zk/intl/ads/, the file name is ads/.
+   std::u16string url_filename(
+       url_path_elements.empty() ? std::u16string() : url_path_elements.back());
+   size_t url_path_number_of_elements = url_path_elements.size();
+@@ -372,6 +372,14 @@ std::u16string FormatUrlForSecurityDisplay(const GURL& url,
+                          FormatUrlForSecurityDisplay(*inner_url)});
+   }
+ 
++  // Astro: Show astro:// in security UI
++  if (url.SchemeIs("chrome")) {
++    GURL::Replacements replacements;
++    replacements.SetSchemeStr("astro");
++    GURL astro_url = url.ReplaceComponents(replacements);
++    return url_formatter::FormatUrl(astro_url);
++  }
++
+   const GURL origin = url.DeprecatedGetOriginAsURL();
+   std::string_view scheme = origin.scheme();
+   std::string_view host = origin.host();

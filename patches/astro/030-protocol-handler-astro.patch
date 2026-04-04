@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/profiles/profile_io_data.cc b/chrome/browser/profiles/profile_io_data.cc
+index 080e9b0e43c70..95bed7d9cfb90 100644
+--- a/chrome/browser/profiles/profile_io_data.cc
++++ b/chrome/browser/profiles/profile_io_data.cc
+@@ -44,6 +44,7 @@ bool ProfileIOData::IsHandledProtocol(std::string_view scheme) {
+       extensions::kExtensionScheme,
+ #endif
+       content::kChromeUIScheme,
++      content::kAstroUIScheme,
+       content::kChromeUIUntrustedScheme,
+       url::kDataScheme,
+ #if BUILDFLAG(IS_CHROMEOS)
