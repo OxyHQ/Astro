@@ -3,6 +3,8 @@
 
 source_set("oxy") {
   sources = [
+    "oxy_auth_callback_handler.cc",
+    "oxy_auth_callback_handler.h",
     "oxy_auth_service.cc",
     "oxy_auth_service.h",
     "oxy_auth_token_store.cc",
