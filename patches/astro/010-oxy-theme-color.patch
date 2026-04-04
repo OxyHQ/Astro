@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/themes/theme_properties.cc b/chrome/browser/themes/theme_properties.cc
+index 48e848aec610b..179bda68ea4bb 100644
+--- a/chrome/browser/themes/theme_properties.cc
++++ b/chrome/browser/themes/theme_properties.cc
+@@ -36,7 +36,7 @@ SkColor GetLightModeColor(int id) {
+     case ThemeProperties::COLOR_FRAME_ACTIVE:
+     case ThemeProperties::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_ACTIVE:
+     case ThemeProperties::COLOR_WINDOW_CONTROL_BUTTON_BACKGROUND_ACTIVE:
+-      return SkColorSetRGB(0xDE, 0xE1, 0xE6);
++      return SkColorSetRGB(0xC4, 0x6E, 0xDE);  // Oxy fuchsia #c46ede
+     case ThemeProperties::COLOR_FRAME_INACTIVE:
+     case ThemeProperties::COLOR_TAB_BACKGROUND_INACTIVE_FRAME_INACTIVE:
+     case ThemeProperties::COLOR_WINDOW_CONTROL_BUTTON_BACKGROUND_INACTIVE:
+@@ -50,6 +50,7 @@ SkColor GetLightModeColor(int id) {
+       return SK_ColorWHITE;
+     case ThemeProperties::COLOR_TAB_FOREGROUND_INACTIVE_FRAME_ACTIVE:
+     case ThemeProperties::COLOR_TAB_FOREGROUND_INACTIVE_FRAME_INACTIVE:
++      return SK_ColorWHITE;  // White text on Oxy fuchsia frame
+     case ThemeProperties::COLOR_TOOLBAR_TEXT:
+       return gfx::kGoogleGrey800;
+     case ThemeProperties::COLOR_NTP_BACKGROUND:

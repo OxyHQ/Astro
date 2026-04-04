@@ -1,5 +1,5 @@
 diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
-index 5bc0ac0015869..d997ea0620bce 100644
+index 5bc0ac0015869..34c5eb1531e7c 100644
 --- a/chrome/app/chromium_strings.grd
 +++ b/chrome/app/chromium_strings.grd
 @@ -278,10 +278,10 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
@@ -187,11 +187,11 @@ index 5bc0ac0015869..d997ea0620bce 100644
          <else>
            <message name="IDS_ABOUT_VERSION_COMPANY_NAME" desc="Company name on the about pages">
 -            The Chromium Authors
-+            The Astro Authors
++            Oxy
            </message>
            <message name="IDS_ABOUT_VERSION_COPYRIGHT" desc="Copyright information on the about pages">
 -            Copyright <ph name="YEAR">{0,date,y}<ex>2016</ex></ph> The Chromium Authors. All rights reserved.
-+            Copyright <ph name="YEAR">{0,date,y}<ex>2016</ex></ph> The Astro Authors. All rights reserved.
++            Made with ❤️ in the 🌎 by Oxy.
            </message>
          </else>
        </if>
