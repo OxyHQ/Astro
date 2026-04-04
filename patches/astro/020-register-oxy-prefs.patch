@@ -1,0 +1,78 @@
+diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browser_prefs.cc
+index 868bfe1564db3..cfa7e8c2da8d7 100644
+--- a/chrome/browser/prefs/browser_prefs.cc
++++ b/chrome/browser/prefs/browser_prefs.cc
+@@ -164,7 +164,6 @@
+ #include "components/proxy_config/pref_proxy_config_tracker_impl.h"
+ #include "components/regional_capabilities/regional_capabilities_prefs.h"
+ #include "components/safe_browsing/buildflags.h"
+-#include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+ #include "components/safety_check/safety_check_prefs.h"
+ #include "components/saved_tab_groups/public/pref_names.h"
+ #include "components/search_engines/search_engine_choice/search_engine_choice_service.h"
+@@ -176,7 +175,6 @@
+ #include "components/sessions/core/session_id_generator.h"
+ #include "components/sharing_message/sharing_sync_preference.h"
+ #include "components/signin/core/browser/active_primary_accounts_metrics_recorder.h"
+-#include "components/signin/public/base/signin_pref_names.h"
+ #include "components/signin/public/base/signin_prefs.h"
+ #include "components/signin/public/identity_manager/identity_manager.h"
+ #include "components/site_engagement/content/site_engagement_service.h"
+@@ -269,7 +267,6 @@
+ #include "chrome/browser/nearby_sharing/common/nearby_share_prefs.h"
+ #include "chrome/browser/new_tab_page/modules/file_suggestion/drive_service.h"
+ #include "chrome/browser/new_tab_page/modules/file_suggestion/microsoft_files_page_handler.h"
+-#include "chrome/browser/new_tab_page/modules/safe_browsing/safe_browsing_handler.h"
+ #include "chrome/browser/new_tab_page/modules/v2/authentication/microsoft_auth_page_handler.h"
+ #include "chrome/browser/new_tab_page/modules/v2/calendar/google_calendar_page_handler.h"
+ #include "chrome/browser/new_tab_page/modules/v2/calendar/outlook_calendar_page_handler.h"
+@@ -1425,7 +1422,6 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+   PushMessagingServiceImpl::RegisterPrefs(registry);
+ #endif
+   RegisterScreenshotPrefs(registry);
+-  safe_browsing::RegisterLocalStatePrefs(registry);
+   search_engines::SearchEngineChoiceService::RegisterLocalStatePrefs(registry);
+   secure_origin_allowlist::RegisterPrefs(registry);
+   segmentation_platform::SegmentationPlatformService::RegisterLocalStatePrefs(
+@@ -1622,9 +1618,6 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
+   DeviceOAuth2TokenStoreDesktop::RegisterPrefs(registry);
+ #endif
+ 
+-#if !BUILDFLAG(IS_ANDROID)
+-  screen_ai::RegisterLocalStatePrefs(registry);
+-#endif  // !BUILDFLAG(IS_ANDROID)
+ 
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+   PlatformAuthPolicyObserver::RegisterPrefs(registry);
+@@ -1720,6 +1713,15 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
+   enterprise_connectors::RegisterProfilePrefs(registry);
+   enterprise_promotion::RegisterProfilePrefs(registry);
+   enterprise_reporting::RegisterProfilePrefs(registry);
++  // Oxy authentication prefs
++  registry->RegisterStringPref("oxy.access_token", "");
++  registry->RegisterStringPref("oxy.refresh_token", "");
++  registry->RegisterStringPref("oxy.session_id", "");
++  registry->RegisterStringPref("oxy.user_id", "");
++  registry->RegisterStringPref("oxy.username", "");
++  registry->RegisterStringPref("oxy.user_avatar", "");
++  registry->RegisterStringPref("oxy.token_expiry", "");
++
+   dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
+   DownloadPrefs::RegisterProfilePrefs(registry);
+ #if BUILDFLAG(ENABLE_GLIC)
+@@ -1784,7 +1786,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
+ #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+   safe_browsing::file_type::RegisterProfilePrefs(registry);
+ #endif
+-  safe_browsing::RegisterProfilePrefs(registry);
+   safety_check::prefs::RegisterProfilePrefs(registry);
+   SearchPrefetchService::RegisterProfilePrefs(registry);
+   blocked_content::SafeBrowsingTriggeredPopupBlocker::RegisterProfilePrefs(
+@@ -1900,7 +1901,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
+   NewTabFooterUI::RegisterProfilePrefs(registry);
+   NewTabPageHandler::RegisterProfilePrefs(registry);
+   NewTabPageUI::RegisterProfilePrefs(registry);
+-  ntp::SafeBrowsingHandler::RegisterProfilePrefs(registry);
+   OutlookCalendarPageHandler::RegisterProfilePrefs(registry);
+   PinnedTabCodec::RegisterProfilePrefs(registry);
+   promos_utils::RegisterProfilePrefs(registry);
