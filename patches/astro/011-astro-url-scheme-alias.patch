@@ -1,21 +1,30 @@
 diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
-index 08949a69415df..2781ac6583612 100644
+index 08949a69415df..bc7d3f29f6c65 100644
 --- a/chrome/browser/browser_about_handler.cc
 +++ b/chrome/browser/browser_about_handler.cc
-@@ -9,10 +9,12 @@
+@@ -9,15 +9,21 @@
  #include "base/check.h"
  #include "base/functional/bind.h"
  #include "base/location.h"
 +#include "base/logging.h"
  #include "base/notreached.h"
++#include "base/strings/string_number_conversions.h"
  #include "base/strings/string_util.h"
  #include "base/task/single_thread_task_runner.h"
  #include "chrome/browser/lifetime/application_lifetime.h"
 +#include "chrome/browser/oxy/oxy_auth_callback_handler.h"
++#include "chrome/browser/oxy/oxy_auth_service.h"
++#include "chrome/browser/oxy/oxy_auth_token_store.h"
  #include "chrome/browser/policy/chrome_policy_blocklist_service_factory.h"
  #include "chrome/browser/profiles/profile.h"
  #include "chrome/browser/ui/dialogs/browser_dialogs.h"
-@@ -50,6 +52,27 @@ bool HandleChromeAboutAndChromeSyncRewrite(
+ #include "chrome/common/chrome_switches.h"
+ #include "chrome/common/url_constants.h"
++#include "components/prefs/pref_service.h"
+ #include "components/policy/core/browser/url_list/policy_blocklist_service.h"
+ #include "components/policy/core/browser/url_list/url_blocklist_manager.h"
+ #include "content/public/common/content_features.h"
+@@ -50,6 +56,39 @@ bool HandleChromeAboutAndChromeSyncRewrite(
    DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
           !url->SchemeIs(url::kAboutScheme));
  
@@ -24,9 +33,21 @@ index 08949a69415df..2781ac6583612 100644
 +    auto params = oxy::ParseOxyAuthCallback(*url);
 +    if (params.is_valid) {
 +      Profile* profile = Profile::FromBrowserContext(browser_context);
-+      // TODO: Get OxyAuthService from profile and call HandleAuthCallback
-+      // For now, log the successful auth
-+      LOG(INFO) << "Oxy auth callback received for user: " << params.username;
++      PrefService* prefs = profile->GetPrefs();
++
++      // Store user info in profile prefs
++      prefs->SetString(oxy::kOxySessionId, params.session_id);
++      prefs->SetString(oxy::kOxyUserId, params.user_id);
++      prefs->SetString(oxy::kOxyUsername, params.username);
++      prefs->SetString(oxy::kOxyUserAvatar, params.avatar_url);
++      prefs->SetString(oxy::kOxyTokenExpiry,
++                       base::NumberToString(params.expires_at));
++
++      // Store tokens in encrypted OS credential store
++      oxy::OxyAuthTokenStore::StoreAccessToken(params.access_token);
++      oxy::OxyAuthTokenStore::StoreRefreshToken(params.refresh_token);
++
++      LOG(INFO) << "Oxy: Signed in as " << params.username;
 +    }
 +    // Redirect to a success page instead of showing an error
 +    *url = GURL("chrome://newtab");

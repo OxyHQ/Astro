@@ -9,14 +9,20 @@ source_set("oxy") {
     "oxy_auth_service.h",
     "oxy_auth_token_store.cc",
     "oxy_auth_token_store.h",
+    "oxy_cookie_signin_observer.cc",
+    "oxy_cookie_signin_observer.h",
   ]
 
   deps = [
     "//base",
+    "//chrome/browser/profiles",
     "//components/keyed_service/core",
     "//components/os_crypt/sync",
     "//components/prefs",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
     "//net",
+    "//services/network/public/mojom",
     "//url",
   ]
 }
