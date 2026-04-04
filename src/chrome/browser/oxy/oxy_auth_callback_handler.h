@@ -20,7 +20,7 @@ struct OxyAuthCallbackParams {
   std::string user_id;
   std::string username;
   std::string avatar_url;
-  int64_t expires_at = 0;
+  std::string expires_at;
   bool is_valid = false;
 };
 
