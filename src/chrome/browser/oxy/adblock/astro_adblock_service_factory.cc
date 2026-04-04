@@ -7,6 +7,7 @@
 
 #include "chrome/browser/oxy/adblock/astro_adblock_service.h"
 #include "chrome/browser/profiles/profile.h"
+#include "content/public/browser/storage_partition.h"
 
 namespace oxy::adblock {
 
@@ -35,8 +36,12 @@ std::unique_ptr<KeyedService>
 AstroAdBlockServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
+  auto url_loader_factory =
+      profile->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess();
   return std::make_unique<AstroAdBlockService>(
-      profile->GetPrefs(), profile->GetPath());
+      profile->GetPrefs(), profile->GetPath(),
+      std::move(url_loader_factory));
 }
 
 }  // namespace oxy::adblock

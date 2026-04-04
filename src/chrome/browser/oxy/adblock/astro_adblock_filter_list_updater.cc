@@ -4,6 +4,7 @@
 #include "chrome/browser/oxy/adblock/astro_adblock_filter_list_updater.h"
 
 #include "base/files/file_util.h"
+#include "base/i18n/time_formatting.h"
 #include "base/logging.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.h"
@@ -155,10 +156,11 @@ void AstroAdBlockFilterListUpdater::DownloadFilterList(const std::string& id,
   auto* loader_ptr = loader.get();
   downloads_in_progress_++;
 
-  loader_ptr->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
+  loader_ptr->DownloadToString(
       url_loader_factory_.get(),
       base::BindOnce(&AstroAdBlockFilterListUpdater::OnFilterListDownloaded,
-                      weak_factory_.GetWeakPtr(), id, output_path));
+                      weak_factory_.GetWeakPtr(), id, output_path),
+      kMaxFilterListSize);
 
   auto pending = std::make_unique<PendingDownload>();
   pending->list_id = id;
@@ -182,22 +184,16 @@ void AstroAdBlockFilterListUpdater::OnFilterListDownloaded(
                   return pd->list_id == list_id;
                 });
 
-  if (response_body.has_value()) {
-    const auto& body = response_body.value();
-    if (body.size() > kMaxFilterListSize) {
-      LOG(WARNING) << "Filter list " << list_id << " exceeds maximum size ("
-                   << body.size() << " bytes), skipping";
-    } else if (!body.empty()) {
-      // Write the updated list to disk.
-      if (base::WriteFile(output_path, body)) {
-        LOG(INFO) << "Updated filter list: " << list_id << " ("
-                  << body.size() << " bytes)";
-        needs_engine_reload_ = true;
-      } else {
-        LOG(WARNING) << "Failed to write filter list " << list_id;
-      }
+  if (response_body.has_value() && !response_body->empty()) {
+    // Write the updated list to disk.
+    if (base::WriteFile(output_path, *response_body)) {
+      LOG(INFO) << "Updated filter list: " << list_id << " ("
+                << response_body->size() << " bytes)";
+      needs_engine_reload_ = true;
+    } else {
+      LOG(WARNING) << "Failed to write filter list " << list_id;
     }
-  } else {
+  } else if (!response_body.has_value()) {
     // A 304 Not Modified response results in no body, which is expected.
     // Network errors also result in no body.
     VLOG(1) << "No update for filter list: " << list_id
@@ -216,19 +212,9 @@ void AstroAdBlockFilterListUpdater::ReloadEngine() {
 
   LOG(INFO) << "Reloading ad block engine with updated filter lists...";
 
-  // The service handles engine reloading. We signal it to reinitialize.
-  // For now, this is a placeholder — full implementation would call
-  // service_->ReloadFilterLists() which rebuilds the engine from the
-  // downloaded lists in GetFilterListsDir().
-  //
-  // The engine reload path:
-  // 1. Read all .txt files from GetFilterListsDir()
-  // 2. Create new engine, add all filter lists
-  // 3. Build and swap in the new engine
-  // 4. Save new engine cache
-
-  // This will be connected when AstroAdBlockService gains a Reload method.
-  LOG(INFO) << "Engine reload signaled (next restart will use updated lists)";
+  if (service_) {
+    service_->ReloadFilterLists(GetFilterListsDir());
+  }
 }
 
 }  // namespace oxy::adblock

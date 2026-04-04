@@ -41,6 +41,7 @@ source_set("adblock") {
   deps = [
     "rs:adblock_engine_ffi",
     "//base",
+    "//base/i18n",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui",

@@ -16,13 +16,3 @@ diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/u
 +  map.AddWebUIConfig(std::make_unique<oxy::adblock::AstroAdBlockUIConfig>());
    map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
    map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
-   map.AddWebUIConfig(
-@@ -180,6 +182,7 @@
---- a/chrome/browser/prefs/browser_prefs.cc
-+++ b/chrome/browser/prefs/browser_prefs.cc
-@@ -1727,6 +1727,7 @@
-   registry->RegisterBooleanPref("oxy.adblock.enabled", true);
-   registry->RegisterDictionaryPref("oxy.adblock.site_overrides");
-+  registry->RegisterStringPref("oxy.adblock.custom_rules", "");
-
-   dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);

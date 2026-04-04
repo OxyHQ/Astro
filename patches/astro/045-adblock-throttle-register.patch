@@ -10,7 +10,7 @@ diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/ch
  #include <functional>
  #include <iterator>
  #include <map>
-@@ -5913,6 +5915,17 @@
+@@ -5913,6 +5915,16 @@
    if (signin_throttle) {
      result.push_back(std::move(signin_throttle));
    }
@@ -23,7 +23,7 @@ diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/ch
 +      tab_url = wc->GetLastCommittedURL();
 +    }
 +    if (auto throttle = oxy::adblock::AstroAdBlockURLLoaderThrottle::MaybeCreate(
-+            adblock_service, tab_url)) {
++            adblock_service, tab_url, wc_getter)) {
 +      result.push_back(std::move(throttle));
 +    }
 +  }

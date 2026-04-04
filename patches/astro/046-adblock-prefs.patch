@@ -1,12 +1,13 @@
 diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browser_prefs.cc
 --- a/chrome/browser/prefs/browser_prefs.cc
 +++ b/chrome/browser/prefs/browser_prefs.cc
-@@ -1723,6 +1723,10 @@
+@@ -1723,6 +1723,11 @@
    registry->RegisterStringPref("oxy.token_expiry", "");
 
 +  // Oxy ad blocker prefs
 +  registry->RegisterBooleanPref("oxy.adblock.enabled", true);
 +  registry->RegisterDictionaryPref("oxy.adblock.site_overrides");
++  registry->RegisterStringPref("oxy.adblock.custom_rules", "");
 +
    dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
    DownloadPrefs::RegisterProfilePrefs(registry);

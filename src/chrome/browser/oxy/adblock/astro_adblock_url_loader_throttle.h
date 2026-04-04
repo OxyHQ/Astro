@@ -6,13 +6,21 @@
 
 #include <memory>
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
 #include "url/gurl.h"
 
+namespace content {
+class WebContents;
+}
+
 namespace oxy::adblock {
 
 class AstroAdBlockService;
+
+// Callback invoked on the UI thread when a request is blocked.
+using OnResourceBlockedCallback = base::RepeatingCallback<void(const GURL&)>;
 
 // URLLoaderThrottle that intercepts network requests and blocks those
 // matching ad/tracker filter rules. One instance per network request.
@@ -25,7 +33,8 @@ class AstroAdBlockURLLoaderThrottle : public blink::URLLoaderThrottle {
   // request context, or nullptr if blocking is disabled/not applicable.
   static std::unique_ptr<AstroAdBlockURLLoaderThrottle> MaybeCreate(
       AstroAdBlockService* service,
-      const GURL& tab_url);
+      const GURL& tab_url,
+      const base::RepeatingCallback<content::WebContents*()>& wc_getter);
 
   ~AstroAdBlockURLLoaderThrottle() override;
 
@@ -46,11 +55,17 @@ class AstroAdBlockURLLoaderThrottle : public blink::URLLoaderThrottle {
   void DetachFromCurrentSequence() override;
 
  private:
-  AstroAdBlockURLLoaderThrottle(AstroAdBlockService* service,
-                                const GURL& tab_url);
+  AstroAdBlockURLLoaderThrottle(
+      AstroAdBlockService* service,
+      const GURL& tab_url,
+      OnResourceBlockedCallback on_blocked);
+
+  // Reports a blocked URL to the tab helper on the UI thread.
+  void ReportBlocked(const GURL& blocked_url);
 
   raw_ptr<AstroAdBlockService> service_;
   GURL tab_url_;
+  OnResourceBlockedCallback on_blocked_;
 };
 
 }  // namespace oxy::adblock

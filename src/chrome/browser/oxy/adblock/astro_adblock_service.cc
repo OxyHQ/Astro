@@ -4,10 +4,12 @@
 #include "chrome/browser/oxy/adblock/astro_adblock_service.h"
 
 #include "base/base_paths.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "chrome/browser/oxy/adblock/astro_adblock_engine.h"
+#include "chrome/browser/oxy/adblock/astro_adblock_filter_list_updater.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 
@@ -22,8 +24,10 @@ constexpr char kEasyPrivacyFileName[] = "easyprivacy.txt";
 
 }  // namespace
 
-AstroAdBlockService::AstroAdBlockService(PrefService* prefs,
-                                         const base::FilePath& profile_path)
+AstroAdBlockService::AstroAdBlockService(
+    PrefService* prefs,
+    const base::FilePath& profile_path,
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
     : prefs_(prefs),
       profile_path_(profile_path),
       engine_(std::make_unique<AstroAdBlockEngine>()) {
@@ -36,6 +40,13 @@ AstroAdBlockService::AstroAdBlockService(PrefService* prefs,
 
   if (IsEnabled()) {
     InitializeEngine();
+
+    // Start the filter list updater for periodic downloads.
+    if (url_loader_factory) {
+      updater_ = std::make_unique<AstroAdBlockFilterListUpdater>(
+          this, std::move(url_loader_factory), profile_path_);
+      updater_->Start();
+    }
   }
 }
 
@@ -118,8 +129,44 @@ void AstroAdBlockService::SetSiteOverride(const GURL& site_url,
   }
 }
 
+void AstroAdBlockService::ReloadFilterLists(const base::FilePath& lists_dir) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  auto new_engine = std::make_unique<AstroAdBlockEngine>();
+
+  // Load all .txt filter list files from the directory.
+  base::FileEnumerator enumerator(lists_dir, /*recursive=*/false,
+                                  base::FileEnumerator::FILES,
+                                  FILE_PATH_LITERAL("*.txt"));
+  int list_count = 0;
+  for (base::FilePath path = enumerator.Next(); !path.empty();
+       path = enumerator.Next()) {
+    std::string content;
+    if (base::ReadFileToString(path, &content) && !content.empty()) {
+      new_engine->AddFilterList(content);
+      list_count++;
+      LOG(INFO) << "Loaded updated filter list: " << path.BaseName();
+    }
+  }
+
+  if (list_count == 0) {
+    LOG(WARNING) << "No filter lists found in " << lists_dir;
+    return;
+  }
+
+  new_engine->Build();
+
+  if (new_engine->IsReady()) {
+    engine_ = std::move(new_engine);
+    engine_->SaveToCache(GetEngineCachePath());
+    LOG(INFO) << "Ad block engine reloaded with " << list_count
+              << " updated filter lists";
+  }
+}
+
 void AstroAdBlockService::Shutdown() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  updater_.reset();
   engine_.reset();
   prefs_ = nullptr;
 }
