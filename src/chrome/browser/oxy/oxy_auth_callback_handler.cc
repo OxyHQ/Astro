@@ -35,7 +35,8 @@ OxyAuthCallbackParams ParseOxyAuthCallback(const GURL& url) {
   net::GetValueForKeyInQuery(url, "avatar_url", &params.avatar_url);
   net::GetValueForKeyInQuery(url, "expires_at", &params.expires_at);
 
-  params.is_valid = !params.access_token.empty() && !params.user_id.empty();
+  // Only access_token is required - user info fetched later from API
+  params.is_valid = !params.access_token.empty();
   return params;
 }
 
