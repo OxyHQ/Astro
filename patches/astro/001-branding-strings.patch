@@ -1,5 +1,5 @@
 diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
-index 5bc0ac0015869..34c5eb1531e7c 100644
+index 5bc0ac0015869..6354371cc634c 100644
 --- a/chrome/app/chromium_strings.grd
 +++ b/chrome/app/chromium_strings.grd
 @@ -278,10 +278,10 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
@@ -101,12 +101,12 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
        </message>
        <message name="IDS_SESSION_CRASHED_VIEW_UMA_OPTIN" desc="Text besides the checkbox to let users optin to UMA in the restore from previous crash bubble.">
 -        Help make Chromium better by sending crash reports and <ph name="UMA_LINK">$1<ex>usage statistics</ex></ph> to Google
-+        Help make Astro better by sending crash reports and <ph name="UMA_LINK">$1<ex>usage statistics</ex></ph> to Google
++        Help make Astro better by sending crash reports and <ph name="UMA_LINK">$1<ex>usage statistics</ex></ph> to Oxy
        </message>
        <if expr="not is_android">
          <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_TOO_MANY_BOOKMARKS_BODY" desc="Body of the signout confirmation dialog when the user has too many bookmarks.">
 -        You reached Chromium’s limit of <ph name="BOOKMARK_LIMIT">$1<ex>100,000</ex></ph> bookmarks, so some of your bookmarks haven’t been saved in your Google Account yet.
-+        You reached Astro’s limit of <ph name="BOOKMARK_LIMIT">$1<ex>100,000</ex></ph> bookmarks, so some of your bookmarks haven’t been saved in your Google Account yet.
++        You reached Astro’s limit of <ph name="BOOKMARK_LIMIT">$1<ex>100,000</ex></ph> bookmarks, so some of your bookmarks haven’t been saved in your Oxy Account yet.
  
  New bookmarks can’t be saved in your account until you delete some. If you sign out now, unsaved bookmarks will be deleted.
          </message>
@@ -114,7 +114,7 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
        <if expr="is_android">
          <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_TOO_MANY_BOOKMARKS_BODY" desc="Body of the signout confirmation dialog when the user has too many bookmarks." formatter_data="android_java">
 -        You reached Chromium’s limit of <ph name="BOOKMARK_LIMIT">%1$s<ex>100,000</ex></ph> bookmarks, so some of your bookmarks haven’t been saved in your Google Account yet.
-+        You reached Astro’s limit of <ph name="BOOKMARK_LIMIT">%1$s<ex>100,000</ex></ph> bookmarks, so some of your bookmarks haven’t been saved in your Google Account yet.
++        You reached Astro’s limit of <ph name="BOOKMARK_LIMIT">%1$s<ex>100,000</ex></ph> bookmarks, so some of your bookmarks haven’t been saved in your Oxy Account yet.
  
  New bookmarks can’t be saved in your account until you delete some. If you sign out now, unsaved bookmarks will be deleted.
          </message>
@@ -969,11 +969,11 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
          </message>
          <message name="IDS_ENTERPRISE_SIGNIN_EXPLANATION_WITHOUT_PROFILE_CREATION" desc="The warning message displayed to an enterprise user about to link their profile to their Google account. This message is followed by a 'Learn more' link.">
 -          You are signing in with a managed account and giving its administrator control over your Chromium profile. Your Chromium data, such as your apps, bookmarks, history, passwords, and other settings will become permanently tied to <ph name="USER_NAME">$1<ex>pat@example.com</ex></ph>. You will be able to delete this data via the Google Accounts Dashboard, but you will not be able to associate this data with another account. <ph name="LEARN_MORE">$2<ex>Learn more</ex></ph>
-+          You are signing in with a managed account and giving its administrator control over your Astro profile. Your Astro data, such as your apps, bookmarks, history, passwords, and other settings will become permanently tied to <ph name="USER_NAME">$1<ex>pat@example.com</ex></ph>. You will be able to delete this data via the Google Accounts Dashboard, but you will not be able to associate this data with another account. <ph name="LEARN_MORE">$2<ex>Learn more</ex></ph>
++          You are signing in with a managed account and giving its administrator control over your Astro profile. Your Astro data, such as your apps, bookmarks, history, passwords, and other settings will become permanently tied to <ph name="USER_NAME">$1<ex>pat@example.com</ex></ph>. You will be able to delete this data via the Oxy Accounts Dashboard, but you will not be able to associate this data with another account. <ph name="LEARN_MORE">$2<ex>Learn more</ex></ph>
          </message>
          <message name="IDS_ENTERPRISE_SIGNIN_EXPLANATION_WITH_PROFILE_CREATION" desc="The warning message displayed to an enterprise user about to link their profile to their Google account. Additionally notifies the user that they can create a new profile instead. This message is followed by a 'Learn more' link.">
 -          You are signing in with a managed account and giving its administrator control over your Chromium profile. Your Chromium data, such as your apps, bookmarks, history, passwords, and other settings will become permanently tied to <ph name="USER_NAME">$1<ex>pat@example.com</ex></ph>. You will be able to delete this data via the Google Accounts Dashboard, but you will not be able to associate this data with another account. You can optionally create a new profile to keep your existing Chromium data separate. <ph name="LEARN_MORE">$2<ex>Learn more</ex></ph>
-+          You are signing in with a managed account and giving its administrator control over your Astro profile. Your Astro data, such as your apps, bookmarks, history, passwords, and other settings will become permanently tied to <ph name="USER_NAME">$1<ex>pat@example.com</ex></ph>. You will be able to delete this data via the Google Accounts Dashboard, but you will not be able to associate this data with another account. You can optionally create a new profile to keep your existing Astro data separate. <ph name="LEARN_MORE">$2<ex>Learn more</ex></ph>
++          You are signing in with a managed account and giving its administrator control over your Astro profile. Your Astro data, such as your apps, bookmarks, history, passwords, and other settings will become permanently tied to <ph name="USER_NAME">$1<ex>pat@example.com</ex></ph>. You will be able to delete this data via the Oxy Accounts Dashboard, but you will not be able to associate this data with another account. You can optionally create a new profile to keep your existing Astro data separate. <ph name="LEARN_MORE">$2<ex>Learn more</ex></ph>
          </message>
 -        <message name="IDS_ENTERPRISE_VALUE_PROPOSITION_PROFILE_REQUIRED_BY_ORG_KNOWN_DOMAIN_TITLE" desc="Title of the screen in the profile creation flow where the user is asked whether they want to confirm signing in to Chromium with their enterprise account when it is mandatory to sign in to Chromium with the enterprise account.">
 -          Your organization, <ph name="MANAGER">$1<ex>manager.com</ex></ph>, requires you to sign into Chromium
@@ -1009,16 +1009,19 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
  
        <!-- Extension requests sign in to Chrome through chrome.identity API -->
        <if expr="enable_extensions">
-         <message name="IDS_EXTENSION_ASKS_IDENTITY_WHILE_SIGNED_IN_WEB_ONLY_TITLE" desc="This string is the heading of a dialog intended to inform the user that one of their installed extensions wants them to sign in to Chrome to be able to use their Google Account.">
+-        <message name="IDS_EXTENSION_ASKS_IDENTITY_WHILE_SIGNED_IN_WEB_ONLY_TITLE" desc="This string is the heading of a dialog intended to inform the user that one of their installed extensions wants them to sign in to Chrome to be able to use their Google Account.">
 -          The extension "<ph name="EXTENSION_NAME">$1<ex>Screencast</ex></ph>" wants you to sign in to Chromium
++        <message name="IDS_EXTENSION_ASKS_IDENTITY_WHILE_SIGNED_IN_WEB_ONLY_TITLE" desc="This string is the heading of a dialog intended to inform the user that one of their installed extensions wants them to sign in to Chrome to be able to use their Oxy Account.">
 +          The extension "<ph name="EXTENSION_NAME">$1<ex>Screencast</ex></ph>" wants you to sign in to Astro
          </message>
-         <message name="IDS_EXTENSION_ASKS_IDENTITY_WHILE_SIGNED_IN_WEB_ONLY_BODY_PART_1" desc="This string is the body of a dialog intended to inform the user that one of their installed extensions wants them to sign in to Chrome to be able to use their Google Account.">
+-        <message name="IDS_EXTENSION_ASKS_IDENTITY_WHILE_SIGNED_IN_WEB_ONLY_BODY_PART_1" desc="This string is the body of a dialog intended to inform the user that one of their installed extensions wants them to sign in to Chrome to be able to use their Google Account.">
 -         To use this extension as <ph name="USER_EMAIL_ADDRESS">$1<ex>elisa.g.beckett@gmail.com</ex></ph>, sign in to Chromium.
++        <message name="IDS_EXTENSION_ASKS_IDENTITY_WHILE_SIGNED_IN_WEB_ONLY_BODY_PART_1" desc="This string is the body of a dialog intended to inform the user that one of their installed extensions wants them to sign in to Chrome to be able to use their Oxy Account.">
 +         To use this extension as <ph name="USER_EMAIL_ADDRESS">$1<ex>elisa.g.beckett@9ma1l.qjz9zk</ex></ph>, sign in to Astro.
          </message>
-         <message name="IDS_EXTENSION_ASKS_IDENTITY_WHILE_SIGNED_IN_WEB_ONLY_TITLE_FALLBACK" desc="This string is the heading of a dialog intended to inform the user that one of their installed extensions wants them to sign in to Chrome to be able to use their Google Account. Used when the extension name couldn't be retrieved.">
+-        <message name="IDS_EXTENSION_ASKS_IDENTITY_WHILE_SIGNED_IN_WEB_ONLY_TITLE_FALLBACK" desc="This string is the heading of a dialog intended to inform the user that one of their installed extensions wants them to sign in to Chrome to be able to use their Google Account. Used when the extension name couldn't be retrieved.">
 -          An extension wants you to sign in to Chromium
++        <message name="IDS_EXTENSION_ASKS_IDENTITY_WHILE_SIGNED_IN_WEB_ONLY_TITLE_FALLBACK" desc="This string is the heading of a dialog intended to inform the user that one of their installed extensions wants them to sign in to Chrome to be able to use their Oxy Account. Used when the extension name couldn't be retrieved.">
 +          An extension wants you to sign in to Astro
          </message>
        </if>
@@ -1147,12 +1150,12 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
          </message>
 -        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_SWITCH_BUBBLE_DESC_V2" desc="This string is the body text for a dialog that appears when the user is already signed in to Chromium, but they just tried to sign in to a Google service (like Gmail) with a different Google Account that already has its own Chromium profile on this device. The body text is after the 'Switch to existing Chromium profile?' string. The tone should be inviting and helpful.">
 -          You're already signed in as <ph name="USER_EMAIL_ADDRESS">$1<ex>foo@gmail.com</ex></ph> in another Chromium profile
-+        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_SWITCH_BUBBLE_DESC_V2" desc="This string is the body text for a dialog that appears when the user is already signed in to Astro, but they just tried to sign in to a Google service (like Gmail) with a different Google Account that already has its own Astro profile on this device. The body text is after the 'Switch to existing Astro profile?' string. The tone should be inviting and helpful.">
++        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_SWITCH_BUBBLE_DESC_V2" desc="This string is the body text for a dialog that appears when the user is already signed in to Astro, but they just tried to sign in to a Google service (like Gmail) with a different Oxy Account that already has its own Astro profile on this device. The body text is after the 'Switch to existing Astro profile?' string. The tone should be inviting and helpful.">
 +          You're already signed in as <ph name="USER_EMAIL_ADDRESS">$1<ex>foo@9ma1l.qjz9zk</ex></ph> in another Astro profile
          </message>
 -        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_SWITCH_BUBBLE_DESC_V2_SUPERVISED" desc="This string is the body text for a dialog that appears when the user is already signed in to Chromium, but they just tried to sign in to a Google service (like Gmail) with a different supervised Google Account that already has its own Chromium profile on this device. The body text is after the 'Switch to existing Chromium profile?' string. The tone should be inviting and helpful.">
 -          To stay safer online with your parent’s choices, switch to your Chromium profile where you’re already signed in as <ph name="USER_EMAIL_ADDRESS">$1<ex>foo@gmail.com</ex></ph>
-+        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_SWITCH_BUBBLE_DESC_V2_SUPERVISED" desc="This string is the body text for a dialog that appears when the user is already signed in to Astro, but they just tried to sign in to a Google service (like Gmail) with a different supervised Google Account that already has its own Astro profile on this device. The body text is after the 'Switch to existing Astro profile?' string. The tone should be inviting and helpful.">
++        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_SWITCH_BUBBLE_DESC_V2_SUPERVISED" desc="This string is the body text for a dialog that appears when the user is already signed in to Astro, but they just tried to sign in to a Google service (like Gmail) with a different supervised Oxy Account that already has its own Astro profile on this device. The body text is after the 'Switch to existing Astro profile?' string. The tone should be inviting and helpful.">
 +          To stay safer online with your parent’s choices, switch to your Astro profile where you’re already signed in as <ph name="USER_EMAIL_ADDRESS">$1<ex>foo@9ma1l.qjz9zk</ex></ph>
          </message>
          <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_CONSUMER_BUBBLE_DESC" desc="Body of the web signin interception bubble">
@@ -1175,62 +1178,62 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
          </message>
 -        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_SUBTITLE_SUPERVISED" desc="This string is the body of a promotion about signing in to Chromium with the user's Google Account. It explains the overarching user benefit of signing in: Kids of a certain age are motivated to get their parents’ help staying safer online, so the tone should be motivating. We want users to understand why signing in is beneficial, and click 'Continue as name' to sign in to their Google Account.">
 -          To stay safer online with your parent’s choices, sign in to Chromium
-+        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_SUBTITLE_SUPERVISED" desc="This string is the body of a promotion about signing in to Astro with the user's Google Account. It explains the overarching user benefit of signing in: Kids of a certain age are motivated to get their parents’ help staying safer online, so the tone should be motivating. We want users to understand why signing in is beneficial, and click 'Continue as name' to sign in to their Google Account.">
++        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_SUBTITLE_SUPERVISED" desc="This string is the body of a promotion about signing in to Astro with the user's Oxy Account. It explains the overarching user benefit of signing in: Kids of a certain age are motivated to get their parents’ help staying safer online, so the tone should be motivating. We want users to understand why signing in is beneficial, and click 'Continue as name' to sign in to their Oxy Account.">
 +          To stay safer online with your parent’s choices, sign in to Astro
          </message>
 -        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_IPH_TEXT_SIGNIN_REMINDER" desc="This string is the body text of a reminder message, which is intended to help users understand that they have been signed in to Chromium. The user previously signed in to a Google service (like Gmail or Maps), and saw the Chrome Signin Bubble intercept; when asked whether the user wanted to sign in to Chromium as well, the user selected yes. After a period of time, this reminder message appears at the top right of Chromium (pointing at the Profile Menu) to remind the user that they made this choice a while ago. This body text string comes after the 'Welcome back, USER_NAME' string. We are focusing on the benefit that user enjoys, now that they're signed in to Chromium. The tone should be welcoming.">
 -          While you're signed in, you can use your passwords and more from your Google Account in Chromium. To change this, go to “Your account in Chromium”.
 +        <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_IPH_TEXT_SIGNIN_REMINDER" desc="This string is the body text of a reminder message, which is intended to help users understand that they have been signed in to Astro. The user previously signed in to a Google service (like Gmail or Maps), and saw the Chrome Signin Bubble intercept; when asked whether the user wanted to sign in to Astro as well, the user selected yes. After a period of time, this reminder message appears at the top right of Astro (pointing at the Profile Menu) to remind the user that they made this choice a while ago. This body text string comes after the 'Welcome back, USER_NAME' string. We are focusing on the benefit that user enjoys, now that they're signed in to Astro. The tone should be welcoming.">
-+          While you're signed in, you can use your passwords and more from your Google Account in Astro. To change this, go to “Your account in Astro”.
++          While you're signed in, you can use your passwords and more from your Oxy Account in Astro. To change this, go to “Your account in Astro”.
          </message>
          <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_IPH_TEXT_SIGNIN_REMINDER_SCREENREADER" desc="This string is the accessibility text of a reminder message, which is intended to help users understand that they have been signed in to Chrome.">
 -          While you're signed in, you can use your passwords and more from your Google Account in Chromium. <ph name="SHORTCUT">$1<ex>CTRL+SHIFT+M</ex></ph> can change your Google services settings.
-+          While you're signed in, you can use your passwords and more from your Google Account in Astro. <ph name="SHORTCUT">$1<ex>CTRL+SHIFT+M</ex></ph> can change your Google services settings.
++          While you're signed in, you can use your passwords and more from your Oxy Account in Astro. <ph name="SHORTCUT">$1<ex>CTRL+SHIFT+M</ex></ph> can change your Oxy services settings.
          </message>
 -        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_NO_UNSYNCED_TITLE" desc="This is the title of a confirmation dialog and asks the user to confirm that they want to sign out of Chromium. It appears when the user opens the Chromium Profile Menu and chooses 'Sign out of Chromium'. This title is before the 'Your passwords and other Chromium data are saved to your Google Account, and will be removed from this device. To use them in the future, sign back in to Chromium.' string. The tone should be straightforward.">
 -          Sign out of Chromium?
-+        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_NO_UNSYNCED_TITLE" desc="This is the title of a confirmation dialog and asks the user to confirm that they want to sign out of Astro. It appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. This title is before the 'Your passwords and other Astro data are saved to your Google Account, and will be removed from this device. To use them in the future, sign back in to Astro.' string. The tone should be straightforward.">
++        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_NO_UNSYNCED_TITLE" desc="This is the title of a confirmation dialog and asks the user to confirm that they want to sign out of Astro. It appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. This title is before the 'Your passwords and other Astro data are saved to your Oxy Account, and will be removed from this device. To use them in the future, sign back in to Astro.' string. The tone should be straightforward.">
 +          Sign out of Astro?
          </message>
 -        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_NO_UNSYNCED_BODY" desc="This is the subtitle of a confirmation dialog that asks the user to confirm that they want to sign out of Chromium. It appears when the user opens the Chromium Profile Menu and chooses 'Sign out of Chromium'. This subtitle is after the 'Sign out of Chromium?' string. The tone should be calm, because we want to explain to the user that their data is saved; however, we want to set expectations by clarifying that the data will be removed from the device. This string provides a path to resolution because it explains how the user can see their data again (by signing back in).">
 -          Your passwords, payment methods, and addresses that you saved in your Google Account will be removed from this device. To use them again in Chromium, sign back in.
 +        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_NO_UNSYNCED_BODY" desc="This is the subtitle of a confirmation dialog that asks the user to confirm that they want to sign out of Astro. It appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. This subtitle is after the 'Sign out of Astro?' string. The tone should be calm, because we want to explain to the user that their data is saved; however, we want to set expectations by clarifying that the data will be removed from the device. This string provides a path to resolution because it explains how the user can see their data again (by signing back in).">
-+          Your passwords, payment methods, and addresses that you saved in your Google Account will be removed from this device. To use them again in Astro, sign back in.
++          Your passwords, payment methods, and addresses that you saved in your Oxy Account will be removed from this device. To use them again in Astro, sign back in.
          </message>
 -        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_NO_UNSYNCED_DATA_BODY" desc="This is the subtitle of a confirmation dialog that asks the user to confirm that they want to sign out of Chromium. It appears when the user opens the Chromium Profile Menu and chooses 'Sign out of Chromium'. This subtitle is after the 'Sign out of Chromium?' string. The tone should be calm, because we want to explain to the user that their data is saved; however, we want to set expectations by clarifying that the data will be removed from the device. This string provides a path to resolution because it explains how the user can see their data again (by signing back in).">
 -          Your passwords and other Chromium data that you saved in your Google Account will be removed from this device. To use them again in Chromium, sign back in.
 +        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_NO_UNSYNCED_DATA_BODY" desc="This is the subtitle of a confirmation dialog that asks the user to confirm that they want to sign out of Astro. It appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. This subtitle is after the 'Sign out of Astro?' string. The tone should be calm, because we want to explain to the user that their data is saved; however, we want to set expectations by clarifying that the data will be removed from the device. This string provides a path to resolution because it explains how the user can see their data again (by signing back in).">
-+          Your passwords and other Astro data that you saved in your Google Account will be removed from this device. To use them again in Astro, sign back in.
++          Your passwords and other Astro data that you saved in your Oxy Account will be removed from this device. To use them again in Astro, sign back in.
          </message>
 -        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_VERIFY_BODY" desc="This is the subtitle of an error message dialog that appears when the user opens the Chromium Profile Menu and chooses 'Sign out of Chromium'. The error message appears when the user has saved some data (like a password or payment method) to Chromium, but Chromium wasn't able to save the data to the user's Google Account due to a sign-in error; we want to set expectations by clarifying that the data will be removed from the device. This subtitle is after the 'Some data isn’t saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved and will be deleted if they sign out. This string provides a path to resolution because it explains how the user can properly save their data before they sign out of Chromium.">
 -          Chromium needs to verify it’s you before some data can be saved in your Google Account and used on all your devices. If you sign out now, this data will be deleted.
-+        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_VERIFY_BODY" desc="This is the subtitle of an error message dialog that appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. The error message appears when the user has saved some data (like a password or payment method) to Astro, but Astro wasn't able to save the data to the user's Google Account due to a sign-in error; we want to set expectations by clarifying that the data will be removed from the device. This subtitle is after the 'Some data isn’t saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved and will be deleted if they sign out. This string provides a path to resolution because it explains how the user can properly save their data before they sign out of Astro.">
-+          Astro needs to verify it’s you before some data can be saved in your Google Account and used on all your devices. If you sign out now, this data will be deleted.
++        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_VERIFY_BODY" desc="This is the subtitle of an error message dialog that appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. The error message appears when the user has saved some data (like a password or payment method) to Astro, but Astro wasn't able to save the data to the user's Oxy Account due to a sign-in error; we want to set expectations by clarifying that the data will be removed from the device. This subtitle is after the 'Some data isn’t saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved and will be deleted if they sign out. This string provides a path to resolution because it explains how the user can properly save their data before they sign out of Astro.">
++          Astro needs to verify it’s you before some data can be saved in your Oxy Account and used on all your devices. If you sign out now, this data will be deleted.
          </message>
 -        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_VERIFY_BODY_WITH_COUNT" desc="This is the subtitle of an error message dialog that appears when the user opens the Chromium Profile Menu and chooses 'Sign out of Chromium'. The error message appears when the user has saved some data (like a password or payment method) to Chromium, but Chromium wasn't able to save the data to the user's Google Account due to a sign-in error; we want to set expectations by clarifying that the data will be removed from the device. This subtitle is after the 'Some data isn’t saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved and will be deleted if they sign out. This string provides a path to resolution because it explains how the user can properly save their data before they sign out of Chromium.">
-+        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_VERIFY_BODY_WITH_COUNT" desc="This is the subtitle of an error message dialog that appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. The error message appears when the user has saved some data (like a password or payment method) to Astro, but Astro wasn't able to save the data to the user's Google Account due to a sign-in error; we want to set expectations by clarifying that the data will be removed from the device. This subtitle is after the 'Some data isn’t saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved and will be deleted if they sign out. This string provides a path to resolution because it explains how the user can properly save their data before they sign out of Astro.">
++        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_VERIFY_BODY_WITH_COUNT" desc="This is the subtitle of an error message dialog that appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. The error message appears when the user has saved some data (like a password or payment method) to Astro, but Astro wasn't able to save the data to the user's Oxy Account due to a sign-in error; we want to set expectations by clarifying that the data will be removed from the device. This subtitle is after the 'Some data isn’t saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved and will be deleted if they sign out. This string provides a path to resolution because it explains how the user can properly save their data before they sign out of Astro.">
            {count, plural,
 -              =1 {Chromium needs to verify it’s you before some data can be saved in your Google Account and used on all your devices. If you sign out now, this data (1 item) will be deleted.}
 -              other {Chromium needs to verify it’s you before some data can be saved in your Google Account and used on all your devices. If you sign out now, this data ({count} items) will be deleted.}}
-+              =1 {Astro needs to verify it’s you before some data can be saved in your Google Account and used on all your devices. If you sign out now, this data (1 item) will be deleted.}
-+              other {Astro needs to verify it’s you before some data can be saved in your Google Account and used on all your devices. If you sign out now, this data ({count} items) will be deleted.}}
++              =1 {Astro needs to verify it’s you before some data can be saved in your Oxy Account and used on all your devices. If you sign out now, this data (1 item) will be deleted.}
++              other {Astro needs to verify it’s you before some data can be saved in your Oxy Account and used on all your devices. If you sign out now, this data ({count} items) will be deleted.}}
          </message>
 -        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_UNSYNCED_BODY"  desc="This is the subtitle of an error message dialog that appears when the user opens the Chromium Profile Menu and chooses 'Sign out of Chromium'. The error message appears when the user tries to sign out immediately after having saved saved some data (like a password or payment method) to Chromium and Chromium hasn't had time to save that data to the user's Google Account yet. This subtitle is after the 'Some data isn't saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved to their Google Account. This string asks the user to wait a few minutes before trying to sign out again.">
 -          Some of your Chromium data hasn't been saved in your Google Account yet. Try waiting a few minutes before signing out. If you sign out now, this data will be deleted.
-+        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_UNSYNCED_BODY"  desc="This is the subtitle of an error message dialog that appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. The error message appears when the user tries to sign out immediately after having saved saved some data (like a password or payment method) to Astro and Astro hasn't had time to save that data to the user's Google Account yet. This subtitle is after the 'Some data isn't saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved to their Google Account. This string asks the user to wait a few minutes before trying to sign out again.">
-+          Some of your Astro data hasn't been saved in your Google Account yet. Try waiting a few minutes before signing out. If you sign out now, this data will be deleted.
++        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_UNSYNCED_BODY"  desc="This is the subtitle of an error message dialog that appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. The error message appears when the user tries to sign out immediately after having saved saved some data (like a password or payment method) to Astro and Astro hasn't had time to save that data to the user's Oxy Account yet. This subtitle is after the 'Some data isn't saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved to their Oxy Account. This string asks the user to wait a few minutes before trying to sign out again.">
++          Some of your Astro data hasn't been saved in your Oxy Account yet. Try waiting a few minutes before signing out. If you sign out now, this data will be deleted.
          </message>
 -        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_UNSYNCED_BODY_WITH_COUNT"  desc="This is the subtitle of an error message dialog that appears when the user opens the Chromium Profile Menu and chooses 'Sign out of Chromium'. The error message appears when the user tries to sign out immediately after having saved saved some data (like a password or payment method) to Chromium and Chromium hasn't had time to save that data to the user's Google Account yet. This subtitle is after the 'Some data isn't saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved to their Google Account. This string asks the user to wait a few minutes before trying to sign out again.">
-+        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_UNSYNCED_BODY_WITH_COUNT"  desc="This is the subtitle of an error message dialog that appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. The error message appears when the user tries to sign out immediately after having saved saved some data (like a password or payment method) to Astro and Astro hasn't had time to save that data to the user's Google Account yet. This subtitle is after the 'Some data isn't saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved to their Google Account. This string asks the user to wait a few minutes before trying to sign out again.">
++        <message name="IDS_CHROME_SIGNOUT_CONFIRMATION_PROMPT_UNSYNCED_BODY_WITH_COUNT"  desc="This is the subtitle of an error message dialog that appears when the user opens the Astro Profile Menu and chooses 'Sign out of Astro'. The error message appears when the user tries to sign out immediately after having saved saved some data (like a password or payment method) to Astro and Astro hasn't had time to save that data to the user's Oxy Account yet. This subtitle is after the 'Some data isn't saved yet' string. The tone should be cautionary, because we want to explain to the user that their data is not saved to their Oxy Account. This string asks the user to wait a few minutes before trying to sign out again.">
            {count, plural,
 -              =1 {Some of your Chromium data hasn't been saved in your Google Account yet. Try waiting a few minutes before signing out. If you sign out now, this data (1 item) will be deleted.}
 -              other {Some of your Chromium data hasn't been saved in your Google Account yet. Try waiting a few minutes before signing out. If you sign out now, this data ({count} items) will be deleted.}}
-+              =1 {Some of your Astro data hasn't been saved in your Google Account yet. Try waiting a few minutes before signing out. If you sign out now, this data (1 item) will be deleted.}
-+              other {Some of your Astro data hasn't been saved in your Google Account yet. Try waiting a few minutes before signing out. If you sign out now, this data ({count} items) will be deleted.}}
++              =1 {Some of your Astro data hasn't been saved in your Oxy Account yet. Try waiting a few minutes before signing out. If you sign out now, this data (1 item) will be deleted.}
++              other {Some of your Astro data hasn't been saved in your Oxy Account yet. Try waiting a few minutes before signing out. If you sign out now, this data ({count} items) will be deleted.}}
          </message>
          <message name="IDS_CLOSE_WARNING_FOR_CLEAR_COOKIES_ON_EXIT_TEXT" desc="Body of a notice displayed when closing the last Chrome window, to inform the user about a change in the way the 'Clear cookie on exit' setting works.">
 -          You’ll be signed out of most sites when you close all Chromium windows, except your Google Account if you’re signed in to Chromium. To let sites remember you, <ph name="SETTINGS_LINK">$1<ex>go to settings</ex></ph>.
-+          You’ll be signed out of most sites when you close all Astro windows, except your Google Account if you’re signed in to Astro. To let sites remember you, <ph name="SETTINGS_LINK">$1<ex>go to settings</ex></ph>.
++          You’ll be signed out of most sites when you close all Astro windows, except your Oxy Account if you’re signed in to Astro. To let sites remember you, <ph name="SETTINGS_LINK">$1<ex>go to settings</ex></ph>.
          </message>
          <message name="IDS_SYNC_PASSPHRASE_DIALOG_FOOTER" desc="Dialog footer of the passphrase dialog.">
 -          If you forgot your passphrase or want to change this setting, <ph name="SETTINGS_LINK">$1<ex>clear</ex></ph> the Chromium data in your account
@@ -1242,7 +1245,7 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
          </message>
          <message name="IDS_SYNC_PASSPHRASE_DIALOG_BODY" desc="Body of the sync passphrase dialog.">
 -          Your data is encrypted with your passphrase. Enter it to use and save Chromium data in your Google Account.
-+          Your data is encrypted with your passphrase. Enter it to use and save Astro data in your Google Account.
++          Your data is encrypted with your passphrase. Enter it to use and save Astro data in your Oxy Account.
          </message>
          <message name="IDS_AVATAR_BUTTON_INTERCEPT_BUBBLE_CHROME_SIGNIN_ACCESSIBILITY_LABEL"
 -          desc="Accessibility label (read by the accessibility tools) of the avatar button when the Chromium Signin bubble is shown. The text implies that the expanded bubble underneath the button is closable by clicking on the button. The actual text is 'Sign in to Chromium?' with a bubble shown under it.">
@@ -1260,13 +1263,13 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
          <!-- Autofill Sign In Promo Bubble -->
 -        <message name="IDS_AUTOFILL_SIGNIN_PROMO_SUBTITLE_PASSWORD" desc="This is the body text of a confirmation message and means that the password was only saved locally to the user's device (not in their Google Account). It appears when the user is not signed in to Chromium and is after the 'Password saved to this device' string. If the user wants to save this data to their Google Account, they can click the 'Sign in to Chromium' button at the bottom of this message. The tone should be motivating.">
 -          To get your passwords and more on all your devices, sign in to Chromium. This password will be saved in your Google Account after you sign in.
-+        <message name="IDS_AUTOFILL_SIGNIN_PROMO_SUBTITLE_PASSWORD" desc="This is the body text of a confirmation message and means that the password was only saved locally to the user's device (not in their Google Account). It appears when the user is not signed in to Astro and is after the 'Password saved to this device' string. If the user wants to save this data to their Google Account, they can click the 'Sign in to Astro' button at the bottom of this message. The tone should be motivating.">
-+          To get your passwords and more on all your devices, sign in to Astro. This password will be saved in your Google Account after you sign in.
++        <message name="IDS_AUTOFILL_SIGNIN_PROMO_SUBTITLE_PASSWORD" desc="This is the body text of a confirmation message and means that the password was only saved locally to the user's device (not in their Oxy Account). It appears when the user is not signed in to Astro and is after the 'Password saved to this device' string. If the user wants to save this data to their Oxy Account, they can click the 'Sign in to Astro' button at the bottom of this message. The tone should be motivating.">
++          To get your passwords and more on all your devices, sign in to Astro. This password will be saved in your Oxy Account after you sign in.
          </message>
 -        <message name="IDS_AUTOFILL_SIGNIN_PROMO_SUBTITLE_ADDRESS" desc="This is the body text of a confirmation message and means that the address was only saved locally to the user's device (not in their Google Account). It appears when the user is not signed in to Chromium and is after the 'Address saved to this device' string. If the user wants to save this data to their Google Account, they can click the 'Sign in to Chromium' button at the bottom of this message. The tone should be motivating.">
 -          To get your addresses and more on all your devices, sign in to Chromium. This address will be saved in your Google Account after you sign in.
-+        <message name="IDS_AUTOFILL_SIGNIN_PROMO_SUBTITLE_ADDRESS" desc="This is the body text of a confirmation message and means that the address was only saved locally to the user's device (not in their Google Account). It appears when the user is not signed in to Astro and is after the 'Address saved to this device' string. If the user wants to save this data to their Google Account, they can click the 'Sign in to Astro' button at the bottom of this message. The tone should be motivating.">
-+          To get your addresses and more on all your devices, sign in to Astro. This address will be saved in your Google Account after you sign in.
++        <message name="IDS_AUTOFILL_SIGNIN_PROMO_SUBTITLE_ADDRESS" desc="This is the body text of a confirmation message and means that the address was only saved locally to the user's device (not in their Oxy Account). It appears when the user is not signed in to Astro and is after the 'Address saved to this device' string. If the user wants to save this data to their Oxy Account, they can click the 'Sign in to Astro' button at the bottom of this message. The tone should be motivating.">
++          To get your addresses and more on all your devices, sign in to Astro. This address will be saved in your Oxy Account after you sign in.
          </message>
        </if>
  
@@ -1476,7 +1479,7 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
          </message>
          <message name="IDS_USER_MANAGER_TUTORIAL_SLIDE_INTRO_TEXT" desc="Main text of the tutorial introduction slide">
 -          Now it's easier to use Chromium with your Google Account and on shared computers.
-+          Now it's easier to use Astro with your Google Account and on shared computers.
++          Now it's easier to use Astro with your Oxy Account and on shared computers.
          </message>
          <message name="IDS_USER_MANAGER_TUTORIAL_SLIDE_YOUR_CHROME_TITLE" desc="Title of the slide about personalizing the browser">
 -          This is your Chromium
@@ -1686,11 +1689,11 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
        </message>
         <message name="IDS_SYNC_ERROR_UPGRADE_CLIENT_USER_MENU_TITLE" desc="Error message to resolve sync protocol error for out-of-date client.">
 -        To use and save Chromium data in your Google Account, update Chromium
-+        To use and save Astro data in your Google Account, update Astro
++        To use and save Astro data in your Oxy Account, update Astro
        </message>
        <message name="IDS_SYNC_ERROR_UPGRADE_CLIENT_USER_MENU_ERROR_DESCRIPTION" desc="Error message to resolve sync protocol error for out-of-date client.">
 -        Update Chromium to keeping using the Chromium data in your Google Account, <ph name="ACCOUNT_EMAIL">$1<ex>elisa.beckett@gmail.com</ex></ph>
-+        Update Astro to keeping using the Astro data in your Google Account, <ph name="ACCOUNT_EMAIL">$1<ex>elisa.beckett@9ma1l.qjz9zk</ex></ph>
++        Update Astro to keeping using the Astro data in your Oxy Account, <ph name="ACCOUNT_EMAIL">$1<ex>elisa.beckett@9ma1l.qjz9zk</ex></ph>
        </message>
  
        <!-- Sync errors. -->
@@ -2157,7 +2160,7 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
          <message name="IDS_FRE_SIGN_IN_TITLE_0" meaning="Title"
 -          desc="This string appears as a heading on a full-page screen that asks the user to sign in to Chromium with their Google Account. It appears when the user launches Chromium for the first time. When they sign in, they can personalize and customize Chromium and remember their settings in their Google Account. The tone should be inviting and alluring.">
 -          Sign in to Chromium
-+          desc="This string appears as a heading on a full-page screen that asks the user to sign in to Astro with their Google Account. It appears when the user launches Astro for the first time. When they sign in, they can personalize and customize Astro and remember their settings in their Google Account. The tone should be inviting and alluring.">
++          desc="This string appears as a heading on a full-page screen that asks the user to sign in to Astro with their Oxy Account. It appears when the user launches Astro for the first time. When they sign in, they can personalize and customize Astro and remember their settings in their Oxy Account. The tone should be inviting and alluring.">
 +          Sign in to Astro
          </message>
  
@@ -2231,12 +2234,12 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
 -        <message name="IDS_SIGNOUT_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNOUT_IPH_TEXT" desc="This confirmation message is intended to help users to understand that signing out of a Google service (like Gmail) will not sign them out of Chromium. It appears in a blue in-product help bubble, which points to the Chromium Profile Menu; it appears after the user signs out of a Google service (like Gmail). The user can open the Profile Menu and sign out of Chromium, if they wish to do so.">
 -          To remove your Google Account from Chromium, sign out
 +        <message name="IDS_SIGNOUT_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNOUT_IPH_TEXT" desc="This confirmation message is intended to help users to understand that signing out of a Google service (like Gmail) will not sign them out of Astro. It appears in a blue in-product help bubble, which points to the Astro Profile Menu; it appears after the user signs out of a Google service (like Gmail). The user can open the Profile Menu and sign out of Astro, if they wish to do so.">
-+          To remove your Google Account from Astro, sign out
++          To remove your Oxy Account from Astro, sign out
          </message>
 -        <message name="IDS_SIGNOUT_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNOUT_IPH_TEXT_SCREENREADER" desc="Text announced by screenreaders related to the confirmation message is intended to help users to understand that signing out of a Google service (like Gmail) will not sign them out of Chromium. It appears in a blue in-product help bubble, which points to the Chromium Profile Menu; it appears after the user signs out of a Google service (like Gmail). The user can open the Profile Menu and sign out of Chromium, if they wish to do so.">
 -          To remove your Google Account from Chromium, sign out of Chromium in the Settings page
 +        <message name="IDS_SIGNOUT_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNOUT_IPH_TEXT_SCREENREADER" desc="Text announced by screenreaders related to the confirmation message is intended to help users to understand that signing out of a Google service (like Gmail) will not sign them out of Astro. It appears in a blue in-product help bubble, which points to the Astro Profile Menu; it appears after the user signs out of a Google service (like Gmail). The user can open the Profile Menu and sign out of Astro, if they wish to do so.">
-+          To remove your Google Account from Astro, sign out of Astro in the Settings page
++          To remove your Oxy Account from Astro, sign out of Astro in the Settings page
          </message>
        </if>
  
@@ -2424,7 +2427,7 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
        <!-- Delete Browsing Data -->
        <message name="IDS_SETTINGS_CLEAR_BROWSING_DATA_SIGNED_IN" desc="Description in the footer of the Delete Browsing Data dialog when the user is signed.">
 -        To delete browsing data from this device only, while keeping it in your Google Account, <ph name="BEGIN_LINK">&lt;a href="#" target=&quot;_blank&quot;&gt;</ph>sign out of Chromium<ph name="END_LINK">&lt;/a&gt;</ph>.
-+        To delete browsing data from this device only, while keeping it in your Google Account, <ph name="BEGIN_LINK">&lt;a href="#" target=&quot;_blank&quot;&gt;</ph>sign out of Astro<ph name="END_LINK">&lt;/a&gt;</ph>.
++        To delete browsing data from this device only, while keeping it in your Oxy Account, <ph name="BEGIN_LINK">&lt;a href="#" target=&quot;_blank&quot;&gt;</ph>sign out of Astro<ph name="END_LINK">&lt;/a&gt;</ph>.
        </message>
  
        <!-- New Create Shortcut View Strings -->
@@ -2512,7 +2515,7 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
          </message>
          <message name ="IDS_GLIC_INELIGIBLE_PROFILE_NOTICE" translateable="false" desc="This is the text of the glic ineligible profile notice.">
 -          To use Gemini in Chromium, sign in with a different Google Account
-+          To use Gemini in Astro, sign in with a different Google Account
++          To use Gemini in Astro, sign in with a different Oxy Account
          </message>
  
          <!-- Experimental Glic settings -->
@@ -2544,19 +2547,19 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
          </message>
          <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_GLIC_NO_PROFILE" desc="Profile picker main view title for Glic version when no profiles are eligible to use Glic. 'Glic' has a special styling." translateable="false">
 -          Sign into Chromium with your Google Account to use <ph name="START_GLIC_STYLING">&lt;span class="glic-brand-style"&gt;</ph>Glic<ph name="END_GLIC_STYLING">&lt;/span&gt;</ph>
-+          Sign into Astro with your Google Account to use <ph name="START_GLIC_STYLING">&lt;span class="glic-brand-style"&gt;</ph>Glic<ph name="END_GLIC_STYLING">&lt;/span&gt;</ph>
++          Sign into Astro with your Oxy Account to use <ph name="START_GLIC_STYLING">&lt;span class="glic-brand-style"&gt;</ph>Glic<ph name="END_GLIC_STYLING">&lt;/span&gt;</ph>
          </message>
          <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_GLIC" desc="Profile picker main view subtitle for Glic version." translateable="false">
 -          Select the Chromium profile linked to your Google Account to personalize your Glic experience
-+          Select the Astro profile linked to your Google Account to personalize your Glic experience
++          Select the Astro profile linked to your Oxy Account to personalize your Glic experience
          </message>
          <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_GLIC_NO_PROFILE" desc="Profile picker main view subtitle for Glic version. This version is shown when no profiles are eligibile to use Glic." translateable="false">
 -          To add a new profile and use it with Glic, sign in to Chromium with a Google Account. <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>Learn how to sign in to Chromium<ph name="END_LINK">&lt;/a&gt;</ph>
-+          To add a new profile and use it with Glic, sign in to Astro with a Google Account. <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>Learn how to sign in to Astro<ph name="END_LINK">&lt;/a&gt;</ph>
++          To add a new profile and use it with Glic, sign in to Astro with a Oxy Account. <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>Learn how to sign in to Astro<ph name="END_LINK">&lt;/a&gt;</ph>
          </message>
          <message name="IDS_PROFILE_PICKER_ADD_PROFILE_HELPER_GLIC" desc="Text shown in the Profile Picker Glic version below the profiles list container that helps the user to create a new profile and sign in to it." translateable="false">
 -          To add a new profile and use it with Glic, sign in to Chromium with a different Google Account. <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>Learn how to add a new Chromium profile<ph name="END_LINK">&lt;/a&gt;</ph>
-+          To add a new profile and use it with Glic, sign in to Astro with a different Google Account. <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>Learn how to add a new Astro profile<ph name="END_LINK">&lt;/a&gt;</ph>
++          To add a new profile and use it with Glic, sign in to Astro with a different Oxy Account. <ph name="BEGIN_LINK">&lt;a class="learn-more-link" href="#" target=&quot;_blank&quot;&gt;</ph>Learn how to add a new Astro profile<ph name="END_LINK">&lt;/a&gt;</ph>
          </message>
  
          <!-- Glic button and tab strip context menu -->
@@ -2587,7 +2590,7 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
        </message>
        <message name="IDS_BOOKMARK_INSTALLED_BUBBLE_PROMO_EXPLICIT_SIGNIN_MESSAGE" desc="Text of the promo displayed after the bookmark bubble asking the user to enable UNO.">
 -        To get your bookmarks and more on all your devices, sign in to Chromium. This bookmark will be saved in your Google Account after you sign in.
-+        To get your bookmarks and more on all your devices, sign in to Astro. This bookmark will be saved in your Google Account after you sign in.
++        To get your bookmarks and more on all your devices, sign in to Astro. This bookmark will be saved in your Oxy Account after you sign in.
        </message>
  
        <!-- Dice Migration strings -->
@@ -2597,7 +2600,7 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
        </message>
        <message name="IDS_DICE_MIGRATION_DIALOG_DESCRIPTION" desc="The content of the Dice Migration dialog advertising the benefits of signing in to Chrome.">
 -        You’ll save and use passwords and more in your Google Account whenever you’re signed in to Chromium. <ph name="LEARN_MORE">$1<ex>Learn more</ex></ph>
-+        You’ll save and use passwords and more in your Google Account whenever you’re signed in to Astro. <ph name="LEARN_MORE">$1<ex>Learn more</ex></ph>
++        You’ll save and use passwords and more in your Oxy Account whenever you’re signed in to Astro. <ph name="LEARN_MORE">$1<ex>Learn more</ex></ph>
        </message>
        <message name="IDS_DICE_MIGRATION_DIALOG_OK_BUTTON" desc="The primary button label in the Dice Migration dialog, letting the user acknowledge signing in to Chrome.">
          Got it
@@ -2664,7 +2667,7 @@ index 5bc0ac0015869..34c5eb1531e7c 100644
          </message>
          <message name="IDS_IOS_DESKTOP_PASSWORD_PROMO_BUBBLE_FOOTER_DESCRIPTION_QR" desc="The description for the iOS desktop password promo bubble footer which lets the user know how to use their saved passwords on their phone: follow the QR code, download Chrome for iOS and sign in to their account.">
 -          To use your saved passwords, follow the QR code, download Chromium for iOS and sign in to your Google Account
-+          To use your saved passwords, follow the QR code, download Astro for iOS and sign in to your Google Account
++          To use your saved passwords, follow the QR code, download Astro for iOS and sign in to your Oxy Account
          </message>
          <message name="IDS_IOS_DESKTOP_LENS_PROMO_NOTIFICATION_TITLE" desc="The title for the iOS desktop Lens promo notification.">
 -          Chromium Tip: Search With Lens

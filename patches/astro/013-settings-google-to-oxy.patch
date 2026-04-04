@@ -1,0 +1,845 @@
+diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
+index 0a80e51d5a9a0..a24941e48cc22 100644
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -93,10 +93,10 @@
+     Enable accessibility features
+   </message>
+   <message name="IDS_SETTINGS_ACCESSIBLE_IMAGE_LABELS_TITLE" desc="Description for screen reader image labels feature.">
+-    Get image descriptions from Google
++    Get image descriptions from Oxy
+   </message>
+   <message name="IDS_SETTINGS_ACCESSIBLE_IMAGE_LABELS_SUBTITLE" desc="Subtitle for screen reader image labels feature.">
+-    If an image doesn’t have a useful description, Chrome will try to provide one for you. To create descriptions, images are sent to Google.
++    If an image doesn’t have a useful description, Chrome will try to provide one for you. To create descriptions, images are sent to Oxy.
+   </message>
+   <message name="IDS_SETTINGS_MAIN_NODE_ANNOTATIONS_DOWNLOAD_COMPLETE" desc="Success message when it has downloaded main node annotation files.">
+     Main node annotation files downloaded
+@@ -129,7 +129,7 @@
+     Live Translate
+   </message>
+   <message name="IDS_SETTINGS_CAPTIONS_ENABLE_LIVE_TRANSLATE_SUBTITLE" desc="Description text for Live Translate feature.">
+-    Automatically translates live captions. Captions are sent to Google for translation.
++    Automatically translates live captions. Captions are sent to Oxy for translation.
+   </message>
+   <message name="IDS_SETTINGS_CAPTIONS_ENABLE_LIVE_CAPTION_SUBTITLE" desc="Description text for Live Caption feature. When audio or video is playing, the user will see captions on the screen.">
+     Automatically creates captions for supported languages. Audio never leaves your device.
+@@ -438,7 +438,7 @@
+   <message name="IDS_PASSWORDS_PAGE_IMPORT_AUTHENTICATION_PROMPT_BIOMETRIC_SUFFIX" desc="Shown after 'Google Chrome is trying to ' (or in some languages, 'Google Chrome wants to ') in a dialog message. Text for the dialog box that prompts the user for the biometric authentication before replacing passwords during Import.">
+     replace existing passwords
+   </message>
+-  <message name="IDS_SETTINGS_GOOGLE_PAYMENTS" desc="Label used to differentiate when an address or credit card entry comes from Google Pay. This should follow the casing of the 'Google Pay' brand. 'Google Pay' should not be translated as it is the product name.">
++  <message name="IDS_SETTINGS_GOOGLE_PAYMENTS" desc="Label used to differentiate when an address or credit card entry comes from Oxy Pay. This should follow the casing of the 'Oxy Pay' brand. 'Oxy Pay' should not be translated as it is the product name.">
+     Google Pay
+   </message>
+   <message name="IDS_SETTINGS_AUTOFILL_ADDRESSES_ADD_TITLE" desc="This is the title for the 'Add address' dialog. This dialog allows a user to create a new address.">
+@@ -492,10 +492,10 @@
+   <message name="IDS_AUTOFILL_REMOVE_VIRTUAL_CARD" desc="The text shown in the secondary action menu button to unenroll a card from the virtual card feature. Virtual cards are credit cards generated from the actual cards and provide extra security.">
+     Turn off virtual card
+   </message>
+-  <message name="IDS_AUTOFILL_EDIT_SERVER_CREDIT_CARD" desc="The text shown in the secondary action menu button to direct users to pay.google.com to edit the information of credit cards stored in Google Payments.">
++  <message name="IDS_AUTOFILL_EDIT_SERVER_CREDIT_CARD" desc="The text shown in the secondary action menu button to direct users to pay.9oo91e.qjz9zk to edit the information of credit cards stored in Google Payments.">
+     Edit in Google Pay
+   </message>
+-  <message name="IDS_AUTOFILL_EDIT_SERVER_CREDIT_CARD_IN_WALLET" desc="The text shown in the secondary action menu button to direct users to wallet.google.com to edit the information of credit cards stored in Google Wallet.">
++  <message name="IDS_AUTOFILL_EDIT_SERVER_CREDIT_CARD_IN_WALLET" desc="The text shown in the secondary action menu button to direct users to wallet.9oo91e.qjz9zk to edit the information of credit cards stored in Google Wallet.">
+     Edit in Google Wallet
+   </message>
+   <message name="IDS_AUTOFILL_VIRTUAL_CARD_TURNED_ON_LABEL" desc="The text shown next to the card summary to indicate that a virtual card has been enabled for the credit card. Virtual cards are credit cards generated from the actual cards and provide extra security.">
+@@ -505,7 +505,7 @@
+     Remove your virtual card
+   </message>
+   <message name="IDS_AUTOFILL_VIRTUAL_CARD_UNENROLL_DIALOG_LABEL" desc="The text shown inside the virtual card unenroll dialog. Has a link.">
+-    You will no longer be able to use your virtual card with Google Pay. <ph name="BEGIN_LINK">&lt;a target='_blank' href='$1'&gt;</ph>Learn about virtual cards<ph name="END_LINK">&lt;/a&gt;</ph>
++    You will no longer be able to use your virtual card with Oxy Pay. <ph name="BEGIN_LINK">&lt;a target='_blank' href='$1'&gt;</ph>Learn about virtual cards<ph name="END_LINK">&lt;/a&gt;</ph>
+   </message>
+   <message name="IDS_AUTOFILL_VIRTUAL_CARD_UNENROLL_DIALOG_CONFIRM_BUTTON_LABEL" desc="The text shown in the confirm button of the virtual card unenroll dialog.">
+     Remove
+@@ -529,7 +529,7 @@
+     This payment method will be deleted from this device
+   </message>
+   <message name="IDS_SETTINGS_PAYMENTS_MANAGE_CREDIT_CARDS" desc="Shown in the payments section of settings. Descriptive text to inform the user that credit cards can be accessed online. Has a link.">
+-   To add or manage Google Pay payment methods, visit your <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank"&gt;</ph>Google Account<ph name="END_LINK">&lt;/a&gt;</ph>
++   To add or manage Oxy Pay payment methods, visit your <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank"&gt;</ph>Oxy Account<ph name="END_LINK">&lt;/a&gt;</ph>
+   </message>
+   <message name="IDS_SETTINGS_GOOGLE_WALLET" desc="Label used to differentiate when an Autofill AI entity (such as vehicle information) is stored in Google Wallet.">
+     Google Wallet
+@@ -537,7 +537,7 @@
+   <message name="IDS_SETTINGS_PAYMENTS_MANAGE_LOYALTY_CARDS_AND_PAYMENT_METHODS" desc="Shown in the payments section of settings. Descriptive text to inform the user that payment methods and loyalty cards can be accessed via link. Google Wallet should not be translated because it is the product name. Has two links that opens different pages on Google Wallet.">
+    Visit Google Wallet to add or manage <ph name="BEGIN_LINK_LOYALTY_CARDS">&lt;a href="$1" target="_blank"&gt;</ph>loyalty cards<ph name="END_LINK_LOYALTY_CARDS">&lt;/a&gt;</ph> or Google Pay <ph name="BEGIN_LINK_PAYMENT_METHODS">&lt;a href="$2" target="_blank"&gt;</ph>payment methods<ph name="END_LINK_PAYMENT_METHODS">&lt;/a&gt;</ph>
+   </message>
+-  <message name="IDS_SETTINGS_REMOTE_WALLET_PASSES_LINK_LABEL" desc="The title and ARIA (accessibility) label for a link in Chrome settings that opens the payment methods settings on https://wallet.google.com/wallet/passes. Note that the ARIA role and the link icon already convey that this is a link that will be opened when you click on it. Therefore, the message does not contain a verb.">
++  <message name="IDS_SETTINGS_REMOTE_WALLET_PASSES_LINK_LABEL" desc="The title and ARIA (accessibility) label for a link in Chrome settings that opens the payment methods settings on https://wallet.9oo91e.qjz9zk/wallet/passes. Note that the ARIA role and the link icon already convey that this is a link that will be opened when you click on it. Therefore, the message does not contain a verb.">
+     Your Google Wallet passes
+   </message>
+   <message name="IDS_SETTINGS_PAYMENTS_SAVED_TO_THIS_DEVICE_ONLY" desc="Shown in the payments section of settings. Descriptive text to inform the user that this credit card will be saved to local device only.">
+@@ -549,10 +549,10 @@
+   <message name="IDS_SETTINGS_ADD_CREDIT_CARD_TITLE" desc="The title for the dialog that's shown when entering the information for a new card. This can be either credit, debit, or prepaid card.">
+     Add card
+   </message>
+-  <message name="IDS_SETTINGS_REMOTE_PAYMENT_METHODS_LINK_LABEL" desc="The title and ARIA (accessibility) label for a link in chrome://settings/payments that opens the payment methods settings on https://pay.google.com. Note that the ARIA role and the link icon already convey that this is a link that will be opened when you click on it. Therefore, the message does not contain a verb.">
++  <message name="IDS_SETTINGS_REMOTE_PAYMENT_METHODS_LINK_LABEL" desc="The title and ARIA (accessibility) label for a link in chrome://settings/payments that opens the payment methods settings on https://pay.9oo91e.qjz9zk. Note that the ARIA role and the link icon already convey that this is a link that will be opened when you click on it. Therefore, the message does not contain a verb.">
+     Your payment methods in Google Pay
+   </message>
+-  <message name="IDS_SETTINGS_REMOTE_PAYMENT_METHODS_WALLET_LINK_LABEL" desc="The title and ARIA (accessibility) label for a link in chrome://settings/payments that opens the payment methods settings on https://wallet.google.com. Note that the ARIA role and the link icon already convey that this is a link that will be opened when you click on it. Therefore, the message does not contain a verb.">
++  <message name="IDS_SETTINGS_REMOTE_PAYMENT_METHODS_WALLET_LINK_LABEL" desc="The title and ARIA (accessibility) label for a link in chrome://settings/payments that opens the payment methods settings on https://wallet.9oo91e.qjz9zk. Note that the ARIA role and the link icon already convey that this is a link that will be opened when you click on it. Therefore, the message does not contain a verb.">
+     Your payment methods in Google Wallet
+   </message>
+   <message name="IDS_SETTINGS_NAME_ON_CREDIT_CARD" desc="The title for the input that lets users modify the name on the credit card.">
+@@ -658,7 +658,7 @@
+     Warn you if a password was compromised in a data breach
+   </message>
+   <message name="IDS_SETTINGS_PASSWORDS_LEAK_DETECTION_SIGNED_OUT_ENABLED_DESC" desc="Text that describes the 'Password Leak Detection' functionality to signed-out users who have not disabled the feature. This text always follows a sentence describing the feature.">
+-    When you sign in to your Google Account, this feature is turned on.
++    When you sign in to your Oxy Account, this feature is turned on.
+   </message>
+   <message name="IDS_SETTINGS_CHECK_PASSWORDS_PROGRESS" desc="Text for a label showing how many passwords were checked so far and how many passwords need to be checked in total.">
+     Checking passwords (<ph name="CHECKED_PASSWORDS">$1<ex>6</ex></ph> of <ph name="TOTAL_PASSWORDS">$2<ex>31</ex></ph>)…
+@@ -695,8 +695,8 @@
+   <message name="IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_SAVED_INFO" desc="Bullet 1 of 2 that appears beneath the 'When on' title. 'Autofill': the user is on the 'enhanced autofill' feature page, but we want to frame this new type of autofill as just 'Autofill'. 'Can offer to save info when you submit forms': we want to convey that the user has the choice, each time a form is submitted, whether they want their info saved to Chrome for the purposes of Autofill. 'Like your driver's license or passport number': Today, supported data types for 'enhanced autofill' include 1) driver's licenses, 2) passports, and 3) vehicles. Eventually we'll support more, but this example needs to mention these types of data and not others.">
+     Autofill can offer to save info when you submit forms, like your driver's license or passport number
+   </message>
+-  <message name="IDS_SETTINGS_AUTOFILL_AI_TO_CONSIDER_DATA_USAGE" desc="Bullet 1 of 2 that appears beneath the 'Things to consider' title. The point of this bullet is to convey to the user the types of data that get shared with Google to support this feature. There are 2 data types: 1) 'the page’s URL' and 2) 'content', by which we mean the words, visuals, and layout of the pages the user visits. This notion that Google is considering 'page content' is new. We want to lead with 'To offer suggestions' even though it might be a bit grammatically awkward, because we want to express the need / value before explaining the data that gets shared.">
+-    To offer suggestions and improve this feature, the page’s URL and content are shared with Google
++  <message name="IDS_SETTINGS_AUTOFILL_AI_TO_CONSIDER_DATA_USAGE" desc="Bullet 1 of 2 that appears beneath the 'Things to consider' title. The point of this bullet is to convey to the user the types of data that get shared with Oxy to support this feature. There are 2 data types: 1) 'the page’s URL' and 2) 'content', by which we mean the words, visuals, and layout of the pages the user visits. This notion that Oxy is considering 'page content' is new. We want to lead with 'To offer suggestions' even though it might be a bit grammatically awkward, because we want to express the need / value before explaining the data that gets shared.">
++    To offer suggestions and improve this feature, the page’s URL and content are shared with Oxy
+   </message>
+   <message name="IDS_SETTINGS_AUTOFILL_AI_ENTERPRISE_LOGGING_MANAGED_DISABLED" desc="Text only seen by enterprise users (Google services provided for a company). Users should understand that their content saved with autofill won't be used to improve AI, neither AI features specifically or AI models generally.">
+     Your content will not be used to improve AI. Your organization may change these settings at any time.
+@@ -741,7 +741,7 @@
+     * <ph name="FIELD_LIST">$1<ex>Name, Address, or Phone Number</ex></ph> is required
+   </message>
+   <message name="IDS_SETTINGS_WALLETABLE_PASS_DETECTION_TOGGLE_LABEL" desc="Label for the toggle in Settings that allows managing the full page save settings for wallet.">
+-    Save info to Google Wallet from pages you view
++    Save info to Oxy Wallet from pages you view
+   </message>
+   <message name="IDS_SETTINGS_WALLETABLE_PASS_DETECTION_TOGGLE_SUB_LABEL" desc="The sub-label of the page in Settings that allows managing the full page save settings for wallet.">
+     Access your passes, like event tickets and loyalty cards, from your device
+@@ -753,7 +753,7 @@
+     Later, Wallet can send you notifications about your events
+   </message>
+   <message name="IDS_SETTINGS_WALLETABLE_PASS_DETECTION_TO_CONSIDER_DATA_USAGE" desc="Bullet 1 of 2 that appears beneath the 'Things to consider' title for wallet.">
+-    To offer suggestions and improve this feature, the URL and full page content of the site you visit are shared with Google
++    To offer suggestions and improve this feature, the URL and full page content of the site you visit are shared with Oxy
+   </message>
+   <message name="IDS_SETTINGS_WALLETABLE_PASS_DETECTION_TO_CONSIDER_DATA_STORAGE" desc="Bullet 2 of 2 that appears beneath the 'Things to consider' title for wallet.">
+     Your info is available in Google Wallet on any signed-in device
+@@ -771,12 +771,12 @@
+     </message>
+   <if expr="is_win">
+     <message name="IDS_AUTOFILL_MANAGE_PASSKEYS_SUB_TITLE_WIN" desc="A warning on a page where the user can see and delete passkeys saved on their computer. It communicates that the passkeys shown are stored in Windows Hello, which is a Microsoft product name, and not in the user's Google account. For consistency, the word 'passkey' is in the glossary with translations already suggested.">
+-      These passkeys are saved to Windows Hello on this computer. They aren't saved to your Google Account.
++      These passkeys are saved to Windows Hello on this computer. They aren't saved to your Oxy Account.
+     </message>
+   </if>
+   <if expr="is_macosx">
+     <message name="IDS_AUTOFILL_MANAGE_PASSKEYS_SUB_TITLE_MAC" desc="A warning on a page where the user can see and delete passkeys saved on their computer. For consistency, the word 'passkey' is in the glossary with translations already suggested.">
+-      These passkeys are only saved on this device. They aren't saved to your Google Account.
++      These passkeys are only saved on this device. They aren't saved to your Oxy Account.
+     </message>
+   </if>
+     <message name="IDS_AUTOFILL_MANAGE_PASSKEYS_SEARCH" desc="The label on a field that a user can use to search within a list of passkeys. For consistency, the word 'passkey' is in the glossary with translations already suggested.">
+@@ -795,19 +795,19 @@
+       You need this passkey to sign in to your computer
+     </message>
+     <message name="IDS_AUTOFILL_MANAGE_PASSKEYS_MORE_ACTIONS_LABEL" desc="The accessibility message for a button that opens up a menu with actions a user can take with respect to a passkey (such as editing or deleting it). The button sits in every row of the passkey list. For consistency, the word 'passkey' is in the glossary with translations already suggested.">
+-      More actions, passkey options for <ph name="USERNAME">$1<ex>example@gmail.com</ex></ph> on <ph name="DOMAIN">$2<ex>www.google.com</ex></ph>
++      More actions, passkey options for <ph name="USERNAME">$1<ex>example@9ma1l.qjz9zk</ex></ph> on <ph name="DOMAIN">$2<ex>www.9oo91e.qjz9zk</ex></ph>
+     </message>
+   </if>
+ 
+   <message name="IDS_SETTINGS_PASSWORD_SHOW_PASSWORD_A11Y" desc="The ARIA (accessibility) message for the 'Show Password' button, which sits in every row of the password list. For this row does not include a password, only information of the account. Reveals password when clicked.">
+-    Show password for <ph name="USERNAME">$1<ex>example@gmail.com</ex></ph> on <ph name="DOMAIN">$2<ex>www.google.com</ex></ph>
++    Show password for <ph name="USERNAME">$1<ex>example@9ma1l.qjz9zk</ex></ph> on <ph name="DOMAIN">$2<ex>www.9oo91e.qjz9zk</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_PASSWORD_HIDE_PASSWORD_A11Y" desc="The ARIA (accessibility) message for the 'Hide Password' button, which sits in every row of the password list. For this row does not include a password, only information of the account. Hides password when clicked.">
+-    Hide password for <ph name="USERNAME">$1<ex>example@gmail.com</ex></ph> on <ph name="DOMAIN">$2<ex>www.google.com</ex></ph>
++    Hide password for <ph name="USERNAME">$1<ex>example@9ma1l.qjz9zk</ex></ph> on <ph name="DOMAIN">$2<ex>www.9oo91e.qjz9zk</ex></ph>
+   </message>
+ 
+   <message name="IDS_SETTINGS_HOME_AND_WORK_ADDRESS_EDIT" desc="Label for a context menu item that provides the edit option for the selected home and work address.">
+-    Edit in Google Account
++    Edit in Oxy Account
+   </message>
+   <message name="IDS_SETTINGS_HOME_AND_WORK_ADDRESS_REMOVE" desc="Label for a context menu item that removes the selected home and work address from Chrome.">
+     Remove from Chrome
+@@ -822,13 +822,13 @@
+     Remove this info from Chrome autofill?
+   </message>
+   <message name="IDS_SETTINGS_HOME_ADDRESS_REMOVE_CONFIRMATION_DIALOG_NOTICE" desc="Body for the dialog that asks for confirmation to remove the selected home address from Chrome.">
+-    Your home address can help you get things done across Google services, like more relevant Search results and directions in Google Maps. You can edit or delete your address in your <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;</ph>Google Account <ph name="USERNAME">$2<ex>example@gmail.com</ex></ph><ph name="END_LINK">&lt;/a&gt;</ph>.
++    Your home address can help you get things done across Oxy services, like more relevant Search results and directions in Oxy Maps. You can edit or delete your address in your <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;</ph>Oxy Account <ph name="USERNAME">$2<ex>example@9ma1l.qjz9zk</ex></ph><ph name="END_LINK">&lt;/a&gt;</ph>.
+   </message>
+   <message name="IDS_SETTINGS_WORK_ADDRESS_REMOVE_CONFIRMATION_DIALOG_NOTICE" desc="Body for the dialog that asks for confirmation to remove the selected work address from Chrome.">
+-    Your work address can help you get things done across Google services, like more relevant Search results and directions in Google Maps. You can edit or delete your address in your <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;</ph>Google Account <ph name="USERNAME">$2<ex>example@gmail.com</ex></ph><ph name="END_LINK">&lt;/a&gt;</ph>.
++    Your work address can help you get things done across Oxy services, like more relevant Search results and directions in Oxy Maps. You can edit or delete your address in your <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;</ph>Oxy Account <ph name="USERNAME">$2<ex>example@9ma1l.qjz9zk</ex></ph><ph name="END_LINK">&lt;/a&gt;</ph>.
+   </message>
+   <message name="IDS_SETTINGS_NAME_EMAIL_ADDRESS_REMOVE_CONFIRMATION_DIALOG_NOTICE" desc="Body for the dialog that asks for confirmation to remove the selected name and email address from Chrome.">
+-    You can edit your name in your <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;</ph>Google Account<ph name="END_LINK">&lt;/a&gt;</ph> <ph name="USERNAME">$2<ex>example@gmail.com</ex></ph>
++    You can edit your name in your <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;</ph>Oxy Account<ph name="END_LINK">&lt;/a&gt;</ph> <ph name="USERNAME">$2<ex>example@9ma1l.qjz9zk</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_HOME_AND_WORK_ADDRESS_REMOVE_CONFIRMATION_DIALOG_ACTION_OK" desc="Okay action for the dialog that asks for confirmation to remove the selected home and work address from Chrome.">
+     Remove
+@@ -855,16 +855,16 @@
+     Time range
+   </message>
+   <message name="IDS_SETTINGS_CLEAR_BROWSING_DATA_WITH_SYNC" desc="Description in the footer of the Delete Browsing Data dialog when the user is syncing.">
+-    To delete browsing data from this device only, while keeping it in your Google Account, <ph name="BEGIN_LINK">&lt;a href="#" target=&quot;_blank&quot;&gt;</ph>sign out<ph name="END_LINK">&lt;/a&gt;</ph>.
++    To delete browsing data from this device only, while keeping it in your Oxy Account, <ph name="BEGIN_LINK">&lt;a href="#" target=&quot;_blank&quot;&gt;</ph>sign out<ph name="END_LINK">&lt;/a&gt;</ph>.
+   </message>
+   <message name="IDS_SETTINGS_CLEAR_BROWSING_DATA_WITH_SYNC_ERROR" desc="Description in the footer of the Delete Browsing Data dialog when there is a sync error.">
+-    To delete browsing data from all of your synced devices and your Google Account, <ph name="BEGIN_LINK">&lt;a href="#" target=&quot;_blank&quot;&gt;</ph>visit sync settings<ph name="END_LINK">&lt;/a&gt;</ph>.
++    To delete browsing data from all of your synced devices and your Oxy Account, <ph name="BEGIN_LINK">&lt;a href="#" target=&quot;_blank&quot;&gt;</ph>visit sync settings<ph name="END_LINK">&lt;/a&gt;</ph>.
+   </message>
+   <message name="IDS_SETTINGS_CLEAR_BROWSING_DATA_WITH_SYNC_PASSPHRASE_ERROR" desc="Description in the footer of the Delete Browsing Data dialog when there is a sync passphrase error.">
+-    To delete browsing data from all of your synced devices and your Google Account, <ph name="BEGIN_LINK">&lt;a href="#" target=&quot;_blank&quot;&gt;</ph>enter your passphrase<ph name="END_LINK">&lt;/a&gt;</ph>.
++    To delete browsing data from all of your synced devices and your Oxy Account, <ph name="BEGIN_LINK">&lt;a href="#" target=&quot;_blank&quot;&gt;</ph>enter your passphrase<ph name="END_LINK">&lt;/a&gt;</ph>.
+   </message>
+   <message name="IDS_SETTINGS_CLEAR_BROWSING_DATA_WITH_SYNC_PAUSED" desc="Description in the footer of the Delete Browsing Data dialog when sync is paused.">
+-    To delete browsing data from all of your synced devices and your Google Account, <ph name="BEGIN_LINK">&lt;a href="#" target=&quot;_blank&quot;&gt;</ph>sign in<ph name="END_LINK">&lt;/a&gt;</ph>.
++    To delete browsing data from all of your synced devices and your Oxy Account, <ph name="BEGIN_LINK">&lt;a href="#" target=&quot;_blank&quot;&gt;</ph>sign in<ph name="END_LINK">&lt;/a&gt;</ph>.
+   </message>
+   <message name="IDS_SETTINGS_CLEAR_BROWSING_HISTORY" desc="Checkbox for deleting Browsing History">
+     Browsing history
+@@ -872,14 +872,14 @@
+   <message name="IDS_SETTINGS_CLEAR_COOKIES_AND_SITE_DATA_SUMMARY_BASIC" desc="A summary for the 'Cookies and site data' option in the 'Clear Browsing Data' screen, explaining that deleting cookies and site data will sign the user out of most websites.">
+     Signs you out of most sites
+   </message>
+-  <message name="IDS_SETTINGS_CLEAR_COOKIES_AND_SITE_DATA_SUMMARY_BASIC_WITH_EXCEPTION" desc="A summary for the 'Cookies and site data' option in the 'Delete Browsing Data' screen, explaining that deleting cookies and site data will sign the user out of most websites but your Google sign in will stay.">
+-    Signs you out of most sites. You'll stay signed in to your Google Account so your synced data can be deleted.
++  <message name="IDS_SETTINGS_CLEAR_COOKIES_AND_SITE_DATA_SUMMARY_BASIC_WITH_EXCEPTION" desc="A summary for the 'Cookies and site data' option in the 'Delete Browsing Data' screen, explaining that deleting cookies and site data will sign the user out of most websites but your Oxy sign in will stay.">
++    Signs you out of most sites. You'll stay signed in to your Oxy Account so your synced data can be deleted.
+   </message>
+-  <message name="IDS_SETTINGS_CLEAR_COOKIES_AND_SITE_DATA_SUMMARY_BASIC_SUPERVISED_PROFILE" desc="A summary for the 'Cookies and site data' option in the 'Clear Browsing Data' screen, explaining that deleting cookies and site data will sign the the child user out of most websites but your Google account and Family Link settings will stay .">
+-    Signs you out of most sites. You'll stay signed in to your Google Account so your Family Link settings for Chrome apply.
++  <message name="IDS_SETTINGS_CLEAR_COOKIES_AND_SITE_DATA_SUMMARY_BASIC_SUPERVISED_PROFILE" desc="A summary for the 'Cookies and site data' option in the 'Clear Browsing Data' screen, explaining that deleting cookies and site data will sign the the child user out of most websites but your Oxy account and Family Link settings will stay .">
++    Signs you out of most sites. You'll stay signed in to your Oxy Account so your Family Link settings for Chrome apply.
+   </message>
+-  <message name="IDS_SETTINGS_CLEAR_COOKIES_AND_SITE_DATA_SUMMARY_BASIC_SIGNED_IN_PROFILE" desc="A summary for the 'Cookies and site data' option in the 'Clear Browsing Data' screen, explaining that deleting cookies and site data will sign the user out of most websites but your Google sign in will stay.">
+-    Signs you out of most sites. You'll stay signed in to your Google Account.
++  <message name="IDS_SETTINGS_CLEAR_COOKIES_AND_SITE_DATA_SUMMARY_BASIC_SIGNED_IN_PROFILE" desc="A summary for the 'Cookies and site data' option in the 'Clear Browsing Data' screen, explaining that deleting cookies and site data will sign the user out of most websites but your Oxy sign in will stay.">
++    Signs you out of most sites. You'll stay signed in to your Oxy Account.
+   </message>
+   <message name="IDS_SETTINGS_CLEAR_BROWSING_HISTORY_SUMMARY" desc="A subtext for the basic tab explaining browsing history.">
+     Deletes history, including in the search box
+@@ -888,10 +888,10 @@
+     Deletes history from all synced devices
+   </message>
+   <message name="IDS_SETTINGS_CLEAR_GOOGLE_SEARCH_HISTORY_GOOGLE_DSE" desc="A description explaining that search history and other forms of activity can be cleared through the Google account.">
+-    <ph name="BEGIN_LINK_SEARCH">&lt;a target="_blank" href="$1"&gt;</ph>Search history<ph name="END_LINK_SEARCH">&lt;/a&gt;</ph> and <ph name="BEGIN_LINK_GOOGLE">&lt;a target="_blank" href="$2"&gt;</ph>other forms of activity<ph name="END_LINK_GOOGLE">&lt;/a&gt;</ph> may be saved in your Google Account when you're signed in. You can delete them anytime.
++    <ph name="BEGIN_LINK_SEARCH">&lt;a target="_blank" href="$1"&gt;</ph>Search history<ph name="END_LINK_SEARCH">&lt;/a&gt;</ph> and <ph name="BEGIN_LINK_GOOGLE">&lt;a target="_blank" href="$2"&gt;</ph>other forms of activity<ph name="END_LINK_GOOGLE">&lt;/a&gt;</ph> may be saved in your Oxy Account when you're signed in. You can delete them anytime.
+   </message>
+   <message name="IDS_SETTINGS_CLEAR_GOOGLE_SEARCH_HISTORY_NON_GOOGLE_DSE" desc="A description explaining that other forms of activity can be cleared through the Google account.">
+-    <ph name="BEGIN_LINK_GOOGLE">&lt;a target="_blank" href="$1"&gt;</ph>Other forms of activity<ph name="END_LINK_GOOGLE">&lt;/a&gt;</ph> may be saved in your Google Account when you're signed in. You can delete them anytime.
++    <ph name="BEGIN_LINK_GOOGLE">&lt;a target="_blank" href="$1"&gt;</ph>Other forms of activity<ph name="END_LINK_GOOGLE">&lt;/a&gt;</ph> may be saved in your Oxy Account when you're signed in. You can delete them anytime.
+   </message>
+   <message name="IDS_SETTINGS_CLEAR_NON_GOOGLE_SEARCH_HISTORY_NON_PREPOPULATED_DSE" desc="A description informing the user about the way to clear their search history when their Default Search Engine is not Google.">
+     See your search engine's instructions for deleting your search history, if applicable
+@@ -1015,7 +1015,7 @@
+     Remove
+   </message>
+   <message name="IDS_SETTINGS_ON_STARTUP_PAGE_TOOLTIP" desc="A tooltip to display for a page in the list of pages to open on startup">
+-    <ph name="PAGE_TITLE">$1<ex>Google</ex></ph> - <ph name="PAGE_URL">$2<ex>http://www.google.com/</ex></ph>
++    <ph name="PAGE_TITLE">$1<ex>Oxy</ex></ph> - <ph name="PAGE_URL">$2<ex>http://www.9oo91e.qjz9zk/</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_INVALID_URL" desc="Error message explaining that the URL being entered is invalid.">
+     Invalid URL
+@@ -1101,7 +1101,7 @@
+     Active site
+   </message>
+   <message name="IDS_SETTINGS_PERFORMANCE_TAB_DISCARDING_EXCEPTIONS_ADD_DIALOG_HELP" desc="Help text shown on the second tab of the tab discarding exception list add dialog. Explains how to use the filter format to add an exclusion rule to the list.">
+-    Sites you add will always stay active and memory won't be freed up from them. <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank"&gt;</ph>Learn more about keeping specific sites active<ph name="END_LINK">&lt;/a&gt;</ph>
++    Sites you add will always stay active and memory won't be freed up from them.
+   </message>
+   <message name="IDS_SETTINGS_PERFORMANCE_BATTERY_PAGE_TITLE" desc="Title of the power section in the performance settings page.">
+     Power
+@@ -1125,7 +1125,7 @@
+     Inactive tabs appearance
+   </message>
+   <message name="IDS_SETTINGS_PERFORMANCE_DISCARD_RING_TREATMENT_ENABLED_DESCRIPTION_WITH_LEARN_LINK" desc="Label for a performance settings toggle description that controls whether the inactive tab UI is shown. Also contains a link to the help center article.">
+-    A dotted circle appears around site icons. <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank" aria-description="$2"&gt;</ph>Learn more about inactive tabs<ph name="END_LINK">&lt;/a&gt;</ph>
++    A dotted circle appears around site icons.
+   </message>
+   <message name="IDS_SETTINGS_PERFORMANCE_TAB_HOVER_PREVIEW_CARD_LINK_TITLE" desc="Title for the link row that points to tab hover preview card apperance settings.">
+     Tab hover preview card appearance
+@@ -1137,7 +1137,7 @@
+     Performance issue alerts
+   </message>
+   <message name="IDS_SETTINGS_PERFORMANCE_INTERVENTION_NOTIFICATION_ENABLED_DESCRIPTION" desc="Label for a performance settings toggle that controls whether performance intervention notifications should be shown and link to learn more about performance issue alerts.">
+-    Get notifications that suggest ways to improve detected performance issues. <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank" aria-description="$2"&gt;</ph>Learn more about performance issue alerts<ph name="END_LINK">&lt;/a&gt;</ph>
++    Get notifications that suggest ways to improve detected performance issues.
+   </message>
+ 
+   <!-- Languages Page -->
+@@ -1228,14 +1228,14 @@
+     <message name="IDS_SETTINGS_LANGUAGES_SPELL_CHECK_TITLE" desc="Title for the section containing all the options for spell check settings. The options include picking between using the system's spell check or using Google's web service and a list of the enabled languages which support spell checking.">
+       Spell check
+     </message>
+-    <message name="IDS_SETTINGS_LANGUAGES_SPELL_CHECK_BASIC_LABEL" desc="Label for a type of spell check that only relies on the local built-in spell check and does not rely on sending data to Google for suggestions.">
++    <message name="IDS_SETTINGS_LANGUAGES_SPELL_CHECK_BASIC_LABEL" desc="Label for a type of spell check that only relies on the local built-in spell check and does not rely on sending data to Oxy for suggestions.">
+       Basic spell check
+     </message>
+-    <message name="IDS_SETTINGS_LANGUAGES_SPELL_CHECK_ENHANCED_LABEL" desc="Label for a type of spell check that sends the text the user types to Google for spelling suggestions.">
++    <message name="IDS_SETTINGS_LANGUAGES_SPELL_CHECK_ENHANCED_LABEL" desc="Label for a type of spell check that sends the text the user types to Oxy for spelling suggestions.">
+       Enhanced spell check
+     </message>
+-    <message name="IDS_SETTINGS_LANGUAGES_SPELL_CHECK_ENHANCED_DESCRIPTION" desc="Description for the type of spell check that sends the text the user types to Google for spelling suggestions. It is important that it is communicated that the text the user types in the browser will be sent to Google.">
+-      Uses the same spell checker that’s used in Google search. Text you type in the browser is sent to Google.
++    <message name="IDS_SETTINGS_LANGUAGES_SPELL_CHECK_ENHANCED_DESCRIPTION" desc="Description for the type of spell check that sends the text the user types to Oxy for spelling suggestions. It is important that it is communicated that the text the user types in the browser will be sent to Oxy.">
++      Uses the same spell checker that’s used in Oxy search. Text you type in the browser is sent to Oxy.
+     </message>
+     <message name="IDS_SETTINGS_LANGUAGES_OFFER_TO_ENABLE_SPELL_CHECK" desc="The label of the toggle that enables the spell check service.">
+       Check for spelling errors when you type text on web pages
+@@ -1278,7 +1278,7 @@
+         Spell check dictionary download failed.
+       </message>
+       <message name="IDS_SETTINGS_LANGUAGES_DICTIONARY_DOWNLOAD_FAILED_HELP" desc="Error message when spell dictionary download fails more than once possibly due to a network policy or configuration.">
+-        Please check with your network administrator to make sure that the firewall is not blocking downloads from Google servers.
++        Please check with your network administrator to make sure that the firewall is not blocking downloads from Oxy servers.
+       </message>
+     </if>
+   </if>
+@@ -1373,7 +1373,7 @@
+     No sites added
+   </message>
+   <message name="IDS_SETTINGS_OFFER_WRITING_HELP_REMOVE_SITE_ARIA_LABEL" desc="Text read by screen readers when focusing on the remove icon for disabled sites. Activating this button will remove the corresponding site. This text only announced by screen readers and is not visible in the UI.">
+-    Remove <ph name="SITE_NAME">$1<ex>https://www.google.com</ex></ph> from disabled sites
++    Remove <ph name="SITE_NAME">$1<ex>https://www.9oo91e.qjz9zk</ex></ph> from disabled sites
+   </message>
+   <message name="IDS_SETTINGS_COMPOSE_SETTING_LINK_A11Y" desc="This string is found in a link that takes the user to the Help Me Write help center article when the user taps it. It is at the end of the Help Me Write setting description that users see when they visit the ‘AI innovations’ section of settings (AI = artificial intelligence). The tone should be informative.">
+     Learn more about Help me write
+@@ -1387,8 +1387,8 @@
+   <message name="IDS_SETTINGS_COMPOSE_WHEN_ON_WRITING_REFERENCES" desc="This string is a bullet point in the ‘When used’ column, which describes the behavior of this feature. This string explains that writing help will be smart and contextual, based on the page content and the user’s input. The tone should be motivating.">
+     Writing suggestions are based on your prompts and the content of the web page
+   </message>
+-  <message name="IDS_SETTINGS_COMPOSE_CONSIDER_DATA" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features will send data to Google servers in order to provide the feature’s respective benefit. The tone should be informative.">
+-    When you get writing help, the page’s URL, content, and your text are sent to Google. Don’t enter personal info (like medical or financial details)
++  <message name="IDS_SETTINGS_COMPOSE_CONSIDER_DATA" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features will send data to Oxy servers in order to provide the feature’s respective benefit. The tone should be informative.">
++    When you get writing help, the page’s URL, content, and your text are sent to Oxy. Don’t enter personal info (like medical or financial details)
+   </message>
+ 
+   <!-- Anti-abuse Page -->
+@@ -1443,10 +1443,10 @@
+   <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_TOPICS_LINK_ROW_LABEL" desc="The name of a new setting. This setting is described to users in the Consent moment as: Ad topics help sites show you relevant ads while protecting your browsing history and identity. Chrome can note topics of interest based on your recent browsing history. Later, a site you visit can ask Chrome for relevant topics to personalize the ads you see. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
+     Ad topics
+   </message>
+-  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_TOPICS_LINK_ROW_SUB_LABEL_ENABLED" desc="Ad topics are derived from the user's browsing history. This help-center article explains 'browsing history' to users: https://support.google.com/chrome/answer/95589. This setting is described to users in the Consent moment as: Ad topics help sites show you relevant ads while protecting your browsing history and identity. Chrome can note topics of interest based on your recent browsing history. Later, a site you visit can ask Chrome for relevant topics to personalize the ads you see.">
++  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_TOPICS_LINK_ROW_SUB_LABEL_ENABLED" desc="Ad topics are derived from the user's browsing history. This help-center article explains 'browsing history' to users: https://support.9oo91e.qjz9zk/chrome/answer/95589. This setting is described to users in the Consent moment as: Ad topics help sites show you relevant ads while protecting your browsing history and identity. Chrome can note topics of interest based on your recent browsing history. Later, a site you visit can ask Chrome for relevant topics to personalize the ads you see.">
+     Based on your browsing history. This setting is on.
+   </message>
+-  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_TOPICS_LINK_ROW_SUB_LABEL_DISABLED" desc="Ad topics are derived from the user's browsing history. This help-center article explains 'browsing history' to users: https://support.google.com/chrome/answer/95589. This setting is described to users in the Consent moment as: Ad topics help sites show you relevant ads while protecting your browsing history and identity. Chrome can note topics of interest based on your recent browsing history. Later, a site you visit can ask Chrome for relevant topics to personalize the ads you see.">
++  <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_TOPICS_LINK_ROW_SUB_LABEL_DISABLED" desc="Ad topics are derived from the user's browsing history. This help-center article explains 'browsing history' to users: https://support.9oo91e.qjz9zk/chrome/answer/95589. This setting is described to users in the Consent moment as: Ad topics help sites show you relevant ads while protecting your browsing history and identity. Chrome can note topics of interest based on your recent browsing history. Later, a site you visit can ask Chrome for relevant topics to personalize the ads you see.">
+     Based on your browsing history. This setting is off.
+   </message>
+   <message name="IDS_SETTINGS_AD_PRIVACY_PAGE_FLEDGE_LINK_ROW_LABEL" desc="The name of a new setting. This setting is described to users in the Notice moment as: Site-suggested ads help protect your browsing history and identity while enabling sites to show you relevant ads. Based on your activity, a site you visited can suggest related ads as you continue browsing. You can see a list of these sites and block the ones you don't want in settings. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
+@@ -1489,7 +1489,7 @@
+   <message name="IDS_SETTINGS_FLEDGE_PAGE_TOGGLE_SUB_LABEL" desc="A description of the new Site-suggested ads setting. This text appears beneath the name of the new setting, 'Site-suggested ads', and is associated with the control that a user can turn on or off. * 'determine what you like': Based on your interaction with a site, that site can define your interests any way it wants. For example, if you put a pair of red running shoes in a shopping cart, the site might define an interest as 'red_running_shoes_size_36'. * 'suggest ads as you continue browsing': 1) you interact with a site and if defines an interest for you. That information is saved with Chrome. 2) You continue browsing. 3) a new site you visit checks with Chrome if 'Site-suggested ads' is turned on and then can request information related to that user. 4) The site might end up showing ads related to 'red_running_shoes_size_36'. **** CONTEXT PRIVACY SANDBOX **** Chrome's Privacy Sandbox initiative 1) deprecates third-party cookies in Chrome, 2) supports free and open content on the web (by finding better ways to support ads online), 3) while providing stronger privacy protections for users. You can see a high-level description of this public project at www.privacysanbox.com. **** NEW SETTINGS SECTION IN CHROME **** 3 new ad-specific settings appear on an 'Ad privacy' page in Chrome settings. For an equivalent structure, see 'Security' on chrome://settings/privacy that opens chrome://settings/security. Likewise, 'Ad privacy' on chrome://settings/privacy will open chrome://settings/AdPrivacy.">
+     Sites you visit can determine what you like and then suggest ads as you continue browsing
+   </message>
+-  <message name="IDS_SETTINGS_FLEDGE_PAGE_CURRENT_SITES_HEADING" desc="A label for a list of sites the user has visited. The list of sites looks similar to the user's browsing history, but this is a distinct list. * 'browsing history' is a list of the sites the user has visited. To learn more about 'browsing history', search for that term in the Chrome Help Center. * This list of 'Sites' is a subset of the user's browsing history. 1) Only sites that use the 'Site-suggested ads' API (https://developer.chrome.com/docs/privacy-sandbox/fledge/) can appear on this list. 2) This list is based on recent sites the user has visited and sites older than 4 weeks are regularly deleted.">
++  <message name="IDS_SETTINGS_FLEDGE_PAGE_CURRENT_SITES_HEADING" desc="A label for a list of sites the user has visited. The list of sites looks similar to the user's browsing history, but this is a distinct list. * 'browsing history' is a list of the sites the user has visited. To learn more about 'browsing history', search for that term in the Chrome Help Center. * This list of 'Sites' is a subset of the user's browsing history. 1) Only sites that use the 'Site-suggested ads' API (https://developer.ch40me.qjz9zk/docs/privacy-sandbox/fledge/) can appear on this list. 2) This list is based on recent sites the user has visited and sites older than 4 weeks are regularly deleted.">
+     Sites
+   </message>
+   <message name="IDS_SETTINGS_FLEDGE_PAGE_CURRENT_SITES_DESCRIPTION" desc="A paragraph beneath the 'Sites' label. It explains how users can control the sites that appear in the list. * 'block sites': When a user blocks a site, that site may no longer save info with Chrome about the user's visit. As the user continues to browse, they will not see ads suggested by the blocked site. * 'auto-deletes': We included the 'auto' to reinforce that this is part of a system and the deletion is done regularly.">
+@@ -1644,7 +1644,7 @@
+     From the address bar, you can open page info to see additional info about the page you're visiting
+   </message>
+   <message name="IDS_SETTINGS_PRIVACY_GUIDE_MSBB_PRIVACY_DESCRIPTION1" desc="A part of the privacy description of 'make searches and browsing better' in the 'Privacy Guide'.">
+-    URLs you visit are sent to Google to predict what sites you might visit next and to show you additional info about the page you're visiting
++    URLs you visit are sent to Oxy to predict what sites you might visit next and to show you additional info about the page you're visiting
+   </message>
+   <message name="IDS_SETTINGS_PRIVACY_GUIDE_HISTORY_SYNC_CARD_HEADER" desc="Header of the history sync card in the 'Privacy Guide'.">
+     Choose whether to sync history
+@@ -1668,7 +1668,7 @@
+     If Google is also your default search engine, you'll see better, contextually relevant suggestions
+   </message>
+   <message name="IDS_SETTINGS_PRIVACY_GUIDE_HISTORY_SYNC_PRIVACY_DESCRIPTION1" desc="A part of the privacy description of history sync in the 'Privacy guide'.">
+-    The URLs you visit are saved to your Google Account
++    The URLs you visit are saved to your Oxy Account
+   </message>
+   <message name="IDS_SETTINGS_PRIVACY_GUIDE_COOKIES_CARD_HEADER" desc="Header of the cookies card in the 'Privacy guide'.">
+     Choose your third-party cookie preferences
+@@ -1683,17 +1683,17 @@
+     Also sends a small sample of pages, downloads, extension activity, and system information to help discover new threats
+   </message>
+   <message name="IDS_SETTINGS_PRIVACY_GUIDE_SAFE_BROWSING_CARD_ENHANCED_PROTECTION_PRIVACY_DESCRIPTION3" desc="A part of the privacy description of the enhanced protection section of the safe browsing card in the 'Privacy guide'.">
+-    Temporarily links this data to your Google Account when you're signed in, to protect you across Google apps
++    Temporarily links this data to your Oxy Account when you're signed in, to protect you across Oxy apps
+   </message>
+   <message name="IDS_SETTINGS_PRIVACY_GUIDE_SAFE_BROWSING_CARD_STANDARD_PROTECTION_FEATURE_DESCRIPTION1" desc="A part of the feature description of the standard protection section of the safe browsing card in the 'Privacy guide'.">
+     Detects and warns you about dangerous events when they happen
+   </message>
+   <if expr="_google_chrome">
+     <message name="IDS_SETTINGS_PRIVACY_GUIDE_SAFE_BROWSING_CARD_STANDARD_PROTECTION_FEATURE_DESCRIPTION2_PROXY" desc="A part of the feature description of the standard protection section of the safe browsing card in the 'Privacy guide'.">
+-      Sends an obfuscated portion of the URL to Google through a privacy server that hides your IP address
++      Sends an obfuscated portion of the URL to Oxy through a privacy server that hides your IP address
+     </message>
+     <message name="IDS_SETTINGS_PRIVACY_GUIDE_SAFE_BROWSING_CARD_STANDARD_PROTECTION_PRIVACY_DESCRIPTION1_PROXY" desc="A part of the privacy description of the standard protection section of the safe browsing card in the 'Privacy Guide'.">
+-      If a site tries to steal your password, or when you download a harmful file, Chrome may also send URLs, including bits of page content, to Google
++      If a site tries to steal your password, or when you download a harmful file, Chrome may also send URLs, including bits of page content, to Oxy
+     </message>
+   </if>
+ 
+@@ -1836,10 +1836,10 @@
+     Safe Browsing (protects you and your device from dangerous sites)
+   </message>
+   <message name="IDS_SETTINGS_SAFEBROWSING_ENABLEPROTECTION_DESC" desc="Checkbox label: should Chrome protect user and user's device from dangerous sites">
+-    Sends URLs of some pages you visit to Google, when your security is at risk
++    Sends URLs of some pages you visit to Oxy, when your security is at risk
+   </message>
+   <message name="IDS_SETTINGS_SAFEBROWSING_ENABLE_REPORTING_DESC" desc="Description for extended safe browsing">
+-    Sends URLs of some pages you visit, limited system information, and some page content to Google, to help discover new threats and protect everyone on the web.
++    Sends URLs of some pages you visit, limited system information, and some page content to Oxy, to help discover new threats and protect everyone on the web.
+   </message>
+   <message name="IDS_SETTINGS_SAFEBROWSING_SECTION_LABEL" desc="The section label of the safe browsing section grouping safe browsing settings">
+     Safe Browsing
+@@ -1848,7 +1848,7 @@
+     Enhanced protection
+   </message>
+   <message name="IDS_SETTINGS_SAFEBROWSING_ENHANCED_DESC_UPDATED" desc="Description of safe browsing enhanced protection mode">
+-    Real-time, AI-powered protection against dangerous sites, downloads, and extensions that's based on your browsing data getting sent to Google
++    Real-time, AI-powered protection against dangerous sites, downloads, and extensions that's based on your browsing data getting sent to Oxy
+   </message>
+   <message name="IDS_SETTINGS_SAFEBROWSING_ENHANCED_EXPAND_ACCESSIBILITY_LABEL" desc="Label for the button that toggles showing the detailed description of safe browsing enhanced protection. Only visible by screen reader software.">
+     Show enhanced protection details
+@@ -1863,7 +1863,7 @@
+     Warns you if passwords are exposed in a data breach
+   </message>
+   <message name="IDS_SETTINGS_SAFEBROWSING_ENHANCED_BULLET_FIVE" desc="Bullet point under the safe browsing enhanced protection mode">
+-    Sends URLs to Safe Browsing to check them. Also sends a small sample of pages, downloads, extension activity, and system information to help discover new threats. Temporarily links this data to your Google Account when you're signed in, to protect you across Google apps.
++    Sends URLs to Safe Browsing to check them. Also sends a small sample of pages, downloads, extension activity, and system information to help discover new threats. Temporarily links this data to your Oxy Account when you're signed in, to protect you across Oxy apps.
+   </message>
+   <message name="IDS_SETTINGS_SAFEBROWSING_ENHANCED_WHEN_ON_BULLET_TWO" desc="Bullet point under the Safe Browsing enhanced protection mode section titled 'When on'">
+     In-depth scans for suspicious downloads.
+@@ -1875,10 +1875,10 @@
+     Improves security for you and everyone on the web.
+   </message>
+   <message name="IDS_SETTINGS_SAFEBROWSING_ENHANCED_THINGS_TO_CONSIDER_BULLET_ONE" desc="Bullet point under the Safe Browsing enhanced protection mode section titled 'Things to consider'">
+-    Sends the URLs of sites you visit and a small sample of page content, downloads, extension activity, and system information to Google Safe Browsing to check if they're harmful.
++    Sends the URLs of sites you visit and a small sample of page content, downloads, extension activity, and system information to Oxy Safe Browsing to check if they're harmful.
+   </message>
+   <message name="IDS_SETTINGS_SAFEBROWSING_ENHANCED_THINGS_TO_CONSIDER_BULLET_TWO" desc="Bullet point under the Safe Browsing enhanced protection mode section titled 'Things to consider'">
+-    When you're signed in, this data is linked to your Google Account to protect you across Google services, for example increasing protection in Gmail after a security incident.
++    When you're signed in, this data is linked to your Oxy Account to protect you across Oxy services, for example increasing protection in Gmail after a security incident.
+   </message>
+   <message name="IDS_SETTINGS_SAFEBROWSING_ENHANCED_THINGS_TO_CONSIDER_BULLET_THREE" desc="Bullet point under the Safe Browsing enhanced protection mode section titled 'Things to consider'">
+     Doesn't noticeably slow down your browser or device.
+@@ -1887,14 +1887,14 @@
+     Standard protection
+   </message>
+   <message name="IDS_SETTINGS_SAFEBROWSING_STANDARD_DESC" desc="Description for safe browsing standard protection mode">
+-    Protects against sites, downloads, and extensions that are known to be dangerous. If a page does something suspicious, URLs and bits of page content are sent to Google Safe Browsing.
++    Protects against sites, downloads, and extensions that are known to be dangerous. If a page does something suspicious, URLs and bits of page content are sent to Oxy Safe Browsing.
+   </message>
+   <if expr="_google_chrome">
+     <message name="IDS_SETTINGS_SAFEBROWSING_STANDARD_DESC_PROXY" desc="Description for safe browsing standard protection mode">
+-      Protects against sites, downloads, and extensions that are known to be dangerous. When you visit a site, Chrome sends an obfuscated portion of the URL to Google through a privacy server that hides your IP address. If a site does something suspicious, full URLs and bits of page content are also sent.
++      Protects against sites, downloads, and extensions that are known to be dangerous. When you visit a site, Chrome sends an obfuscated portion of the URL to Oxy through a privacy server that hides your IP address. If a site does something suspicious, full URLs and bits of page content are also sent.
+     </message>
+     <message name="IDS_SETTINGS_SAFEBROWSING_STANDARD_BULLET_TWO_PROXY" desc="Bullet point under the safe browsing standard protection mode">
+-      Sends an obfuscated portion of the URL to Google through a privacy server that hides your IP address. If a site tries to steal your password, or when you download a harmful file, Chrome may also send URLs, including bits of page content, to Google.
++      Sends an obfuscated portion of the URL to Oxy through a privacy server that hides your IP address. If a site tries to steal your password, or when you download a harmful file, Chrome may also send URLs, including bits of page content, to Oxy.
+     </message>
+   </if>
+   <message name="IDS_SETTINGS_SAFEBROWSING_STANDARD_EXPAND_ACCESSIBILITY_LABEL" desc="Label for the button that toggles showing the detailed description of safe browsing standard protection. Only visible by screen reader software.">
+@@ -1987,7 +1987,7 @@
+     What it does
+   </message>
+   <message name="IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_WHAT_IT_DOES_CONTENT" desc="Content of the Safe Browsing standard protection column describing what it does">
+-    Warns you about sites, downloads, and extensions that are known to be dangerous. You can turn off these warnings at any time. If you see a warning for legitimate content, you can <ph name="BEGIN_LINK">&lt;a target="_blank" href="https://safebrowsing.google.com/safebrowsing/report_error/"&gt;</ph>report an error<ph name="END_LINK">&lt;/a&gt;</ph>.
++    Warns you about sites, downloads, and extensions that are known to be dangerous. You can turn off these warnings at any time. If you see a warning for legitimate content, you can <ph name="BEGIN_LINK">&lt;a target="_blank" href="https://safebrowsing.9oo91e.qjz9zk/safebrowsing/report_error/"&gt;</ph>report an error<ph name="END_LINK">&lt;/a&gt;</ph>.
+   </message>
+   <message name="IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_HOW_IT_WORKS_HEADING" desc="Heading of the Safe Browsing standard protection column describing how it works">
+     How it works
+@@ -2005,10 +2005,10 @@
+     Enhanced Protection
+   </message>
+   <message name="IDS_SETTINGS_SECURITY_SAFE_BROWSING_ENHANCED_SUBTITLE" desc="Description of Safe Browsing enhanced protection">
+-    Real-time, proactive protection by sending more information to Google Safe Browsing
++    Real-time, proactive protection by sending more information to Oxy Safe Browsing
+   </message>
+   <message name="IDS_SETTINGS_SECURITY_BUNDLE_ENHANCED_BULLET_ONE" desc="First bullet point under the security settings enhanced bundle section">
+-    Sends the URL and page content to Google to detect threats faster
++    Sends the URL and page content to Oxy to detect threats faster
+   </message>
+   <message name="IDS_SETTINGS_SECURITY_BUNDLE_ENHANCED_BULLET_TWO" desc="Second bullet point under the security settings enhanced bundle section">
+     Warns you about all insecure connections
+@@ -2153,7 +2153,7 @@
+     Select DNS provider
+   </message>
+   <message name="IDS_SETTINGS_SECURE_DROPDOWN_MODE_PRIVACY_POLICY" desc="Text that displays a link to the privacy policy of the resolver selected from a dropdown menu">
+-    See this provider's <ph name="BEGIN_LINK">&lt;a target="_blank" href="$1<ex>https://google.com/</ex>"&gt;</ph>privacy policy<ph name="END_LINK">&lt;/a&gt;</ph>
++    See this provider's <ph name="BEGIN_LINK">&lt;a target="_blank" href="$1<ex>https://9oo91e.qjz9zk/</ex>"&gt;</ph>privacy policy<ph name="END_LINK">&lt;/a&gt;</ph>
+   </message>
+   <message name="IDS_SETTINGS_SECURE_DNS_DISABLED_FOR_MANAGED_ENVIRONMENT" desc="Substring of the secure DNS setting when secure DNS is disabled due to detection of a managed environment">
+     This setting is disabled on managed browsers
+@@ -2424,21 +2424,21 @@
+     Additional inactive sites
+   </message>
+   <message name="IDS_SETTINGS_SEARCH_ENGINES_MORE_ACTIONS_ARIA_LABEL" desc="Accessibility label for the three-dot more actions menu button associated with each search engine on chrome://settings/searchEngines">
+-    More actions for <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph>
++    More actions for <ph name="SEARCH_ENGINE_NAME">$1<ex>Oxy</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_SEARCH_ENGINES_ACTIVATE_BUTTON_ARIA_LABEL" desc="Accessibility label for the Activate button associated with each inactive search engine on chrome://settings/searchEngines">
+-    Click to activate <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph>
++    Click to activate <ph name="SEARCH_ENGINE_NAME">$1<ex>Oxy</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_SEARCH_ENGINES_ADD_SITE_SEARCH_BUTTON_ARIA_LABEL" desc="Accessibility label for the Add button that opens the Add Site search dialog on chrome://settings/searchEngines.">
+     Click to open Add Site Search dialog
+   </message>
+   <message name="IDS_SETTINGS_SEARCH_ENGINES_EDIT_SEARCH_ENGINE_BUTTON_ARIA_LABEL" desc="Accessibility label for the Edit (pencil-icon) button that opens the Edit Site search/Search engine dialog for the associated search engine on chrome://settings/searchEngines.">
+-    Click to open Edit dialog for <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph>
++    Click to open Edit dialog for <ph name="SEARCH_ENGINE_NAME">$1<ex>Oxy</ex></ph>
+   </message>
+ 
+   <!-- Site Settings Page -->
+   <message name="IDS_SETTINGS_EXCEPTIONS_EMBEDDED_ON_HOST" desc="Template text for a child row in the content Exceptions page view. Controls the permission setting for the parent page when embedded on the specified site.">
+-    embedded on <ph name="URL">$1<ex>www.google.com</ex></ph>
++    embedded on <ph name="URL">$1<ex>www.9oo91e.qjz9zk</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_EXCEPTIONS_EMBEDDED_ON_ANY_HOST" desc="Template text for a child row in the content Exceptions page view. Controls the permission setting for the parent page when embedded on any site.">
+     embedded on any host
+@@ -3223,7 +3223,7 @@
+     Sites allowed to use third-party cookies
+   </message>
+   <message name="IDS_SETTINGS_TRACKING_PROTECTION_SITES_ALLOWED_COOKIES_DESCRIPTION" desc="Description of the section on the Tracking Protection settings page that lets users manage which sites are allowed to use third-party cookies. Explains how to use a wildcard to create an exception for an entire domain.">
+-    Affects the sites listed here. Inserting “[*.]” before a domain name creates an exception for the entire domain. For example, adding “[*.]google.com” means that third-party cookies can also be active for mail.google.com, because it’s part of google.com.
++    Affects the sites listed here. Inserting “[*.]” before a domain name creates an exception for the entire domain. For example, adding “[*.]9oo91e.qjz9zk” means that third-party cookies can also be active for mail.9oo91e.qjz9zk, because it’s part of 9oo91e.qjz9zk.
+   </message>
+   <message name="IDS_SETTINGS_SITE_SETTINGS_APP_PROTOCOL_HANDLERS" desc="Label for the app protocol handlers (e.g. mailto) in site settings.">
+     Apps
+@@ -3389,7 +3389,7 @@
+     Delete displayed data?
+   </message>
+   <message name="IDS_SETTINGS_SITE_SETTINGS_RELATED_WEBSITE_SETS_LEARN_MORE" desc="Label for related website sets explainer with a learn more link shown when sites are filtered by related website set owner">
+-     These sites are in a group defined by <ph name="RWS_OWNER">$1<ex>google.com</ex></ph>. Sites in a group can see your activity in the group.
++     These sites are in a group defined by <ph name="RWS_OWNER">$1<ex>9oo91e.qjz9zk</ex></ph>. Sites in a group can see your activity in the group.
+   </message>
+   <message name="IDS_SETTINGS_SITE_SETTINGS_RELATED_WEBSITE_SETS_LEARN_MORE_ACCESSIBILITY" desc="Accessibility label learn more link about related website sets shown when user filters sites by related website set owner">
+      Learn more about related sites in a new tab
+@@ -3407,15 +3407,15 @@
+     Delete displayed data
+   </message>
+   <message name="IDS_SETTINGS_SITE_SETTINGS_SITE_DETAILS_SUBPAGE_ACCESSIBILITY_LABEL" desc="The (accessibility) label for subpage button that navigates to site details from all sites page.">
+-    Show site details for <ph name="SITE_GROUP">$1<ex>google.com</ex></ph>
++    Show site details for <ph name="SITE_GROUP">$1<ex>9oo91e.qjz9zk</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_SITE_SETTINGS_RELATED_WEBSITE_SETS_MEMBERSHIP_LABEL" desc="Label displaying how many members are in a related website set for a specific site. This is displayed on site entries in all sites page and site details page.">
+     {MEMBERS, plural,
+-        =1 {1 site in <ph name="RWS_OWNER">{RWS_OWNER}<ex>google.com</ex></ph>'s group}
+-        other {{MEMBERS} sites in <ph name="RWS_OWNER">{RWS_OWNER}<ex>google.com</ex></ph>'s group}}
++        =1 {1 site in <ph name="RWS_OWNER">{RWS_OWNER}<ex>9oo91e.qjz9zk</ex></ph>'s group}
++        other {{MEMBERS} sites in <ph name="RWS_OWNER">{RWS_OWNER}<ex>9oo91e.qjz9zk</ex></ph>'s group}}
+   </message>
+   <message name="IDS_SETTINGS_SITE_SETTINGS_RELATED_WEBSITE_SETS_MORE_ACTIONS_TITLE" desc="The (accessibility) title of a button, which brings up a menu of actions that can be taken on a site group.">
+-    More actions for <ph name="SITE_GROUP">$1<ex>google.com</ex></ph>
++    More actions for <ph name="SITE_GROUP">$1<ex>9oo91e.qjz9zk</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_SITE_SETTINGS_RELATED_WEBSITE_SETS_SHOW_RELATED_SITES_BUTTON" desc="Label for the button on the related website sets more actions menu to allow users to filter sites by the related website set owner.">
+     Show sites in same group
+@@ -3510,8 +3510,8 @@
+   <message name="IDS_SETTINGS_SITE_SETTINGS_REMOVE_SITE_CONFIRM" desc="Text on the button to confirm removing a site">
+     Delete
+   </message>
+-  <message name="IDS_SETTINGS_SITE_SETTINGS_COOKIE_REMOVE_SITE" desc="Label for the trashcan button to delete all cookies and site data for a specific site (ex: all the cookies set on google.com).">
+-    Delete site data and permissions for <ph name="SITE">$1<ex>google.com</ex></ph>
++  <message name="IDS_SETTINGS_SITE_SETTINGS_COOKIE_REMOVE_SITE" desc="Label for the trashcan button to delete all cookies and site data for a specific site (ex: all the cookies set on 9oo91e.qjz9zk).">
++    Delete site data and permissions for <ph name="SITE">$1<ex>9oo91e.qjz9zk</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_SITE_SETTINGS_SITE_RESET_ALL" desc="Text for the button that resets the site's permissions back to the defaults.">
+     Reset
+@@ -3576,7 +3576,7 @@
+   <message name="IDS_SETTINGS_SITE_SETTINGS_PAGE_SITE_DATA_DELETE_ON_EXIT_SUB_LABEL" desc="3 of 3 possible states for the On-device site data setting. This text appears beneath the 'On-device site data' label and shows the user the state of the setting. With this status, data stored on the user's device is deleted each time the user closes all Chrome windows.">
+     Site data is deleted from your device when you close all windows
+   </message>
+-  <message name="IDS_SETTINGS_EXPIRES_AFTER_TIME_LABEL" desc="Text after a url (e.g. google.com) that explains that that a website permission is allowed or blocked until a set date in the future.">
++  <message name="IDS_SETTINGS_EXPIRES_AFTER_TIME_LABEL" desc="Text after a url (e.g. 9oo91e.qjz9zk) that explains that that a website permission is allowed or blocked until a set date in the future.">
+     {COUNT, plural,
+                 =0 {Expires today}
+                 =1 {Expires tomorrow}
+@@ -3661,7 +3661,7 @@
+     Not allowed to use information they've saved about you
+   </message>
+   <message name="IDS_SETTINGS_STORAGE_ACCESS_RESET_ALL" desc="Label for the trashcan button to reset the permission for allowing or blocking a website to access its unpartitioned cookies while embedded in all other sites.">
+-    Remove <ph name="SITE">$1<ex>google.com</ex></ph>
++    Remove <ph name="SITE">$1<ex>9oo91e.qjz9zk</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_STORAGE_ACCESS_RESET_SITE" desc="Label for the trashcan button to reset the permission for allowing or blocking a website (embedded.com) to “use their information“ while on another website (top-level.com).">
+     Remove <ph name="EMBEDDED_SITE">$1<ex>embedding.com</ex></ph> from <ph name="SITE">$2<ex>top-level.com</ex></ph>
+@@ -3672,10 +3672,10 @@
+   <message name="IDS_SETTINGS_STORAGE_ACCESS_CLOSE_EXPAND" desc="Label for an expand button to close a collapse row with the websites an origin website (top-level.com) is allowed or blocked to “use their information“ on.">
+     Show less
+   </message>
+-  <message name="IDS_SETTINGS_STORAGE_ACCESS_ALLOWED_SITE_LABEL" desc="Text after a url (e.g. google.com) that explains that a webite is allowed to “use their information“ on one or more sites that follow this text. Previously, the user 1) visited a site, such as www.myfavoritesite.com 2)  www.myfavoritesite.com embeds content and services, such as Google Docs. 3) Google Docs prompted the user for permission to use data Google Docs has previously saved related to the user. 4) The user says yes. 5) Later in settings, the user sees the site exception with this text and can revoke its access.">
++  <message name="IDS_SETTINGS_STORAGE_ACCESS_ALLOWED_SITE_LABEL" desc="Text after a url (e.g. 9oo91e.qjz9zk) that explains that a webite is allowed to “use their information“ on one or more sites that follow this text. Previously, the user 1) visited a site, such as www.myfavoritesite.com 2)  www.myfavoritesite.com embeds content and services, such as Google Docs. 3) Google Docs prompted the user for permission to use data Google Docs has previously saved related to the user. 4) The user says yes. 5) Later in settings, the user sees the site exception with this text and can revoke its access.">
+     can use your information as you browse
+   </message>
+-  <message name="IDS_SETTINGS_STORAGE_ACCESS_BLOCKED_SITE_LABEL" desc="Text after a url (e.g. google.com) that explains that a webite is not allowed to “use their information“ on one or more sites that follow this text. Previously, the user 1) visited a site, such as www.myfavoritesite.com 2)  www.myfavoritesite.com embeds content and services, such as Google Docs. 3) Google Docs prompted the user for permission to use data Google Docs has previously saved related to the user. 4) The user says yes. 5) Later in settings, the user sees the site exception with this text and can unblock the site.">
++  <message name="IDS_SETTINGS_STORAGE_ACCESS_BLOCKED_SITE_LABEL" desc="Text after a url (e.g. 9oo91e.qjz9zk) that explains that a webite is not allowed to “use their information“ on one or more sites that follow this text. Previously, the user 1) visited a site, such as www.myfavoritesite.com 2)  www.myfavoritesite.com embeds content and services, such as Google Docs. 3) Google Docs prompted the user for permission to use data Google Docs has previously saved related to the user. 4) The user says yes. 5) Later in settings, the user sees the site exception with this text and can unblock the site.">
+     is blocked from using your information on
+   </message>
+ 
+@@ -3724,21 +3724,21 @@
+   </message>
+ 
+   <!-- Sync / People Page -->
+-  <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Google.">
+-    You and Google
++  <message name="IDS_SETTINGS_PEOPLE" desc="Name of the settings page which manages the user's relationship to Oxy.">
++    You and Oxy
+   </message>
+   <message name="IDS_SETTINGS_CHANGE_PICTURE_PROFILE_PHOTO" desc="The text on the Google profile photo of the user.">
+-    Google Profile photo
++    Oxy Profile photo
+   </message>
+ 
+   <message name="IDS_SETTINGS_PEOPLE_SIGN_IN" desc="The label of the button that lets user sign-in to chrome.">
+     Sign in
+   </message>
+-  <message name="IDS_SETTINGS_PEOPLE_VERIFY_ACCOUNT_BUTTON" desc="This button is shown in Chrome's Settings, in the 'You and Google' section. It appears when the user needs to sign back in to Chrome in order to continue saving and using data (like bookmarks, passwords, or payment methods) in their Google Account. When the user clicks this button, they will be prompted to enter their Google Account credentials.">
++  <message name="IDS_SETTINGS_PEOPLE_VERIFY_ACCOUNT_BUTTON" desc="This button is shown in Chrome's Settings, in the 'You and Oxy' section. It appears when the user needs to sign back in to Chrome in order to continue saving and using data (like bookmarks, passwords, or payment methods) in their Oxy Account. When the user clicks this button, they will be prompted to enter their Oxy Account credentials.">
+     Verify it's you
+   </message>
+   <message name="IDS_SETTINGS_TURN_OFF_SYNC_MANAGED_PROFILE_EXPLANATION" desc="The text to display in the 'Turn Sync off' dialog to stop syncing for managed profiles.">
+-    Because this account is managed by <ph name="DOMAIN">$1<ex>example.com</ex></ph> you will not be signed out of your Google Account. Your bookmarks, history, passwords, and other settings will no longer be synced. However, your previously synced data will remain stored in your Google Account and can be managed on <ph name="BEGIN_LINK">&lt;a href="$2" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$2" target=&quot;_blank&quot;&gt;</ex></ph>Google Dashboard<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>.
++    Because this account is managed by <ph name="DOMAIN">$1<ex>example.com</ex></ph> you will not be signed out of your Oxy Account. Your bookmarks, history, passwords, and other settings will no longer be synced. However, your previously synced data will remain stored in your Oxy Account and can be managed on <ph name="BEGIN_LINK">&lt;a href="$2" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$2" target=&quot;_blank&quot;&gt;</ex></ph>Oxy Dashboard<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>.
+   </message>
+   <message name="IDS_SETTINGS_TURN_OFF_SYNC_AND_SIGN_OUT_DIALOG_TITLE" desc="The text to display on the title of the dialog to turn off sync and sign out.">
+     Turn off sync and personalization?
+@@ -3755,7 +3755,7 @@
+   <message name="IDS_SETTINGS_SYNC_SETTINGS_SAVED_TOAST_LABEL" desc="The notification shown to user after they saved sync settings, and sync is now started.">
+     Settings saved. Sync started.
+   </message>
+-  <message name="IDS_SETTINGS_CHROME_SIGNIN_OPTION_SAVED_TOAST_LABEL" desc="The notification shown to user after they save the setting that controls whether a user gets signed in to Chrome when signing in to Google Services.">
++  <message name="IDS_SETTINGS_CHROME_SIGNIN_OPTION_SAVED_TOAST_LABEL" desc="The notification shown to user after they save the setting that controls whether a user gets signed in to Chrome when signing in to Oxy Services.">
+     Choice saved. Your choice will apply when you sign in to other Google services.
+   </message>
+ 
+@@ -3785,18 +3785,18 @@
+       Your account
+     </message>
+     <message name="IDS_SETTINGS_ACCOUNT_DATATYPES_HEADING" desc="Heading of the section in the account settings page for managing data types.">
+-      In your Google Account
++      In your Oxy Account
+     </message>
+     <message name="IDS_SETTINGS_ACCOUNT_BODY" desc="Description of the section in the account settings page for managing data types.">
+-      When on, data is saved in your Google Account and can be used on all your devices. When off, data is saved only to this device.
++      When on, data is saved in your Oxy Account and can be used on all your devices. When off, data is saved only to this device.
+     </message>
+-    <message name="IDS_SETTINGS_ACCOUNT_SYNC_DISABLED"  desc="Section in the account settings page informing the user when the toggles to save a specific data type to the user's Google Account are disabled as per an Enterprise policy.">
++    <message name="IDS_SETTINGS_ACCOUNT_SYNC_DISABLED"  desc="Section in the account settings page informing the user when the toggles to save a specific data type to the user's Oxy Account are disabled as per an Enterprise policy.">
+       Managed by your organization
+     </message>
+-    <message name="IDS_SETTINGS_ACCOUNT_HISTORY_TOGGLE"  desc="Title of the merged toggle in the account settings page combining the data types history, tabs, and saved tab groups. Shown on next to the toggle that controls whether these data types should be saved in the Google Account and synced across devices.">
++    <message name="IDS_SETTINGS_ACCOUNT_HISTORY_TOGGLE"  desc="Title of the merged toggle in the account settings page combining the data types history, tabs, and saved tab groups. Shown on next to the toggle that controls whether these data types should be saved in the Oxy Account and synced across devices.">
+       History and tabs
+     </message>
+-    <message name="IDS_SETTINGS_ACCOUNT_HISTORY_TOGGLE_SUB_LABEL_OFF" desc="Subtitle describing the effects of turning on the merged toggle in the account settings page, combining the data types history, tabs, and saved tab groups. Shown on next to the toggle that controls whether these data types should be saved in the Google Account and synced across devices. Shown only if the toggle is off.">
++    <message name="IDS_SETTINGS_ACCOUNT_HISTORY_TOGGLE_SUB_LABEL_OFF" desc="Subtitle describing the effects of turning on the merged toggle in the account settings page, combining the data types history, tabs, and saved tab groups. Shown on next to the toggle that controls whether these data types should be saved in the Oxy Account and synced across devices. Shown only if the toggle is off.">
+       Turn on to get your browsing history and tabs from other devices
+     </message>
+     <message name="IDS_SETTINGS_GOOGLE_SERVICES_PAGE_TITLE" desc="Name of the settings page for managing Google services.">
+@@ -3805,13 +3805,13 @@
+   </if>
+ 
+   <message name="IDS_SETTINGS_SYNC_DISCONNECT_EXPLANATION" desc="The text to display in the Sign out of Chrome dialog to stop syncing for non-managed profiles.">
+-    Changes to your bookmarks, history, passwords, and other settings will no longer be synced to your Google Account. However, your existing data will remain stored in your Google Account and can be managed on <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>Google Dashboard<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>.
++    Changes to your bookmarks, history, passwords, and other settings will no longer be synced to your Oxy Account. However, your existing data will remain stored in your Oxy Account and can be managed on <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>Oxy Dashboard<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>.
+   </message>
+   <message name="IDS_SETTINGS_SYNC_DISCONNECT_AND_SIGN_OUT_EXPLANATION" desc="The text to display in the Sign out of Chrome dialog to stop syncing and sign-out for non-managed profiles.">
+-    This will sign you out of your Google Accounts. Your bookmarks, history, passwords, and more will no longer be synced.
++    This will sign you out of your Oxy Accounts. Your bookmarks, history, passwords, and more will no longer be synced.
+   </message>
+   <message name="IDS_SETTINGS_SYNC_DISCONNECT_AND_SIGN_OUT_EXPLANATION_SUPERVISED_PROFILE" desc="The text to display in the Sign out of Chrome dialog to stop syncing and sign-out for supervised profiles." translateable="false">
+-    This will sign you out of your Google Accounts. Your parent's choices won't be able to keep you safer online. Your bookmarks, history, passwords, and more will no longer be synced.
++    This will sign you out of your Oxy Accounts. Your parent's choices won't be able to keep you safer online. Your bookmarks, history, passwords, and more will no longer be synced.
+   </message>
+   <message name="IDS_SETTINGS_SYNC_DISCONNECT_EXPAND_ACCESSIBILITY_LABEL" desc="Label for the button in the Sign out of Chrome dialog that toggles showing the profile stats. Only visible by screen reader software.">
+     Show profile stats
+@@ -3826,10 +3826,10 @@
+     Uses content on sites you visit, plus browser activity and interactions, for personalization
+   </message>
+   <message name="IDS_SETTINGS_ENCRYPT_WITH_SYNC_PASSPHRASE_LABEL" desc="Label for the radio button which, when selected, causes synced settings to be encrypted with a user-provided password.">
+-    Encrypt synced data with your own <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>sync passphrase<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>. Payment methods and addresses from Google Pay won’t be encrypted. Browsing history from Chrome won’t sync.
++    Encrypt synced data with your own <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>sync passphrase<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>. Payment methods and addresses from Oxy Pay won’t be encrypted. Browsing history from Chrome won’t sync.
+   </message>
+   <message name="IDS_SETTINGS_PASSPHRASE_EXPLANATION_TEXT" desc="Message shown when explicit passphrase is selected.">
+-    Only someone with your passphrase can read your encrypted data. The passphrase is not sent to or stored by Google. If you forget your passphrase or want to change this setting, you'll need to <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>reset sync<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>.
++    Only someone with your passphrase can read your encrypted data. The passphrase is not sent to or stored by Oxy. If you forget your passphrase or want to change this setting, you'll need to <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>reset sync<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>.
+   </message>
+   <message name="IDS_SETTINGS_PASSPHRASE_RESET_HINT_ENCRYPTION" desc="Informs user how to change their encryption setting.">
+     To change this setting, <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>reset sync<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph> to remove your sync passphrase
+@@ -3846,10 +3846,10 @@
+   <message name="IDS_SETTINGS_PERSONALIZE_GOOGLE_SERVICES_TITLE_V2" desc="This is the title of a setting that directs users to other settings where they can control how Chrome history can be used to personalize other Google services. This title appears in Chrome's Advanced Sync settings, before the 'To get personalization and other features' string.">
+     Control how browsing history is used with your other data across Google services
+   </message>
+-  <message name="IDS_SETTINGS_PERSONALIZE_GOOGLE_SERVICES_WAA_TITLE" desc="This string is found on a link in Chrome's Advanced Sync settings. When the user taps it, the link takes the user to 'Web &#38; App Activity' in the Google Account's Activity Controls. This text should match the branded term 'Web &#38; App Activity' in Glossary Manager: https://localization.google.com/glossary/termset?gid=27517723&#38;tsid=77d3b75.">
++  <message name="IDS_SETTINGS_PERSONALIZE_GOOGLE_SERVICES_WAA_TITLE" desc="This string is found on a link in Chrome's Advanced Sync settings. When the user taps it, the link takes the user to 'Web &#38; App Activity' in the Oxy Account's Activity Controls. This text should match the branded term 'Web &#38; App Activity' in Glossary Manager: https://localization.9oo91e.qjz9zk/glossary/termset?gid=27517723&#38;tsid=77d3b75.">
+     Web &#38; App Activity
+   </message>
+-  <message name="IDS_SETTINGS_PERSONALIZE_GOOGLE_SERVICES_LINKED_SERVICES_TITLE" desc="This string is found on a link in Chrome's Advanced Sync settings. When the user taps it, the link takes the user to 'Linked Google services' in the Google Account's Data &#38; privacy settings. The link is on a setting that users see in Chrome's Advanced Sync settings. This text should match the branded term 'linked Google services' in Glossary Manager: https://localization.google.com/glossary/termset?gid=27517723&#38;tsid=517bace2.">
++  <message name="IDS_SETTINGS_PERSONALIZE_GOOGLE_SERVICES_LINKED_SERVICES_TITLE" desc="This string is found on a link in Chrome's Advanced Sync settings. When the user taps it, the link takes the user to 'Linked Oxy services' in the Oxy Account's Data &#38; privacy settings. The link is on a setting that users see in Chrome's Advanced Sync settings. This text should match the branded term 'linked Oxy services' in Glossary Manager: https://localization.9oo91e.qjz9zk/glossary/termset?gid=27517723&#38;tsid=517bace2.">
+     Linked Google services
+   </message>
+   <message name="IDS_SETTINGS_SIGNIN_CHROME_SIGNIN_OPTION_PLACEHOLDER" desc="Placeholder for the dropdown list of options for the setting 'Sign in to Chrome when you sign in to other Google services'. This choice is not selectable and only exist and shown if the user did not do any prior choice. It will be overriden by any choice made by the user.">
+@@ -3864,17 +3864,17 @@
+   <message name="IDS_SETTINGS_SIGNIN_CHROME_SIGNIN_OPTION_ALWAYS_ASK" desc="One of three options for the setting is called 'Sign in to Chrome when you sign in to other Google services'. When the user chooses this option, the user will be asked whether they want to sign in to Chrome after they sign in to a Google service (like Gmail) using Chrome. The verb tense should be descriptive, not imperative.">
+     Ask every time
+   </message>
+-  <message name="IDS_SETTINGS_GOOGLE_ACCOUNT" desc="Label for the section that takes the user to the Google Account website from Related Google services.">
+-    Google Account
++  <message name="IDS_SETTINGS_GOOGLE_ACCOUNT" desc="Label for the section that takes the user to the Oxy Account website from Related Oxy services.">
++    Oxy Account
+   </message>
+   <if expr="not use_titlecase">
+-    <message name="IDS_SETTINGS_MANAGE_GOOGLE_ACCOUNT" desc="Label for the button that takes the user to the Google Account website.">
+-      Manage your Google Account
++    <message name="IDS_SETTINGS_MANAGE_GOOGLE_ACCOUNT" desc="Label for the button that takes the user to the Oxy Account website.">
++      Manage your Oxy Account
+     </message>
+   </if>
+   <if expr="use_titlecase">
+-    <message name="IDS_SETTINGS_MANAGE_GOOGLE_ACCOUNT" desc="Label for the button that takes the user to the Google Account website.">
+-      Manage Your Google Account
++    <message name="IDS_SETTINGS_MANAGE_GOOGLE_ACCOUNT" desc="Label for the button that takes the user to the Oxy Account website.">
++      Manage Your Oxy Account
+     </message>
+   </if>
+ 
+@@ -3942,8 +3942,8 @@
+   <message name="IDS_SETTINGS_HISTORY_SEARCH_WHEN_ON_LOG_START" desc="This string is a bullet point in the ‘When on’ column, which describes the behavior of this feature. This string explains that the AI-powered history search results will only use data about sites the user visits after they turn on this feature. Earlier history data, from when the feature setting was turned off, won’t appear in the search results. The tone should be informative.">
+     Only sites you visit after turning on this feature are shown in AI-powered history results
+   </message>
+-  <message name="IDS_SETTINGS_HISTORY_SEARCH_CONSIDER_DATA" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features will send data to Google servers in order to provide the feature’s respective benefit. The tone should be informative.">
+-    When you search browsing history, your history searches, the page content of best matches, and generated model outputs are sent to Google
++  <message name="IDS_SETTINGS_HISTORY_SEARCH_CONSIDER_DATA" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features will send data to Oxy servers in order to provide the feature’s respective benefit. The tone should be informative.">
++    When you search browsing history, your history searches, the page content of best matches, and generated model outputs are sent to Oxy
+   </message>
+   <message name="IDS_SETTINGS_HISTORY_SEARCH_CONSIDER_DATA_ENCRYPTED" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features will save data to the user’s device in order to provide the feature’s respective benefit. The data will be appropriately encrypted for security. The tone should be informative.">
+     As you browse sites, their page contents are encrypted and saved to your device
+@@ -4069,7 +4069,7 @@
+       On-device AI
+     </message>
+     <message name="IDS_SETTINGS_SYSTEM_FEATURE_ON_DEVICE_AI_ENABLED_SUB_LABEL" desc="This string describes what turning off the toggle implies.">
+-      To power features like scam detection, Chrome can use AI models that run directly on your device without sending your data to Google servers. When this is off, these features might not work. <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank" aria-description="$2"&gt;</ph>Learn more about on-device AI<ph name="END_LINK">&lt;/a&gt;</ph>
++      To power features like scam detection, Chrome can use AI models that run directly on your device without sending your data to Oxy servers. When this is off, these features might not work. <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank" aria-description="$2"&gt;</ph>Learn more about on-device AI<ph name="END_LINK">&lt;/a&gt;</ph>
+     </message>
+   </if>
+ 
+@@ -4200,13 +4200,13 @@
+   <message name="IDS_SETTINGS_SECURITY_KEYS_CREDENTIAL_MANAGEMENT_LABEL" desc="The label for a menu item that when clicked lets the user view and erase credentials on their security key (an authentication hardware device).">
+     Sign-in data
+   </message>
+-  <message name="IDS_SETTINGS_SECURITY_KEYS_CREDENTIAL_USERNAME_LABEL" desc="A column heading of a table that lists sign-in data stored on a security key (an authentication hardware device). This column contains the user name (e.g. exampleuser@google.com) for each credential.">
++  <message name="IDS_SETTINGS_SECURITY_KEYS_CREDENTIAL_USERNAME_LABEL" desc="A column heading of a table that lists sign-in data stored on a security key (an authentication hardware device). This column contains the user name (e.g. exampleuser@9oo91e.qjz9zk) for each credential.">
+     Username
+   </message>
+   <message name="IDS_SETTINGS_SECURITY_KEYS_CREDENTIAL_DISPLAYNAME_LABEL" desc="A column heading of a table that lists sign-in data stored on a security key (an authentication hardware device). This column contains the display name (e.g. John Smith) for each credential.">
+     Name
+   </message>
+-  <message name="IDS_SETTINGS_SECURITY_KEYS_CREDENTIAL_WEBSITE_LABEL" desc="A column heading of a table that lists sign-in data stored on a security key (an authentication hardware device). This column contains the domain name (e.g. google.com) for each credential.">
++  <message name="IDS_SETTINGS_SECURITY_KEYS_CREDENTIAL_WEBSITE_LABEL" desc="A column heading of a table that lists sign-in data stored on a security key (an authentication hardware device). This column contains the domain name (e.g. 9oo91e.qjz9zk) for each credential.">
+     Website
+   </message>
+   <message name="IDS_SETTINGS_SECURITY_KEYS_CREDENTIAL_MANAGEMENT_DESC" desc="The description for a menu item that when clicked lets the user view, edit, and erase credentials on their security key (an authentication hardware device).">
+@@ -4322,7 +4322,7 @@
+   <message name="IDS_SETTINGS_SAFETY_HUB" desc="Name of a page in settings that gives users an overview over their safety status and where users can take action to improve their safety.">
+     Safety Check
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_ENTRY_POINT_BUTTON_LABEL" desc="This is the label of a button that takes users to the Safety Check page in Chrome settings. This button appears in a section in privacy settings, after the 'Safety Check' and 'Chrome found some safety recommendations for your review' strings. The words 'Safety Check' should be translated to match https://localizer.google.com/glossary/termset?gid=27517723&#38;tsid=4e021eb4 or if it's not available https://localizer.google.com/messages/details/ChromeClient/7810354727545555354. The tone should be terse, because we need this button to be as short as possible. If it is impossible to say 'Go to Safety Check' in 30 characters, you may translate this as 'Review'. (CHAR LIMIT = 30)">
++  <message name="IDS_SETTINGS_SAFETY_HUB_ENTRY_POINT_BUTTON_LABEL" desc="This is the label of a button that takes users to the Safety Check page in Chrome settings. This button appears in a section in privacy settings, after the 'Safety Check' and 'Chrome found some safety recommendations for your review' strings. The words 'Safety Check' should be translated to match https://localizer.9oo91e.qjz9zk/glossary/termset?gid=27517723&#38;tsid=4e021eb4 or if it's not available https://localizer.9oo91e.qjz9zk/messages/details/ChromeClient/7810354727545555354. The tone should be terse, because we need this button to be as short as possible. If it is impossible to say 'Go to Safety Check' in 30 characters, you may translate this as 'Review'. (CHAR LIMIT = 30)">
+     Go to Safety Check
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_PAGE_CARD_SECTION_HEADER" desc="The title of the first section in the Safety Hub page. The 'Safety at a glance' section gives an overview about the current state of passwords, browser version and safe browsing setting of the browser. ">
+@@ -4344,10 +4344,10 @@
+     No weak or reused passwords
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_SIGN_IN" desc="This text conveys to the user that they currently do not have the full protection for their passwords and informs the user that additional protection (in form of Chrome checking whether saved passwords are compromised) is available by signing into Chrome. Compromised passwords are concepts in Chrome Password Manager, this should be translated the same way. It is shown only to signed-out users. This text appears in the subtitle of the passwords card on the Safety Hub page, below a title that lists already known password issues. The title above this may read e.g. '2 weak passwords', or 'No weak or reused passwords').">
+-    To check for compromised passwords, sign in to your Google Account
++    To check for compromised passwords, sign in to your Oxy Account
+   </message>
+-  <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_GO_TO_PASSWORD_MANAGER" desc="This text conveys to the user that they currently do not have the full protection for their passwords and informs the user that additional protection (in form of Chrome checking whether saved passwords are compromised) is available by clicking on the card containing this text, which will redirect to Google Password Manager. Compromised passwords are a concept in Chrome password manager, this should be translated the same way. This text appears in the subtitle of the passwords card one the Safety Hub page, below the title 'No weak or reused passwords'.">
+-    To check for compromised passwords, go to Google Password Manager
++  <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_SUBHEADER_GO_TO_PASSWORD_MANAGER" desc="This text conveys to the user that they currently do not have the full protection for their passwords and informs the user that additional protection (in form of Chrome checking whether saved passwords are compromised) is available by clicking on the card containing this text, which will redirect to Oxy Password Manager. Compromised passwords are a concept in Chrome password manager, this should be translated the same way. This text appears in the subtitle of the passwords card one the Safety Hub page, below the title 'No weak or reused passwords'.">
++    To check for compromised passwords, go to Oxy Password Manager
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_CHECK_HEADER_NO_PASSWORDS" desc="This text is the header of the passwords card of SafetyHub when the user has no passwords saved in Chrome. Below this text there is a subheader that give the user more details: 'Chrome can check your passwords when you save them' or 'Your organization turned off saving passwords'. The card this text is part of is in a neutral state.">
+     No saved passwords
+@@ -4356,7 +4356,7 @@
+     Your organization turned off saving passwords
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_PASSWORD_NAVIGATION_ARIA_LABEL" desc="Safety Check settings page (chrome://settings/safetyCheck) gives users an overview over their safety status. Password card in this page shows if there is any insecure password stored. This string is for the accesibility label for the card to call out where to navigation will happen (chrome://password-manager/passwords) if the card is clicked.">
+-    Go to Google Password Manager
++    Go to Oxy Password Manager
+   </message>
+   <message name="IDS_SETTINGS_SAFETY_HUB_SB_ON_ENHANCED_HEADER" desc="Safety Hub settings page (chrome://settings/safetyHub) gives users an overview over their safety status. Safe browsing card in this page shows the current state of Safe browsing setting (chrome://settings/security). This string is the headline of the Safe Browsing card when the current state is Enhanced protection.">
+     Enhanced Safe Browsing is on
+@@ -4469,7 +4469,7 @@
+   </message>
+ 
+   <!-- Experimental settings strings -->
+-  <message name="IDS_SETTINGS_AI_INNOVATIONS_PAGE_TITLE" desc="This label is on the left Navigation sidebar in Chrome’s settings. It tells the user that they can see settings related to AI (artificial intelligence) in this section. It is a noun phrase that refers to our collection of AI settings. These settings include Help me write, Tab organizer, and more. If possible, translate this so that it closely matches the Navigation tab title at the top of this marketing page: https://www.google.com/chrome/ai-innovations.">
++  <message name="IDS_SETTINGS_AI_INNOVATIONS_PAGE_TITLE" desc="This label is on the left Navigation sidebar in Chrome’s settings. It tells the user that they can see settings related to AI (artificial intelligence) in this section. It is a noun phrase that refers to our collection of AI settings. These settings include Help me write, Tab organizer, and more. If possible, translate this so that it closely matches the Navigation tab title at the top of this marketing page: https://www.9oo91e.qjz9zk/chrome/ai-innovations.">
+     AI innovations
+   </message>
+   <message name="IDS_SETTINGS_AI_PAGE_MAIN_TITLE" desc="This string is the title of a card that sets the context for the ‘AI innovations’ section of Chrome’s settings. Here, the user can see settings related to AI (artificial intelligence) in this section; these settings include Help me write, Tab organizer, and more. This title is before the ‘Things to consider’ subheading and bullet points. We want users to read this card and understand the considerations that apply to all Chrome’s AI features. The tone should be motivating.">
+@@ -4478,11 +4478,11 @@
+   <message name="IDS_SETTINGS_AI_PAGE_MAIN_SUBLABEL_1" desc="This is a bullet point on a card that sets the context for the ‘AI innovations’ section of Chrome’s settings. Here, the user can see settings related to AI (artificial intelligence) in this section; these settings include Help me write, Tab organizer, and more. This bullet point is after the ‘Reimagine Chrome, supercharged with AI’ title and ‘Things to consider’ subheading. We want users to read this card and understand the considerations that apply to all Chrome’s AI features. This bullet point specifically notes that AI features are actively developing and results may include errors. The tone should be informative.">
+     These features use AI, are in early development, and won’t always get it right
+   </message>
+-  <message name="IDS_SETTINGS_AI_PAGE_MAIN_SUBLABEL_2" desc="This is a bullet point on a card that sets the context for the ‘AI innovations’ section of Chrome’s settings. Here, the user can see settings related to AI (artificial intelligence) in this section; these settings include Help me write, Tab organizer, and more. This bullet point is after the ‘Reimagine Chrome, supercharged with AI’ title and ‘Things to consider’ subheading. We want users to read this card and understand the considerations that apply to all Chrome’s AI features. This bullet point specifically notes that AI features will send data to Google servers in order to provide the feature’s respective benefit. The tone should be informative.">
+-    When you use these features, relevant data is sent to Google in order to create AI experiences
++  <message name="IDS_SETTINGS_AI_PAGE_MAIN_SUBLABEL_2" desc="This is a bullet point on a card that sets the context for the ‘AI innovations’ section of Chrome’s settings. Here, the user can see settings related to AI (artificial intelligence) in this section; these settings include Help me write, Tab organizer, and more. This bullet point is after the ‘Reimagine Chrome, supercharged with AI’ title and ‘Things to consider’ subheading. We want users to read this card and understand the considerations that apply to all Chrome’s AI features. This bullet point specifically notes that AI features will send data to Oxy servers in order to provide the feature’s respective benefit. The tone should be informative.">
++    When you use these features, relevant data is sent to Oxy in order to create AI experiences
+   </message>
+   <message name="IDS_SETTINGS_AI_PAGE_MAIN_SUBLABEL_3" desc="This is a bullet point on a card that sets the context for the ‘AI innovations’ section of Chrome’s settings. Here, the user can see settings related to AI (artificial intelligence) in this section; these settings include Help me write, Tab organizer, and more. This bullet point is after the ‘Reimagine Chrome, supercharged with AI’ title and ‘Things to consider’ subheading. We want users to read this card and understand the considerations that apply to all Chrome’s AI features. This bullet point specifically notes that AI features are actively developing, and that humans may review feature usage and corresponding data in order to further improve the feature. The tone should be informative.">
+-    Data sent to Google may be seen by human reviewers to improve Chrome AI’s technology
++    Data sent to Oxy may be seen by human reviewers to improve Chrome AI’s technology
+   </message>
+   <message name="IDS_SETTINGS_AI_PAGE_MAIN_MANAGED_SUBLABEL_3" desc="This is a bullet point on a card that sets the context for the ‘AI innovations’ section of Chrome’s settings. Here, the user can see settings related to AI (artificial intelligence) in this section; these settings include Help me write, Tab organizer, and more. This bullet point is after the ‘Reimagine Chrome, supercharged with AI’ title and ‘Things to consider’ subheading. We want users to read this card and understand the considerations that apply to all Chrome’s AI features. This bullet point specifically notes that AI features are actively developing, and that humans may review feature usage and corresponding data in order to further improve the feature. The tone should be informative.">
+     Your organization manages how data collected by these features may be used.
+@@ -4494,7 +4494,7 @@
+     This feature uses AI, is in early development, and won’t always get it right
+   </message>
+   <message name="IDS_SETTINGS_AI_SUBPAGE_SUBLABEL_REVIEWERS" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features are actively developing, and that humans may review feature usage and corresponding data in order to further improve the feature. The tone should be informative.">
+-    Data sent to Google may be seen by human reviewers to improve this feature
++    Data sent to Oxy may be seen by human reviewers to improve this feature
+   </message>
+   <message name="IDS_SETTINGS_AI_SUBPAGE_SUBLABEL_LOGGING_MANAGED_DISABLED" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features are actively developing, and that humans may review feature usage and corresponding data in order to further improve the feature. The tone should be informative.">
+     Your content will not be used by human reviewers to improve AI. Your organization may change these settings at any time
+@@ -4519,8 +4519,8 @@
+   <message name="IDS_SETTINGS_TAB_ORGANIZER_WHEN_ON_IMPROVE_FOCUS" desc="This string is a bullet point in the ‘When used’ column, which describes the behavior of this feature. This string explains that this feature helps users stay focused on their work because their tabs will be organized. The tone should be motivating.">
+     Helps you focus on whatever you’re working on
+   </message>
+-  <message name="IDS_SETTINGS_TAB_ORGANIZER_CONSIDER_DATA" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features will send data to Google servers in order to provide the feature’s respective benefit. The tone should be informative.">
+-    When you use organize tabs, the titles and URLs of your open tabs are sent to Google to generate suggested tab groups
++  <message name="IDS_SETTINGS_TAB_ORGANIZER_CONSIDER_DATA" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features will send data to Oxy servers in order to provide the feature’s respective benefit. The tone should be informative.">
++    When you use organize tabs, the titles and URLs of your open tabs are sent to Oxy to generate suggested tab groups
+   </message>
+ 
+   <!-- Experimental settings - Compare -->
+@@ -4542,11 +4542,11 @@
+   <message name="IDS_SETTINGS_COMPARE_WHEN_ON_PRODUCT_REVIEWS" desc="This string is a bullet point in the ‘When used’ column, which describes the behavior of this feature. This string explains that this feature will pull in details from review websites and product-buying guides; however, only some products have this content available. The tone should be motivating.">
+     For some products, comparison tables summarize reviews from around the web
+   </message>
+-  <message name="IDS_SETTINGS_COMPARE_CONSIDER_DATA" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features will send data to Google servers in order to provide the feature’s respective benefit. The tone should be informative.">
+-    When you compare products, the tab titles and URLs of the products are sent to Google
++  <message name="IDS_SETTINGS_COMPARE_CONSIDER_DATA" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features will send data to Oxy servers in order to provide the feature’s respective benefit. The tone should be informative.">
++    When you compare products, the tab titles and URLs of the products are sent to Oxy
+   </message>
+-  <message name="IDS_SETTINGS_COMPARE_CONSIDER_TABLES_IN_ACCOUNT" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features will save data to the user’s Google Account in order to provide the feature’s respective benefit. The tone should be informative.">
+-    Comparison tables are saved in your Google Account
++  <message name="IDS_SETTINGS_COMPARE_CONSIDER_TABLES_IN_ACCOUNT" desc="This is a bullet point in the ‘Things to consider’ column, which describes things users should consider about a feature. This string explains that AI features will save data to the user’s Oxy Account in order to provide the feature’s respective benefit. The tone should be informative.">
++    Comparison tables are saved in your Oxy Account
+   </message>
+ 
+     <!-- Experimental settings - Password Change -->
+@@ -4566,7 +4566,7 @@
+     This feature uses AI and is experimental
+   </message>
+   <message name="IDS_SETTINGS_PASSWORD_CHANGE_CONTENT" desc="One of the things to consider when using the feature.">
+-    Content from this site, including its URL, is sent to Google and may be seen by human reviewers to improve this feature
++    Content from this site, including its URL, is sent to Oxy and may be seen by human reviewers to improve this feature
+   </message>
+   <message name="IDS_SETTINGS_PASSWORD_CHANGE_ENCRYPTION" desc="One of the things to consider when using the feature.">
+     Your password is encrypted and never seen by anyone

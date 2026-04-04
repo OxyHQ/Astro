@@ -1,11 +1,38 @@
 diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
-index 08949a69415df..d837cc3dbbed7 100644
+index 08949a69415df..2781ac6583612 100644
 --- a/chrome/browser/browser_about_handler.cc
 +++ b/chrome/browser/browser_about_handler.cc
-@@ -50,6 +50,13 @@ bool HandleChromeAboutAndChromeSyncRewrite(
+@@ -9,10 +9,12 @@
+ #include "base/check.h"
+ #include "base/functional/bind.h"
+ #include "base/location.h"
++#include "base/logging.h"
+ #include "base/notreached.h"
+ #include "base/strings/string_util.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "chrome/browser/lifetime/application_lifetime.h"
++#include "chrome/browser/oxy/oxy_auth_callback_handler.h"
+ #include "chrome/browser/policy/chrome_policy_blocklist_service_factory.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/ui/dialogs/browser_dialogs.h"
+@@ -50,6 +52,27 @@ bool HandleChromeAboutAndChromeSyncRewrite(
    DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
           !url->SchemeIs(url::kAboutScheme));
  
++  // Handle Oxy auth callbacks before the generic astro:// rewrite
++  if (oxy::IsOxyAuthCallback(*url)) {
++    auto params = oxy::ParseOxyAuthCallback(*url);
++    if (params.is_valid) {
++      Profile* profile = Profile::FromBrowserContext(browser_context);
++      // TODO: Get OxyAuthService from profile and call HandleAuthCallback
++      // For now, log the successful auth
++      LOG(INFO) << "Oxy auth callback received for user: " << params.username;
++    }
++    // Redirect to a success page instead of showing an error
++    *url = GURL("chrome://newtab");
++    return true;
++  }
++
 +  // Rewrite astro:// URLs to chrome:// for Astro browser compatibility
 +  if (url->SchemeIs("astro")) {
 +    GURL::Replacements replacements;
