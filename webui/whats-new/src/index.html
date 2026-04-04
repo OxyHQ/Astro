@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>What's New in Astro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <script>
+      (function () {
+        const stored = localStorage.getItem("astro-ntp-theme");
+        if (
+          stored === "dark" ||
+          (!stored && matchMedia("(prefers-color-scheme: dark)").matches)
+        ) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <main class="mx-auto max-w-2xl px-6 pb-24 pt-16 sm:pt-24">
+
+      <!-- Header -->
+      <header class="mb-16 text-center animate-fade-in-up">
+
+        <!-- Astro Logo -->
+        <div class="mb-6 flex justify-center">
+          <svg
+            class="h-16 w-16 sm:h-20 sm:w-20"
+            viewBox="0 0 163 169"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <g
+              transform="translate(0,169) scale(0.1,-0.1)"
+              fill="#c46ede"
+              stroke="none"
+            >
+              <path
+                d="M936 1454 c37 -22 114 -116 114 -139 0 -4 22 -44 49 -89 75 -124 89 -148 112 -191 24 -45 87 -153 207 -357 101 -171 120 -228 102 -293 -17 -62 -61 -120 -110 -145 -91 -47 -434 -36 -566 18 -136 55 -246 148 -315 267 -77 132 -94 192 -93 335 1 141 25 223 107 362 30 51 66 114 81 140 67 119 199 158 312 92z"
+              />
+              <path
+                d="M361 586 c108 -45 154 -170 101 -273 -34 -65 -83 -93 -162 -93 -81 0 -124 21 -165 81 -25 37 -30 54 -30 104 0 50 5 67 30 105 52 76 148 109 226 76z"
+              />
+            </g>
+          </svg>
+        </div>
+
+        <!-- Version Badge -->
+        <div class="mb-5 flex justify-center">
+          <span
+            id="version-badge"
+            class="inline-flex items-center gap-1.5 rounded-full bg-oxy-primary/10 px-4 py-1.5 text-sm font-medium text-oxy-primary"
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"/>
+            </svg>
+            Version 146.0.7680.177
+          </span>
+        </div>
+
+        <!-- Heading -->
+        <h1 class="mb-3 text-4xl font-bold tracking-tight text-oxy-text sm:text-5xl">
+          What's New in Astro
+        </h1>
+
+        <!-- Release Date -->
+        <p class="text-base font-medium text-oxy-text-tertiary">
+          April 2026
+        </p>
+      </header>
+
+      <!-- Features Timeline -->
+      <div class="relative ml-5 border-l-2 border-oxy-border pl-8 sm:ml-0">
+
+        <!-- Feature 1: Ad Blocker -->
+        <article class="feature-card relative mb-8 reveal">
+          <div class="timeline-dot"></div>
+          <div class="flex items-start gap-4">
+            <div class="feature-icon">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h2 class="mb-1.5 text-lg font-semibold text-oxy-text">Built-in Ad Blocker</h2>
+              <p class="text-[0.9375rem] leading-relaxed text-oxy-text-secondary">
+                Astro blocks ads and trackers by default. No extensions needed. Browse faster and more privately with zero configuration.
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Feature 2: Alia AI -->
+        <article class="feature-card relative mb-8 reveal">
+          <div class="timeline-dot"></div>
+          <div class="flex items-start gap-4">
+            <div class="feature-icon">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 6V2H8"/>
+                <path d="m8 18-4 4V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2Z"/>
+                <path d="M2 12h2"/>
+                <path d="M9 11v2"/>
+                <path d="M15 11v2"/>
+                <path d="M20 12h2"/>
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h2 class="mb-1.5 text-lg font-semibold text-oxy-text">Alia AI Assistant</h2>
+              <p class="text-[0.9375rem] leading-relaxed text-oxy-text-secondary">
+                Ask Alia anything from the sidebar. Get summaries, explanations, and answers about any page you're visiting.
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Feature 3: Oxy Account -->
+        <article class="feature-card relative mb-8 reveal">
+          <div class="timeline-dot"></div>
+          <div class="flex items-start gap-4">
+            <div class="feature-icon">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                <circle cx="12" cy="16" r="1"/>
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h2 class="mb-1.5 text-lg font-semibold text-oxy-text">Oxy Account Integration</h2>
+              <p class="text-[0.9375rem] leading-relaxed text-oxy-text-secondary">
+                Sign in with your Oxy account to sync bookmarks, passwords, and settings across all your devices seamlessly.
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Feature 4: Design Language -->
+        <article class="feature-card relative mb-8 reveal">
+          <div class="timeline-dot"></div>
+          <div class="flex items-start gap-4">
+            <div class="feature-icon">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="13.5" cy="6.5" r="2.5"/>
+                <path d="M17 2.1a10 10 0 0 1 4.9 4.9"/>
+                <circle cx="6.5" cy="13.5" r="2.5"/>
+                <path d="M2.1 17A10 10 0 0 1 7 21.9"/>
+                <circle cx="17.5" cy="17.5" r="2.5"/>
+                <path d="M21.9 17a10 10 0 0 1-4.9 4.9"/>
+                <path d="M7 2.1A10 10 0 0 0 2.1 7"/>
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h2 class="mb-1.5 text-lg font-semibold text-oxy-text">Oxy Design Language</h2>
+              <p class="text-[0.9375rem] leading-relaxed text-oxy-text-secondary">
+                A beautiful, clean interface with the Oxy fuchsia theme. Customizable New Tab Page with widgets and wallpapers.
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Feature 5: Privacy Search -->
+        <article class="feature-card relative mb-8 reveal">
+          <div class="timeline-dot"></div>
+          <div class="flex items-start gap-4">
+            <div class="feature-icon">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.3-4.3"/>
+                <path d="M11 8v6"/>
+                <path d="M8 11h6"/>
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h2 class="mb-1.5 text-lg font-semibold text-oxy-text">Privacy-First Search</h2>
+              <p class="text-[0.9375rem] leading-relaxed text-oxy-text-secondary">
+                DuckDuckGo as the default search engine. No tracking, no profiling, no filter bubbles. Your searches stay yours.
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Feature 6: De-Googled -->
+        <article class="feature-card relative mb-8 reveal">
+          <div class="timeline-dot"></div>
+          <div class="flex items-start gap-4">
+            <div class="feature-icon">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>
+                <path d="m14.5 9-5 5"/>
+                <path d="m9.5 9 5 5"/>
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <h2 class="mb-1.5 text-lg font-semibold text-oxy-text">De-Googled</h2>
+              <p class="text-[0.9375rem] leading-relaxed text-oxy-text-secondary">
+                Built on Chromium with all Google services removed. Your data stays yours. 155 patches applied for maximum privacy.
+              </p>
+            </div>
+          </div>
+        </article>
+
+      </div>
+
+      <!-- CTA Section -->
+      <div class="mt-16 text-center reveal">
+        <button
+          id="get-started-btn"
+          type="button"
+          class="btn-primary"
+        >
+          Get Started
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"/>
+            <path d="m12 5 7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <footer class="mt-20 text-center reveal">
+        <p class="mb-4 text-sm text-oxy-text-tertiary">
+          Made with <span class="text-oxy-primary">&#9829;</span> in the world by Oxy.
+        </p>
+        <nav class="flex items-center justify-center gap-6">
+          <a href="https://oxy.so" class="footer-link" target="_blank" rel="noopener noreferrer">Website</a>
+          <span class="text-oxy-border">&middot;</span>
+          <a href="https://github.com/OxyHQ" class="footer-link" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <span class="text-oxy-border">&middot;</span>
+          <a href="https://oxy.so/privacy" class="footer-link" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+        </nav>
+      </footer>
+
+    </main>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
