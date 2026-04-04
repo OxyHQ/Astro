@@ -1,0 +1,10 @@
+--- a/chrome/app/vector_icons/BUILD.gn
++++ b/chrome/app/vector_icons/BUILD.gn
+@@ -22,6 +22,7 @@
+     "add_chrome_refresh.icon",
+     "add_circle.icon",
+     "add_photo_alternate.icon",
++    "alia_spark.icon",
+     "astrophotography_mode.icon",
+     "attach_file.icon",
+     "auto_tab_groups.icon",

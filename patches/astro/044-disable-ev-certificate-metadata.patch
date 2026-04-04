@@ -1,0 +1,66 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Fri, 4 Apr 2026 00:00:00 +0000
+Subject: [PATCH] Disable EV certificate metadata entirely
+
+The ungoogled Remove-EV-certificates patch replaces EV root CA data
+with a dummy entry, but the dummy OID "0" fails ASN.1 decoding and
+logs an error at every startup. Instead of patching the dummy data,
+disable the EV metadata system at the compile level by removing the
+PLATFORM_USES_CHROMIUM_EV_METADATA macro. This causes the stub
+implementations to be used, which simply return false for all EV
+lookups - treating all certificates equally, which is the intended
+behavior.
+
+--- a/net/cert/ev_root_ca_metadata.h
++++ b/net/cert/ev_root_ca_metadata.h
+@@ -16,12 +16,9 @@
+ #include "net/base/net_export.h"
+ #include "net/cert/x509_certificate.h"
+
+-#if BUILDFLAG(USE_NSS_CERTS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || \
+-    BUILDFLAG(IS_FUCHSIA)
+-// When not defined, the EVRootCAMetadata singleton is a dumb placeholder
+-// implementation that will fail all EV lookup operations.
+-#define PLATFORM_USES_CHROMIUM_EV_METADATA
+-#endif
++// EV certificate metadata is intentionally disabled in Astro.
++// All EV lookups return false, treating EV certificates the same
++// as standard certificates.
+
+ namespace bssl {
+ namespace der {
+--- a/net/cert/ev_root_ca_metadata.cc
++++ b/net/cert/ev_root_ca_metadata.cc
+@@ -123,24 +123,18 @@
+
+ #else
+
+-// These are just stub functions for platforms where we don't use this EV
+-// metadata.
+-//
+-
+ bool EVRootCAMetadata::IsEVPolicyOID(bssl::der::Input policy_oid) const {
+-  LOG(WARNING) << "Not implemented";
+   return false;
+ }
+
+ bool EVRootCAMetadata::HasEVPolicyOID(const SHA256HashValue& fingerprint,
+                                       bssl::der::Input policy_oid) const {
+-  LOG(WARNING) << "Not implemented";
+   return false;
+ }
+
+ bool EVRootCAMetadata::AddEVCA(const SHA256HashValue& fingerprint,
+                                const char* policy) {
+-  LOG(WARNING) << "Not implemented";
++  // EV metadata is disabled; adding is a no-op.
+   return true;
+ }
+
+ bool EVRootCAMetadata::RemoveEVCA(const SHA256HashValue& fingerprint) {
+-  LOG(WARNING) << "Not implemented";
+-  return true;
++  return false;
+ }
+

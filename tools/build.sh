@@ -5,6 +5,9 @@ ASTRO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CHROMIUM_SRC="$ASTRO_ROOT/chromium/src"
 BUILD_TYPE="${1:-Release}"
 
+# Add depot_tools to PATH (gn, autoninja, etc.)
+export PATH="$ASTRO_ROOT/depot_tools:$PATH"
+
 echo "=== Astro Browser Build ==="
 echo "Root: $ASTRO_ROOT"
 echo "Build type: $BUILD_TYPE"

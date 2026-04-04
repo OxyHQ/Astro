@@ -4,46 +4,21 @@
 #ifndef CHROME_BROWSER_OXY_OXY_ALIA_SIDE_PANEL_H_
 #define CHROME_BROWSER_OXY_OXY_ALIA_SIDE_PANEL_H_
 
-#include <memory>
-
-#include "base/memory/raw_ptr.h"
-
 class Browser;
-class SidePanelEntryScope;
 class SidePanelRegistry;
-
-namespace views {
-class View;
-}  // namespace views
 
 namespace oxy {
 
 // The production URL for the Alia AI web app.
 inline constexpr char kAliaWebUrl[] = "https://alia.onl";
 
-// AliaSidePanelCoordinator handles the creation and registration of the
-// Alia AI assistant SidePanelEntry. Alia loads as an embedded web view
-// pointing to the Alia web app, with the current page URL passed as context.
-class AliaSidePanelCoordinator {
- public:
-  explicit AliaSidePanelCoordinator(Browser* browser);
-  ~AliaSidePanelCoordinator();
-
-  AliaSidePanelCoordinator(const AliaSidePanelCoordinator&) = delete;
-  AliaSidePanelCoordinator& operator=(const AliaSidePanelCoordinator&) = delete;
-
-  // Creates and registers the Alia side panel entry in the global registry.
-  void CreateAndRegisterEntry(SidePanelRegistry* global_registry);
-
- private:
-  // Creates the web view that hosts the Alia web app inside the side panel.
-  std::unique_ptr<views::View> CreateAliaWebView(SidePanelEntryScope& scope);
-
-  // Builds the Alia URL with page context query parameters.
-  std::string GetAliaUrlWithContext() const;
-
-  raw_ptr<Browser> browser_;
-};
+// Registers the Alia AI side panel entry in the global registry.
+// The panel loads the Alia web app in an embedded WebView and passes the
+// current page URL/title as context query parameters.
+//
+// Safe to call multiple times — skips registration if already present.
+void RegisterAliaSidePanelEntry(Browser* browser,
+                                SidePanelRegistry* global_registry);
 
 }  // namespace oxy
 

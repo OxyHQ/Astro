@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --color-oxy-primary: #c46ede;
+  --color-oxy-primary-light: #d99aeb;
+  --color-oxy-primary-dark: #a14cc5;
+  --color-oxy-bg: #f7f5f9;
+  --color-oxy-surface: #ffffff;
+  --color-oxy-text: #1f1f1f;
+  --color-oxy-text-secondary: #6b6b6b;
+  --color-oxy-border: #e8e4ec;
+  --font-sans: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  background-color: var(--color-oxy-bg);
+  color: var(--color-oxy-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Search input focus ring */
+.search-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-oxy-primary);
+}
+
+/* Tile hover lift */
+.site-tile {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.site-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Subtle fade-in on load */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out both;
+}
+.animate-fade-in-delay-1 {
+  animation: fadeIn 0.4s ease-out 0.1s both;
+}
+.animate-fade-in-delay-2 {
+  animation: fadeIn 0.4s ease-out 0.2s both;
+}
+.animate-fade-in-delay-3 {
+  animation: fadeIn 0.4s ease-out 0.3s both;
+}

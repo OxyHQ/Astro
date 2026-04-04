@@ -3,6 +3,8 @@
 
 #include "chrome/browser/oxy/oxy_alia_side_panel.h"
 
+#include <string>
+
 #include "base/strings/string_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -16,49 +18,27 @@
 
 namespace oxy {
 
-AliaSidePanelCoordinator::AliaSidePanelCoordinator(Browser* browser)
-    : browser_(browser) {}
+namespace {
 
-AliaSidePanelCoordinator::~AliaSidePanelCoordinator() = default;
+// Builds the Alia URL with current page context as query parameters.
+// This enables Alia to provide context-aware AI assistance for the
+// page the user is currently viewing.
+GURL BuildAliaUrlWithContext(Browser* browser) {
+  std::string url(kAliaWebUrl);
 
-void AliaSidePanelCoordinator::CreateAndRegisterEntry(
-    SidePanelRegistry* global_registry) {
-  if (global_registry->GetEntryForKey(
-          SidePanelEntry::Key(SidePanelEntry::Id::kAlia))) {
-    return;
-  }
-
-  global_registry->Register(std::make_unique<SidePanelEntry>(
-      SidePanelEntry::Key(SidePanelEntry::Id::kAlia),
-      base::BindRepeating(&AliaSidePanelCoordinator::CreateAliaWebView,
-                          base::Unretained(this)),
-      /*default_content_width_callback=*/base::NullCallback()));
-}
-
-std::unique_ptr<views::View> AliaSidePanelCoordinator::CreateAliaWebView(
-    SidePanelEntryScope& scope) {
-  Profile* profile = browser_->profile();
-  auto web_view = std::make_unique<views::WebView>(profile);
-
-  // Load Alia with current page context.
-  GURL url(GetAliaUrlWithContext());
-  web_view->LoadInitialURL(url);
-
-  return web_view;
-}
-
-std::string AliaSidePanelCoordinator::GetAliaUrlWithContext() const {
-  std::string url = kAliaWebUrl;
+  // Always append embed mode so Alia renders sidebar-optimized UI.
+  url += "?embed=sidepanel";
 
   // Pass current page context to Alia via query parameters.
   content::WebContents* active_contents =
-      browser_->tab_strip_model()->GetActiveWebContents();
+      browser->tab_strip_model()->GetActiveWebContents();
   if (active_contents) {
     GURL page_url = active_contents->GetLastCommittedURL();
     std::u16string page_title = active_contents->GetTitle();
 
-    if (page_url.is_valid() && !page_url.is_empty()) {
-      url += "?context_url=" +
+    if (page_url.is_valid() && !page_url.is_empty() &&
+        page_url.SchemeIsHTTPOrHTTPS()) {
+      url += "&context_url=" +
              net::EscapeQueryParamValue(page_url.spec(), /*use_plus=*/true);
 
       if (!page_title.empty()) {
@@ -69,14 +49,39 @@ std::string AliaSidePanelCoordinator::GetAliaUrlWithContext() const {
     }
   }
 
-  // Append embed mode so Alia web app can render sidebar-optimized UI.
-  if (url.find('?') != std::string::npos) {
-    url += "&embed=sidepanel";
-  } else {
-    url += "?embed=sidepanel";
+  return GURL(url);
+}
+
+// Creates the WebView that hosts the Alia web app inside the side panel.
+std::unique_ptr<views::View> CreateAliaWebView(Browser* browser,
+                                               SidePanelEntryScope& scope) {
+  Profile* profile = browser->profile();
+  auto web_view = std::make_unique<views::WebView>(profile);
+
+  GURL url = BuildAliaUrlWithContext(browser);
+  web_view->LoadInitialURL(url);
+
+  return web_view;
+}
+
+}  // namespace
+
+void RegisterAliaSidePanelEntry(Browser* browser,
+                                SidePanelRegistry* global_registry) {
+  SidePanelEntry::Key alia_key(SidePanelEntry::Id::kAlia);
+
+  // Skip if already registered.
+  if (global_registry->GetEntryForKey(alia_key)) {
+    return;
   }
 
-  return url;
+  // Register the Alia side panel entry. The callback captures `browser` as
+  // a raw pointer — this is safe because the entry is owned by the registry,
+  // which is destroyed during browser teardown (before Browser* is freed).
+  global_registry->Register(std::make_unique<SidePanelEntry>(
+      alia_key,
+      base::BindRepeating(&CreateAliaWebView, base::Unretained(browser)),
+      /*default_content_width_callback=*/base::NullCallback()));
 }
 
 }  // namespace oxy

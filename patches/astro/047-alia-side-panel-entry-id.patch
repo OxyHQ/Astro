@@ -1,7 +1,6 @@
-diff --git a/chrome/browser/ui/views/side_panel/side_panel_entry_id.h b/chrome/browser/ui/views/side_panel/side_panel_entry_id.h
 --- a/chrome/browser/ui/views/side_panel/side_panel_entry_id.h
 +++ b/chrome/browser/ui/views/side_panel/side_panel_entry_id.h
-@@ -40,6 +40,8 @@
+@@ -41,6 +41,8 @@
    V(kMerchantTrust, kActionSidePanelShowMerchantTrust, "MerchantTrust")       \
    V(kComments, kActionSidePanelShowComments, "Comments")                      \
    V(kGlic, kActionSidePanelShowGlic, "Glic")                                  \
@@ -9,4 +8,4 @@ diff --git a/chrome/browser/ui/views/side_panel/side_panel_entry_id.h b/chrome/b
 +  V(kAlia, kActionSidePanelShowAlia, "Alia")                                  \
    /* Extensions (nothing more should be added below here) */                  \
    V(kExtension, std::nullopt, "Extension")
-
+ 
