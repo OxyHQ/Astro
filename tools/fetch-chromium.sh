@@ -6,7 +6,7 @@ CHROMIUM_DIR="$ASTRO_ROOT/chromium"
 DEPOT_TOOLS_DIR="$ASTRO_ROOT/depot_tools"
 
 # Target Chromium version (update this when rebasing)
-CHROMIUM_VERSION="${CHROMIUM_VERSION:-136.0.7103.59}"
+CHROMIUM_VERSION="${CHROMIUM_VERSION:-146.0.7680.177}"
 
 echo "=== Fetching Chromium $CHROMIUM_VERSION ==="
 

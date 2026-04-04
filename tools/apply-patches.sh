@@ -3,9 +3,11 @@ set -euo pipefail
 
 ASTRO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CHROMIUM_SRC="$ASTRO_ROOT/chromium/src"
+UNGOOGLED_PATCHES="$ASTRO_ROOT/patches/ungoogled"
+ASTRO_PATCHES="$ASTRO_ROOT/patches/astro"
 PATCH_SET="${1:-all}"
 
-echo "=== Applying Patches ==="
+echo "=== Astro Patch System ==="
 
 if [ ! -d "$CHROMIUM_SRC" ]; then
     echo "ERROR: Chromium source not found at $CHROMIUM_SRC"
@@ -14,59 +16,175 @@ fi
 
 cd "$CHROMIUM_SRC"
 
-apply_patch_dir() {
-    local dir="$1"
-    local name="$2"
-
-    if [ ! -d "$dir" ]; then
-        echo "SKIP: $name (directory not found: $dir)"
-        return
-    fi
-
-    local count=$(find "$dir" -name "*.patch" 2>/dev/null | wc -l)
-    if [ "$count" -eq 0 ]; then
-        echo "SKIP: $name (no patches found)"
+# --- Binary Pruning ---
+# Removes pre-built binaries from the Chromium source tree
+run_pruning() {
+    local pruning_list="$UNGOOGLED_PATCHES/pruning.list"
+    if [ ! -f "$pruning_list" ]; then
+        echo "SKIP: No pruning list found"
         return
     fi
 
     echo ""
-    echo ">>> Applying $name patches ($count patches)..."
-
-    for patch in $(find "$dir" -name "*.patch" | sort); do
-        echo "  Applying: $(basename "$patch")"
-        if ! git apply --check "$patch" 2>/dev/null; then
-            echo "  WARNING: Patch may not apply cleanly, trying with 3-way merge..."
-            git apply --3way "$patch" || {
-                echo "  ERROR: Failed to apply $(basename "$patch")"
-                echo "  You may need to resolve conflicts manually."
-                return 1
-            }
+    echo ">>> Pruning pre-built binaries..."
+    local count=0
+    local skipped=0
+    while IFS= read -r file; do
+        if [ -f "$CHROMIUM_SRC/$file" ]; then
+            rm -f "$CHROMIUM_SRC/$file"
+            count=$((count + 1))
         else
-            git apply "$patch"
+            skipped=$((skipped + 1))
         fi
-    done
-
-    echo "  Done: $name patches applied successfully"
+    done < "$pruning_list"
+    echo "  Pruned $count files ($skipped already absent)"
 }
 
+# --- Domain Substitution ---
+# Replaces Google domains in source files with non-functional alternatives
+run_domain_substitution() {
+    local sub_list="$UNGOOGLED_PATCHES/domain_substitution.list"
+    local regex_list="$UNGOOGLED_PATCHES/domain_regex.list"
+
+    if [ ! -f "$sub_list" ] || [ ! -f "$regex_list" ]; then
+        echo "SKIP: Domain substitution files not found"
+        return
+    fi
+
+    echo ""
+    echo ">>> Running domain substitution..."
+
+    # Build sed command from regex list
+    local sed_args=""
+    while IFS= read -r regex; do
+        [ -z "$regex" ] && continue
+        [[ "$regex" == \#* ]] && continue
+        sed_args="$sed_args -e '$regex'"
+    done < "$regex_list"
+
+    local count=0
+    local errors=0
+    while IFS= read -r file; do
+        if [ -f "$CHROMIUM_SRC/$file" ]; then
+            if eval sed -i "$sed_args" "$CHROMIUM_SRC/$file" 2>/dev/null; then
+                count=$((count + 1))
+            else
+                errors=$((errors + 1))
+            fi
+        fi
+    done < "$sub_list"
+    echo "  Substituted domains in $count files ($errors errors)"
+}
+
+# --- Patch Application ---
+# Applies patches in order from the series file
+apply_ungoogled_patches() {
+    local series_file="$UNGOOGLED_PATCHES/series"
+
+    if [ ! -f "$series_file" ]; then
+        echo "ERROR: No series file found at $series_file"
+        return 1
+    fi
+
+    local total=$(grep -v '^\s*$' "$series_file" | grep -v '^\s*#' | wc -l)
+    echo ""
+    echo ">>> Applying ungoogled-chromium patches ($total patches from series)..."
+
+    local applied=0
+    local failed=0
+
+    while IFS= read -r patch_path; do
+        # Skip empty lines and comments
+        [ -z "$patch_path" ] && continue
+        [[ "$patch_path" == \#* ]] && continue
+
+        local full_path="$UNGOOGLED_PATCHES/$patch_path"
+        if [ ! -f "$full_path" ]; then
+            echo "  MISSING: $patch_path"
+            failed=$((failed + 1))
+            continue
+        fi
+
+        if git apply --check "$full_path" 2>/dev/null; then
+            git apply "$full_path"
+            applied=$((applied + 1))
+        else
+            echo "  CONFLICT: $patch_path (trying 3-way merge...)"
+            if git apply --3way "$full_path" 2>/dev/null; then
+                applied=$((applied + 1))
+            else
+                echo "  FAILED: $patch_path"
+                failed=$((failed + 1))
+            fi
+        fi
+    done < "$series_file"
+
+    echo "  Applied: $applied / $total ($failed failed)"
+    if [ "$failed" -gt 0 ]; then
+        echo "  WARNING: Some patches failed. Manual resolution may be needed."
+    fi
+}
+
+apply_astro_patches() {
+    if [ ! -d "$ASTRO_PATCHES" ]; then
+        echo "SKIP: No Astro patches directory"
+        return
+    fi
+
+    local count=$(find "$ASTRO_PATCHES" -name "*.patch" 2>/dev/null | wc -l)
+    if [ "$count" -eq 0 ]; then
+        echo "SKIP: No Astro patches found (will be added in Phase 2+)"
+        return
+    fi
+
+    echo ""
+    echo ">>> Applying Astro patches ($count patches)..."
+
+    for patch in $(find "$ASTRO_PATCHES" -name "*.patch" | sort); do
+        local name=$(basename "$patch")
+        if git apply --check "$patch" 2>/dev/null; then
+            git apply "$patch"
+            echo "  OK: $name"
+        else
+            echo "  CONFLICT: $name (trying 3-way merge...)"
+            git apply --3way "$patch" 2>/dev/null || echo "  FAILED: $name"
+        fi
+    done
+}
+
+# --- Main ---
 case "$PATCH_SET" in
     ungoogled)
-        apply_patch_dir "$ASTRO_ROOT/patches/ungoogled/core" "ungoogled-core"
-        apply_patch_dir "$ASTRO_ROOT/patches/ungoogled/extra" "ungoogled-extra"
+        run_pruning
+        run_domain_substitution
+        apply_ungoogled_patches
         ;;
     astro)
-        apply_patch_dir "$ASTRO_ROOT/patches/astro" "astro"
+        apply_astro_patches
         ;;
     all)
-        apply_patch_dir "$ASTRO_ROOT/patches/ungoogled/core" "ungoogled-core"
-        apply_patch_dir "$ASTRO_ROOT/patches/ungoogled/extra" "ungoogled-extra"
-        apply_patch_dir "$ASTRO_ROOT/patches/astro" "astro"
+        run_pruning
+        run_domain_substitution
+        apply_ungoogled_patches
+        apply_astro_patches
+        ;;
+    prune)
+        run_pruning
+        ;;
+    domains)
+        run_domain_substitution
         ;;
     *)
-        echo "Usage: $0 [ungoogled|astro|all]"
+        echo "Usage: $0 [all|ungoogled|astro|prune|domains]"
+        echo ""
+        echo "  all        - Apply everything (prune + domains + ungoogled + astro)"
+        echo "  ungoogled  - Pruning + domain substitution + ungoogled patches"
+        echo "  astro      - Astro-specific patches only"
+        echo "  prune      - Binary pruning only"
+        echo "  domains    - Domain substitution only"
         exit 1
         ;;
 esac
 
 echo ""
-echo "=== Patches applied ==="
+echo "=== Done ==="

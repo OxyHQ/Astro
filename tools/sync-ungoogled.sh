@@ -6,7 +6,7 @@ UNGOOGLED_DIR="$ASTRO_ROOT/.ungoogled-chromium"
 PATCHES_DIR="$ASTRO_ROOT/patches/ungoogled"
 
 # Match this to the Chromium version we're building against
-CHROMIUM_VERSION="${CHROMIUM_VERSION:-136.0.7103.59}"
+CHROMIUM_VERSION="${CHROMIUM_VERSION:-146.0.7680.177}"
 UNGOOGLED_BRANCH="master"
 
 echo "=== Syncing ungoogled-chromium patches ==="
