@@ -1,0 +1,18 @@
+diff --git a/chrome/browser/browser_about_handler.cc b/chrome/browser/browser_about_handler.cc
+index 08949a69415df..d837cc3dbbed7 100644
+--- a/chrome/browser/browser_about_handler.cc
++++ b/chrome/browser/browser_about_handler.cc
+@@ -50,6 +50,13 @@ bool HandleChromeAboutAndChromeSyncRewrite(
+   DCHECK(url->IsAboutBlank() || url->IsAboutSrcdoc() ||
+          !url->SchemeIs(url::kAboutScheme));
+ 
++  // Rewrite astro:// URLs to chrome:// for Astro browser compatibility
++  if (url->SchemeIs("astro")) {
++    GURL::Replacements replacements;
++    replacements.SetSchemeStr(content::kChromeUIScheme);
++    *url = url->ReplaceComponents(replacements);
++  }
++
+   // Only handle chrome: URLs.
+   if (!url->SchemeIs(content::kChromeUIScheme)) {
+     return false;
