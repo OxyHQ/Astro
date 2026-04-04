@@ -19,39 +19,29 @@ if [[ ! -d "$BUILD_DIR" ]]; then
     exit 1
 fi
 
-if [[ ! -f "$ICON_SRC" ]]; then
-    echo "Error: Icon not found at $ICON_SRC"
-    exit 1
-fi
-
 echo "Installing Astro Browser locally..."
 
-# Create directories
 mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$APPS_DIR" "$ICONS_DIR"
 
-# Copy build output
 echo "  Copying build output to $INSTALL_DIR..."
 rsync -a --delete "$BUILD_DIR/" "$INSTALL_DIR/"
 
-# Install icon
-echo "  Installing icon..."
-cp "$ICON_SRC" "$ICONS_DIR/astro-browser.png"
+if [[ -f "$ICON_SRC" ]]; then
+    echo "  Installing icon..."
+    cp "$ICON_SRC" "$ICONS_DIR/astro-browser.png"
+fi
 
-# Install .desktop file with local path overrides
 echo "  Installing desktop entry..."
-sed "s|Exec=/opt/oxy/astro/astro-browser|Exec=$INSTALL_DIR/astro-browser|g" \
+sed "s|Exec=/opt/oxy/astro/astro-browser|Exec=$INSTALL_DIR/chrome|g" \
     "$DESKTOP_SRC" > "$APPS_DIR/astro-browser.desktop"
 
-# Create symlink
 echo "  Creating symlink at $BIN_DIR/astro..."
-ln -sf "$INSTALL_DIR/astro-browser" "$BIN_DIR/astro"
+ln -sf "$INSTALL_DIR/chrome" "$BIN_DIR/astro"
 
-# Update desktop database if available
 if command -v update-desktop-database &>/dev/null; then
     update-desktop-database "$APPS_DIR" 2>/dev/null || true
 fi
 
-# Update icon cache if available
 if command -v gtk-update-icon-cache &>/dev/null; then
     gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 fi
