@@ -12,7 +12,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_scope.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "content/public/browser/web_contents.h"
-#include "net/base/escape.h"
+#include "net/base/url_util.h"
 #include "url/gurl.h"
 #include "ui/views/controls/webview/webview.h"
 
@@ -26,8 +26,9 @@ namespace {
 GURL BuildAliaUrlWithContext(Browser* browser) {
   std::string url(kAliaWebUrl);
 
-  // Always append embed mode so Alia renders sidebar-optimized UI.
-  url += "?embed=sidepanel";
+  // Build the base URL with embed mode for sidebar-optimized UI.
+  GURL alia_gurl(url);
+  alia_gurl = net::AppendQueryParameter(alia_gurl, "embed", "sidepanel");
 
   // Pass current page context to Alia via query parameters.
   content::WebContents* active_contents =
@@ -38,18 +39,16 @@ GURL BuildAliaUrlWithContext(Browser* browser) {
 
     if (page_url.is_valid() && !page_url.is_empty() &&
         page_url.SchemeIsHTTPOrHTTPS()) {
-      url += "&context_url=" +
-             net::EscapeQueryParamValue(page_url.spec(), /*use_plus=*/true);
-
+      alia_gurl = net::AppendQueryParameter(alia_gurl, "context_url",
+                                            page_url.spec());
       if (!page_title.empty()) {
-        url += "&context_title=" +
-               net::EscapeQueryParamValue(base::UTF16ToUTF8(page_title),
-                                          /*use_plus=*/true);
+        alia_gurl = net::AppendQueryParameter(
+            alia_gurl, "context_title", base::UTF16ToUTF8(page_title));
       }
     }
   }
 
-  return GURL(url);
+  return alia_gurl;
 }
 
 // Creates the WebView that hosts the Alia web app inside the side panel.

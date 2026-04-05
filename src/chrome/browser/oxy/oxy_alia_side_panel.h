@@ -9,8 +9,8 @@ class SidePanelRegistry;
 
 namespace oxy {
 
-// The production URL for the Alia AI web app.
-inline constexpr char kAliaWebUrl[] = "https://alia.onl";
+// The local URL for the Alia AI web app, served by the launcher's HTTP server.
+inline constexpr char kAliaWebUrl[] = "http://127.0.0.1:19845/astro-alia/index.html";
 
 // Registers the Alia AI side panel entry in the global registry.
 // The panel loads the Alia web app in an embedded WebView and passes the

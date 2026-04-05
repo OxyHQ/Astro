@@ -189,6 +189,7 @@ const sitesContainer = $<HTMLDivElement>("sites-container");
 const themeToggle = $<HTMLButtonElement>("theme-toggle");
 const iconSun = $<SVGElement>("icon-sun");
 const iconMoon = $<SVGElement>("icon-moon");
+const customizeChromeBtn = $<HTMLButtonElement>("customize-chrome-btn");
 
 const settingsBtn = $<HTMLButtonElement>("settings-btn");
 const settingsOverlay = $<HTMLDivElement>("settings-overlay");
@@ -276,6 +277,50 @@ function toggleTheme(): void {
   document.documentElement.setAttribute("data-color-scheme", dark ? "dark" : "light");
   localStorage.setItem("astro-ntp-theme", dark ? "dark" : "light");
   applyThemeIcons();
+  applyBrowserTheme(dark);
+}
+
+function applyBrowserTheme(dark: boolean): void {
+  const chrome = (globalThis as Record<string, unknown>).chrome as
+    | {
+        send?: (command: string, args?: unknown[]) => void;
+        embeddedSearch?: {
+          newTabPage?: {
+            updateTheme?: () => void;
+          };
+        };
+      }
+    | undefined;
+
+  // Use chrome.send if available (Chromium internal NTP API)
+  if (chrome?.send) {
+    try {
+      chrome.send("setThemeMode", [dark ? 2 : 1]);
+    } catch {
+      // chrome.send may not support setThemeMode in all builds
+    }
+  }
+}
+
+function openCustomizeChrome(): void {
+  const chrome = (globalThis as Record<string, unknown>).chrome as
+    | {
+        send?: (command: string) => void;
+      }
+    | undefined;
+
+  // Try chrome.send first (Chromium internal API for NTP pages)
+  if (chrome?.send) {
+    try {
+      chrome.send("openCustomizeChrome");
+      return;
+    } catch {
+      // Fallback to URL navigation
+    }
+  }
+
+  // Open the side panel URL directly
+  window.location.href = "chrome://customize-chrome-side-panel.top-chrome/";
 }
 
 // ── Search Engine ──
@@ -862,6 +907,7 @@ setInterval(updateBlockedCount, 5_000);
 
 document.addEventListener("keydown", handleKeyboard);
 themeToggle.addEventListener("click", toggleTheme);
+customizeChromeBtn.addEventListener("click", openCustomizeChrome);
 
 // Search engine dropdown
 searchEngineBtn.addEventListener("click", (e) => {
