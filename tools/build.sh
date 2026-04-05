@@ -50,6 +50,20 @@ echo ">>> Building with Ninja (this may take several hours on first build)..."
 JOBS="${ASTRO_BUILD_JOBS:-$(nproc)}"
 autoninja -C "$OUT_DIR" chrome -j "$JOBS"
 
+# Step 5: Copy WebUI resources alongside the binary
+echo ""
+echo ">>> Copying WebUI resources..."
+
+# NTP (New Tab Page)
+NTP_DIST="$ASTRO_ROOT/webui/ntp/dist"
+if [ -d "$NTP_DIST" ]; then
+    mkdir -p "$OUT_DIR/astro-ntp"
+    rsync -a "$NTP_DIST/" "$OUT_DIR/astro-ntp/"
+    echo "  Copied NTP resources to $OUT_DIR/astro-ntp/"
+else
+    echo "  WARNING: NTP dist not found at $NTP_DIST (run bun build in webui/ntp first)"
+fi
+
 echo ""
 echo "=== Build complete ==="
 echo "Binary: $CHROMIUM_SRC/$OUT_DIR/chrome"

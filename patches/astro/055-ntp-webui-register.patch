@@ -1,0 +1,18 @@
+diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+--- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
++++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+@@ -20,6 +20,7 @@
+ #include "chrome/browser/ui/webui/accessibility/accessibility_ui.h"
+ #include "chrome/browser/ui/webui/autofill_and_password_manager_internals/autofill_internals_ui.h"
+ #include "chrome/browser/ui/webui/autofill_and_password_manager_internals/password_manager_internals_ui.h"
++#include "chrome/browser/oxy/webui/astro_ntp_ui.h"
+ #include "chrome/browser/ui/webui/bluetooth_internals/bluetooth_internals_ui.h"
+ #include "chrome/browser/ui/webui/browsing_topics/browsing_topics_internals_ui.h"
+ #include "chrome/browser/ui/webui/chrome_urls/chrome_urls_ui.h"
+@@ -151,6 +152,7 @@
+   auto& map = content::WebUIConfigMap::GetInstance();
+
+   map.AddWebUIConfig(std::make_unique<oxy::adblock::AstroAdBlockUIConfig>());
++  map.AddWebUIConfig(std::make_unique<oxy::AstroNtpUIConfig>());
+   map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
+   map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());

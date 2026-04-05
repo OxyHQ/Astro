@@ -71,3 +71,19 @@ echo "  App dir: $INSTALL_DIR"
 echo "  Desktop: $APPS_DIR/astro-browser.desktop"
 echo ""
 echo "Run 'astro' from the terminal or find 'Astro Web Browser' in your app launcher."
+
+# Build and install WebUI pages
+echo "  Building WebUI pages..."
+for page in ntp alia settings whats-new; do
+    if [ -f "$PROJECT_ROOT/webui/$page/package.json" ]; then
+        cd "$PROJECT_ROOT/webui/$page" && bun run build 2>/dev/null
+        sed -i 's/ crossorigin//g' dist/index.html 2>/dev/null
+        mkdir -p "$INSTALL_DIR/resources/astro-$page"
+        cp -r dist/* "$INSTALL_DIR/resources/astro-$page/"
+    fi
+done
+
+# Install launcher
+cp "$PROJECT_ROOT/tools/astro-launch.sh" "$INSTALL_DIR/astro-launch.sh" 2>/dev/null
+chmod +x "$INSTALL_DIR/astro-launch.sh" 2>/dev/null
+ln -sf "$INSTALL_DIR/astro-launch.sh" "$BIN_DIR/astro"
