@@ -133,23 +133,38 @@ apply_astro_patches() {
 
     local count=$(find "$ASTRO_PATCHES" -name "*.patch" 2>/dev/null | wc -l)
     if [ "$count" -eq 0 ]; then
-        echo "SKIP: No Astro patches found (will be added in Phase 2+)"
+        echo "SKIP: No Astro patches found"
         return
     fi
 
     echo ""
     echo ">>> Applying Astro patches ($count patches)..."
 
+    local applied=0
+    local failed=0
+
     for patch in $(find "$ASTRO_PATCHES" -name "*.patch" | sort); do
         local name=$(basename "$patch")
+
+        # Try exact git apply first
         if git apply --check "$patch" 2>/dev/null; then
             git apply "$patch"
-            echo "  OK: $name"
+            applied=$((applied + 1))
+        # Try with fuzzy matching (patch -p1 allows context mismatch)
+        elif patch -p1 --forward --no-backup-if-mismatch -F3 < "$patch" 2>/dev/null | grep -q "patching"; then
+            applied=$((applied + 1))
+            echo "  FUZZY: $name"
+        # Try with even more fuzz
+        elif patch -p1 --forward --no-backup-if-mismatch -F10 < "$patch" 2>/dev/null | grep -q "patching"; then
+            applied=$((applied + 1))
+            echo "  FUZZ10: $name"
         else
-            echo "  CONFLICT: $name (trying 3-way merge...)"
-            git apply --3way "$patch" 2>/dev/null || echo "  FAILED: $name"
+            failed=$((failed + 1))
+            echo "  FAILED: $name"
         fi
     done
+
+    echo "  Applied: $applied / $count ($failed failed)"
 }
 
 # --- Main ---
