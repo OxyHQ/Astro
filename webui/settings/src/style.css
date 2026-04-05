@@ -64,25 +64,46 @@ html.dark body {
 }
 
 .sidebar-link {
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease;
-  border-left: 2px solid transparent;
 }
 
 .sidebar-link:hover {
-  background-color: var(--color-oxy-surface);
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+html.dark .sidebar-link:hover {
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .sidebar-link.active {
-  border-left-color: var(--color-oxy-primary);
   color: var(--color-oxy-primary);
-  background-color: rgba(196, 110, 222, 0.05);
+  background-color: rgba(196, 110, 222, 0.06);
 }
 
 .sidebar-link.active:hover {
+  background-color: rgba(196, 110, 222, 0.10);
+}
+
+/* ── Command palette ── */
+
+.command-dialog {
+  animation: commandIn 0.15s cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes commandIn {
+  from { opacity: 0; transform: scale(0.96) translateY(-8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.command-item {
+  transition: background-color 0.1s ease;
+}
+
+.command-item:hover, .command-item.active {
   background-color: rgba(196, 110, 222, 0.08);
+}
+
+.command-item.active {
+  color: var(--color-oxy-primary);
 }
 
 /* ── Toggle switch ── */
@@ -135,13 +156,11 @@ html.dark body {
   cursor: pointer;
   outline: none;
   transition:
-    border-color 0.2s ease,
     box-shadow 0.2s ease;
   min-width: 180px;
 }
 
 .setting-select:focus {
-  border-color: var(--color-oxy-primary);
   box-shadow: 0 0 0 2px rgba(196, 110, 222, 0.15);
 }
 
@@ -211,7 +230,6 @@ html.dark .setting-select {
   overflow: hidden;
   transition:
     box-shadow 0.2s ease,
-    border-color 0.2s ease;
 }
 
 .section-card:hover {
@@ -253,23 +271,19 @@ html.dark .setting-row:hover {
   border: 1px solid var(--color-oxy-border);
   border-radius: 14px;
   transition:
-    border-color 0.2s ease,
     box-shadow 0.2s ease;
 }
 
 .search-box:focus-within {
-  border-color: var(--color-oxy-primary);
   box-shadow: 0 0 0 3px rgba(196, 110, 222, 0.1);
 }
 
 .search-box-sidebar {
   transition:
-    border-color 0.2s ease,
     box-shadow 0.2s ease;
 }
 
 .search-box-sidebar:focus-within {
-  border-color: var(--color-oxy-primary);
   box-shadow: 0 0 0 2px rgba(196, 110, 222, 0.08);
 }
 

@@ -30,37 +30,35 @@
       <!-- Sidebar -->
       <nav
         id="sidebar"
-        class="sidebar fixed z-50 flex h-full w-[240px] -translate-x-full flex-col border-r border-oxy-border bg-oxy-surface lg:relative lg:translate-x-0"
+        class="sidebar fixed z-50 flex h-full w-[220px] -translate-x-full flex-col border-r border-oxy-border bg-oxy-bg lg:relative lg:translate-x-0"
       >
-        <!-- Logo area -->
-        <div class="flex items-center gap-2.5 px-5 pt-5 pb-1">
-          <svg
-            class="h-5 w-5 shrink-0"
-            viewBox="0 0 163 169"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <g
-              transform="translate(0,169) scale(0.1,-0.1)"
-              fill="#c46ede"
-              stroke="none"
-            >
-              <path
-                d="M936 1454 c37 -22 114 -116 114 -139 0 -4 22 -44 49 -89 75 -124 89 -148 112 -191 24 -45 87 -153 207 -357 101 -171 120 -228 102 -293 -17 -62 -61 -120 -110 -145 -91 -47 -434 -36 -566 18 -136 55 -246 148 -315 267 -77 132 -94 192 -93 335 1 141 25 223 107 362 30 51 66 114 81 140 67 119 199 158 312 92z"
-              />
-              <path
-                d="M361 586 c108 -45 154 -170 101 -273 -34 -65 -83 -93 -162 -93 -81 0 -124 21 -165 81 -25 37 -30 54 -30 104 0 50 5 67 30 105 52 76 148 109 226 76z"
-              />
-            </g>
-          </svg>
-          <div class="flex flex-col">
-            <span class="text-[15px] font-semibold text-oxy-text">Settings</span>
-          </div>
+        <!-- Back arrow + Settings heading -->
+        <div class="flex items-center gap-2 px-4 pt-4 pb-1">
+          <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-oxy-text-secondary hover:text-oxy-text hover:bg-oxy-surface" aria-label="Go back">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <span class="text-sm font-semibold text-oxy-text">Settings</span>
+        </div>
+
+        <!-- Search trigger (opens command palette) -->
+        <div class="px-3 pt-2 pb-2">
+          <button id="search-trigger" type="button" class="flex w-full items-center gap-2 rounded-lg bg-black/[0.03] px-2.5 py-1.5 text-left transition-colors hover:bg-black/[0.06] dark:bg-white/[0.05] dark:hover:bg-white/[0.08]">
+            <svg class="h-3 w-3 shrink-0 text-oxy-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <span class="flex-1 text-[11.5px] text-oxy-text-tertiary">Search...</span>
+            <kbd class="rounded border border-oxy-border/50 bg-oxy-bg/60 px-1 py-px text-[9px] font-medium text-oxy-text-tertiary">⌘K</kbd>
+          </button>
         </div>
 
         <!-- Navigation -->
-        <div id="nav-list" class="mt-2 flex-1 space-y-px overflow-y-auto px-2.5 pb-4">
-          <!-- Navigation items injected by JS -->
+        <div id="nav-list" class="flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-3 scrollbar-none"></div>
+
+        <!-- Theme toggle at bottom -->
+        <div class="flex items-center justify-between border-t border-oxy-border/50 px-4 py-2.5">
+          <span class="text-[11px] text-oxy-text-tertiary">Theme</span>
+          <button id="theme-toggle" type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-oxy-text-tertiary hover:text-oxy-text hover:bg-black/[0.04] dark:hover:bg-white/[0.06]" aria-label="Toggle theme">
+            <svg id="icon-sun" class="hidden h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            <svg id="icon-moon" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
         </div>
       </nav>
 
@@ -69,104 +67,46 @@
         id="content"
         class="flex min-w-0 flex-1 flex-col overflow-y-auto"
       >
-        <!-- Top bar -->
-        <header
-          class="sticky top-0 z-30 flex items-center gap-3 bg-oxy-bg/80 px-6 py-3 backdrop-blur-xl lg:px-8"
-        >
-          <!-- Mobile menu button -->
+        <!-- Mobile-only top bar -->
+        <div class="sticky top-0 z-30 flex items-center gap-2 bg-oxy-bg/80 px-4 py-2 backdrop-blur-sm lg:hidden">
           <button
             id="menu-btn"
             type="button"
-            class="flex h-9 w-9 items-center justify-center rounded-xl text-oxy-text-secondary hover:bg-oxy-surface lg:hidden"
+            class="flex h-7 w-7 items-center justify-center rounded-lg text-oxy-text-secondary hover:bg-oxy-surface"
             aria-label="Open menu"
           >
-            <svg
-              class="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="4" y1="6" x2="20" y2="6" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="18" x2="20" y2="18" />
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" />
             </svg>
           </button>
-
-          <!-- Search -->
-          <div class="search-box flex max-w-md flex-1 items-center gap-3 px-4 py-2.5">
-            <svg
-              class="h-4 w-4 shrink-0 text-oxy-text-tertiary"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-            <input
-              type="text"
-              id="search-input"
-              class="search-input min-w-0 flex-1 bg-transparent text-sm text-oxy-text"
-              placeholder="Search settings..."
-              autocomplete="off"
-            />
-            <kbd
-              id="search-hint"
-              class="hidden shrink-0 rounded-md border border-oxy-border bg-oxy-bg px-1.5 py-0.5 text-[11px] font-medium text-oxy-text-tertiary sm:inline-block"
-              >/</kbd
-            >
-          </div>
-
-          <div class="flex-1"></div>
-
-          <!-- Theme toggle -->
-          <button
-            id="theme-toggle"
-            type="button"
-            class="flex h-9 w-9 items-center justify-center rounded-xl text-oxy-text-secondary transition-colors hover:bg-oxy-surface"
-            aria-label="Toggle theme"
-          >
-            <svg
-              id="icon-sun"
-              class="hidden h-[18px] w-[18px]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="5" />
-              <path
-                d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-              />
-            </svg>
-            <svg
-              id="icon-moon"
-              class="h-[18px] w-[18px]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          </button>
-        </header>
+          <span class="text-sm font-medium text-oxy-text">Settings</span>
+        </div>
 
         <!-- Sections container -->
-        <div id="sections" class="mx-auto w-full max-w-3xl space-y-6 px-6 py-8 lg:px-10">
+        <div id="sections" class="mx-auto w-full max-w-[640px] space-y-4 px-6 py-5 lg:px-8">
           <!-- Sections injected by JS -->
         </div>
       </main>
+    </div>
+
+    <!-- Command palette (shadcn-style) -->
+    <div id="command-overlay" class="fixed inset-0 z-[200] hidden bg-black/50 backdrop-blur-sm" style="display:none">
+      <div class="flex items-start justify-center pt-[16vh]">
+        <div class="command-dialog w-full max-w-[520px] mx-4 overflow-hidden rounded-xl border border-oxy-border bg-oxy-surface shadow-2xl">
+          <div class="flex items-center gap-2.5 border-b border-oxy-border px-4 py-3">
+            <svg class="h-4 w-4 shrink-0 text-oxy-text-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="command-input" class="min-w-0 flex-1 bg-transparent text-sm text-oxy-text outline-none placeholder:text-oxy-text-tertiary" placeholder="Type a command or search..." autocomplete="off" />
+            <kbd class="rounded border border-oxy-border/50 px-1.5 py-0.5 text-[10px] font-medium text-oxy-text-tertiary">ESC</kbd>
+          </div>
+          <div id="command-results" class="max-h-[340px] overflow-y-auto p-1.5">
+          </div>
+          <div class="flex items-center gap-3 border-t border-oxy-border/40 px-4 py-2 text-[10px] text-oxy-text-tertiary">
+            <span class="flex items-center gap-1"><kbd class="rounded border border-oxy-border/40 px-1 py-px">↑↓</kbd> Navigate</span>
+            <span class="flex items-center gap-1"><kbd class="rounded border border-oxy-border/40 px-1 py-px">↵</kbd> Go</span>
+            <span class="flex items-center gap-1"><kbd class="rounded border border-oxy-border/40 px-1 py-px">esc</kbd> Close</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="./main.ts"></script>

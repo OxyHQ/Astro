@@ -132,22 +132,22 @@ html.dark body::before {
 
 .timeline-dot {
   position: absolute;
-  left: -3rem;
-  top: 1.75rem;
-  width: 8px;
-  height: 8px;
+  left: calc(-3rem - 0.5px);
+  top: 1.25rem;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--color-oxy-border);
   box-shadow: 0 0 0 3px var(--color-oxy-bg);
   z-index: 2;
   transition:
-    background-color 0.4s ease,
-    box-shadow 0.4s ease;
+    background-color 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 @media (min-width: 640px) {
   .timeline-dot {
-    left: -3.5rem;
+    left: calc(-3.5rem - 0.5px);
   }
 }
 
@@ -181,61 +181,32 @@ html.dark body::before {
   overflow: hidden;
   background: var(--color-oxy-surface);
   border: 1px solid var(--color-oxy-border);
-  border-radius: 1rem;
-  padding: 0;
-  transition:
-    transform 0.25s cubic-bezier(0.2, 0, 0, 1),
-    box-shadow 0.25s ease,
-    border-color 0.25s ease;
+  border-radius: 0.875rem;
+  transition: border-color 0.2s ease;
 }
 
 .feature-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(196, 110, 222, 0.08);
   border-color: var(--color-oxy-primary-light);
 }
 
-html.dark .feature-card:hover {
-  box-shadow: 0 12px 40px rgba(196, 110, 222, 0.12);
-}
-
-/* Alternating subtle tint on even cards */
-.feature-card:nth-child(even) {
-  background: color-mix(in srgb, var(--color-oxy-surface) 97%, var(--color-oxy-primary) 3%);
-}
-
-html.dark .feature-card:nth-child(even) {
-  background: color-mix(in srgb, var(--color-oxy-surface) 95%, var(--color-oxy-primary) 5%);
-}
-
-/* Gradient accent bar at the top of each card */
 .feature-card-accent {
-  height: 3px;
-  background: linear-gradient(to right, var(--color-oxy-primary), rgba(196, 110, 222, 0.2), transparent);
-  border-radius: 1rem 1rem 0 0;
+  display: none;
 }
 
 .feature-card-body {
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem;
 }
-
-/* ── Feature icon badge ── */
 
 .feature-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: rgba(196, 110, 222, 0.1);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(196, 110, 222, 0.08);
   color: var(--color-oxy-primary);
   flex-shrink: 0;
-  transition: background-color 0.2s ease;
-}
-
-.feature-card:hover .feature-icon {
-  background: rgba(196, 110, 222, 0.16);
 }
 
 /* ── NEW badge ── */

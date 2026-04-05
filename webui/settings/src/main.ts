@@ -74,7 +74,7 @@ function renderNav(): void {
     (item) => `
     <a
       href="#${item.id}"
-      class="sidebar-link flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-oxy-text-secondary ${
+      class="sidebar-link flex items-center gap-2.5 rounded-full px-3.5 py-[6px] text-[13px] font-medium text-oxy-text-secondary ${
         item.id === activeSection ? "active" : ""
       }"
       data-nav-id="${item.id}"
@@ -232,6 +232,36 @@ function closeSidebar(): void {
   sidebarOverlay.classList.remove("open");
 }
 
+// ── Theme toggle ──
+
+const themeToggle = document.getElementById("theme-toggle") as HTMLButtonElement | null;
+const iconSun = document.getElementById("icon-sun") as SVGElement | null;
+const iconMoon = document.getElementById("icon-moon") as SVGElement | null;
+
+function isDark(): boolean {
+  return document.documentElement.classList.contains("dark");
+}
+
+function applyThemeIcons(): void {
+  if (iconSun) iconSun.classList.toggle("hidden", !isDark());
+  if (iconMoon) iconMoon.classList.toggle("hidden", isDark());
+}
+
+function toggleTheme(): void {
+  const dark = !isDark();
+  document.documentElement.classList.toggle("dark", dark);
+  localStorage.setItem("astro-theme", dark ? "dark" : "light");
+  applyThemeIcons();
+
+  // Also update the theme-mode select if visible
+  const themeSelect = document.querySelector<HTMLSelectElement>(
+    '[data-select-id="theme-mode"]',
+  );
+  if (themeSelect) {
+    themeSelect.value = dark ? "dark" : "light";
+  }
+}
+
 // ── Reset settings ──
 
 function bindResetButton(): void {
@@ -257,21 +287,20 @@ function handleKeyboard(e: KeyboardEvent): void {
 
   if (e.key === "/" && !isInput) {
     e.preventDefault();
-    searchInput.focus();
+    openCommand();
     return;
   }
 
   if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
     e.preventDefault();
-    searchInput.focus();
+    openCommand();
     return;
   }
 
   if (e.key === "Escape") {
-    if (document.activeElement === searchInput) {
-      searchInput.blur();
-      searchInput.value = "";
-      applySearch("");
+    if (commandOverlay.style.display !== "none") {
+      closeCommand();
+      return;
     }
     closeSidebar();
   }
@@ -282,6 +311,7 @@ function handleKeyboard(e: KeyboardEvent): void {
 // Render
 renderNav();
 renderAllSections();
+applyThemeIcons();
 
 // Handle initial hash
 const initialHash = window.location.hash.slice(1);
@@ -301,12 +331,86 @@ setupScrollSpy();
 // Event listeners
 document.addEventListener("keydown", handleKeyboard);
 
-searchInput.addEventListener("input", () => {
+// ── Command palette ──
+
+const commandOverlay = document.getElementById("command-overlay") as HTMLDivElement;
+const commandInput = document.getElementById("command-input") as HTMLInputElement;
+const commandResults = document.getElementById("command-results") as HTMLDivElement;
+const searchTrigger = document.getElementById("search-trigger") as HTMLButtonElement;
+let commandIndex = 0;
+
+function openCommand(): void {
+  commandOverlay.style.display = "block";
+  commandInput.value = "";
+  commandIndex = 0;
+  renderCommandResults("");
+  requestAnimationFrame(() => commandInput.focus());
+}
+
+function closeCommand(): void {
+  commandOverlay.style.display = "none";
+  commandInput.value = "";
+}
+
+function renderCommandResults(query: string): void {
+  const q = query.toLowerCase().trim();
+  const items = NAV_ITEMS.filter(
+    (n) => !q || n.label.toLowerCase().includes(q) || n.id.includes(q),
+  );
+  commandResults.innerHTML = items
+    .map(
+      (item, i) => `
+    <button type="button" data-cmd-id="${item.id}" class="command-item flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-oxy-text-secondary ${i === commandIndex ? "active" : ""}">
+      <span class="shrink-0 opacity-60">${item.icon}</span>
+      <span>${item.label}</span>
+    </button>`,
+    )
+    .join("");
+
+  commandResults.querySelectorAll<HTMLButtonElement>("[data-cmd-id]").forEach((el) => {
+    el.addEventListener("click", () => {
+      navigateTo(el.dataset.cmdId!);
+      closeCommand();
+    });
+  });
+}
+
+function handleCommandKey(e: KeyboardEvent): void {
+  const items = commandResults.querySelectorAll<HTMLButtonElement>("[data-cmd-id]");
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    commandIndex = Math.min(commandIndex + 1, items.length - 1);
+    renderCommandResults(commandInput.value);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    commandIndex = Math.max(commandIndex - 1, 0);
+    renderCommandResults(commandInput.value);
+  } else if (e.key === "Enter" && items[commandIndex]) {
+    e.preventDefault();
+    const id = items[commandIndex].dataset.cmdId;
+    if (id) navigateTo(id);
+    closeCommand();
+  }
+}
+
+searchTrigger?.addEventListener("click", openCommand);
+commandOverlay?.addEventListener("click", (e) => {
+  if (e.target === commandOverlay || (e.target as HTMLElement).closest(".command-dialog") === null) closeCommand();
+});
+commandInput?.addEventListener("input", () => {
+  commandIndex = 0;
+  renderCommandResults(commandInput.value);
+});
+commandInput?.addEventListener("keydown", handleCommandKey);
+
+// Keep old search input working too (for sidebar search if it exists)
+searchInput?.addEventListener("input", () => {
   applySearch(searchInput.value);
 });
 
 menuBtn?.addEventListener("click", openSidebar);
 sidebarOverlay.addEventListener("click", closeSidebar);
+themeToggle?.addEventListener("click", toggleTheme);
 
 // Listen for hash changes
 window.addEventListener("hashchange", () => {
@@ -320,5 +424,6 @@ window.addEventListener("hashchange", () => {
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
   if (!localStorage.getItem("astro-theme")) {
     document.documentElement.classList.toggle("dark", e.matches);
+    applyThemeIcons();
   }
 });
