@@ -15,6 +15,12 @@ source_set("oxy") {
     "oxy_auth_token_store.h",
     "oxy_cookie_signin_observer.cc",
     "oxy_cookie_signin_observer.h",
+
+    # Settings WebUI (astro://settings)
+    "webui/astro_settings_handler.cc",
+    "webui/astro_settings_handler.h",
+    "webui/astro_settings_ui.cc",
+    "webui/astro_settings_ui.h",
   ]
 
   deps = [

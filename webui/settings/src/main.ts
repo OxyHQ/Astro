@@ -2,6 +2,7 @@
 
 import { icons } from "./icons.ts";
 import { bindControls } from "./components.ts";
+import { initFromBrowser } from "./state.ts";
 import {
   youAndOxy,
   appearance,
@@ -308,25 +309,40 @@ function handleKeyboard(e: KeyboardEvent): void {
 
 // ── Init ──
 
-// Render
-renderNav();
-renderAllSections();
-applyThemeIcons();
+// Hydrate settings from PrefService (when inside astro://settings)
+// then render the UI.  In dev mode the promise resolves immediately
+// with false and we fall through to localStorage-backed rendering.
+async function bootstrap(): Promise<void> {
+  const hydrated = await initFromBrowser();
 
-// Handle initial hash
-const initialHash = window.location.hash.slice(1);
-if (initialHash && NAV_ITEMS.some((n) => n.id === initialHash)) {
-  activeSection = initialHash;
+  // Render
   renderNav();
-  // Delay scroll to let layout settle
-  requestAnimationFrame(() => {
-    const el = document.getElementById(`section-${initialHash}`);
-    if (el) el.scrollIntoView({ block: "start" });
-  });
+  renderAllSections();
+  applyThemeIcons();
+
+  if (hydrated) {
+    // Re-render once more after hydration so controls reflect
+    // the real browser values, not stale localStorage.
+    renderAllSections();
+  }
+
+  // Handle initial hash
+  const initialHash = window.location.hash.slice(1);
+  if (initialHash && NAV_ITEMS.some((n) => n.id === initialHash)) {
+    activeSection = initialHash;
+    renderNav();
+    // Delay scroll to let layout settle
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`section-${initialHash}`);
+      if (el) el.scrollIntoView({ block: "start" });
+    });
+  }
+
+  // Scroll spy
+  setupScrollSpy();
 }
 
-// Scroll spy
-setupScrollSpy();
+bootstrap();
 
 // Event listeners
 document.addEventListener("keydown", handleKeyboard);
