@@ -40,6 +40,10 @@ case "$PLATFORM" in
         GN_ARGS_FILE="$ASTRO_ROOT/gn_args/windows.gn"
         BUILD_TARGET="mini_installer"
         ;;
+    windows-arm64)
+        GN_ARGS_FILE="$ASTRO_ROOT/gn_args/windows_arm64.gn"
+        BUILD_TARGET="mini_installer"
+        ;;
     macos)
         GN_ARGS_FILE="$ASTRO_ROOT/gn_args/macos.gn"
         BUILD_TARGET="chrome"
@@ -50,7 +54,7 @@ case "$PLATFORM" in
         ;;
     *)
         echo "ERROR: Unknown platform '$PLATFORM'"
-        echo "Usage: $0 [Release|Debug] [linux|windows|macos|android]"
+        echo "Usage: $0 [Release|Debug] [linux|windows|windows-arm64|macos|android]"
         exit 1
         ;;
 esac

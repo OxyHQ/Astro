@@ -101,25 +101,34 @@ jobs:
       - name: Build Astro (Linux)
         run: tools/build.sh Release linux
 
-      - name: Package
+      - name: Package tar.gz
         run: tools/package-linux.sh
         env:
           ASTRO_VERSION: ${{ steps.version.outputs.version }}
 
-      - name: Upload artifact
+      - name: Package .deb
+        run: tools/package-deb.sh
+        env:
+          ASTRO_VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: astro-linux-x64
-          path: releases/astro-*-linux-x64.tar.gz
+          path: |
+            releases/astro-*-linux-x64.tar.gz
+            releases/astro-browser_*.deb
           retention-days: 7
 
   # ---------------------------------------------------------------------------
   # Windows x64
   # ---------------------------------------------------------------------------
-  windows:
+  windows-x64:
     name: Windows x64
     runs-on: [self-hosted, chromium, windows]
     timeout-minutes: 480
+    env:
+      DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
     steps:
       - name: Checkout Astro
         uses: actions/checkout@v4
@@ -171,7 +180,7 @@ jobs:
             fi
           done
 
-      - name: Build Astro (Windows)
+      - name: Build Astro (Windows x64)
         shell: bash
         run: tools/build.sh Release windows
 
@@ -198,6 +207,96 @@ jobs:
         with:
           name: astro-windows-x64
           path: releases/astro-*-windows-x64*
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Windows ARM64 (built on Windows x64, cross-compiled)
+  # ---------------------------------------------------------------------------
+  windows-arm64:
+    name: Windows ARM64
+    runs-on: [self-hosted, chromium, windows]
+    timeout-minutes: 480
+    env:
+      DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
+    steps:
+      - name: Checkout Astro
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Fetch Chromium (skip if cached)
+        shell: bash
+        run: |
+          if [ ! -d "chromium/src/.git" ]; then
+            tools/fetch-chromium.sh
+          else
+            echo "Chromium source cached, skipping fetch"
+          fi
+
+      - name: Sync ungoogled patches
+        shell: bash
+        run: tools/sync-ungoogled.sh
+
+      - name: Reset and apply patches
+        shell: bash
+        run: |
+          cd chromium/src
+          git checkout -- . 2>/dev/null || true
+          git clean -fd 2>/dev/null || true
+          cd ../..
+          tools/apply-patches.sh all
+
+      - name: Build WebUI
+        shell: bash
+        run: |
+          for page in ntp alia settings whats-new error; do
+            if [ -f "webui/$page/package.json" ]; then
+              cd "webui/$page"
+              bun install --frozen-lockfile
+              bun run build
+              cd ../..
+            fi
+          done
+
+      - name: Build Astro (Windows ARM64)
+        shell: bash
+        run: tools/build.sh Release windows-arm64
+
+      - name: Sign (optional)
+        if: env.WINDOWS_SIGN_CERT != ''
+        shell: powershell
+        env:
+          WINDOWS_SIGN_CERT: ${{ secrets.WINDOWS_SIGN_CERT }}
+          WINDOWS_SIGN_PASSWORD: ${{ secrets.WINDOWS_SIGN_PASSWORD }}
+        run: |
+          $certBytes = [Convert]::FromBase64String($env:WINDOWS_SIGN_CERT)
+          [IO.File]::WriteAllBytes("cert.pfx", $certBytes)
+          & signtool sign /f cert.pfx /p $env:WINDOWS_SIGN_PASSWORD /tr http://timestamp.digicert.com /td sha256 /fd sha256 chromium/src/out/Release/mini_installer.exe
+          Remove-Item cert.pfx
+
+      - name: Package
+        shell: bash
+        run: |
+          ASTRO_VERSION="${{ steps.version.outputs.version }}" \
+          ASTRO_ARCH="arm64" \
+          tools/package-windows.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: astro-windows-arm64
+          path: releases/astro-*-windows-arm64*
           retention-days: 7
 
   # ---------------------------------------------------------------------------
@@ -357,7 +456,7 @@ jobs:
   # ---------------------------------------------------------------------------
   release:
     name: Publish Release
-    needs: [linux, windows, macos, android]
+    needs: [linux, windows-x64, windows-arm64, macos, android]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (for VERSION file)
@@ -390,6 +489,7 @@ jobs:
           files: |
             artifacts/astro-linux-x64/*
             artifacts/astro-windows-x64/*
+            artifacts/astro-windows-arm64/*
             artifacts/astro-macos-arm64/*
             artifacts/astro-android-arm64/*
           body: |
@@ -403,14 +503,18 @@ jobs:
 
             | Platform | File |
             |----------|------|
-            | Linux x64 | `astro-${{ steps.version.outputs.version }}-linux-x64.tar.gz` |
+            | Linux x64 (.tar.gz) | `astro-${{ steps.version.outputs.version }}-linux-x64.tar.gz` |
+            | Linux x64 (.deb) | `astro-browser_${{ steps.version.outputs.version }}_amd64.deb` |
             | Windows x64 | `astro-${{ steps.version.outputs.version }}-windows-x64-installer.exe` |
+            | Windows ARM64 | `astro-${{ steps.version.outputs.version }}-windows-arm64-installer.exe` |
             | macOS arm64 | `astro-${{ steps.version.outputs.version }}-macos-arm64.dmg` |
             | Android arm64 | `astro-${{ steps.version.outputs.version }}-android-arm64.apk` |
 
             ### Installation
 
-            **Linux:** Extract the tarball and run `./chrome`, or use the included `astro-launch.sh` launcher.
+            **Linux (deb):** `sudo apt install ./astro-browser_VERSION_amd64.deb`
+
+            **Linux (tar.gz):** Extract and run `./astro/install.sh`, or use `./astro/chrome` directly.
 
             **Windows:** Run the installer `.exe`.
 

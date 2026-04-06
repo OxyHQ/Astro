@@ -5,15 +5,16 @@ ASTRO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="${1:-$ASTRO_ROOT/chromium/src/out/Release}"
 RELEASE_DIR="$ASTRO_ROOT/releases"
 VERSION="${ASTRO_VERSION:-$(cat "$ASTRO_ROOT/VERSION" 2>/dev/null || echo "0.1.0")}"
+ARCH="${ASTRO_ARCH:-x64}"
 
-echo "=== Packaging Astro $VERSION for Windows x64 ==="
+echo "=== Packaging Astro $VERSION for Windows $ARCH ==="
 
 mkdir -p "$RELEASE_DIR"
 
 # --- Installer (mini_installer.exe) ---
 INSTALLER="$BUILD_DIR/mini_installer.exe"
 if [ -f "$INSTALLER" ]; then
-    INSTALLER_NAME="astro-${VERSION}-windows-x64-installer.exe"
+    INSTALLER_NAME="astro-${VERSION}-windows-$ARCH-installer.exe"
     echo ">>> Copying installer as $INSTALLER_NAME..."
     cp "$INSTALLER" "$RELEASE_DIR/$INSTALLER_NAME"
     echo "Installer: $RELEASE_DIR/$INSTALLER_NAME"
@@ -24,7 +25,7 @@ fi
 
 # --- Portable zip ---
 if [ -f "$BUILD_DIR/chrome.exe" ]; then
-    ZIP_NAME="astro-${VERSION}-windows-x64-portable.zip"
+    ZIP_NAME="astro-${VERSION}-windows-$ARCH-portable.zip"
     STAGING="$RELEASE_DIR/astro-win-staging"
     rm -rf "$STAGING"
     mkdir -p "$STAGING/astro"
