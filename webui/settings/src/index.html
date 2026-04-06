@@ -10,17 +10,8 @@
       href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome" />
     <link rel="stylesheet" href="./style.css" />
-    <script>
-      (function () {
-        const t = localStorage.getItem("astro-theme");
-        if (
-          t === "dark" ||
-          (!t && matchMedia("(prefers-color-scheme:dark)").matches)
-        )
-          document.documentElement.classList.add("dark");
-      })();
-    </script>
   </head>
   <body class="bg-oxy-bg text-oxy-text font-sans">
     <div id="app" class="flex h-screen overflow-hidden">
@@ -52,14 +43,6 @@
         <!-- Navigation -->
         <div id="nav-list" class="flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-3 scrollbar-none"></div>
 
-        <!-- Theme toggle at bottom -->
-        <div class="flex items-center justify-between border-t border-oxy-border/50 px-4 py-2.5">
-          <span class="text-[11px] text-oxy-text-tertiary">Theme</span>
-          <button id="theme-toggle" type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-oxy-text-tertiary hover:text-oxy-text hover:bg-black/[0.04] dark:hover:bg-white/[0.06]" aria-label="Toggle theme">
-            <svg id="icon-sun" class="hidden h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-            <svg id="icon-moon" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          </button>
-        </div>
       </nav>
 
       <!-- Main content -->
@@ -110,5 +93,15 @@
     </div>
 
     <script type="module" src="./main.ts"></script>
+    <script type="module">
+      // Live theme color updates via Chrome's native Mojo listener.
+      // Same mechanism Chrome NTP uses (app.ts:513).
+      try {
+        const {ColorChangeUpdater} = await import(
+          'chrome://resources/cr_components/color_change_listener/colors_css_updater.js'
+        );
+        ColorChangeUpdater.forDocument().start();
+      } catch {}
+    </script>
   </body>
 </html>

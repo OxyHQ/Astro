@@ -5,6 +5,7 @@
 #define CHROME_BROWSER_OXY_WEBUI_ASTRO_SETTINGS_HANDLER_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/values.h"
 #include "content/public/browser/web_ui_message_handler.h"
 
 class PrefService;
@@ -27,14 +28,28 @@ class AstroSettingsHandler : public content::WebUIMessageHandler {
   // content::WebUIMessageHandler:
   void RegisterMessages() override;
 
-  // JS -> C++ handlers
-  void HandleGetPref(const base::Value::List& args);
-  void HandleSetPref(const base::Value::List& args);
-  void HandleGetAllPrefs(const base::Value::List& args);
+  // JS -> C++ handlers (generic pref read/write)
+  void HandleGetPref(const base::ListValue& args);
+  void HandleSetPref(const base::ListValue& args);
+  void HandleGetAllPrefs(const base::ListValue& args);
 
-  // Resolves profile and prefs lazily from web_ui() so we don't
-  // need to accept them in the constructor (matching adblock pattern).
+  // JS -> C++ handlers (custom actions)
+  void HandleSetTheme(const base::ListValue& args);
+  void HandleClearBrowsingData(const base::ListValue& args);
+  void HandleOpenPage(const base::ListValue& args);
+
+  // Resolves profile and prefs lazily from web_ui().
   PrefService* GetPrefs();
+
+  // Finds the correct PrefService (profile or local_state) for a setting ID.
+  PrefService* FindPrefService(const std::string& pref_id,
+                               const char** out_pref_path);
+
+  // Writes a value to a pref with automatic type coercion to prevent
+  // CHECK failures from type mismatches.
+  void SafeSetPref(PrefService* prefs,
+                   const char* path,
+                   const base::Value& value);
 };
 
 }  // namespace oxy

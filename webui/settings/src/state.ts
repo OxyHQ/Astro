@@ -18,12 +18,18 @@ const IS_WEBUI =
 declare global {
   interface Window {
     // The browser calls these to deliver resolved values back from
-    // ResolveJavascriptCallback / CallJavascriptFunction.
+    // ResolveJavascriptCallback / CallJavascriptFunction / FireWebUIListener.
     cr?: {
       webUIResponse?: (
         callbackId: string,
         success: boolean,
         value: unknown,
+      ) => void;
+      // FireWebUIListener calls this with (event_name, ...args).
+      webUIListenerCallback?: (event: string, ...args: unknown[]) => void;
+      addWebUIListener?: (
+        event: string,
+        callback: (...args: unknown[]) => void,
       ) => void;
     };
   }
@@ -143,6 +149,11 @@ export function setSettingValue(
 
   // Push to the real browser prefs when available.
   setPrefInBrowser(key, value);
+
+  // Theme needs immediate visual refresh via ThemeService
+  if (key === "theme-mode" && IS_WEBUI) {
+    chrome.send("setTheme", [value]);
+  }
 }
 
 /**
@@ -183,3 +194,5 @@ export async function initFromBrowser(): Promise<boolean> {
  * Whether we're running inside the browser's WebUI.
  */
 export const isWebUI = IS_WEBUI;
+
+

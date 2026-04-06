@@ -1,26 +1,28 @@
 @import "tailwindcss";
 
+/* ── Design tokens (Chrome theme variables used directly) ── */
+
 @theme {
-  --color-oxy-primary: #c46ede;
+  --color-oxy-primary: var(--color-sys-primary, #c46ede);
   --color-oxy-primary-light: #d99aeb;
-  --color-oxy-primary-dark: #a14cc5;
-  --color-oxy-bg: #f7f5f9;
-  --color-oxy-surface: #ffffff;
-  --color-oxy-text: #1a1a1a;
-  --color-oxy-text-secondary: #6b6b6b;
+  --color-oxy-primary-dark: color-mix(in srgb, var(--color-sys-primary, #c46ede) 85%, black);
+  --color-oxy-bg: var(--color-sys-surface, #f7f5f9);
+  --color-oxy-surface: var(--color-sys-surface-container, #ffffff);
+  --color-oxy-text: var(--color-sys-on-surface, #1a1a1a);
+  --color-oxy-text-secondary: var(--color-sys-on-surface-variant, #6b6b6b);
   --color-oxy-text-tertiary: #9a9a9a;
-  --color-oxy-border: #e8e4ec;
+  --color-oxy-border: var(--color-sys-outline-variant, #e8e4ec);
   --color-oxy-border-light: #f0ecf3;
   --color-oxy-hover: #f2eef5;
   --color-oxy-code-bg: #f5f2f7;
 
-  --color-dark-bg: #161618;
-  --color-dark-surface: #1e1e22;
+  --color-dark-bg: var(--color-sys-surface, #161618);
+  --color-dark-surface: var(--color-sys-surface-container, #1e1e22);
   --color-dark-surface-elevated: #26262b;
-  --color-dark-text: #e8e8ec;
-  --color-dark-text-secondary: #9a9a9e;
+  --color-dark-text: var(--color-sys-on-surface, #e8e8ec);
+  --color-dark-text-secondary: var(--color-sys-on-surface-variant, #9a9a9e);
   --color-dark-text-tertiary: #6e6e72;
-  --color-dark-border: #2e2e33;
+  --color-dark-border: var(--color-sys-outline-variant, #2e2e33);
   --color-dark-border-light: #252529;
   --color-dark-hover: #2a2a2f;
   --color-dark-code-bg: #22222a;
@@ -55,9 +57,11 @@ body {
 }
 
 /* Dark mode */
-body.dark {
-  background-color: var(--color-dark-bg);
-  color: var(--color-dark-text);
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--color-dark-bg);
+    color: var(--color-dark-text);
+  }
 }
 
 /* Custom scrollbar */
@@ -74,16 +78,20 @@ body.dark {
   border-radius: 3px;
 }
 
-body.dark ::-webkit-scrollbar-thumb {
-  background: var(--color-dark-border);
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-dark-border);
+  }
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-oxy-text-tertiary);
 }
 
-body.dark ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-dark-text-tertiary);
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-dark-text-tertiary);
+  }
 }
 
 /* Typing indicator */
@@ -173,12 +181,14 @@ textarea {
   border-radius: 4px;
 }
 
-body:not(.dark) .message-content code {
+.message-content code {
   background-color: var(--color-oxy-code-bg);
 }
 
-body.dark .message-content code {
-  background-color: var(--color-dark-code-bg);
+@media (prefers-color-scheme: dark) {
+  .message-content code {
+    background-color: var(--color-dark-code-bg);
+  }
 }
 
 .message-content pre {
@@ -189,12 +199,14 @@ body.dark .message-content code {
   font-size: 0.85em;
 }
 
-body:not(.dark) .message-content pre {
+.message-content pre {
   background-color: var(--color-oxy-code-bg);
 }
 
-body.dark .message-content pre {
-  background-color: var(--color-dark-code-bg);
+@media (prefers-color-scheme: dark) {
+  .message-content pre {
+    background-color: var(--color-dark-code-bg);
+  }
 }
 
 .message-content pre code {

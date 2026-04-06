@@ -74,7 +74,7 @@ echo "Run 'astro' from the terminal or find 'Astro Web Browser' in your app laun
 
 # Build and install WebUI pages
 echo "  Building WebUI pages..."
-for page in ntp alia settings whats-new; do
+for page in ntp alia settings whats-new error; do
     if [ -f "$PROJECT_ROOT/webui/$page/package.json" ]; then
         cd "$PROJECT_ROOT/webui/$page" && bun run build 2>/dev/null
         sed -i 's/ crossorigin//g' dist/index.html 2>/dev/null

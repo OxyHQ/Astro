@@ -10,20 +10,8 @@
       href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome" />
     <link rel="stylesheet" href="./style.css" />
-    <script>
-      (function () {
-        const stored = localStorage.getItem("astro-ntp-theme");
-        if (
-          stored === "dark" ||
-          (!stored && matchMedia("(prefers-color-scheme: dark)").matches)
-        ) {
-          document.documentElement.setAttribute("data-color-scheme", "dark");
-        } else {
-          document.documentElement.setAttribute("data-color-scheme", "light");
-        }
-      })();
-    </script>
   </head>
   <body class="bg-base" data-modality="mouse">
     <div id="root">
@@ -36,7 +24,7 @@
           >
             <div
               id="sidebar"
-              class="sidebar-width shrink-0 h-full ease-out transform-gpu z-[1] transition-[width] duration-normal"
+              class="hidden md:block sidebar-width shrink-0 h-full ease-out transform-gpu z-[1] transition-[width] duration-normal"
             >
               <nav
                 class="group/sidebar relative z-10 hidden min-h-0 flex-none h-full border-subtlest ring-subtlest divide-subtlest bg-subtle md:flex"
@@ -213,7 +201,7 @@
                     </button>
                     <a
                       id="whats-new-btn"
-                      href="http://127.0.0.1:19845/astro-whats-new/index.html"
+                      href="chrome://whats-new/"
                       class="interactable flex items-center gap-xs w-full h-8 rounded-lg px-2 text-quiet hover:text-foreground hover:bg-subtle transition-colors duration-quick no-underline"
                     >
                       <svg
@@ -234,7 +222,7 @@
                     </a>
                     <a
                       id="astro-settings-btn"
-                      href="http://127.0.0.1:19845/astro-settings/index.html"
+                      href="chrome://settings/"
                       class="interactable flex items-center gap-xs w-full h-8 rounded-lg px-2 text-quiet hover:text-foreground hover:bg-subtle transition-colors duration-quick no-underline"
                     >
                       <svg
@@ -255,46 +243,6 @@
                       </svg>
                       <span class="text-sm">Astro Settings</span>
                     </a>
-                    <button
-                      id="theme-toggle"
-                      type="button"
-                      class="interactable flex items-center gap-xs w-full h-8 rounded-lg px-2 text-quiet hover:text-foreground hover:bg-subtle transition-colors duration-quick"
-                    >
-                      <svg
-                        id="icon-sun"
-                        class="hidden inline-flex shrink-0"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <circle cx="12" cy="12" r="5" />
-                        <path
-                          d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-                        />
-                      </svg>
-                      <svg
-                        id="icon-moon"
-                        class="inline-flex shrink-0"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path
-                          d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
-                        />
-                      </svg>
-                      <span class="text-sm">Theme</span>
-                    </button>
                   </div>
                 </div>
               </nav>
@@ -315,7 +263,7 @@
                       <div class="mx-auto flex size-full flex-col">
                         <!-- Top bar with blocked badge -->
                         <div
-                          class="absolute inset-x-0 top-0 z-20 h-14"
+                          class="absolute inset-x-0 top-0 z-20 h-10 sm:h-14"
                         >
                           <div
                             class="relative mx-auto h-full w-full"
@@ -359,10 +307,33 @@
                                 </button>
                               </div>
                             </div>
-                            <!-- Right side: incognito toggle -->
+                            <!-- Right side: settings (mobile) + incognito toggle -->
                             <div
-                              class="right-md absolute inset-y-0 right-4 flex items-center"
+                              class="right-md absolute inset-y-0 right-2 sm:right-4 flex items-center"
                             >
+                              <button
+                                id="mobile-settings-btn"
+                                type="button"
+                                class="md:hidden interactable flex items-center justify-center size-8 rounded-full text-quiet hover:text-foreground hover:bg-subtle transition-colors duration-quick"
+                                aria-label="Settings"
+                              >
+                                <svg
+                                  class="inline-flex shrink-0"
+                                  width="18"
+                                  height="18"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                >
+                                  <path
+                                    d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+                                  />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                              </button>
                               <div
                                 class="hidden h-full items-center md:flex gap-1"
                               ></div>
@@ -372,18 +343,17 @@
 
                         <!-- Main content grid -->
                         <div
-                          class="mx-auto flex max-w-[800px] grow flex-col items-center justify-center"
+                          class="mx-auto flex w-full max-w-[800px] grow flex-col items-center justify-center px-3 sm:px-4 md:px-6"
                           style="padding-bottom: 80px"
                         >
                           <div
-                            class="relative p-lg flex min-h-full w-full items-center justify-center"
+                            class="relative flex min-h-full w-full items-center justify-center p-3 sm:p-4 md:p-lg"
                           >
                             <div
-                              class="relative grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3"
-                              style="width: 800px"
+                              class="relative grid w-full grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4"
                             >
                               <!-- Search bar (full width) -->
-                              <div class="-mb-md col-span-full">
+                              <div class="-mb-md col-span-full w-full">
                                 <div
                                   class="static w-full md:mt-0 z-10 border-subtlest ring-subtlest divide-subtlest flex flex-col items-center justify-center"
                                 >
@@ -406,7 +376,7 @@
                                                 method="GET"
                                               >
                                                 <div
-                                                  class="bg-raised dark:bg-subtlest w-full outline-none flex items-center border rounded-2xl duration-75 transition-all border-subtle shadow-sm dark:shadow-md shadow-black/5 px-0 pt-3 pb-3 gap-y-md grid items-center"
+                                                  class="bg-raised dark:bg-subtlest w-full outline-none flex items-center border rounded-2xl duration-75 transition-all border-subtle shadow-sm dark:shadow-md shadow-black/5 px-0 pt-2 pb-2 sm:pt-3 sm:pb-3 gap-y-md grid items-center"
                                                 >
                                                   <div
                                                     class="px-3 grid-rows-1fr-auto grid grid-cols-[1fr_auto]"
@@ -539,10 +509,10 @@
                                 class="relative isolate col-span-1"
                               >
                                 <div
-                                  class="relative rounded-xl shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
+                                  class="relative rounded-xl shadow-card aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
                                 >
                                   <div
-                                    class="rounded-inherit pointer-events-none absolute inset-0 z-[1] border border-[black]/5 dark:border-[white]/5"
+                                    class="rounded-inherit pointer-events-none absolute inset-0 z-[1] border border-glass"
                                   ></div>
                                   <div
                                     id="weather-content"
@@ -581,7 +551,7 @@
                                         <div>
                                           <h1
                                             id="weather-temp"
-                                            class="font-sans font-bold text-2xl text-white"
+                                            class="font-sans font-bold text-lg sm:text-xl md:text-2xl text-white"
                                           >
                                             --
                                           </h1>
@@ -612,7 +582,7 @@
                                 class="relative isolate col-span-1"
                               >
                                 <div
-                                  class="relative border rounded-xl shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] active:!bg-subtle dark:active:!bg-quiet aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
+                                  class="relative border rounded-xl shadow-card active:!bg-subtle dark:active:!bg-quiet aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
                                 >
                                   <div
                                     class="relative size-full p-2 pb-7 pt-2"
@@ -623,7 +593,7 @@
                                       <div class="text-center">
                                         <div
                                           id="clock-time"
-                                          class="font-mono text-3xl font-bold text-foreground tabular-nums"
+                                          class="font-mono text-xl sm:text-2xl md:text-3xl font-bold text-foreground tabular-nums"
                                         ></div>
                                         <div
                                           id="clock-date"
@@ -649,10 +619,10 @@
                                 class="relative isolate col-span-1"
                               >
                                 <div
-                                  class="relative border rounded-xl shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
+                                  class="relative border rounded-xl shadow-card aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
                                 >
                                   <div
-                                    class="rounded-inherit pointer-events-none absolute inset-0 z-[1] border border-[black]/5 dark:border-[white]/5"
+                                    class="rounded-inherit pointer-events-none absolute inset-0 z-[1] border border-glass"
                                   ></div>
                                   <div
                                     class="flex size-full flex-col p-2.5"
@@ -688,21 +658,21 @@
                                 class="relative isolate col-span-1"
                               >
                                 <div
-                                  class="relative rounded-xl shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
+                                  class="relative rounded-xl shadow-card aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
                                 >
                                   <div
-                                    class="rounded-inherit pointer-events-none absolute inset-0 z-[1] border border-[black]/5 dark:border-[white]/5"
+                                    class="rounded-inherit pointer-events-none absolute inset-0 z-[1] border border-glass"
                                   ></div>
                                   <div
                                     class="relative flex size-full cursor-pointer flex-col"
                                     style="zoom: 1"
                                   >
                                     <div
-                                      class="absolute inset-0 bg-[#fef3c7] dark:bg-[#422006]"
+                                      class="absolute inset-0 notes-bg"
                                     ></div>
                                     <textarea
                                       id="notes-textarea"
-                                      class="scrollbar-none absolute inset-0 z-[1] resize-none bg-transparent p-4 font-sans text-sm focus:outline-none placeholder-[#eab308] dark:placeholder-[#a16207] text-[#a16207] dark:text-[#fef08a]"
+                                      class="scrollbar-none absolute inset-0 z-[1] resize-none bg-transparent p-4 font-sans text-sm focus:outline-none notes-text"
                                       autocorrect="false"
                                       placeholder="New note..."
                                       style="
@@ -725,10 +695,10 @@
                                 class="relative isolate col-span-1"
                               >
                                 <div
-                                  class="relative rounded-xl shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
+                                  class="relative rounded-xl shadow-card aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
                                 >
                                   <div
-                                    class="rounded-inherit pointer-events-none absolute inset-0 z-[1] border border-[black]/5 dark:border-[white]/5"
+                                    class="rounded-inherit pointer-events-none absolute inset-0 z-[1] border border-glass"
                                   ></div>
                                   <a
                                     id="discover-link"
@@ -745,7 +715,7 @@
                                           class="gap-sm flex h-full flex-1 flex-col justify-between p-2.5 pb-0"
                                           style="zoom: 1"
                                         >
-                                          <div class="absolute inset-0" style="background: linear-gradient(135deg, #1a1033 0%, #2d1b4e 50%, #c46ede 100%)"></div>
+                                          <div class="absolute inset-0 discover-gradient"></div>
                                           <img
                                             id="discover-img"
                                             alt=""
@@ -791,7 +761,7 @@
                                 class="relative isolate col-span-1"
                               >
                                 <div
-                                  class="relative border rounded-xl shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] aspect-[1/1] w-full cursor-pointer select-none overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
+                                  class="relative border rounded-xl shadow-card aspect-[1/1] w-full cursor-pointer select-none overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised"
                                 >
                                   <div class="size-full">
                                     <div
@@ -870,13 +840,13 @@
 
     <!-- Settings panel -->
     <div id="settings-panel" class="settings-panel">
-      <div class="mx-auto max-w-lg px-6 py-6">
+      <div class="mx-auto max-w-lg px-4 py-4 sm:px-6 sm:py-6">
         <!-- Drag handle -->
         <div class="mb-6 flex justify-center">
           <div class="h-1 w-10 rounded-full bg-subtlest"></div>
         </div>
 
-        <h2 class="mb-6 text-lg font-semibold text-foreground">Customize</h2>
+        <h2 class="mb-4 sm:mb-6 text-base sm:text-lg font-semibold text-foreground">Customize</h2>
 
         <!-- Wallpaper -->
         <div class="mb-6">
@@ -1041,5 +1011,13 @@
     </div>
 
     <script type="module" src="./main.ts"></script>
+    <script type="module">
+      try {
+        const {ColorChangeUpdater} = await import(
+          'chrome://resources/cr_components/color_change_listener/colors_css_updater.js'
+        );
+        ColorChangeUpdater.forDocument().start();
+      } catch {}
+    </script>
   </body>
 </html>

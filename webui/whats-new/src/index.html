@@ -10,18 +10,8 @@
       href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome" />
     <link rel="stylesheet" href="./style.css" />
-    <script>
-      (function () {
-        const stored = localStorage.getItem("astro-ntp-theme");
-        if (
-          stored === "dark" ||
-          (!stored && matchMedia("(prefers-color-scheme: dark)").matches)
-        ) {
-          document.documentElement.classList.add("dark");
-        }
-      })();
-    </script>
   </head>
   <body>
     <main class="mx-auto max-w-2xl px-6 pb-24 pt-16 sm:pt-24">
@@ -39,8 +29,9 @@
           >
             <g
               transform="translate(0,169) scale(0.1,-0.1)"
-              fill="#c46ede"
+              fill="currentColor"
               stroke="none"
+              class="text-oxy-primary"
             >
               <path
                 d="M936 1454 c37 -22 114 -116 114 -139 0 -4 22 -44 49 -89 75 -124 89 -148 112 -191 24 -45 87 -153 207 -357 101 -171 120 -228 102 -293 -17 -62 -61 -120 -110 -145 -91 -47 -434 -36 -566 18 -136 55 -246 148 -315 267 -77 132 -94 192 -93 335 1 141 25 223 107 362 30 51 66 114 81 140 67 119 199 158 312 92z"
@@ -264,5 +255,13 @@
     </main>
 
     <script type="module" src="./main.ts"></script>
+    <script type="module">
+      try {
+        const {ColorChangeUpdater} = await import(
+          'chrome://resources/cr_components/color_change_listener/colors_css_updater.js'
+        );
+        ColorChangeUpdater.forDocument().start();
+      } catch {}
+    </script>
   </body>
 </html>

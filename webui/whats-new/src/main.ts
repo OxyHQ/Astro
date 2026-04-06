@@ -5,7 +5,6 @@
 
 const CURRENT_VERSION = "146.0.7680.177";
 const LAST_SEEN_KEY = "astro-whats-new-last-seen";
-const THEME_KEY = "astro-ntp-theme";
 
 // ── DOM References ──
 
@@ -14,16 +13,6 @@ const getStartedBtn = document.getElementById(
 ) as HTMLButtonElement;
 
 const timeline = document.getElementById("timeline") as HTMLElement;
-
-// ── Theme ──
-
-function applySystemThemeListener(): void {
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-    if (!localStorage.getItem(THEME_KEY)) {
-      document.documentElement.classList.toggle("dark", e.matches);
-    }
-  });
-}
 
 // ── Timeline scroll progress ──
 // Draws the vertical accent line as the user scrolls down
@@ -189,10 +178,10 @@ function handleKeyboard(e: KeyboardEvent): void {
 
 // ── Init ──
 
-applySystemThemeListener();
 initRevealAnimations();
 initTimelineProgress();
 
 // Event listeners
 getStartedBtn.addEventListener("click", handleGetStarted);
 document.addEventListener("keydown", handleKeyboard);
+

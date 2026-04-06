@@ -101,14 +101,16 @@ export function ButtonRow(
   buttonLabel: string,
   variant: "primary" | "secondary" | "danger" = "secondary",
   buttonId: string = "",
+  action: string = "",
 ): string {
+  const actionAttr = action ? `data-action="${action}"` : "";
   return `
     <div class="setting-row" data-setting-label="${label}" data-setting-desc="${description}">
       <div class="min-w-0 flex-1">
         <div class="text-sm font-medium text-oxy-text">${label}</div>
         <div class="mt-0.5 text-[13px] leading-relaxed text-oxy-text-secondary">${description}</div>
       </div>
-      <button type="button" class="btn btn-${variant} shrink-0" ${buttonId ? `id="${buttonId}"` : ""}>${buttonLabel}</button>
+      <button type="button" class="btn btn-${variant} shrink-0" ${buttonId ? `id="${buttonId}"` : ""} ${actionAttr}>${buttonLabel}</button>
     </div>
   `;
 }
@@ -151,13 +153,6 @@ export function bindControls(): void {
       el.dataset["checked"] = String(next);
       el.setAttribute("aria-checked", String(next));
       setSettingValue(id, next);
-
-      // Apply special handlers
-      if (id === "theme-dark") {
-        document.documentElement.classList.toggle("dark", next);
-        localStorage.setItem("astro-theme", next ? "dark" : "light");
-        updateThemeIcons();
-      }
     });
   });
 
@@ -169,19 +164,6 @@ export function bindControls(): void {
         const id = el.dataset["selectId"];
         if (!id) return;
         setSettingValue(id, el.value);
-
-        if (id === "theme-mode") {
-          const dark =
-            el.value === "dark" ||
-            (el.value === "system" &&
-              matchMedia("(prefers-color-scheme:dark)").matches);
-          document.documentElement.classList.toggle("dark", dark);
-          localStorage.setItem(
-            "astro-theme",
-            el.value === "system" ? "" : el.value,
-          );
-          updateThemeIcons();
-        }
       });
     });
 
@@ -200,14 +182,20 @@ export function bindControls(): void {
       setSettingValue(id, Number(el.value));
     });
   });
+
+  // Action buttons (data-action="method:arg1,arg2")
+  document.querySelectorAll<HTMLButtonElement>("[data-action]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const raw = el.dataset["action"];
+      if (!raw) return;
+      const colonIdx = raw.indexOf(":");
+      const method = colonIdx === -1 ? raw : raw.slice(0, colonIdx);
+      const argsStr = colonIdx === -1 ? "" : raw.slice(colonIdx + 1);
+      const args = argsStr ? argsStr.split(",") : [];
+      if (typeof chrome !== "undefined" && typeof chrome.send === "function") {
+        chrome.send(method, args);
+      }
+    });
+  });
 }
 
-function updateThemeIcons(): void {
-  const dark = document.documentElement.classList.contains("dark");
-  const sun = document.getElementById("icon-sun");
-  const moon = document.getElementById("icon-moon");
-  if (sun && moon) {
-    sun.classList.toggle("hidden", !dark);
-    moon.classList.toggle("hidden", dark);
-  }
-}

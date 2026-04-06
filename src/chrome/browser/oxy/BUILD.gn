@@ -20,6 +20,23 @@ source_set("oxy") {
     "webui/astro_ntp_ui.cc",
     "webui/astro_ntp_ui.h",
 
+    # Settings WebUI (chrome://astro-settings)
+    "webui/astro_settings_ui.cc",
+    "webui/astro_settings_ui.h",
+    "webui/astro_settings_handler.cc",
+    "webui/astro_settings_handler.h",
+
+    # Alia AI WebUI (chrome://astro-alia)
+    "webui/astro_alia_ui.cc",
+    "webui/astro_alia_ui.h",
+
+    # What's New WebUI (chrome://astro-whats-new)
+    "webui/astro_whats_new_ui.cc",
+    "webui/astro_whats_new_ui.h",
+
+    # Error page WebUI (chrome://astro-error)
+    "webui/astro_error_ui.cc",
+    "webui/astro_error_ui.h",
   ]
 
   deps = [
@@ -36,6 +53,7 @@ source_set("oxy") {
     "//services/network/public/mojom",
     "//ui/views",
     "//ui/views/controls/webview",
+    "//ui/webui",
     "//url",
   ]
 }

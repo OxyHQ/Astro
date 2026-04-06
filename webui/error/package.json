@@ -1,18 +1,14 @@
 {
-  "name": "@oxyhq/astro-ntp",
+  "name": "@oxyhq/astro-error",
   "version": "1.0.0",
   "type": "module",
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build && bun run merge-for-chromium.ts",
-    "build:vite": "vite build",
-    "merge": "bun run merge-for-chromium.ts",
-    "preview": "vite preview"
+    "build": "vite build"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.2",
-    "@types/bun": "latest",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
     "vite": "^8.0.3",

@@ -1,33 +1,31 @@
 @import "tailwindcss";
 
-/* ── Comet-style design token system mapped to Oxy palette ── */
+/* ── Design tokens (Chrome theme variables used directly) ── */
 
 @theme {
-  /* Oxy primary (super) */
-  --color-super: #c46ede;
-  --color-super-light: #d99aeb;
-  --color-super-dark: #a14cc5;
+  --color-super: var(--color-sys-primary, #c46ede);
+  --color-super-light: color-mix(in srgb, var(--color-sys-primary, #c46ede) 65%, white);
+  --color-super-dark: color-mix(in srgb, var(--color-sys-primary, #c46ede) 85%, black);
 
-  /* Semantic tokens - light mode defaults */
-  --color-base: #ffffff;
-  --color-raised: #ffffff;
-  --color-subtle: #f5f3f7;
-  --color-quiet: #eeecf0;
-  --color-underlay: #f0edf3;
+  --color-base: var(--color-sys-surface, #ffffff);
+  --color-raised: var(--color-sys-surface-container, #ffffff);
+  --color-subtle: var(--color-sys-surface-container, #f5f3f7);
+  --color-quiet: var(--color-sys-surface-container-high, #eeecf0);
+  --color-underlay: var(--color-sys-surface-container-lowest, #f0edf3);
 
   /* Text */
-  --color-foreground: #1a1a1a;
-  --color-text-quiet: #6b6b6b;
-  --color-text-quieter: #9e9e9e;
-  --color-inverse: #ffffff;
+  --color-foreground: var(--color-sys-on-surface, #1a1a1a);
+  --color-text-quiet: var(--color-sys-on-surface-variant, #6b6b6b);
+  --color-text-quieter: var(--color-sys-outline, #9e9e9e);
+  --color-inverse: var(--color-sys-on-primary, #ffffff);
 
   /* Borders */
-  --color-subtlest: #f0ecf3;
-  --color-border-subtle: #e8e4ec;
+  --color-subtlest: var(--color-sys-surface-variant, #f0ecf3);
+  --color-border-subtle: var(--color-sys-outline-variant, #e8e4ec);
 
   /* Finance colors */
   --color-finance-positive: #22c55e;
-  --color-finance-negative: #ef4444;
+  --color-finance-negative: var(--color-sys-error, #ef4444);
 
   --font-sans: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, sans-serif;
@@ -36,17 +34,19 @@
 
 /* ── Dark mode color scheme ── */
 
-[data-color-scheme="dark"] {
-  --color-base: #0c0a10;
-  --color-raised: #1a1620;
-  --color-subtle: #1e1a24;
-  --color-quiet: #2a2430;
-  --color-underlay: #080610;
-  --color-subtlest: #221e28;
-  --color-border-subtle: #2a2430;
-  --color-foreground: #ededed;
-  --color-text-quiet: #9e9e9e;
-  --color-text-quieter: #6b6b6b;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-base: var(--color-sys-surface, #0c0a10);
+    --color-raised: var(--color-sys-surface-container, #1a1620);
+    --color-subtle: var(--color-sys-surface-container, #1e1a24);
+    --color-quiet: var(--color-sys-surface-container-high, #2a2430);
+    --color-underlay: var(--color-sys-surface-container-lowest, #080610);
+    --color-subtlest: var(--color-sys-surface-variant, #221e28);
+    --color-border-subtle: var(--color-sys-outline-variant, #2a2430);
+    --color-foreground: var(--color-sys-on-surface, #ededed);
+    --color-text-quiet: var(--color-sys-on-surface-variant, #9e9e9e);
+    --color-text-quieter: var(--color-sys-outline, #6b6b6b);
+  }
 }
 
 /* ── Base ── */
@@ -151,6 +151,12 @@ body {
 
 .sidebar-width {
   width: 200px;
+}
+
+@media (max-width: 767px) {
+  .sidebar-width {
+    width: 0;
+  }
 }
 
 .sidebar-tab.active {
@@ -262,8 +268,14 @@ body {
 /* ── Search input in grid ── */
 
 #search-input {
-  font-size: 1rem;
+  font-size: 0.875rem;
   line-height: 1.5;
+}
+
+@media (min-width: 640px) {
+  #search-input {
+    font-size: 1rem;
+  }
 }
 
 #search-input:focus {
@@ -290,7 +302,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.4);
+  background: color-mix(in srgb, var(--color-sys-scrim, #000) 40%, transparent);
   opacity: 0;
   visibility: hidden;
   transition:
@@ -305,24 +317,25 @@ body {
 
 .settings-panel {
   position: fixed;
-  bottom: 0;
-  left: 0;
+  top: 0;
   right: 0;
+  bottom: 0;
   z-index: 101;
-  max-height: 85vh;
-  border-radius: 1.25rem 1.25rem 0 0;
+  width: 360px;
+  max-width: 90vw;
+  border-radius: 0;
   background: var(--color-raised);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
-  border-top: 1px solid var(--color-subtlest);
-  transform: translateY(100%);
-  transition: transform 0.4s cubic-bezier(0.2, 0, 0, 1);
+  border-left: 1px solid var(--color-subtlest);
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
 .settings-panel.open {
-  transform: translateY(0);
+  transform: translateX(0);
 }
 
 .settings-panel::-webkit-scrollbar {
@@ -347,7 +360,7 @@ body {
 
 .settings-input:focus {
   border-color: var(--color-super);
-  box-shadow: 0 0 0 2px rgba(196, 110, 222, 0.15);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-super) 15%, transparent);
 }
 
 .settings-input::placeholder {
@@ -378,10 +391,10 @@ body {
   left: 2px;
   width: 20px;
   height: 20px;
-  background: white;
+  background: var(--color-sys-on-primary, #fff);
   border-radius: 50%;
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-sys-shadow, #000) 15%, transparent);
 }
 
 .toggle-switch.active::after {
@@ -437,8 +450,8 @@ body {
   border-radius: 0.75rem;
   padding: 0.25rem;
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.1),
-    0 1px 4px rgba(0, 0, 0, 0.05);
+    0 4px 16px color-mix(in srgb, var(--color-sys-shadow, #000) 10%, transparent),
+    0 1px 4px color-mix(in srgb, var(--color-sys-shadow, #000) 5%, transparent);
 }
 
 .engine-option {
@@ -485,11 +498,40 @@ body {
   width: 24px;
   height: 24px;
   border-radius: 6px;
-  background: rgba(196, 110, 222, 0.1);
+  background: color-mix(in srgb, var(--color-super) 10%, transparent);
   color: var(--color-super);
   font-weight: 600;
   font-size: 0.625rem;
   user-select: none;
+}
+
+/* ── Card shadow (uses Chrome theme shadow color) ── */
+
+.shadow-card {
+  box-shadow: 0 1px 2px 0 color-mix(in srgb, var(--color-sys-shadow, #000) 3%, transparent);
+}
+
+/* ── Glass card border (theme-aware) ── */
+
+.border-glass {
+  border-color: color-mix(in srgb, var(--color-sys-on-surface, #000) 5%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  .border-glass {
+    border-color: color-mix(in srgb, var(--color-sys-on-surface, #fff) 5%, transparent);
+  }
+}
+
+/* ── Discover card fallback gradient ── */
+
+.discover-gradient {
+  background: linear-gradient(
+    135deg,
+    var(--color-sys-surface-container-lowest, #1a1033) 0%,
+    var(--color-sys-surface-container-high, #2d1b4e) 50%,
+    var(--color-sys-primary, #c46ede) 100%
+  );
 }
 
 /* ── Animations ── */
@@ -526,45 +568,64 @@ body {
   border-radius: 0.5rem;
 }
 
+/* ── Notes widget (theme-aware) ── */
+
+.notes-bg {
+  background-color: var(--color-sys-tertiary-container, #fef3c7);
+}
+
+.notes-text {
+  color: var(--color-sys-on-tertiary-container, #a16207);
+}
+
+.notes-text::placeholder {
+  color: var(--color-sys-tertiary, #eab308);
+}
+
+@media (prefers-color-scheme: dark) {
+  .notes-bg {
+    background-color: color-mix(in srgb, var(--color-sys-tertiary, #422006) 30%, var(--color-sys-surface, #000));
+  }
+  .notes-text {
+    color: var(--color-sys-tertiary, #fef08a);
+  }
+  .notes-text::placeholder {
+    color: var(--color-sys-tertiary, #a16207);
+  }
+}
+
 /* ── Dark mode specific overrides ── */
 
-[data-color-scheme="dark"] .dark\:bg-subtlest {
-  background-color: var(--color-subtlest);
-}
-[data-color-scheme="dark"] .dark\:bg-quiet {
-  background-color: var(--color-quiet);
-}
-[data-color-scheme="dark"] .dark\:bg-\[\#422006\] {
-  background-color: #422006;
-}
-[data-color-scheme="dark"] .dark\:shadow-md {
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.3),
-    0 2px 4px -2px rgba(0, 0, 0, 0.3);
-}
-[data-color-scheme="dark"] .dark\:border-\[white\]\/5 {
-  border-color: rgba(255, 255, 255, 0.05);
-}
-[data-color-scheme="dark"] .dark\:placeholder-\[\#a16207\]::placeholder {
-  color: #a16207;
-}
-[data-color-scheme="dark"] .dark\:text-\[\#fef08a\] {
-  color: #fef08a;
-}
-[data-color-scheme="dark"] .dark\:active\:\!bg-quiet:active {
-  background-color: var(--color-quiet) !important;
+@media (prefers-color-scheme: dark) {
+  .dark\:bg-subtlest {
+    background-color: var(--color-subtlest);
+  }
+  .dark\:bg-quiet {
+    background-color: var(--color-quiet);
+  }
+  .dark\:shadow-md {
+    box-shadow:
+      0 4px 6px -1px color-mix(in srgb, var(--color-sys-shadow, #000) 30%, transparent),
+      0 2px 4px -2px color-mix(in srgb, var(--color-sys-shadow, #000) 30%, transparent);
+  }
+  .dark\:border-\[white\]\/5 {
+    border-color: color-mix(in srgb, var(--color-sys-on-surface, #fff) 5%, transparent);
+  }
+  .dark\:active\:\!bg-quiet:active {
+    background-color: var(--color-quiet) !important;
+  }
 }
 
 /* ── Super opacity utilities ── */
 
 .bg-super\/10 {
-  background-color: rgba(196, 110, 222, 0.1);
+  background-color: color-mix(in srgb, var(--color-super) 10%, transparent);
 }
 .bg-super\/20 {
-  background-color: rgba(196, 110, 222, 0.2);
+  background-color: color-mix(in srgb, var(--color-super) 20%, transparent);
 }
 .hover\:bg-super\/20:hover {
-  background-color: rgba(196, 110, 222, 0.2);
+  background-color: color-mix(in srgb, var(--color-super) 20%, transparent);
 }
 .text-super {
   color: var(--color-super);

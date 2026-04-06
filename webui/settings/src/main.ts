@@ -4,15 +4,20 @@ import { icons } from "./icons.ts";
 import { bindControls } from "./components.ts";
 import { initFromBrowser } from "./state.ts";
 import {
-  youAndOxy,
   appearance,
+  newTabPage,
+  autofillPasswords,
   searchEngine,
+  defaultBrowser,
   privacySecurity,
   performance,
   accessibility,
   languages,
+  onStartup,
   downloads,
   system,
+  extensions,
+  resetSettings,
   aboutAstro,
 } from "./sections.ts";
 
@@ -25,30 +30,40 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "you-and-oxy", label: "You and Oxy", icon: icons.user },
   { id: "appearance", label: "Appearance", icon: icons.palette },
+  { id: "new-tab-page", label: "New Tab Page", icon: icons.home },
+  { id: "autofill", label: "Autofill & Passwords", icon: icons.key },
   { id: "search-engine", label: "Search engine", icon: icons.search },
+  { id: "default-browser", label: "Default Browser", icon: icons.compass },
   { id: "privacy-security", label: "Privacy & Security", icon: icons.shield },
   { id: "performance", label: "Performance", icon: icons.zap },
   { id: "accessibility", label: "Accessibility", icon: icons.accessibility },
   { id: "languages", label: "Languages", icon: icons.globe },
+  { id: "on-startup", label: "On Startup", icon: icons.power },
   { id: "downloads", label: "Downloads", icon: icons.download },
   { id: "system", label: "System", icon: icons.monitor },
+  { id: "extensions", label: "Extensions", icon: icons.puzzle },
+  { id: "reset", label: "Reset", icon: icons.rotateCcw },
   { id: "about", label: "About Astro", icon: icons.info },
 ];
 
 // ── Section renderers ──
 
 const SECTION_RENDERERS: Record<string, () => string> = {
-  "you-and-oxy": youAndOxy,
   appearance,
+  "new-tab-page": newTabPage,
+  autofill: autofillPasswords,
   "search-engine": searchEngine,
+  "default-browser": defaultBrowser,
   "privacy-security": privacySecurity,
   performance,
   accessibility,
   languages,
+  "on-startup": onStartup,
   downloads,
   system,
+  extensions,
+  reset: resetSettings,
   about: aboutAstro,
 };
 
@@ -65,7 +80,7 @@ const sidebarOverlay = document.getElementById(
 
 // ── State ──
 
-let activeSection = "you-and-oxy";
+let activeSection = "appearance";
 let searchQuery = "";
 
 // ── Render navigation ──
@@ -233,36 +248,6 @@ function closeSidebar(): void {
   sidebarOverlay.classList.remove("open");
 }
 
-// ── Theme toggle ──
-
-const themeToggle = document.getElementById("theme-toggle") as HTMLButtonElement | null;
-const iconSun = document.getElementById("icon-sun") as SVGElement | null;
-const iconMoon = document.getElementById("icon-moon") as SVGElement | null;
-
-function isDark(): boolean {
-  return document.documentElement.classList.contains("dark");
-}
-
-function applyThemeIcons(): void {
-  if (iconSun) iconSun.classList.toggle("hidden", !isDark());
-  if (iconMoon) iconMoon.classList.toggle("hidden", isDark());
-}
-
-function toggleTheme(): void {
-  const dark = !isDark();
-  document.documentElement.classList.toggle("dark", dark);
-  localStorage.setItem("astro-theme", dark ? "dark" : "light");
-  applyThemeIcons();
-
-  // Also update the theme-mode select if visible
-  const themeSelect = document.querySelector<HTMLSelectElement>(
-    '[data-select-id="theme-mode"]',
-  );
-  if (themeSelect) {
-    themeSelect.value = dark ? "dark" : "light";
-  }
-}
-
 // ── Reset settings ──
 
 function bindResetButton(): void {
@@ -318,7 +303,6 @@ async function bootstrap(): Promise<void> {
   // Render
   renderNav();
   renderAllSections();
-  applyThemeIcons();
 
   if (hydrated) {
     // Re-render once more after hydration so controls reflect
@@ -426,7 +410,6 @@ searchInput?.addEventListener("input", () => {
 
 menuBtn?.addEventListener("click", openSidebar);
 sidebarOverlay.addEventListener("click", closeSidebar);
-themeToggle?.addEventListener("click", toggleTheme);
 
 // Listen for hash changes
 window.addEventListener("hashchange", () => {
@@ -436,10 +419,3 @@ window.addEventListener("hashchange", () => {
   }
 });
 
-// System theme changes
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-  if (!localStorage.getItem("astro-theme")) {
-    document.documentElement.classList.toggle("dark", e.matches);
-    applyThemeIcons();
-  }
-});

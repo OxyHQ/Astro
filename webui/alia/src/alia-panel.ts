@@ -58,11 +58,6 @@ const PAGE_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor
   <path d="M12 3a15 15 0 0 1 4 9 15 15 0 0 1-4 9 15 15 0 0 1-4-9 15 15 0 0 1 4-9z"/>
 </svg>`;
 
-const THEME_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-  <circle cx="12" cy="12" r="4"/>
-  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
-</svg>`;
-
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -178,31 +173,7 @@ function formatTime(timestamp: number): string {
 }
 
 function isDark(): boolean {
-  return document.body.classList.contains("dark");
-}
-
-// ---------------------------------------------------------------------------
-// Theme
-// ---------------------------------------------------------------------------
-
-function initTheme(): void {
-  const stored = localStorage.getItem("alia-panel-theme");
-  if (stored === "dark") {
-    document.body.classList.add("dark");
-  } else if (stored === "light") {
-    document.body.classList.remove("dark");
-  } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-    document.body.classList.add("dark");
-  }
-}
-
-function toggleTheme(): void {
-  document.body.classList.toggle("dark");
-  localStorage.setItem(
-    "alia-panel-theme",
-    isDark() ? "dark" : "light",
-  );
-  renderAllMessages();
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
 // ---------------------------------------------------------------------------
@@ -705,11 +676,6 @@ function buildUI(): void {
           ${isDark() ? "bg-dark-surface-elevated text-dark-text-tertiary" : "bg-oxy-hover text-oxy-text-tertiary"}">AI</span>
       </div>
       <div class="flex items-center gap-1">
-        <button id="theme-toggle" title="Toggle theme"
-          class="flex items-center justify-center w-7 h-7 rounded-lg transition-colors duration-150 cursor-pointer
-          ${isDark() ? "text-dark-text-secondary hover:bg-dark-hover" : "text-oxy-text-secondary hover:bg-oxy-hover"}">
-          ${THEME_ICON_SVG}
-        </button>
         <button id="new-chat-btn" title="New conversation"
           class="flex items-center justify-center w-7 h-7 rounded-lg transition-colors duration-150 cursor-pointer
           ${isDark() ? "text-dark-text-secondary hover:bg-dark-hover" : "text-oxy-text-secondary hover:bg-oxy-hover"}">
@@ -823,7 +789,6 @@ function buildUI(): void {
   });
 
   document.getElementById("new-chat-btn")?.addEventListener("click", clearChat);
-  document.getElementById("theme-toggle")?.addEventListener("click", toggleTheme);
 
   // Suggestion buttons
   document.querySelectorAll(".suggestion-btn").forEach((btn) => {
@@ -851,10 +816,10 @@ function buildUI(): void {
 // ---------------------------------------------------------------------------
 
 document.addEventListener("DOMContentLoaded", () => {
-  initTheme();
   initAuth();
   buildUI();
 
   // Notify host that panel is ready
   window.parent?.postMessage({ type: "alia-panel-ready" }, "*");
 });
+

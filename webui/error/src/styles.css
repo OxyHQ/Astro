@@ -1,0 +1,198 @@
+@import "tailwindcss";
+
+/* ── Design tokens (Chrome theme variables used directly) ── */
+
+@theme {
+  --color-super: var(--color-sys-primary, #c46ede);
+  --color-super-light: #d99aeb;
+  --color-super-dark: color-mix(in srgb, var(--color-sys-primary, #c46ede) 85%, black);
+
+  --color-base: var(--color-sys-surface, #ffffff);
+  --color-raised: var(--color-sys-surface-container, #ffffff);
+  --color-subtle: #f5f3f7;
+  --color-quiet: #eeecf0;
+
+  --color-foreground: var(--color-sys-on-surface, #1a1a1a);
+  --color-text-quiet: var(--color-sys-on-surface-variant, #6b6b6b);
+  --color-text-quieter: #9e9e9e;
+
+  --color-subtlest: #f0ecf3;
+  --color-border-subtle: var(--color-sys-outline-variant, #e8e4ec);
+
+  --font-sans: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-base: var(--color-sys-surface, #0c0a10);
+    --color-raised: var(--color-sys-surface-container, #1a1620);
+    --color-subtle: #1e1a24;
+    --color-quiet: #2a2430;
+    --color-subtlest: #221e28;
+    --color-border-subtle: var(--color-sys-outline-variant, #2a2430);
+    --color-foreground: var(--color-sys-on-surface, #ededed);
+    --color-text-quiet: var(--color-sys-on-surface-variant, #9e9e9e);
+    --color-text-quieter: #6b6b6b;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--font-sans);
+  background-color: var(--color-base);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Astronaut floating animation for offline page */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-8px) rotate(2deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(-1deg);
+  }
+  75% {
+    transform: translateY(-10px) rotate(1deg);
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+  50% {
+    transform: translateX(3px) translateY(-2px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-twinkle {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+.animate-twinkle-delayed {
+  animation: twinkle 4s ease-in-out infinite 1.5s;
+}
+
+.animate-twinkle-slow {
+  animation: twinkle 5s ease-in-out infinite 0.8s;
+}
+
+.animate-drift {
+  animation: drift 8s ease-in-out infinite;
+}
+
+/* Details/summary styling */
+details summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+details summary::-webkit-details-marker {
+  display: none;
+}
+
+details summary::marker {
+  display: none;
+  content: "";
+}
+
+/* Chevron rotation */
+details[open] .chevron-icon {
+  transform: rotate(180deg);
+}
+
+.chevron-icon {
+  transition: transform 0.2s ease;
+}
+
+/* Button transitions */
+.btn-primary {
+  background-color: var(--color-super);
+  color: #ffffff;
+  transition:
+    background-color 0.15s ease,
+    transform 0.1s ease,
+    box-shadow 0.15s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-super-dark);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--color-super) 30%, transparent);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--color-text-quiet);
+  border: 1px solid var(--color-border-subtle);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.btn-outline:hover {
+  background-color: var(--color-subtle);
+  border-color: var(--color-text-quieter);
+  color: var(--color-foreground);
+}
+
+.btn-outline:active {
+  transform: scale(0.98);
+}
+
+/* URL display */
+.url-display {
+  font-family: var(--font-mono);
+  background-color: var(--color-subtle);
+  border: 1px solid var(--color-subtlest);
+}
+
+/* Tip list */
+.tip-item {
+  color: var(--color-text-quiet);
+  padding-left: 0.5rem;
+  position: relative;
+}
+
+.tip-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--color-text-quieter);
+}

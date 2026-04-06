@@ -1,22 +1,26 @@
 @import "tailwindcss";
 
+/* ── Design tokens (Chrome theme variables used directly) ── */
+
 @theme {
-  --color-oxy-primary: #c46ede;
-  --color-oxy-primary-light: #d99aeb;
-  --color-oxy-primary-dark: #a14cc5;
+  --color-oxy-primary: var(--color-sys-primary, #c46ede);
+  --color-oxy-primary-light: color-mix(in srgb, var(--color-sys-primary, #c46ede) 60%, white);
+  --color-oxy-primary-dark: color-mix(in srgb, var(--color-sys-primary, #c46ede) 85%, black);
 
   /* Light mode (default) */
-  --color-oxy-bg: #f7f5f9;
-  --color-oxy-surface: #ffffff;
-  --color-oxy-surface-raised: #ffffffcc;
-  --color-oxy-text: #1a1a1a;
-  --color-oxy-text-secondary: #6b6b6b;
-  --color-oxy-text-tertiary: #9e9e9e;
-  --color-oxy-border: #e8e4ec;
-  --color-oxy-border-subtle: #f0ecf3;
-  --color-oxy-danger: #ef4444;
+  --color-oxy-bg: var(--color-sys-surface, #f7f5f9);
+  --color-oxy-surface: var(--color-sys-surface-container, #ffffff);
+  --color-oxy-surface-raised: color-mix(in srgb, var(--color-sys-surface-container, #ffffff) 80%, transparent);
+  --color-oxy-text: var(--color-sys-on-surface, #1a1a1a);
+  --color-oxy-text-secondary: var(--color-sys-on-surface-variant, #6b6b6b);
+  --color-oxy-text-tertiary: color-mix(in srgb, var(--color-sys-on-surface-variant, #6b6b6b) 65%, transparent);
+  --color-oxy-border: var(--color-sys-outline-variant, #e8e4ec);
+  --color-oxy-border-subtle: color-mix(in srgb, var(--color-sys-outline-variant, #e8e4ec) 50%, transparent);
+  --color-oxy-danger: var(--color-sys-error, #ef4444);
+  --color-oxy-danger-hover: color-mix(in srgb, var(--color-sys-error, #ef4444) 85%, black);
   --color-oxy-success: #22c55e;
   --color-oxy-warning: #f59e0b;
+  --color-oxy-on-primary: var(--color-sys-on-primary, #fff);
 
   --font-sans: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, sans-serif;
@@ -41,20 +45,17 @@ body {
 
 /* ── Dark mode ── */
 
-html.dark {
-  --color-oxy-bg: #0c0a10;
-  --color-oxy-surface: #1a1620;
-  --color-oxy-surface-raised: #1a1620cc;
-  --color-oxy-text: #ededed;
-  --color-oxy-text-secondary: #9e9e9e;
-  --color-oxy-text-tertiary: #6b6b6b;
-  --color-oxy-border: #2a2430;
-  --color-oxy-border-subtle: #221e28;
-}
-
-html.dark body {
-  background-color: var(--color-oxy-bg);
-  color: var(--color-oxy-text);
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-oxy-bg: var(--color-sys-surface, #0c0a10);
+    --color-oxy-surface: var(--color-sys-surface-container, #1a1620);
+    --color-oxy-surface-raised: color-mix(in srgb, var(--color-sys-surface-container, #1a1620) 80%, transparent);
+    --color-oxy-text: var(--color-sys-on-surface, #ededed);
+    --color-oxy-text-secondary: var(--color-sys-on-surface-variant, #9e9e9e);
+    --color-oxy-text-tertiary: color-mix(in srgb, var(--color-sys-on-surface-variant, #9e9e9e) 65%, transparent);
+    --color-oxy-border: var(--color-sys-outline-variant, #2a2430);
+    --color-oxy-border-subtle: color-mix(in srgb, var(--color-sys-outline-variant, #2a2430) 50%, transparent);
+  }
 }
 
 /* ── Sidebar ── */
@@ -67,20 +68,22 @@ html.dark body {
 }
 
 .sidebar-link:hover {
-  background-color: rgba(0, 0, 0, 0.04);
+  background-color: color-mix(in srgb, var(--color-sys-on-surface, #1a1a1a) 4%, transparent);
 }
 
-html.dark .sidebar-link:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+@media (prefers-color-scheme: dark) {
+  .sidebar-link:hover {
+    background-color: color-mix(in srgb, var(--color-sys-on-surface, #ededed) 5%, transparent);
+  }
 }
 
 .sidebar-link.active {
   color: var(--color-oxy-primary);
-  background-color: rgba(196, 110, 222, 0.06);
+  background-color: color-mix(in srgb, var(--color-oxy-primary) 6%, transparent);
 }
 
 .sidebar-link.active:hover {
-  background-color: rgba(196, 110, 222, 0.10);
+  background-color: color-mix(in srgb, var(--color-oxy-primary) 10%, transparent);
 }
 
 /* ── Command palette ── */
@@ -99,7 +102,7 @@ html.dark .sidebar-link:hover {
 }
 
 .command-item:hover, .command-item.active {
-  background-color: rgba(196, 110, 222, 0.08);
+  background-color: color-mix(in srgb, var(--color-oxy-primary) 8%, transparent);
 }
 
 .command-item.active {
@@ -129,10 +132,10 @@ html.dark .sidebar-link:hover {
   left: 2px;
   width: 20px;
   height: 20px;
-  background: white;
+  background: var(--color-sys-on-primary, #fff);
   border-radius: 50%;
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-sys-on-surface, #000) 15%, transparent);
 }
 
 .toggle-track[data-checked="true"] .toggle-thumb {
@@ -161,12 +164,14 @@ html.dark .sidebar-link:hover {
 }
 
 .setting-select:focus {
-  box-shadow: 0 0 0 2px rgba(196, 110, 222, 0.15);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-oxy-primary) 15%, transparent);
 }
 
-html.dark .setting-select {
-  background-color: var(--color-oxy-bg);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b6b6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+@media (prefers-color-scheme: dark) {
+  .setting-select {
+    background-color: var(--color-oxy-bg);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b6b6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
 }
 
 /* ── Buttons ── */
@@ -193,12 +198,12 @@ html.dark .setting-select {
 
 .btn-primary {
   background: var(--color-oxy-primary);
-  color: white;
+  color: var(--color-oxy-on-primary);
 }
 
 .btn-primary:hover {
   background: var(--color-oxy-primary-dark);
-  box-shadow: 0 2px 8px rgba(196, 110, 222, 0.3);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-oxy-primary) 30%, transparent);
 }
 
 .btn-secondary {
@@ -213,12 +218,12 @@ html.dark .setting-select {
 
 .btn-danger {
   background: var(--color-oxy-danger);
-  color: white;
+  color: var(--color-oxy-on-primary);
 }
 
 .btn-danger:hover {
-  background: #dc2626;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+  background: var(--color-oxy-danger-hover);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-sys-error, #ef4444) 30%, transparent);
 }
 
 /* ── Section card ── */
@@ -233,11 +238,13 @@ html.dark .setting-select {
 }
 
 .section-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--color-sys-on-surface, #000) 4%, transparent);
 }
 
-html.dark .section-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+@media (prefers-color-scheme: dark) {
+  .section-card:hover {
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--color-sys-on-surface, #000) 20%, transparent);
+  }
 }
 
 /* ── Setting row ── */
@@ -260,8 +267,10 @@ html.dark .section-card:hover {
   background-color: var(--color-oxy-border-subtle);
 }
 
-html.dark .setting-row:hover {
-  background-color: rgba(255, 255, 255, 0.02);
+@media (prefers-color-scheme: dark) {
+  .setting-row:hover {
+    background-color: color-mix(in srgb, var(--color-sys-on-surface, #ededed) 2%, transparent);
+  }
 }
 
 /* ── Search ── */
@@ -275,7 +284,7 @@ html.dark .setting-row:hover {
 }
 
 .search-box:focus-within {
-  box-shadow: 0 0 0 3px rgba(196, 110, 222, 0.1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-oxy-primary) 10%, transparent);
 }
 
 .search-box-sidebar {
@@ -284,7 +293,7 @@ html.dark .setting-row:hover {
 }
 
 .search-box-sidebar:focus-within {
-  box-shadow: 0 0 0 2px rgba(196, 110, 222, 0.08);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-oxy-primary) 8%, transparent);
 }
 
 .search-input {
@@ -319,7 +328,7 @@ input[type="range"]::-webkit-slider-thumb {
   height: 18px;
   border-radius: 50%;
   background: var(--color-oxy-primary);
-  box-shadow: 0 1px 4px rgba(196, 110, 222, 0.3);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-oxy-primary) 30%, transparent);
   cursor: pointer;
   transition: transform 0.15s ease;
 }
@@ -333,7 +342,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .sidebar-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: color-mix(in srgb, var(--color-sys-on-surface, #000) 40%, transparent);
   z-index: 40;
   opacity: 0;
   visibility: hidden;
@@ -408,7 +417,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 /* ── Highlight matched search text ── */
 
 mark {
-  background: rgba(196, 110, 222, 0.2);
+  background: color-mix(in srgb, var(--color-oxy-primary) 20%, transparent);
   color: inherit;
   border-radius: 2px;
   padding: 0 2px;

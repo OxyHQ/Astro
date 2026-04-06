@@ -186,9 +186,6 @@ const discoverTitle = $<HTMLDivElement>("discover-title");
 const aliaWidget = $<HTMLDivElement>("alia-widget");
 const sitesContainer = $<HTMLDivElement>("sites-container");
 
-const themeToggle = $<HTMLButtonElement>("theme-toggle");
-const iconSun = $<SVGElement>("icon-sun");
-const iconMoon = $<SVGElement>("icon-moon");
 const customizeChromeBtn = $<HTMLButtonElement>("customize-chrome-btn");
 
 const settingsBtn = $<HTMLButtonElement>("settings-btn");
@@ -258,48 +255,11 @@ function updateClock(): void {
 
 // ── Theme ──
 
+// Theme is now purely CSS-driven via @media (prefers-color-scheme: dark).
+// The browser's native theme (controlled via chrome://settings) applies automatically.
+
 function isDark(): boolean {
-  return document.documentElement.getAttribute("data-color-scheme") === "dark";
-}
-
-function applyThemeIcons(): void {
-  if (isDark()) {
-    iconSun.classList.remove("hidden");
-    iconMoon.classList.add("hidden");
-  } else {
-    iconSun.classList.add("hidden");
-    iconMoon.classList.remove("hidden");
-  }
-}
-
-function toggleTheme(): void {
-  const dark = !isDark();
-  document.documentElement.setAttribute("data-color-scheme", dark ? "dark" : "light");
-  localStorage.setItem("astro-ntp-theme", dark ? "dark" : "light");
-  applyThemeIcons();
-  applyBrowserTheme(dark);
-}
-
-function applyBrowserTheme(dark: boolean): void {
-  const chrome = (globalThis as Record<string, unknown>).chrome as
-    | {
-        send?: (command: string, args?: unknown[]) => void;
-        embeddedSearch?: {
-          newTabPage?: {
-            updateTheme?: () => void;
-          };
-        };
-      }
-    | undefined;
-
-  // Use chrome.send if available (Chromium internal NTP API)
-  if (chrome?.send) {
-    try {
-      chrome.send("setThemeMode", [dark ? 2 : 1]);
-    } catch {
-      // chrome.send may not support setThemeMode in all builds
-    }
-  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
 function openCustomizeChrome(): void {
@@ -309,18 +269,17 @@ function openCustomizeChrome(): void {
       }
     | undefined;
 
-  // Try chrome.send first (Chromium internal API for NTP pages)
+  // Open Chrome's native Customize side panel.
+  // The .top-chrome URL is handled by the browser to open as a side panel.
   if (chrome?.send) {
     try {
       chrome.send("openCustomizeChrome");
       return;
     } catch {
-      // Fallback to URL navigation
+      // Fall through
     }
   }
-
-  // Open the side panel URL directly
-  window.location.href = "chrome://customize-chrome-side-panel.top-chrome/";
+  window.open("chrome://customize-chrome-side-panel.top-chrome/");
 }
 
 // ── Search Engine ──
@@ -376,6 +335,10 @@ function setWallpaper(url: string): void {
 }
 
 async function fetchUnsplashRandom(): Promise<void> {
+  // External fetch is blocked in chrome:// WebUI context.
+  if (isWebUIContext()) {
+    return;
+  }
   wallpaperUnsplash.textContent = "Loading...";
   wallpaperUnsplash.disabled = true;
   try {
@@ -430,6 +393,12 @@ function renderWeatherError(): void {
   weatherLocation.textContent = "";
 }
 
+// Detects if we're running inside a chrome:// WebUI context where external
+// https:// fetch/img loads are blocked by the WebUI URL loader factory.
+function isWebUIContext(): boolean {
+  return location.protocol === "chrome:" || location.protocol === "chrome-untrusted:";
+}
+
 async function fetchWeather(): Promise<void> {
   // Check cache first
   try {
@@ -439,13 +408,22 @@ async function fetchWeather(): Promise<void> {
         data: WeatherData;
         timestamp: number;
       };
-      if (Date.now() - timestamp < WEATHER_CACHE_TTL) {
+      // In WebUI context, use cached data regardless of TTL since we cannot
+      // make external network requests.
+      if (Date.now() - timestamp < WEATHER_CACHE_TTL || isWebUIContext()) {
         renderWeather(data);
         return;
       }
     }
   } catch {
     // Ignore cache errors
+  }
+
+  // In chrome:// WebUI context, external fetch requests are blocked.
+  // Show the cached data or fallback state.
+  if (isWebUIContext()) {
+    renderWeatherError();
+    return;
   }
 
   try {
@@ -493,8 +471,11 @@ async function fetchWeather(): Promise<void> {
 
 function faviconUrl(siteUrl: string): string {
   try {
-    const { hostname } = new URL(siteUrl);
-    return `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
+    // In chrome:// WebUI pages, external https:// resource loads are blocked
+    // by the WebUI URL loader factory. Use chrome://favicon2/ which is served
+    // by the FaviconSource registered in NewTabPageThirdPartyUI.
+    const url = new URL(siteUrl);
+    return `chrome://favicon2/?size=24&scaleFactor=1x&pageUrl=${encodeURIComponent(url.href)}`;
   } catch {
     return "";
   }
@@ -572,7 +553,7 @@ function renderQuickLinksEditor(): void {
     const removeBtn = document.createElement("button");
     removeBtn.type = "button";
     removeBtn.className =
-      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-quiet transition-colors hover:bg-[#fef2f2] hover:text-[#ef4444]";
+      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-quiet transition-colors hover:bg-super/10 hover:text-[var(--color-sys-error,#ef4444)]";
     removeBtn.innerHTML = `<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
     removeBtn.addEventListener("click", () => {
       settings.quickLinks.splice(index, 1);
@@ -606,7 +587,7 @@ function renderSites(sites: SiteEntry[]): void {
 
     const card = document.createElement("div");
     card.className =
-      "relative border rounded-xl shadow-[0_1px_2px_0_rgba(0,0,0,0.03)] active:!bg-subtle aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised site-card";
+      "relative border rounded-xl shadow-card active:!bg-subtle aspect-[1/1] w-full overflow-hidden !rounded-2xl border-subtlest ring-subtlest divide-subtlest bg-raised site-card";
 
     const anchor = document.createElement("a");
     anchor.href = site.url;
@@ -688,19 +669,16 @@ function handleNotesInput(): void {
 // ── Discover / News ──
 
 async function loadDiscover(): Promise<void> {
-  // Use picsum for a reliable random image
-  discoverImg.src = `https://picsum.photos/400/400?random=${Math.floor(Date.now() / 3600000)}`;
-  discoverImg.onerror = () => {
-    // Fallback: hide img and show gradient
-    discoverImg.style.display = "none";
-    const bgDiv = discoverImg.parentElement;
-    if (bgDiv) {
-      const fallback = document.createElement("div");
-      fallback.className = "absolute inset-0";
-      fallback.style.background = "linear-gradient(135deg, #1a1033 0%, #2d1b4e 50%, #c46ede 100%)";
-      bgDiv.insertBefore(fallback, bgDiv.firstChild);
-    }
-  };
+  // In chrome:// WebUI pages, external https:// image loads are blocked by the
+  // URL loader factory. Use a CSS gradient instead of an external image.
+  discoverImg.style.display = "none";
+  const bgDiv = discoverImg.parentElement;
+  if (bgDiv) {
+    const fallback = document.createElement("div");
+    fallback.className = "absolute inset-0";
+    fallback.className = "absolute inset-0 discover-gradient";
+    bgDiv.insertBefore(fallback, bgDiv.firstChild);
+  }
   discoverTitle.textContent = "Explore trending topics";
   discoverTime.textContent = "Just now";
   discoverLink.href = "https://duckduckgo.com/?q=trending+news";
@@ -751,13 +729,8 @@ function handleToggleClick(e: Event): void {
 // ── Settings Panel ──
 
 function openSettings(): void {
-  settingsOverlay.classList.add("open");
-  settingsPanel.classList.add("open");
-  wallpaperInput.value = settings.wallpaperUrl;
-  searchEngineSelect.value = settings.searchEngine;
-  syncToggleSwitches();
-  syncTempButtons();
-  renderQuickLinksEditor();
+  // Open Astro settings page
+  window.location.href = "chrome://settings/";
 }
 
 function closeSettings(): void {
@@ -864,10 +837,12 @@ function openAlia(): void {
       }
     | undefined;
 
-  if (chrome?.runtime?.sendMessage) {
-    chrome.runtime.sendMessage({ action: "openAliaSidebar" });
-  } else {
-    window.open("https://alia.oxy.so", "_blank");
+  // Open Alia AI side panel via browser's SidePanelUI
+  const cr = (globalThis as Record<string, unknown>).chrome as
+    | { send?: (command: string) => void }
+    | undefined;
+  if (cr?.send) {
+    cr.send("openAliaSidePanel");
   }
 }
 
@@ -886,7 +861,6 @@ function updateBlockedCount(): void {
 // ── Init ──
 
 updateClock();
-applyThemeIcons();
 applySearchEngine();
 applyWidgetVisibility();
 loadNotes();
@@ -906,7 +880,6 @@ setInterval(updateBlockedCount, 5_000);
 // ── Event Listeners ──
 
 document.addEventListener("keydown", handleKeyboard);
-themeToggle.addEventListener("click", toggleTheme);
 customizeChromeBtn.addEventListener("click", openCustomizeChrome);
 
 // Search engine dropdown
@@ -947,6 +920,11 @@ notesTextarea.addEventListener("input", handleNotesInput);
 
 // Settings panel
 settingsBtn.addEventListener("click", openSettings);
+const mobileSettingsBtn =
+  document.getElementById("mobile-settings-btn");
+if (mobileSettingsBtn) {
+  mobileSettingsBtn.addEventListener("click", openSettings);
+}
 settingsOverlay.addEventListener("click", closeSettings);
 editLinksBtn.addEventListener("click", openSettings);
 
@@ -988,10 +966,4 @@ tabDiscover.addEventListener("click", (e) => {
   activateTab("discover");
 });
 
-// System theme changes
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-  if (!localStorage.getItem("astro-ntp-theme")) {
-    document.documentElement.setAttribute("data-color-scheme", e.matches ? "dark" : "light");
-    applyThemeIcons();
-  }
-});
+
