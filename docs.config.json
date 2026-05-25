@@ -4,8 +4,8 @@
   "shortName": "astro",
   "repo": "https://github.com/OxyHQ/Astro",
   "category": "app",
-  "versions": ["main"],
-  "defaultVersion": "main",
+  "versions": ["master"],
+  "defaultVersion": "master",
   "docsPath": "docs/",
   "description": "Oxy Chromium-based browser"
 }
