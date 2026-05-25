@@ -1,0 +1,137 @@
+---
+title: Astro
+description: Oxy's de-Googled, Chromium-based browser with native Oxy auth, AI sidebar, and Rust ad blocker.
+order: 0
+---
+
+# Astro
+
+Astro is a Chromium fork by [Oxy](https://oxy.so) that strips every Google service from the browser and replaces it with privacy-respecting Oxy equivalents — auth, sync, AI, search, and update infrastructure. It is the upstream codebase used by every Oxy distribution channel (Linux, Android, macOS, Windows).
+
+<Badge variant="success">App</Badge> <Badge>Chromium fork</Badge> <Badge>Linux · Android · macOS · Windows</Badge>
+
+## What it is
+
+Astro is built on top of [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) (112 inherited patches that remove Google service dependencies) plus 56 Astro-specific patches that add Oxy integrations, branding, and a custom URL scheme. All Astro-only C++ code lives in a self-contained overlay at `src/chrome/browser/oxy/`, following the Brave-style approach of keeping custom source separate from upstream Chromium.
+
+The internal pages (New Tab, Settings, Alia AI, What's New, Error) are not Polymer like in upstream Chrome — they are standalone Vite + Tailwind v4 apps that talk to the browser process through Mojo IPC for type-safe, bidirectional messaging.
+
+| Aspect | Astro |
+|--------|-------|
+| Base | Chromium 146.0.7680.177 (current target) |
+| De-Google patches | 112 (inherited from ungoogled-chromium) |
+| Oxy patches | 56 (`patches/astro/001-056`) |
+| Custom WebUI pages | 5 (NTP, Settings, Alia, What's New, Error) |
+| URL scheme | `astro://` (aliased to `chrome://`) |
+| Default search | DuckDuckGo |
+| Auth | Oxy session cookie + JWT, no Google Sign-In |
+| Ad blocker | In-process Rust engine, no extension |
+| Updates | Self-hosted update server in `services/update-server/` |
+
+## What's different from upstream Chromium
+
+The core differences fall into three buckets:
+
+### 1. Everything Google is gone
+
+The 112 ungoogled-chromium patches remove or stub:
+
+- Google account / sync infrastructure
+- Google Safe Browsing pings
+- Google Update / Omaha
+- All hard-coded Google API keys, client IDs, and OAuth secrets
+- The promo notifier, hotword detection, contextual search, etc.
+- DNS prefetch / preconnect to Google domains
+- Field trial config fetches
+- Translate UI's Google Translate dependency (provider is stubbed)
+
+The 56 Astro patches finish the substitution by replacing every remaining `chrome://`, "Google account", "Chromium" string, and product-menu entry with Oxy/Astro equivalents.
+
+### 2. Native Oxy integrations
+
+Custom C++ services that live alongside Chrome's existing services, registered through standard Chromium mechanisms (`KeyedService`, `WebUIController`, `NavigationThrottle`, etc.):
+
+| Component | File | Role |
+|-----------|------|------|
+| `OxyAuthService` | `src/chrome/browser/oxy/oxy_auth_service.*` | Per-profile auth state, token storage via OSCrypt, refresh timer |
+| `OxyAuthCallbackHandler` | `oxy_auth_callback_handler.*` | Handles the `astro://auth/callback` URL the auth flow returns to |
+| `OxyAuthNavigationThrottle` | `oxy_auth_navigation_throttle.*` | Intercepts `auth.oxy.so` redirects and rewrites them to the callback handler |
+| `OxyCookieSigninObserver` | `oxy_cookie_signin_observer.*` | Detects a `fedcm_session` cookie on `*.oxy.so` and completes browser-level sign-in (mirrors Chrome's "sign in to Google = sign in to Chrome") |
+| `OxyAuthTokenStore` | `oxy_auth_token_store.*` | OSCrypt-backed encrypted storage for access + refresh tokens |
+| `OxyAliaSidePanel` | `oxy_alia_side_panel.*` | Registers the Alia AI panel in Chrome's side-panel registry |
+| `AstroAdBlockService` | `adblock/astro_adblock_service.*` | KeyedService that owns the Rust engine, filter list catalog, and updater |
+| Astro WebUI pages | `webui/astro_*_ui.*` | `chrome://settings`, `chrome://astro-ntp`, `chrome://alia`, `chrome://whats-new`, `chrome://astro-error` |
+
+### 3. Vite-built WebUI pages, not Polymer
+
+Chrome's stock internal pages use Polymer 3 + Lit + chrome:// resources baked into the binary. Astro replaces the five pages above with standalone Vite + Tailwind v4 apps in `webui/`. The C++ WebUI controllers serve the pre-built `dist/` from disk (or a localhost dev server with hot reload during development).
+
+The settings page in particular is wired through a real Mojo interface (`src/chrome/browser/oxy/webui/astro_settings.mojom`) that generates type-safe TS + C++ bindings. `PrefChangeRegistrar` watches Chromium `PrefService` and pushes live updates to the page via `Page::OnPrefChanged()` — opening settings in two tabs keeps both in sync.
+
+## URL scheme
+
+Astro adds an `astro://` URL scheme that is aliased to `chrome://` (patch `011-astro-url-scheme-alias.patch`). Both forms resolve to the same WebUI page:
+
+| Page | Internal host | Displayed as |
+|------|---------------|--------------|
+| New Tab | `chrome://astro-ntp` | `astro://newtab` |
+| Settings | `chrome://settings` | `astro://settings` |
+| Alia AI | `chrome://alia` | `astro://alia` |
+| What's New | `chrome://whats-new` | `astro://whats-new` |
+| Error page | `chrome://astro-error` | `astro://error` |
+
+The omnibox, autocomplete, security UI, copy-URL, navigation controller, session restore, web app handling, and protocol handler are all patched to display the `astro://` form (patches `021-030`, `037-043`).
+
+## System requirements
+
+| Resource | Minimum | Recommended |
+|----------|---------|-------------|
+| Disk | 120 GB | 200 GB |
+| RAM | 16 GB | 32 GB |
+| CPU | 8 cores | 16+ cores |
+| Download | ~55 GB (Chromium source + deps) | — |
+
+## Quick start
+
+A from-scratch build takes 2-4 hours. The shortest path:
+
+```sh
+# 1. Fetch Chromium source (~55 GB, 30-90 min depending on link)
+tools/fetch-chromium.sh
+
+# 2. Sync ungoogled-chromium patches for the current Chromium version
+tools/sync-ungoogled.sh
+
+# 3. Apply all 168 patches (ungoogled + Astro) and run pruning + domain substitution
+tools/apply-patches.sh
+
+# 4. Copy the Astro source overlay into the Chromium tree
+rsync -av src/ chromium/src/
+
+# 5. Build (uses all CPU cores; 1-3 hours)
+tools/build.sh
+
+# 6. Install locally
+tools/install-local.sh
+
+# 7. Run
+astro --no-sandbox
+```
+
+For incremental WebUI work you do **not** need to rebuild Chromium — point a dev server at each Vite app and reload:
+
+```sh
+cd webui/ntp        && bun run dev    # http://localhost:5173
+cd webui/alia       && bun run dev    # http://localhost:5174
+cd webui/settings   && bun run dev    # http://localhost:5175
+cd webui/whats-new  && bun run dev    # http://localhost:5176
+cd webui/error      && bun run dev    # http://localhost:5177
+```
+
+See [Build](./build) for the full workflow, cross-compilation, gotchas, and packaging. See [Architecture](./architecture) for the patch model and overlay layout. See [Oxy integration](./oxy-integration) for the auth, cookie observer, Alia, ad blocker, and update server wiring.
+
+## Documentation map
+
+- [Build](./build) — fetch, sync, apply patches, gn args, incremental builds, cross-compile, packaging, gotchas
+- [Architecture](./architecture) — patch model, overlay layout, Mojo settings pipeline, WebUI controllers, Rust adblock FFI
+- [Oxy integration](./oxy-integration) — how Astro talks to `auth.oxy.so` and `api.oxy.so`, cookie observer flow, Alia, update server

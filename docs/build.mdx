@@ -1,0 +1,207 @@
+---
+title: Build
+description: Fetch Chromium, apply patches, build, cross-compile, and package Astro.
+order: 1
+---
+
+# Building Astro
+
+Astro reuses Chromium's existing build system (`gn` + `ninja` via `depot_tools`). Everything Astro-specific is layered on top: a vendored `depot_tools`, a curated set of GN args per platform, a patch system, and an `src/` overlay that gets `rsync`'d into the Chromium tree before each build.
+
+<Badge variant="warning">2-4 hours first time</Badge> <Badge>~55 GB download</Badge> <Badge>120 GB disk</Badge>
+
+## Prerequisites
+
+- A 64-bit Linux machine (Ubuntu 22.04+ recommended) for Linux/Android/Windows-via-cross builds, or macOS for native macOS builds.
+- Bun 1.0+ for the WebUI workspaces.
+- Standard Chromium build deps: `git`, `python3`, `pkg-config`, `lsb-release`, `curl`, plus the toolchain installed by Chromium's `install-build-deps.sh` (invoked indirectly by `gclient sync`).
+- For Windows cross-compile from Linux: an unpacked Windows 10 SDK in `win-sdk/` (helpers in `tools/setup-win-sdk.sh`).
+- For Android: Android SDK / NDK pulled in automatically by `gclient`.
+
+## One-time setup
+
+```sh
+# Clone Astro
+git clone https://github.com/OxyHQ/Astro.git
+cd Astro
+
+# Install WebUI workspace deps (per page)
+cd webui/ntp        && bun install && cd -
+cd webui/settings   && bun install && cd -
+cd webui/alia       && bun install && cd -
+cd webui/whats-new  && bun install && cd -
+cd webui/error      && bun install && cd -
+```
+
+`tools/fetch-chromium.sh` will clone Google's `depot_tools` into `./depot_tools/` on first run if it is not already present.
+
+## Build workflow
+
+A clean build is four scripts:
+
+```sh
+tools/fetch-chromium.sh        # 1. Fetch Chromium source (~55 GB)
+tools/sync-ungoogled.sh        # 2. Sync ungoogled-chromium patches
+tools/apply-patches.sh         # 3. Apply 168 patches + pruning + domain sub
+rsync -av src/ chromium/src/   # 4. Drop the Astro overlay onto the tree
+tools/build.sh                 # 5. Build with autoninja
+```
+
+### 1. `tools/fetch-chromium.sh`
+
+Pinned to the version in the script (currently `146.0.7680.177`; override with `CHROMIUM_VERSION=...`). Uses `gclient` to fetch source + third-party deps + toolchain. Accepts `--targets=linux,win,android,mac` for cross-compile setups (pulls additional sysroots).
+
+### 2. `tools/sync-ungoogled.sh`
+
+Clones the matching ungoogled-chromium tag into `.ungoogled-chromium/` and copies the version-appropriate `patches/`, `pruning.list`, and `domain_substitution.list` into `patches/ungoogled/`. Re-run any time you bump the Chromium version.
+
+### 3. `tools/apply-patches.sh`
+
+Runs in order:
+
+1. **Binary pruning** — deletes pre-built binaries from `chromium/src/` per `patches/ungoogled/pruning.list`.
+2. **Domain substitution** — rewrites Google domains to neutered equivalents per `patches/ungoogled/domain_substitution.list`.
+3. **Apply patches** — first the 112 ungoogled patches, then the 56 Astro patches in numbered order (`patches/astro/001-…patch` through `056-…patch`).
+
+If a patch fails to apply (e.g. after a Chromium version bump), the script stops with the failing patch name and reject file path so you can resolve the conflict manually.
+
+### 4. Overlay
+
+`rsync -av src/ chromium/src/` copies the entire Astro overlay into the Chromium tree. The overlay is `src/chrome/browser/oxy/` plus a handful of edited files that Chromium expects to live in canonical paths (BUILD.gn additions, scheme registration, etc.).
+
+**Never use `rsync --delete` on the source tree.** Some files (third-party deps fetched by `gclient`, build artifacts) live alongside the overlay paths and must not be removed. `tools/build.sh` already does the right rsync internally.
+
+### 5. `tools/build.sh`
+
+```sh
+tools/build.sh                       # Release, Linux x64
+tools/build.sh Debug                 # Debug build
+tools/build.sh Release android       # Android arm64
+tools/build.sh Release windows       # Windows x64 (cross from Linux)
+tools/build.sh Release windows_arm64 # Windows arm64
+tools/build.sh Release macos         # macOS (must run on macOS)
+```
+
+The script picks the matching `gn_args/{platform}.gn` file, runs `gn gen` if `args.gn` is missing or stale, then `autoninja -C out/Release chrome` (the target varies per platform).
+
+## GN args
+
+The build configurations live in `gn_args/`:
+
+| File | Platform |
+|------|----------|
+| `linux.gn` | Linux x64, release |
+| `linux_debug.gn` | Linux x64, debug |
+| `android.gn` | Android arm64 |
+| `macos.gn` | macOS arm64 |
+| `windows.gn` | Windows x64 |
+| `windows_arm64.gn` | Windows arm64 |
+
+All configs share the same de-Google flags inherited from ungoogled-chromium:
+
+```gn
+google_chrome_branding         = false
+use_official_google_api_keys   = false
+google_api_key                 = ""
+google_default_client_id       = ""
+google_default_client_secret   = ""
+enable_hangout_services_extension = false
+enable_mdns                    = false
+enable_remoting                = false
+enable_reporting               = false
+enable_service_discovery       = false
+disable_fieldtrial_testing_config = true
+safe_browsing_mode             = 1
+chrome_pgo_phase               = 0
+```
+
+…and the same release-tier optimizations (`is_official_build = true`, `use_thin_lto = true`, `symbol_level = 0`, `blink_symbol_level = 0`, `is_component_build = false`).
+
+## Incremental builds
+
+After editing a C++ file in `src/`:
+
+```sh
+rsync -av src/ chromium/src/
+ninja -C out/Release chrome
+```
+
+`ninja` only recompiles files affected by the change. Typical incremental builds finish in 10 seconds to 5 minutes depending on which file you touched. Build-system files (`BUILD.gn`, `.gni`, `.mojom`) trigger more downstream work — Mojo interface changes regenerate both C++ and TypeScript bindings.
+
+After editing a WebUI page in `webui/`:
+
+```sh
+cd webui/<page>
+bun run build           # Writes to webui/<page>/dist/
+bun run merge           # Copies dist/ into chromium/src/chrome/browser/oxy/resources/
+ninja -C out/Release chrome
+```
+
+Or, during active development, run `bun run dev` instead — the C++ WebUI controller will load assets from the localhost dev server when it is reachable (set by build flag).
+
+## Common gotchas
+
+- **NEVER use `rsync --delete` on source trees.** Some build artifacts live in the same subtrees as the overlay; deleting them corrupts the build cache and forces a clean rebuild.
+- **After any Mojo/IPC changes, do a clean rebuild of affected targets** rather than incremental builds — the generated bindings touch many translation units and ninja's dependency graph occasionally underbuilds. `ninja -t clean chrome` then `ninja chrome` is faster than chasing weird link errors.
+- **Verify build artifacts are fresh** before debugging weird runtime crashes — check for stale `.pak` caches or old binaries in `out/Release/`. `find out/Release -name '*.pak' -newer chromium/src/chrome/app/resources -ls` is a quick sanity check.
+- **Patch conflicts after a Chromium bump** are normal. `tools/update-chromium.sh <version>` will try to re-apply automatically and report each failing patch. Resolve the rejects manually, regenerate the patch with `git diff > patches/astro/NNN-name.patch`, and re-run `tools/apply-patches.sh`.
+- **`is_component_build = true` is faster to link but produces hundreds of `.so`/`.dll` files** and is not safe for shipping. Use it only for local debug iteration.
+- **Linker OOM** on machines with less than 32 GB RAM — set `use_thin_lto = false` and `symbol_level = 1` in your local GN args for debug builds, or pass `-j N` to ninja to limit parallel link jobs.
+- **First-run domain substitution is slow** (rewrites a lot of files in the Chromium tree). Subsequent runs are no-ops because the script tracks which files have already been processed.
+
+## Cross-compilation
+
+The shipped CI builds for every platform from a single Linux machine using `tools/fetch-cross-deps.sh` (sysroots) and `tools/setup-win-sdk.sh` (hermetic Windows SDK). The flow:
+
+```sh
+# One-time
+tools/fetch-cross-deps.sh
+tools/setup-win-sdk.sh             # Only if cross-building Windows from Linux
+
+# Per build
+tools/fetch-chromium.sh --targets=linux,win,android
+tools/apply-patches.sh
+rsync -av src/ chromium/src/
+tools/build.sh Release linux
+tools/build.sh Release windows
+tools/build.sh Release android
+```
+
+macOS still requires a real macOS host because Apple's `xcrun` toolchain cannot be hermetically packaged.
+
+## Packaging
+
+Each platform has a packaging script that takes the binary in `out/<config>/` and produces a distributable artifact:
+
+```sh
+tools/package-deb.sh        # Debian .deb (uses branding/astro.conf)
+tools/package-linux.sh      # Generic Linux tarball
+tools/package-android.sh    # Android APK
+tools/package-macos.sh      # macOS .app bundle (+ optional signing)
+tools/package-windows.sh    # Windows NSIS installer
+tools/package-release.sh    # Builds + packages every platform in CI
+```
+
+All packaging metadata (paths, package name, install dir, maintainer, RDN) comes from `branding/astro.conf` so re-branding only requires editing one file and re-running `tools/apply-branding.sh`.
+
+## Updating Chromium
+
+```sh
+tools/update-chromium.sh 147.0.7800.0
+```
+
+The script:
+
+1. Bumps `CHROMIUM_VERSION` in the fetch script.
+2. Re-fetches Chromium source at the new tag.
+3. Re-syncs ungoogled-chromium patches for the new version.
+4. Attempts to apply all 56 Astro patches — failing patches are listed with their reject files.
+5. Leaves the tree in a state where you can manually resolve conflicts.
+
+After resolving any rejects, regenerate the affected patches with `git diff <files> > patches/astro/NNN-<name>.patch` and commit.
+
+## Branding
+
+To re-skin Astro for a downstream distribution, edit `branding/astro.conf` and re-run `tools/apply-branding.sh`. That script rewrites the Chromium `BRANDING` file plus every user-facing `.grd` resource, and regenerates the linux `.desktop` file, macOS bundle plist values, and Windows installer strings.
+
+The fields driven by `astro.conf` are listed in the file itself — browser name, company, RDN, URL scheme, theme color, default search, copyright, etc.

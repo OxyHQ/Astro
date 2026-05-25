@@ -1,0 +1,231 @@
+---
+title: Oxy integration
+description: How Astro talks to the Oxy platform — auth, cookies, Alia AI, and the update server.
+order: 3
+---
+
+# Oxy integration
+
+Astro is the first-party browser for the Oxy ecosystem. Beyond removing Google's services, it replaces them with native Oxy equivalents that feel like the upstream Chrome / Google relationship — sign in to an Oxy site, the browser is signed in; open the side panel, you get Alia AI; check for updates, you hit Oxy's update server.
+
+<Badge>auth.oxy.so</Badge> <Badge>api.oxy.so</Badge> <Badge>Alia AI</Badge>
+
+## Endpoints Astro talks to
+
+| Host | Used for |
+|------|----------|
+| `https://auth.oxy.so` | Sign-in pages, recovery, FedCM IdP |
+| `https://api.oxy.so` | Session resolution, token exchange, user profile |
+| `https://updates.oxy.so/astro` | Update manifests (signed) |
+| `https://alia.oxy.so` | Alia AI conversation backend |
+| `https://duckduckgo.com` | Default search engine (no Oxy hop) |
+
+All Oxy hosts are pinned via standard TLS + the public key embedded in the binary for the update server. No certificate transparency exemption — Astro participates in CT logs like any other Chromium build.
+
+## Authentication
+
+Astro's auth model mirrors Chrome's "sign in to a Google site = sign in to Chrome" model, with `*.oxy.so` in place of `*.google.com`. The implementation lives in `src/chrome/browser/oxy/`:
+
+```
+oxy_auth_service.{h,cc}                Per-profile auth state (KeyedService)
+oxy_auth_token_store.{h,cc}            OSCrypt-encrypted token storage
+oxy_auth_callback_handler.{h,cc}       astro://auth/callback URL handler
+oxy_auth_navigation_throttle.{h,cc}    Intercepts redirects from auth.oxy.so
+oxy_cookie_signin_observer.{h,cc}      Detects session cookies on *.oxy.so
+oxy_cookie_signin_observer_factory.{h,cc}
+```
+
+### `OxyAuthService`
+
+A `KeyedService` (one per browser profile) that owns the in-memory auth state:
+
+```cpp
+namespace oxy {
+
+class OxyAuthService : public KeyedService {
+ public:
+  bool IsSignedIn() const;
+  std::optional<OxyUser> GetCurrentUser() const;
+  std::string GetAccessToken() const;
+
+  void HandleAuthCallback(const std::string& session_id,
+                          const std::string& access_token,
+                          const std::string& refresh_token,
+                          const std::string& user_id,
+                          const std::string& username,
+                          const std::string& avatar_url,
+                          int64_t expires_at);
+
+  void SignOut();
+
+  std::string GetSignInUrl() const;
+
+  void AddObserver(Observer*);
+  void RemoveObserver(Observer*);
+
+ private:
+  void StoreTokens(const std::string&, const std::string&);
+  bool LoadTokens();
+  void ScheduleTokenRefresh();
+  void RefreshToken();
+  // ...
+};
+
+}  // namespace oxy
+```
+
+Tokens go through `OxyAuthTokenStore`, which uses Chromium's `OSCrypt` for at-rest encryption (Keychain on macOS, DPAPI on Windows, libsecret/kwallet on Linux). The encrypted blobs land in profile prefs (`oxy.access_token`, `oxy.refresh_token`).
+
+A `base::OneShotTimer` is scheduled for `token_expiry - 5 min` to silently refresh; if refresh fails the user is signed out and a profile-menu notification fires.
+
+### Sign-in flow
+
+There are two paths into `OxyAuthService::HandleAuthCallback()`. The primary one is the cookie observer.
+
+**Cookie observer path** (preferred):
+
+```
+1. User opens https://auth.oxy.so/login in a tab (any way: profile menu link,
+   bookmark, typing it in).
+2. User completes sign-in (password, 2FA, recovery phrase — handled entirely
+   by the auth.oxy.so web app).
+3. auth.oxy.so sets the fedcm_session=<sessionId> cookie on .oxy.so.
+4. OxyCookieSigninObserver (network::mojom::CookieChangeListener registered
+   against the profile's CookieManager) sees the change.
+5. The observer issues:
+     GET https://api.oxy.so/session/user/<sessionId>    -> { id, username, avatar, email }
+     GET https://api.oxy.so/session/token/<sessionId>   -> { accessToken, refreshToken, expiresAt }
+6. The observer calls OxyAuthService::HandleAuthCallback(...).
+7. The auth service stores tokens (OSCrypt-encrypted), updates the OxyUser
+   struct, notifies observers — profile menu repaints with the user's
+   username and avatar.
+```
+
+The flow is invisible to the user — sign in on the website, the browser silently picks it up, no extra dialogs.
+
+**Callback URL path** (fallback, used by FedCM and some embedded environments):
+
+```
+1. Sign-in flow eventually navigates to:
+     astro://auth/callback?session_id=...&access_token=...&...
+2. OxyAuthNavigationThrottle intercepts navigations to that URL pattern.
+3. OxyAuthCallbackHandler parses the parameters and calls
+   OxyAuthService::HandleAuthCallback(...).
+4. The throttle then redirects to astro://newtab (or the configured landing URL).
+```
+
+The throttle is registered via patch `039-auth-navigation-throttle-register.patch` into the standard navigation throttle pipeline.
+
+### Sign-out
+
+`OxyAuthService::SignOut()`:
+
+1. Clears all `oxy.*` prefs.
+2. Cancels the refresh timer.
+3. Notifies observers (`OnOxyAuthStateChanged(false)`).
+4. Issues `POST /auth/sign-out` to `api.oxy.so` with the current access token (best-effort; client state is already cleared regardless of response).
+5. Clears the `fedcm_session` cookie from `.oxy.so` so the cookie observer doesn't immediately re-sign in.
+
+### Why not chrome.identity?
+
+Chromium's built-in identity APIs are deeply coupled to Google's GAIA service (`OAuth2TokenService`, `IdentityManager`, `GaiaCookieManagerService`). Trying to retarget them to Oxy would require rewriting most of `chrome/browser/signin/` and `components/signin/`. Building a parallel `OxyAuthService` is simpler, smaller, easier to maintain across Chromium version bumps, and keeps the patch surface minimal.
+
+The downside is that any Chromium feature that gates on `IdentityManager::HasPrimaryAccount()` (account-bound sync, Family Link, etc.) doesn't see the Oxy sign-in. None of those features ship in Astro, so the loss is theoretical.
+
+## Alia AI sidebar
+
+Alia is Oxy's general-purpose AI assistant. In Astro it surfaces as a side panel — same UI affordance as Edge Copilot or Chrome's Reading List.
+
+```
+oxy_alia_side_panel.{h,cc}                Registers the panel in the side-panel registry
+webui/                                    chrome://alia controller
+  astro_alia_ui.{h,cc}
+webui/alia/                               Vite + Tailwind app (the actual UI)
+```
+
+The panel is registered via:
+
+- Patch `047-alia-side-panel-entry-id.patch` — adds `kAliaPanelEntryId` to the enum.
+- Patch `048-alia-action-id.patch` — adds the action id used by the toolbar button.
+- Patch `049-alia-browser-action.patch` — wires the action into `BrowserActions`.
+- Patch `050-alia-side-panel-register.patch` — registers the panel factory with the global side-panel registry.
+- Patch `051-alia-vector-icon.patch` — adds the toolbar vector icon.
+
+When the user opens the panel, Chrome creates a `WebContents` pointed at `chrome://alia`, which loads the Vite-built app from `webui/alia/dist/`. The app talks to `https://alia.oxy.so` over HTTPS — there is no special Mojo wiring for Alia. The auth token from `OxyAuthService` is attached as a `Bearer` header in the panel's fetch calls (the panel reads it via a small `chrome.send`-style helper exposed by `AstroAliaUI`).
+
+## NTP and customization
+
+`chrome://astro-ntp` is served by `AstroNtpUI` from `webui/ntp/dist/`. The page is fully customizable via the Settings page — widget visibility, layout, and theme color all sync via the Mojo settings pipeline.
+
+The NTP widgets:
+
+| Widget | Pref | Backend |
+|--------|------|---------|
+| Clock | `oxy.ntp.widget.clock.enabled` | Local time only |
+| Weather | `oxy.ntp.widget.weather.enabled` | `api.oxy.so/weather/forecast` (coarse-grained location) |
+| Quick links | `oxy.ntp.widget.quicklinks.*` | Stored in profile prefs |
+| Notes | `oxy.ntp.widget.notes.*` | Stored in profile prefs |
+| Discover feed | `oxy.ntp.widget.discover.enabled` | `api.oxy.so/discover/feed` |
+| Alia entrypoint | `oxy.ntp.widget.alia.enabled` | Opens `chrome://alia` |
+
+The discover feed uses the user's Oxy session token if signed in, otherwise an anonymous public feed. Weather and discover are the only widgets that hit the network — everything else is local.
+
+`chrome://newtab` is redirected to `chrome://astro-ntp` by patch `056-ntp-redirect-to-astro.patch`.
+
+## Update server
+
+The update server lives in `services/update-server/` (Bun + Hono). Astro polls it on startup and every 6 hours:
+
+```
+GET https://updates.oxy.so/astro/check?platform=linux-x64&channel=stable&version=0.1.0
+```
+
+A response contains a signed manifest:
+
+```json
+{
+  "version": "0.1.1",
+  "platform": "linux-x64",
+  "channel": "stable",
+  "url": "https://updates.oxy.so/astro/releases/0.1.1/astro-linux-x64.tar.xz",
+  "size": 142857349,
+  "sha256": "...",
+  "signature": "..."
+}
+```
+
+The signature is Ed25519 over `sha256(url + size + sha256)`. Astro verifies it against the public key baked into the binary at build time (see `branding/astro.conf`). On success, the binary is downloaded, verified again, and staged for installation on next restart.
+
+The same server hosts release artifacts under `releases/<version>/`. CI publishes a new version with `tools/package-release.sh` which builds every platform, signs each manifest, and uploads to the update server's CDN.
+
+## Pref namespace
+
+All Astro-specific prefs are namespaced under `oxy.*`:
+
+| Prefix | Purpose |
+|--------|---------|
+| `oxy.access_token`, `oxy.refresh_token`, `oxy.session_id`, `oxy.user_id`, `oxy.username`, `oxy.user_avatar`, `oxy.token_expiry` | Auth state (token blobs OSCrypt-encrypted) |
+| `oxy.ntp.widget.<name>.*` | NTP widget enablement and configuration |
+| `oxy.adblock.allowlist.<host>` | Per-domain ad block allowlist |
+| `oxy.adblock.filter_lists.*` | Enabled filter lists and last-update timestamps |
+| `oxy.theme.color` | User-picked theme color (drives `ColorChangeUpdater`) |
+| `oxy.updates.*` | Update server state, last check, pending versions |
+
+Profile prefs go through `RegisterProfilePrefs()` and local-state prefs through `RegisterLocalState()`, both patched in `020-register-oxy-prefs.patch`.
+
+## What Astro does *not* call home for
+
+A non-exhaustive list of things upstream Chrome / Chromium does that Astro does not:
+
+- No Safe Browsing pings (set to `safe_browsing_mode = 1` — local-only mode).
+- No Field Trial config fetches (`disable_fieldtrial_testing_config = true`).
+- No Google Sync (`enable_remoting = false`, sync UI compiled out).
+- No EV certificate metadata refresh (patch `044-disable-ev-certificate-metadata.patch`).
+- No translate service (Google Translate provider stubbed by ungoogled-chromium).
+- No phone number / address auto-fill server lookups.
+- No promo notifier.
+- No DNS prefetch / preconnect to Google domains.
+- No mDNS, hangouts, or service discovery (`enable_mdns = false`, etc.).
+- No hard-coded API keys (`google_api_key = ""`).
+
+The only outbound traffic Astro initiates by itself is the update check and (if the user is signed in) the periodic auth token refresh. Everything else is user-driven.

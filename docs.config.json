@@ -1,0 +1,11 @@
+{
+  "package": "astro",
+  "displayName": "Astro",
+  "shortName": "astro",
+  "repo": "https://github.com/OxyHQ/Astro",
+  "category": "app",
+  "versions": ["main"],
+  "defaultVersion": "main",
+  "docsPath": "docs/",
+  "description": "Oxy Chromium-based browser"
+}

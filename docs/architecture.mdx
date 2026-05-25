@@ -1,0 +1,241 @@
+---
+title: Architecture
+description: Patch model, source overlay, Mojo IPC pipeline, WebUI controllers, and the Rust adblock engine.
+order: 2
+---
+
+# Architecture
+
+Astro keeps a strict separation between upstream Chromium and Oxy code. There are only three places Oxy-specific code lives:
+
+1. **`patches/astro/`** — minimal, surgical patches against upstream Chromium files (hooks, includes, registrations).
+2. **`src/chrome/browser/oxy/`** — the entire C++ overlay (auth, cookie observer, Alia, ad blocker, WebUI controllers).
+3. **`webui/`** — the Vite + Tailwind frontends for each internal page.
+
+Everything else is stock Chromium, fetched fresh from upstream with `tools/fetch-chromium.sh`. This makes Chromium version bumps tractable — patches rebase cleanly because they are small and the overlay is self-contained.
+
+<Badge>Brave-style overlay</Badge> <Badge>Mojo IPC</Badge> <Badge>Rust adblock FFI</Badge>
+
+## Patch model
+
+Two patch sets are applied in order by `tools/apply-patches.sh`:
+
+```
+patches/
+  ungoogled/   112 patches inherited from ungoogled-chromium
+  astro/        56 patches for Oxy integrations + branding + scheme
+```
+
+Ungoogled patches handle the heavy lifting of removing Google services (sync, hangouts, mDNS, remoting, reporting, field trials, safe browsing pings, hard-coded API keys). Astro patches add what Oxy needs on top.
+
+### Astro patch index
+
+| Range | Theme |
+|-------|-------|
+| `001-009` | Branding strings, default search engine, Linux package, OS crypt visibility |
+| `010-011` | Theme color plumbing, `astro://` URL scheme alias |
+| `012-015` | Settings page styling, Google → Oxy replacements, profile menu integration |
+| `016-020` | NTP Astro logo + default sites + Oxy pref registration |
+| `021-030` | URL scheme propagation through omnibox, autocomplete, security UI, copy-URL, protocol handler |
+| `031-034` | Linux desktop / icon naming, shared settings & profile string replacements |
+| `035-039` | Oxy auth callback handling, navigation interception, throttle registration |
+| `040-043` | Tab hover, navigation controller, session restore, web-app handling for `astro://` |
+| `044` | Disable EV certificate metadata fetch (Google-hosted) |
+| `045-046` | Adblock URL loader throttle + pref registration |
+| `047-051` | Alia AI side panel registration (entry id, action id, browser action, vector icon, registration) |
+| `052-054` | Adblock tab helper + toolbar button + WebUI registration |
+| `055-056` | NTP WebUI registration and `chrome://newtab` redirect |
+
+Every patch is named after what it does. Inspection is encouraged before any version bump — most patches are a handful of lines.
+
+## Source overlay
+
+```
+src/chrome/browser/oxy/
+├── BUILD.gn                              # Adds the overlay to the chrome target
+├── oxy_auth_service.{h,cc}               # Per-profile auth state (KeyedService)
+├── oxy_auth_callback_handler.{h,cc}      # astro://auth/callback URL handler
+├── oxy_auth_navigation_throttle.{h,cc}   # Intercepts auth.oxy.so redirects
+├── oxy_auth_token_store.{h,cc}           # OSCrypt-backed encrypted token storage
+├── oxy_cookie_signin_observer.{h,cc}     # Detects *.oxy.so session cookies
+├── oxy_cookie_signin_observer_factory.{h,cc}
+├── oxy_alia_side_panel.{h,cc}            # Registers Alia in the side-panel registry
+├── adblock/                              # Rust adblock engine + integration
+│   ├── astro_adblock_engine.{h,cc}       # C++ wrapper around Rust FFI
+│   ├── astro_adblock_service.{h,cc}      # KeyedService that owns the engine
+│   ├── astro_adblock_service_factory.{h,cc}
+│   ├── astro_adblock_tab_helper.{h,cc}   # Per-tab block state
+│   ├── astro_adblock_toolbar_button.{h,cc}      # Shield icon + bubble
+│   ├── astro_adblock_bubble_view.{h,cc}
+│   ├── astro_adblock_url_loader_throttle.{h,cc} # Network request interception
+│   ├── astro_adblock_filter_list_catalog.{h,cc} # Curated filter list catalog
+│   ├── astro_adblock_filter_list_updater.{h,cc} # Background updater
+│   ├── astro_adblock_resource_type.{h,cc}       # Resource type classification
+│   ├── adblock_domain_resolver.{h,cc}    # Domain matching
+│   └── rs/                               # Rust source + BUILD.gn
+└── webui/                                # WebUI controllers + Mojo handlers
+    ├── BUILD.gn
+    ├── astro_settings.mojom              # Mojo interface for settings IPC
+    ├── astro_settings_ui.{h,cc}          # PageHandlerFactory (MojoWebUIController)
+    ├── astro_settings_handler.{h,cc}     # PageHandler impl + pref mappings
+    ├── astro_ntp_ui.{h,cc}               # chrome://astro-ntp
+    ├── astro_alia_ui.{h,cc}              # chrome://alia
+    ├── astro_whats_new_ui.{h,cc}         # chrome://whats-new
+    └── astro_error_ui.{h,cc}             # chrome://astro-error
+```
+
+Naming is consistent: `oxy_*` for ecosystem-wide services (auth, Alia, cookies) and `astro_*` for browser-specific UI (WebUI controllers, ad blocker integration).
+
+## Mojo IPC pipeline (settings page)
+
+The settings page is the most heavily wired internal page. It uses Chromium's standard Mojo IPC to talk to the browser process — the same pattern Chrome uses for `chrome://settings`, `chrome://history`, etc.
+
+```
++----------------------------+      Mojo IPC      +-----------------------------+
+| webui/settings/  (TS+Vite) | <----------------> | astro_settings_handler.cc    |
+| BrowserProxy singleton     |                    | PageHandler impl             |
+|                            |                    |                              |
+| - getAllPrefs()            |  --> PageHandler   | - kProfilePrefMappings[]     |
+| - setPref(key, value)      |      method calls  | - kLocalStatePrefMappings[]  |
+| - setTheme(scheme)         |                    | - PrefChangeRegistrar        |
+| - clearBrowsingData()      |                    |                              |
+|                            |                    |                              |
+| onPrefChanged(key, value)  |  <-- Page method   | OnPrefChanged() push         |
++----------------------------+      push          +-----------------------------+
+```
+
+### Interface (`astro_settings.mojom`)
+
+Three interfaces:
+
+```cpp
+// Bootstrapping. WebUI calls this when the page loads.
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page>, pending_receiver<PageHandler>);
+};
+
+// Browser-side handler. Called by the WebUI page.
+interface PageHandler {
+  GetAllPrefs() => (map<string, PrefValue> prefs);
+  SetPref(string key, PrefValue value);
+  SetTheme(int32 scheme);          // 0 = System, 1 = Light, 2 = Dark
+  ClearBrowsingData();
+  OpenPage(string path);
+  ResetPrefsToDefaults();
+  SetDefaultBrowser();
+  OpenChromeUrl(string url);
+};
+
+// WebUI-side handler. Called by the browser when a pref changes.
+interface Page {
+  OnPrefChanged(string key, PrefValue value);
+};
+```
+
+`PrefValue` is a Mojo union of `bool | int32 | double | string` — the four pref types Chromium's `PrefService` supports.
+
+### Mapping table
+
+`astro_settings_handler.cc` contains two static arrays that define the entire surface of supported prefs:
+
+```cpp
+constexpr PrefMapping kProfilePrefMappings[] = {
+  {"autofill-passwords",      "credentials_enable_service"},
+  {"autofill-addresses",      "autofill.profile_enabled"},
+  {"ntp-widget-clock",        "oxy.ntp.widget.clock.enabled"},
+  // ...
+};
+
+constexpr PrefMapping kLocalStatePrefMappings[] = {
+  {"memory-saver",            "performance_tuning.high_efficiency_mode.state"},
+  {"energy-saver",            "performance_tuning.battery_saver_mode.state"},
+  // ...
+};
+```
+
+Each entry maps a `settings_id` (string baked into the HTML via `data-toggle-id` / `data-select-id` / `data-slider-id`) to a Chromium `PrefService` path. `PrefChangeRegistrar` watches every mapped path; when one changes (from any source — another tab, command line, programmatic write), the handler pushes the new value back to the WebUI via `Page::OnPrefChanged()`.
+
+### Adding a new setting
+
+1. Register the pref in patch `020-register-oxy-prefs.patch` (or wherever it belongs in upstream Chromium).
+2. Add the mapping in `astro_settings_handler.cc` to `kProfilePrefMappings[]` or `kLocalStatePrefMappings[]`.
+3. Add the control to `webui/settings/` with `data-toggle-id="..."` matching the mapping key.
+
+The Mojo plumbing, pref watching, and live sync all happen automatically.
+
+## WebUI controllers
+
+Each of the five internal pages has a controller in `src/chrome/browser/oxy/webui/`. The pattern is identical:
+
+```cpp
+class AstroFooUI : public ui::MojoWebUIController {
+ public:
+  explicit AstroFooUI(content::WebUI* web_ui)
+      : MojoWebUIController(web_ui, /*enable_chrome_send=*/false) {
+    auto* source = content::WebUIDataSource::CreateAndAdd(
+        Profile::FromWebUI(web_ui), kAstroFooHost);
+    // Serve the Vite-built dist/ from disk
+    SetupAssetsFromDist(source, "chrome/browser/oxy/resources/foo/");
+  }
+};
+
+class AstroFooUIConfig : public content::DefaultWebUIConfig<AstroFooUI> {
+ public:
+  AstroFooUIConfig()
+      : DefaultWebUIConfig(content::kChromeUIScheme, kAstroFooHost) {}
+};
+```
+
+Pages that need IPC (only settings does today) inherit `MojoWebUIController` and implement a `PageHandlerFactory` to wire up the Mojo bindings. The rest inherit `WebUIController` directly.
+
+`UIConfig` registration happens in the patched `chrome_web_ui_configs.cc` (patch `054-adblock-webui-register.patch`, `055-ntp-webui-register.patch`, etc. — one patch per page type).
+
+## Rust ad blocker
+
+The adblock engine is a Rust crate vendored into `src/chrome/browser/oxy/adblock/rs/`. It exposes a `cxx::bridge` FFI surface that the C++ wrapper (`AstroAdBlockEngine`) calls into.
+
+### Components
+
+| Component | Role |
+|-----------|------|
+| `AstroAdBlockService` (KeyedService) | Owns the engine and filter list updater; one per profile |
+| `AstroAdBlockEngine` | C++ wrapper around the Rust engine; sequence-checked, not thread-safe |
+| `AstroAdBlockFilterListCatalog` | Curated list of filter lists (EasyList, EasyPrivacy, etc.) |
+| `AstroAdBlockFilterListUpdater` | Background fetch + cache invalidation |
+| `AstroAdBlockUrlLoaderThrottle` | Hooks into `URLLoaderFactory` to intercept and block network requests |
+| `AstroAdBlockTabHelper` | Per-tab state (blocked count, allowlist) |
+| `AstroAdBlockToolbarButton` + `BubbleView` | Shield icon in the toolbar + per-site controls bubble |
+| `AdblockDomainResolver` | Two-level domain matching (used by the Rust engine) |
+| `AstroAdBlockResourceType` | Maps Chromium `ResourceType` to ABP `resource_type` strings |
+
+### Lifecycle
+
+1. **Service init**: `AstroAdBlockService` constructs the engine on a background sequence. If a serialized engine exists at `<profile>/AstroAdBlock/engine.dat`, load it (fast path, ~10ms). Otherwise, fetch all filter lists in the catalog, build the engine, and serialize.
+2. **Filter list updates**: `FilterListUpdater` re-fetches lists per their `update_interval`. On successful fetch, the engine is rebuilt and re-serialized.
+3. **Request matching**: `URLLoaderFactory` calls `AstroAdBlockUrlLoaderThrottle::WillStartRequest`. The throttle calls `Engine::Match(url, resource_type, source_domain)` synchronously (the Rust matcher is fast enough to run on the IO thread for the hot path).
+4. **Per-tab state**: `AstroAdBlockTabHelper` increments the blocked count for the active `WebContents`; the toolbar button reads it on observer notification.
+5. **Allowlist**: per-domain allowlist lives in profile prefs (`oxy.adblock.allowlist.<host>`). The throttle checks this before consulting the engine.
+
+The Rust engine itself is `brave/adblock-rust` (or a compatible fork) — re-vendor with `tools/vendor-adblock-rust.sh` when bumping the upstream version. The C++ wrapper exists to keep the FFI surface minimal and to enforce sequence safety, not to add policy.
+
+## Authentication flow
+
+See [Oxy integration](./oxy-integration) for the full sign-in flow, cookie observer, and token refresh. In short:
+
+1. User clicks "Sign in" in the profile menu → opens `https://auth.oxy.so/login` in a new tab.
+2. User signs in. Auth server sets the `fedcm_session` cookie on `*.oxy.so`.
+3. `OxyCookieSigninObserver` (running in the browser process) is notified by the network service's `CookieChangeListener` and fetches `GET /session/user/:sessionId` + `GET /session/token/:sessionId` to obtain the user profile and tokens.
+4. Tokens are stored in `OxyAuthService` (in-memory + OSCrypt-encrypted in prefs).
+5. The profile menu observer fires `OnOxyAuthStateChanged(true)` and updates the UI.
+
+The redirect-based flow with `astro://auth/callback` (handled by `OxyAuthCallbackHandler` + `OxyAuthNavigationThrottle`) is a backup path for environments where the cookie observer cannot run (e.g. embedded webviews).
+
+## Update server
+
+`services/update-server/` is a small Bun + Hono service that responds to the Omaha-like update check Astro makes on startup. It serves signed manifests from `releases/`. CI publishes a new release by:
+
+1. Running `tools/package-release.sh` which builds all platforms and writes artifacts to `releases/<version>/`.
+2. Generating a signed manifest (Ed25519) for each platform.
+3. Uploading the artifacts and manifest to the update server's CDN.
+
+Astro embeds the update server's public key in the binary so it can verify the manifest signature before applying.
