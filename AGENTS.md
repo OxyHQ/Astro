@@ -1,12 +1,6 @@
-# Astro - De-Googled Chromium Browser by Oxy
-
-## Overview
+# Astro — De-Googled Chromium Browser by Oxy
 
 Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 56 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
-
-## Package Manager
-
-Uses bun for all Node.js tooling. Never npm or yarn.
 
 ## Build Commands
 
@@ -84,9 +78,9 @@ The settings page uses Chromium's Mojo IPC for type-safe communication between t
 ### How it works
 
 1. **Interface definition** (`astro_settings.mojom`): Defines three interfaces:
-   - `PageHandlerFactory` -- Creates the PageHandler when the page loads
-   - `PageHandler` -- Browser-side: `GetAllPrefs()`, `SetPref()`, `SetTheme()`, `ClearBrowsingData()`, `OpenPage()`
-   - `Page` -- WebUI-side: `OnPrefChanged()` for live push notifications
+   - `PageHandlerFactory` — Creates the PageHandler when the page loads
+   - `PageHandler` — Browser-side: `GetAllPrefs()`, `SetPref()`, `SetTheme()`, `ClearBrowsingData()`, `OpenPage()`
+   - `Page` — WebUI-side: `OnPrefChanged()` for live push notifications
 
 2. **Controller** (`astro_settings_ui.*`): Inherits `MojoWebUIController` and implements `PageHandlerFactory`. Binds the Mojo interface and creates `AstroSettingsHandler` instances on demand.
 
@@ -96,16 +90,16 @@ The settings page uses Chromium's Mojo IPC for type-safe communication between t
 
 ### Pref mapping table
 
-The handler contains two static arrays that define all supported settings:
+The handler contains two static arrays:
 
-- `kProfilePrefMappings[]` -- Per-profile prefs (autofill, appearance, privacy, NTP widgets, etc.)
-- `kLocalStatePrefMappings[]` -- Global prefs (memory saver, energy saver, hardware acceleration)
+- `kProfilePrefMappings[]` — Per-profile prefs (autofill, appearance, privacy, NTP widgets, etc.)
+- `kLocalStatePrefMappings[]` — Global prefs (memory saver, energy saver, hardware acceleration)
 
 Each entry maps a `settings_id` (string used in the frontend JS, matches `data-toggle-id` / `data-select-id` / `data-slider-id` HTML attributes) to a `pref_path` (Chromium PrefService path).
 
 ## How to Add a New Setting
 
-1. **Register the pref** in patch `020-register-oxy-prefs.patch` (or the appropriate registration site). Profile prefs go in `RegisterProfilePrefs()`, local state prefs in `RegisterLocalState()`.
+1. **Register the pref** in patch `020-register-oxy-prefs.patch`. Profile prefs go in `RegisterProfilePrefs()`, local state prefs in `RegisterLocalState()`.
 
 2. **Add the mapping** in `astro_settings_handler.cc`:
    - Add to `kProfilePrefMappings[]` or `kLocalStatePrefMappings[]`
@@ -115,7 +109,7 @@ Each entry maps a `settings_id` (string used in the frontend JS, matches `data-t
    - Add the control (toggle, select, slider) in the appropriate section
    - Set `data-toggle-id="frontend-setting-id"` (or `data-select-id` / `data-slider-id`) matching the mapping
 
-That's it. The Mojo plumbing, pref watching, and live sync all happen automatically through the existing infrastructure.
+The Mojo plumbing, pref watching, and live sync all happen automatically through the existing infrastructure.
 
 ## How to Add a New WebUI Page
 
@@ -130,8 +124,7 @@ That's it. The Mojo plumbing, pref watching, and live sync all happen automatica
 3. **Register the config** in the Chromium WebUI config registration site (requires a patch to `chrome_web_ui_configs.cc` or similar)
 
 4. **Create the frontend** in `webui/foo/`:
-   - Standard Vite + Tailwind v4 setup
-   - `bun create vite` then add Tailwind
+   - Standard Vite + Tailwind v4 setup (`bun create vite` then add Tailwind)
    - Build output goes to a `dist/` directory
 
 5. **Wire the build** so the Vite output is copied to the correct resources directory during `tools/build.sh`
@@ -148,14 +141,12 @@ That's it. The Mojo plumbing, pref watching, and live sync all happen automatica
 
 The `astro://` URL scheme is aliased to `chrome://` via patch `011-astro-url-scheme-alias.patch`.
 
-## Quality Standards
+## C++ Conventions
 
-- Production-grade code. No hacks.
 - C++ code follows Chromium style guide (Google C++ style with Chromium extensions).
 - All Oxy integrations in self-contained files under `src/chrome/browser/oxy/`.
-- Minimal patches to existing Chromium files -- surgical hooks, includes, and registrations only.
-- WebUI pages: Vite + Tailwind v4, TypeScript, no `useEffect` abuse, proper types (no `any`).
-- Package manager: bun only (never npm/yarn). Use `bunx` instead of `npx`.
+- Minimal patches to existing Chromium files — surgical hooks, includes, and registrations only.
+- After any Mojo/IPC changes, do a clean rebuild of affected targets rather than incremental.
 
 ## Development Workflow
 
