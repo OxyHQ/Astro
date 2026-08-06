@@ -3,7 +3,7 @@
 
 # GN args matrix
 
-40 distinct keys across 6 configurations.
+41 distinct keys across 7 configurations.
 
 `linux_debug` is excluded from the consistency comparison: a debug
 configuration is *expected* to differ, and including it would report every
@@ -38,46 +38,47 @@ listing them.
 
 ## Full matrix
 
-| Key | android | linux | linux_debug | macos | windows | windows_arm64 |
-|---|---|---|---|---|---|---|
-| `android_channel` | `"stable"` | — | — | — | — | — |
-| `android_default_version_name` | `"0.1.0"` | — | — | — | — | — |
-| `blink_symbol_level` | `0` | `0` | — | `0` | `0` | `0` |
-| `build_with_tflite_lib` | `false` | `false` | — | `false` | `false` | `false` |
-| `chrome_pgo_phase` | `0` | `0` | — | `0` | `0` | `0` |
-| `clang_use_chrome_plugins` | `false` | `false` | — | `false` | `false` | `false` |
-| `disable_fieldtrial_testing_config` | `true` | `true` | — | `true` | `true` | `true` |
-| `enable_google_now` | — | — | `false` | — | — | — |
-| `enable_hangout_services_extension` | `false` | `false` | `false` | `false` | `false` | `false` |
-| `enable_iterator_debugging` | `false` | `false` | — | `false` | `false` | `false` |
-| `enable_mdns` | `false` | `false` | — | `false` | `false` | `false` |
-| `enable_nacl` | `false` | — | `false` | `false` | `false` | `false` |
-| `enable_remoting` | `false` | `false` | — | `false` | `false` | `false` |
-| `enable_reporting` | `false` | `false` | `false` | `false` | `false` | `false` |
-| `enable_service_discovery` | `false` | `false` | — | `false` | `false` | `false` |
-| `enable_supervised_users` | `false` | `true` | `false` | `false` | `false` | `false` |
-| `enable_widevine` | `true` | `true` | — | `true` | `true` | `true` |
-| `exclude_unwind_tables` | `true` | `true` | — | `true` | `true` | `true` |
-| `ffmpeg_branding` | `"Chrome"` | `"Chrome"` | `"Chrome"` | `"Chrome"` | `"Chrome"` | `"Chrome"` |
-| `google_api_key` | `""` | `""` | `""` | `""` | `""` | `""` |
-| `google_chrome_branding` | `false` | `false` | `false` | `false` | `false` | `false` |
-| `google_default_client_id` | `""` | `""` | `""` | `""` | `""` | `""` |
-| `google_default_client_secret` | `""` | `""` | `""` | `""` | `""` | `""` |
-| `is_component_build` | `false` | `false` | `true` | `false` | `false` | `false` |
-| `is_debug` | `false` | `false` | `true` | `false` | `false` | `false` |
-| `is_official_build` | `true` | `true` | `false` | `true` | `true` | `true` |
-| `proprietary_codecs` | `true` | `true` | `true` | `true` | `true` | `true` |
-| `safe_browsing_mode` | `0` | `0` | `0` | `0` | `0` | `0` |
-| `symbol_level` | `0` | `0` | `2` | `0` | `0` | `0` |
-| `target_cpu` | `"arm64"` | `"x64"` | `"x64"` | `"arm64"` | `"x64"` | `"arm64"` |
-| `target_os` | `"android"` | `"linux"` | `"linux"` | `"mac"` | `"win"` | `"win"` |
-| `treat_warnings_as_errors` | `false` | `false` | — | `false` | `false` | `false` |
-| `use_gnome_keyring` | — | `false` | — | — | — | — |
-| `use_lld` | `true` | `true` | `true` | `true` | `true` | `true` |
-| `use_official_google_api_keys` | `false` | `false` | `false` | `false` | `false` | `false` |
-| `use_sysroot` | — | `true` | — | — | — | — |
-| `use_system_freetype` | — | `false` | — | — | — | — |
-| `use_system_harfbuzz` | — | `false` | — | — | — | — |
-| `use_thin_lto` | — | `true` | — | `true` | — | — |
-| `use_unofficial_version_number` | `false` | `false` | — | `false` | `false` | `false` |
+| Key | android | linux | linux_debug | linux_dev | macos | windows | windows_arm64 |
+|---|---|---|---|---|---|---|---|
+| `android_channel` | `"stable"` | — | — | — | — | — | — |
+| `android_default_version_name` | `"0.1.0"` | — | — | — | — | — | — |
+| `blink_symbol_level` | `0` | `0` | — | `0` | `0` | `0` | `0` |
+| `build_with_tflite_lib` | `false` | `false` | — | `false` | `false` | `false` | `false` |
+| `cc_wrapper` | — | — | — | `"ccache"` | — | — | — |
+| `chrome_pgo_phase` | `0` | `0` | — | `0` | `0` | `0` | `0` |
+| `clang_use_chrome_plugins` | `false` | `false` | — | `false` | `false` | `false` | `false` |
+| `disable_fieldtrial_testing_config` | `true` | `true` | — | `true` | `true` | `true` | `true` |
+| `enable_google_now` | — | — | `false` | — | — | — | — |
+| `enable_hangout_services_extension` | `false` | `false` | `false` | `false` | `false` | `false` | `false` |
+| `enable_iterator_debugging` | `false` | `false` | — | `false` | `false` | `false` | `false` |
+| `enable_mdns` | `false` | `false` | — | `false` | `false` | `false` | `false` |
+| `enable_nacl` | `false` | — | `false` | — | `false` | `false` | `false` |
+| `enable_remoting` | `false` | `false` | — | `false` | `false` | `false` | `false` |
+| `enable_reporting` | `false` | `false` | `false` | `false` | `false` | `false` | `false` |
+| `enable_service_discovery` | `false` | `false` | — | `false` | `false` | `false` | `false` |
+| `enable_supervised_users` | `false` | `true` | `false` | `true` | `false` | `false` | `false` |
+| `enable_widevine` | `true` | `true` | — | `true` | `true` | `true` | `true` |
+| `exclude_unwind_tables` | `true` | `true` | — | `true` | `true` | `true` | `true` |
+| `ffmpeg_branding` | `"Chrome"` | `"Chrome"` | `"Chrome"` | `"Chrome"` | `"Chrome"` | `"Chrome"` | `"Chrome"` |
+| `google_api_key` | `""` | `""` | `""` | `""` | `""` | `""` | `""` |
+| `google_chrome_branding` | `false` | `false` | `false` | `false` | `false` | `false` | `false` |
+| `google_default_client_id` | `""` | `""` | `""` | `""` | `""` | `""` | `""` |
+| `google_default_client_secret` | `""` | `""` | `""` | `""` | `""` | `""` | `""` |
+| `is_component_build` | `false` | `false` | `true` | `true` | `false` | `false` | `false` |
+| `is_debug` | `false` | `false` | `true` | `false` | `false` | `false` | `false` |
+| `is_official_build` | `true` | `true` | `false` | `false` | `true` | `true` | `true` |
+| `proprietary_codecs` | `true` | `true` | `true` | `true` | `true` | `true` | `true` |
+| `safe_browsing_mode` | `0` | `0` | `0` | `0` | `0` | `0` | `0` |
+| `symbol_level` | `0` | `0` | `2` | `0` | `0` | `0` | `0` |
+| `target_cpu` | `"arm64"` | `"x64"` | `"x64"` | `"x64"` | `"arm64"` | `"x64"` | `"arm64"` |
+| `target_os` | `"android"` | `"linux"` | `"linux"` | `"linux"` | `"mac"` | `"win"` | `"win"` |
+| `treat_warnings_as_errors` | `false` | `false` | — | `false` | `false` | `false` | `false` |
+| `use_gnome_keyring` | — | `false` | — | `false` | — | — | — |
+| `use_lld` | `true` | `true` | `true` | `true` | `true` | `true` | `true` |
+| `use_official_google_api_keys` | `false` | `false` | `false` | `false` | `false` | `false` | `false` |
+| `use_sysroot` | — | `true` | — | `true` | — | — | — |
+| `use_system_freetype` | — | `false` | — | `false` | — | — | — |
+| `use_system_harfbuzz` | — | `false` | — | `false` | — | — | — |
+| `use_thin_lto` | — | `true` | — | `false` | `true` | — | — |
+| `use_unofficial_version_number` | `false` | `false` | — | `false` | `false` | `false` | `false` |
 

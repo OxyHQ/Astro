@@ -38,10 +38,13 @@ GN_DIR = "gn_args"
 
 ASSIGNMENT = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$")
 
-# A debug configuration is expected to differ from release; comparing them
-# together would report every deliberate difference as an inconsistency and
-# bury the real ones.
-DEBUG_FILES = {"linux_debug.gn"}
+# A debug or iteration configuration is expected to differ from release;
+# comparing them together would report every deliberate difference as an
+# inconsistency and bury the real ones. `linux_dev.gn` exists to trade release
+# optimisation for build speed — is_official_build, use_thin_lto and
+# is_component_build all differ from release BY DESIGN — so including it would
+# manufacture exactly the kind of finding this document was just corrected for.
+DEBUG_FILES = {"linux_debug.gn", "linux_dev.gn"}
 
 
 def parse_gn(text: str) -> dict[str, str]:
