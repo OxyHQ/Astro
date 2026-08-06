@@ -44,6 +44,12 @@ permissions:
 # declaration of what gets compiled; an env var that could disagree with it is
 # exactly the ambiguity ASTRO-NEXT-002 (#5) removes.
 
+# Every job passes its gclient target_os explicitly to tools/sync-sources.sh.
+# Leaving it implicit meant each job synced with the default (linux) and the
+# Windows, macOS and Android jobs depended on however that runner's checkout
+# had last been configured — the same "the runner decides" defect the source
+# lock exists to remove, one level down in the dependency graph.
+
 # One shared checkout per runner must not be mutated by two jobs at once.
 concurrency:
   group: astro-sources-${{ github.workflow }}-${{ github.ref }}
@@ -79,13 +85,13 @@ jobs:
       # Chromium compiled whatever commit it happened to hold, forever,
       # with nothing validating it.
       - name: Sync sources to the locked revisions
-        run: tools/sync-sources.sh
+        run: tools/sync-sources.sh --targets "linux"
 
       # Fails the job if anything on disk disagrees with browser.lock.json.
       # Separate from the sync above so a sync that silently did nothing
       # still cannot produce a build.
       - name: Verify source revisions against the lock
-        run: tools/sync-sources.sh --verify-only
+        run: tools/sync-sources.sh --verify-only --targets "linux"
 
       - name: Sync ungoogled patches
         run: tools/sync-ungoogled.sh
@@ -165,14 +171,14 @@ jobs:
       # with nothing validating it.
       - name: Sync sources to the locked revisions
         shell: bash
-        run: tools/sync-sources.sh
+        run: tools/sync-sources.sh --targets "win"
 
       # Fails the job if anything on disk disagrees with browser.lock.json.
       # Separate from the sync above so a sync that silently did nothing
       # still cannot produce a build.
       - name: Verify source revisions against the lock
         shell: bash
-        run: tools/sync-sources.sh --verify-only
+        run: tools/sync-sources.sh --verify-only --targets "win"
 
       - name: Sync ungoogled patches
         shell: bash
@@ -261,14 +267,14 @@ jobs:
       # with nothing validating it.
       - name: Sync sources to the locked revisions
         shell: bash
-        run: tools/sync-sources.sh
+        run: tools/sync-sources.sh --targets "win"
 
       # Fails the job if anything on disk disagrees with browser.lock.json.
       # Separate from the sync above so a sync that silently did nothing
       # still cannot produce a build.
       - name: Verify source revisions against the lock
         shell: bash
-        run: tools/sync-sources.sh --verify-only
+        run: tools/sync-sources.sh --verify-only --targets "win"
 
       - name: Sync ungoogled patches
         shell: bash
@@ -354,13 +360,13 @@ jobs:
       # Chromium compiled whatever commit it happened to hold, forever,
       # with nothing validating it.
       - name: Sync sources to the locked revisions
-        run: tools/sync-sources.sh
+        run: tools/sync-sources.sh --targets "mac"
 
       # Fails the job if anything on disk disagrees with browser.lock.json.
       # Separate from the sync above so a sync that silently did nothing
       # still cannot produce a build.
       - name: Verify source revisions against the lock
-        run: tools/sync-sources.sh --verify-only
+        run: tools/sync-sources.sh --verify-only --targets "mac"
 
       - name: Sync ungoogled patches
         run: tools/sync-ungoogled.sh
@@ -434,13 +440,13 @@ jobs:
       # Chromium compiled whatever commit it happened to hold, forever,
       # with nothing validating it.
       - name: Sync sources to the locked revisions
-        run: tools/sync-sources.sh
+        run: tools/sync-sources.sh --targets "android"
 
       # Fails the job if anything on disk disagrees with browser.lock.json.
       # Separate from the sync above so a sync that silently did nothing
       # still cannot produce a build.
       - name: Verify source revisions against the lock
-        run: tools/sync-sources.sh --verify-only
+        run: tools/sync-sources.sh --verify-only --targets "android"
 
       - name: Install Android dependencies
         run: |

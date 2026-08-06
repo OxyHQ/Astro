@@ -143,8 +143,17 @@ assert_checkout_is_clean_enough() {
   $count uncommitted change(s) or untracked file(s)"
     fi
 
+    # Only UNTRACKED .rej/.orig files are patch artifacts. Chromium itself ships
+    # 181 tracked `.orig` files — cargo writes `Cargo.toml.orig` for every
+    # vendored Rust crate — so a `find`-based check reports a pristine upstream
+    # checkout as full of leftover artifacts. Measured on the real tree: 181
+    # tracked `.orig`, 0 tracked `.rej`, 0 untracked of either.
+    #
+    # Asking git also avoids walking 400,000 files, and avoids the SIGPIPE that
+    # `find … | head` raises under pipefail once head has what it needs.
     local artifacts
-    artifacts="$(find "$dir" -maxdepth 6 \( -name '*.rej' -o -name '*.orig' \) -print | head -5)"
+    artifacts="$(git -C "$dir" status --porcelain --untracked-files=all \
+        | sed -n 's/^?? //p' | grep -E '\.(rej|orig|porig)$' | head -5)" || true   # astro-allow: grep finding nothing is the normal case
     if [ -n "$artifacts" ]; then
         problems="$problems
   leftover patch artifacts: $(printf '%s' "$artifacts" | tr '\n' ' ')"
@@ -200,6 +209,95 @@ report_head_state() {
     fi
 }
 
+# Astro's fetches are large enough that a transient network failure is a normal
+# event rather than an exceptional one. Each attempt is announced and the final
+# failure is fatal, so this is a retry, not a suppressed error.
+ASTRO_FETCH_ATTEMPTS="${ASTRO_FETCH_ATTEMPTS:-5}"
+
+# Depth of the initial fetch. Chromium's full history is tens of gigabytes over
+# a single connection, and a transient TLS reset loses ALL of it — git streams a
+# fetch into a temporary pack and discards it on failure, so a retry genuinely
+# starts over. Measured here: five consecutive attempts left .git at 120 KB.
+#
+# Fetching the locked ref at depth 1 transfers one commit's tree instead of the
+# whole history, which is a few gigabytes rather than tens, and is what makes
+# the difference between a bootstrap that completes and one that cannot. The
+# commit checked out is still exactly the one the lock names, so nothing about
+# reproducibility changes; only the local ancestry is absent.
+#
+# Set ASTRO_FETCH_DEPTH= (empty) for full history, which `git fetch --unshallow`
+# can also add later.
+ASTRO_FETCH_DEPTH="${ASTRO_FETCH_DEPTH-1}"
+
+# Partial-clone filter for the initial network fetch. `blob:none` transfers the
+# commit and its trees but no file contents, turning one multi-gigabyte transfer
+# that must survive intact into a small one plus many small on-demand batches
+# during checkout — each of which fails and retries independently.
+#
+# On a link that dropped four times inside the first 220 MB, that is the
+# difference between a bootstrap that completes and one that cannot. The commit
+# is still exactly the one the lock names.
+#
+# The cost is real and worth stating: a blobless checkout needs network access
+# during the build to fetch contents it has not seen. Set ASTRO_FETCH_FILTER=
+# (empty) for a complete local copy.
+ASTRO_FETCH_FILTER="${ASTRO_FETCH_FILTER-blob:none}"
+
+fetch_with_retry() {
+    local dir="$1" ref="$2" name="$3"
+    local attempt=1 status=0
+    local -a depth_args=()
+
+    # Depth applies only to a NETWORK fetch into a still-empty repository.
+    #
+    # It exists to bound a transfer that can fail halfway, so it is meaningless
+    # for a file:// origin — and actively wrong there: a local fixture has no
+    # history worth truncating, and a shallow copy of one silently loses the
+    # older commits a test needs to move between. Deepening an existing
+    # checkout is a different operation and is never done implicitly.
+    local origin_url
+    origin_url="$(git -C "$dir" remote get-url origin)"
+    if [ -n "$ASTRO_FETCH_DEPTH" ] \
+       && [ -z "$(git -C "$dir" rev-list -n1 --all)" ] \
+       && case "$origin_url" in http://*|https://*) true ;; *) false ;; esac
+    then
+        depth_args=(--depth "$ASTRO_FETCH_DEPTH")
+        astro::info "  $name: initial fetch limited to depth $ASTRO_FETCH_DEPTH"
+        if [ -n "$ASTRO_FETCH_FILTER" ]; then
+            depth_args+=(--filter="$ASTRO_FETCH_FILTER")
+            astro::info "  $name: partial clone filter $ASTRO_FETCH_FILTER (contents fetched on demand)"
+        fi
+    fi
+
+    while [ "$attempt" -le "$ASTRO_FETCH_ATTEMPTS" ]; do
+        astro::info "  $name: fetching (attempt $attempt/$ASTRO_FETCH_ATTEMPTS)"
+        status=0
+        if [ -n "$ref" ]; then
+            git -C "$dir" fetch "${depth_args[@]+"${depth_args[@]}"}" \
+                origin "+$ref:refs/astro-locked/$name" || status=$?
+        else
+            git -C "$dir" fetch "${depth_args[@]+"${depth_args[@]}"}" --tags origin || status=$?
+        fi
+        if [ "$status" -eq 0 ]; then
+            return 0
+        fi
+        # Deliberately NOT claiming the partial transfer was kept: git discards
+        # the temporary pack when a fetch fails, so each attempt starts over.
+        astro::warn "retry:fetch" "$name fetch failed (exit $status); retrying from the start"
+        attempt=$((attempt + 1))
+    done
+
+    astro::die_with_hint \
+        "$name: fetch failed $ASTRO_FETCH_ATTEMPTS time(s)." \
+        "" \
+        "A failed git fetch discards its partial transfer, so every attempt starts" \
+        "over — this is not a resumable operation." \
+        "" \
+        "If the connection is unreliable, reduce what has to arrive in one go:" \
+        "  ASTRO_FETCH_DEPTH=1   fetch only the locked commit (the default)" \
+        "  ASTRO_FETCH_ATTEMPTS  raise the retry count"
+}
+
 # Ensures <dir> is a git checkout of <url> sitting detached at <commit>.
 sync_repository() {
     local dir="$1" url="$2" commit="$3" ref="$4" name="$5"
@@ -211,19 +309,65 @@ sync_repository() {
                 "--verify-only never creates a checkout." \
                 "Run tools/sync-sources.sh without --verify-only to bootstrap it."
         fi
+        # A directory that exists, is not a checkout, and is not empty is the
+        # shape this repository was actually found in: chromium/src held only
+        # the copied overlay (4.2 MB of chrome/) with no upstream tree and no
+        # .git of its own. `git clone` into it fails with "destination path
+        # already exists and is not an empty directory", which says nothing
+        # about what the directory is or what to do with it — and the obvious
+        # reflex, deleting it, can destroy work nobody has copied anywhere.
+        if [ -d "$dir" ] && [ -n "$(ls -A "$dir")" ]; then
+            local backup
+            backup="${dir%/}.pre-sync.$(git -C "$ASTRO_ROOT" rev-parse --short HEAD)"
+            astro::die_with_hint \
+                "$name cannot be created at $dir: the directory already exists, is not a git checkout, and is not empty." \
+                "" \
+                "Contents:" \
+                "$(find "$dir" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort | head -10 | sed 's/^/  /')" \
+                "" \
+                "Nothing is deleted automatically. This is the shape a half-populated" \
+                "Astro tree takes — for example a chromium/src holding only the copied" \
+                "overlay — and it may be the only copy of something." \
+                "" \
+                "Move it aside, then re-run:" \
+                "  mv $dir \\" \
+                "     $backup" \
+                "  tools/sync-sources.sh" \
+                "" \
+                "Once the sync succeeds and you have confirmed nothing was lost:" \
+                "  rm -rf $backup"
+        fi
+
         if astro::dry_run; then
             astro::plan "clone $url -> $dir"
             astro::plan "checkout --detach $commit in $dir"
             return 0
         fi
-        astro::info "  $name: cloning $url"
-        git clone --quiet "$url" "$dir"
+        # `git clone` cannot resume. A Chromium clone moves tens of gigabytes
+        # over a single connection, and one transient TLS reset — observed here
+        # as "GnuTLS recv error (-110)" partway through — throws all of it away.
+        # init + fetch is resumable: a retry continues against the objects
+        # already in the local repository.
+        astro::info "  $name: creating $dir"
+        mkdir -p "$dir"
+        git -C "$dir" init --quiet
+        git -C "$dir" remote add origin "$url"
     fi
 
-    local head
-    head="$(git -C "$dir" rev-parse HEAD)"
+    if [ ! -d "$dir/.git" ]; then
+        astro::die "$dir is not a git repository after initialisation"
+    fi
 
-    if [ "$head" = "$commit" ]; then
+    # A freshly initialised repository has no HEAD yet, so there is nothing to
+    # compare against and nothing to keep clean — go straight to fetch and
+    # checkout below.
+    local head="" head_status=0
+    head="$(git -C "$dir" rev-parse HEAD 2>/dev/null)" || head_status=$?   # astro-allow: an empty repository legitimately has no HEAD
+    if [ "$head_status" -ne 0 ]; then
+        head=""
+    fi
+
+    if [ -n "$head" ] && [ "$head" = "$commit" ]; then
         # Right commit is not enough. A fresh clone lands on a BRANCH at the
         # same commit, and a branch can be advanced afterwards — by a stray
         # `git pull`, by another job, by gclient — with nothing noticing that
@@ -260,15 +404,17 @@ sync_repository() {
     if [ "$VERIFY_ONLY" = "1" ]; then
         astro::die_with_hint \
             "$name is at the wrong commit." \
-            "  on disk: $head" \
+            "  on disk: ${head:-<empty repository>}" \
             "  locked:  $commit" \
             "" \
             "This is the check a stale self-hosted runner must not pass. Run" \
             "tools/sync-sources.sh (without --verify-only) to correct it."
     fi
 
-    assert_checkout_is_clean_enough "$dir" "$name"
-    report_head_state "$dir" "$name"
+    if [ -n "$head" ]; then
+        assert_checkout_is_clean_enough "$dir" "$name"
+        report_head_state "$dir" "$name"
+    fi
 
     if astro::dry_run; then
         astro::plan "fetch $ref from $url in $dir"
@@ -278,12 +424,7 @@ sync_repository() {
 
     # Fetch WITHOUT changing what is checked out. `git fetch` updates remote
     # refs only; the working tree moves in the explicit checkout below.
-    astro::info "  $name: fetching"
-    if [ -n "$ref" ]; then
-        git -C "$dir" fetch --quiet --tags origin "+$ref:refs/astro-locked/$name"
-    else
-        git -C "$dir" fetch --quiet --tags origin
-    fi
+    fetch_with_retry "$dir" "$ref" "$name"
 
     # --verify --quiet suppresses only git's own "not a valid object" note,
     # natively, rather than redirecting stderr and hiding real failures too.
