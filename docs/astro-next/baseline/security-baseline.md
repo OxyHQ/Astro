@@ -17,7 +17,7 @@ grep would report two epic-rule violations that do not exist.
 
 | Rule | Source | Controllers |
 |---|---|---|
-| No privileged WebUI loading remote scripts, styles or fonts | epic #3, non-negotiable rules | `astro_alia_ui.cc`, `astro_error_ui.cc`, `astro_ntp_ui.cc`, `astro_whats_new_ui.cc` |
+| No privileged WebUI loading remote scripts, styles or fonts | epic #3, non-negotiable rules | `astro_alia_ui.cc`, `astro_ntp_ui.cc` |
 | No privileged WebUI reads mutable application files from beside the executable | epic #3, global definition of done | `astro_alia_ui.cc`, `astro_error_ui.cc`, `astro_ntp_ui.cc`, `astro_settings_ui.cc`, `astro_whats_new_ui.cc` |
 | No blanket disabling of Trusted Types | epic #3, non-negotiable rules | `astro_alia_ui.cc`, `astro_error_ui.cc`, `astro_ntp_ui.cc`, `astro_settings_ui.cc`, `astro_whats_new_ui.cc` |
 | No `unsafe-inline` unless a narrowly documented temporary exception has an owner and removal issue | epic #3, non-negotiable rules | `astro_adblock_ui.cc`, `astro_alia_ui.cc`, `astro_error_ui.cc`, `astro_ntp_ui.cc`, `astro_settings_ui.cc`, `astro_whats_new_ui.cc` |
@@ -49,15 +49,14 @@ CSP and Trusted Types is
 | Directive | Value |
 |---|---|
 | `ConnectSrc` | `connect-src 'self' https://api.alia.oxy.so;` |
-| `FontSrc` | `font-src 'self' https://fonts.gstatic.com;` |
-| `ImgSrc` | `img-src 'self' chrome://favicon2 chrome://theme data:;` |
-| `ScriptSrc` | `script-src chrome://resources chrome://webui-test 'self' 'unsafe-inline';` |
+| `ImgSrc` | `img-src 'self' data:;` |
+| `ScriptSrc` | `script-src chrome://resources 'self' 'unsafe-inline';` |
 | `StyleSrc` | `style-src 'self' 'unsafe-inline' chrome://theme;` |
 
 | Property | Value |
 |---|---|
 | Trusted Types enforced | **no** — `DisableTrustedTypesCSP()` |
-| Remote origins allowed | `https://api.alia.oxy.so`, `https://fonts.gstatic.com` |
+| Remote origins allowed | `https://api.alia.oxy.so` |
 | Unsafe CSP tokens | `'unsafe-inline'` |
 | Serves resources from `DIR_EXE` | **yes** — mutable files beside the executable |
 
@@ -65,15 +64,14 @@ CSP and Trusted Types is
 
 | Directive | Value |
 |---|---|
-| `FontSrc` | `font-src 'self' https://fonts.gstatic.com;` |
-| `ImgSrc` | `img-src 'self' chrome://favicon2 chrome://theme data:;` |
-| `ScriptSrc` | `script-src chrome://resources chrome://webui-test 'self' 'unsafe-inline';` |
+| `ImgSrc` | `img-src 'self' data:;` |
+| `ScriptSrc` | `script-src chrome://resources 'self' 'unsafe-inline';` |
 | `StyleSrc` | `style-src 'self' 'unsafe-inline' chrome://theme;` |
 
 | Property | Value |
 |---|---|
 | Trusted Types enforced | **no** — `DisableTrustedTypesCSP()` |
-| Remote origins allowed | `https://fonts.gstatic.com` |
+| Remote origins allowed | none |
 | Unsafe CSP tokens | `'unsafe-inline'` |
 | Serves resources from `DIR_EXE` | **yes** — mutable files beside the executable |
 
@@ -82,8 +80,8 @@ CSP and Trusted Types is
 | Directive | Value |
 |---|---|
 | `FontSrc` | `font-src 'self' https://fonts.gstatic.com;` |
-| `ImgSrc` | `img-src 'self' chrome://favicon2 chrome://theme data:;` |
-| `ScriptSrc` | `script-src chrome://resources chrome://new-tab-page-third-party chrome://webui-test 'self' 'unsafe-inline';` |
+| `ImgSrc` | `img-src 'self' data:;` |
+| `ScriptSrc` | `script-src chrome://resources 'self' 'unsafe-inline';` |
 | `StyleSrc` | `style-src 'self' 'unsafe-inline' chrome://theme https://fonts.googleapis.com;` |
 
 | Property | Value |
@@ -97,8 +95,8 @@ CSP and Trusted Types is
 
 | Directive | Value |
 |---|---|
-| `ImgSrc` | `img-src 'self' chrome://favicon2 chrome://theme data:;` |
-| `ScriptSrc` | `script-src chrome://resources chrome://webui-test 'self' 'unsafe-inline';` |
+| `ImgSrc` | `img-src 'self' data:;` |
+| `ScriptSrc` | `script-src chrome://resources 'self' 'unsafe-inline';` |
 | `StyleSrc` | `style-src 'self' 'unsafe-inline' chrome://theme;` |
 
 | Property | Value |
@@ -112,15 +110,14 @@ CSP and Trusted Types is
 
 | Directive | Value |
 |---|---|
-| `FontSrc` | `font-src 'self' https://fonts.gstatic.com;` |
-| `ImgSrc` | `img-src 'self' chrome://favicon2 chrome://theme data:;` |
-| `ScriptSrc` | `script-src chrome://resources chrome://webui-test 'self' 'unsafe-inline';` |
+| `ImgSrc` | `img-src 'self' data:;` |
+| `ScriptSrc` | `script-src chrome://resources 'self' 'unsafe-inline';` |
 | `StyleSrc` | `style-src 'self' 'unsafe-inline' chrome://theme;` |
 
 | Property | Value |
 |---|---|
 | Trusted Types enforced | **no** — `DisableTrustedTypesCSP()` |
-| Remote origins allowed | `https://fonts.gstatic.com` |
+| Remote origins allowed | none |
 | Unsafe CSP tokens | `'unsafe-inline'` |
 | Serves resources from `DIR_EXE` | **yes** — mutable files beside the executable |
 

@@ -225,6 +225,18 @@ astro::sha256() {
 # Dry-run support
 # --------------------------------------------------------------------------
 
+# depot_tools SELF-UPDATES to origin/main on every invocation unless told not
+# to, which silently defeats the pin in browser.lock.json — the pin exists
+# precisely because depot_tools resolves every other revision.
+#
+# Observed, not theorised: one `gclient sync` moved it off the locked commit,
+# and its reflog records the jump —
+#   5dae8da42 HEAD@{0}: checkout: moving from 41c40cfa... to origin/main
+# The next build refused, correctly, because the lock gate caught it. Setting
+# this at the library level means every script that sources it is covered,
+# rather than each one remembering.
+export DEPOT_TOOLS_UPDATE=0
+
 ASTRO_DRY_RUN="${ASTRO_DRY_RUN:-0}"
 
 astro::dry_run() {
@@ -365,9 +377,17 @@ astro::resolve_chromium_src() {
 }
 
 # Maximum number of modified upstream paths tolerated before a run is treated
-# as an accidental mass change. The full patch stack touches roughly a thousand
-# files; anything far beyond that means something went wrong.
-ASTRO_MAX_MODIFIED_UPSTREAM_PATHS="${ASTRO_MAX_MODIFIED_UPSTREAM_PATHS:-2500}"
+# as an accidental mass change.
+#
+# Calibrated against a real run rather than estimated. The complete ungoogled
+# stack on Chromium 146.0.7680.177 produces 3,923 modified paths: 112 patches
+# plus the binary pruning, which deletes 12,392 files of which those tracked by
+# src's own git show up here. The previous default of 2,500 was a guess written
+# before any real checkout existed, and it failed a correct run.
+#
+# 6,000 leaves headroom for the Astro patches on top while still catching the
+# thing this guard is for: a run that has started modifying the tree wholesale.
+ASTRO_MAX_MODIFIED_UPSTREAM_PATHS="${ASTRO_MAX_MODIFIED_UPSTREAM_PATHS:-6000}"
 
 # Prints one modified/untracked path per line. Parsed in python3 rather than
 # sed because `--porcelain -z` emits a second NUL-separated field for renames

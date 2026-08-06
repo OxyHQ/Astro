@@ -41,6 +41,13 @@ Regeneration is byte-stable: no timestamps, no randomness, no `now()`. The
 byte-stability is itself tested, and it is what makes "regenerate and diff" a
 usable review tool.
 
+The fixtures are committed, so every source they are derived from is read from
+`HEAD` through `committed_state` — never from the working tree. A fixture set
+derived from somebody's uncommitted edits describes a browser that does not
+exist in the repository, and `--verify` would then fail for everyone else with a
+diff naming preferences they have never seen. Uncommitted edits to those sources
+are reported separately, as working-tree observations.
+
 Usage:
     make_profile_fixtures.py                 Write fixtures to the default dir.
     make_profile_fixtures.py --output DIR    Write them somewhere else.
@@ -55,38 +62,52 @@ import re
 import sys
 from pathlib import Path
 
+import committed_state
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = REPO_ROOT / "test" / "astro-next" / "fixtures"
 
-# Sources every generated value is derived from. Each one is parsed, and each
-# parse carries a floor below which it is treated as broken rather than empty.
+# Sources every generated value is derived from, as repository-relative paths:
+# they are addressed in git, not on disk. Each one is parsed, and each parse
+# carries a floor below which it is treated as broken rather than empty.
 PREF_PATCHES = (
-    REPO_ROOT / "patches" / "astro" / "020-register-oxy-prefs.patch",
-    REPO_ROOT / "patches" / "astro" / "046-adblock-prefs.patch",
+    "patches/astro/020-register-oxy-prefs.patch",
+    "patches/astro/046-adblock-prefs.patch",
 )
-SETTINGS_HANDLER = (
-    REPO_ROOT / "src" / "chrome" / "browser" / "oxy" / "webui" / "astro_settings_handler.cc"
+SETTINGS_HANDLER = "src/chrome/browser/oxy/webui/astro_settings_handler.cc"
+WEBUI_DIR = "src/chrome/browser/oxy/webui"
+FILTER_CATALOG = "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc"
+ADBLOCK_SERVICE = "src/chrome/browser/oxy/adblock/astro_adblock_service.cc"
+ADBLOCK_UPDATER = "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_updater.cc"
+TOKEN_STORE = "src/chrome/browser/oxy/oxy_auth_token_store.cc"
+LOCK_FILE = "browser.lock.json"
+
+# Everything above, for the working-tree difference report.
+DERIVED_FROM = (
+    *PREF_PATCHES,
+    SETTINGS_HANDLER,
+    WEBUI_DIR,
+    FILTER_CATALOG,
+    ADBLOCK_SERVICE,
+    ADBLOCK_UPDATER,
+    TOKEN_STORE,
+    LOCK_FILE,
 )
-WEBUI_DIR = REPO_ROOT / "src" / "chrome" / "browser" / "oxy" / "webui"
-FILTER_CATALOG = (
-    REPO_ROOT
-    / "src"
-    / "chrome"
-    / "browser"
-    / "oxy"
-    / "adblock"
-    / "astro_adblock_filter_list_catalog.cc"
-)
-ADBLOCK_SERVICE = (
-    REPO_ROOT / "src" / "chrome" / "browser" / "oxy" / "adblock" / "astro_adblock_service.cc"
-)
-TOKEN_STORE = REPO_ROOT / "src" / "chrome" / "browser" / "oxy" / "oxy_auth_token_store.cc"
-LOCK_FILE = REPO_ROOT / "browser.lock.json"
 
 # Vacuity floors. A regex that stops matching — because a patch was reformatted,
 # a file moved, or the registration idiom changed — must fail loudly. Silently
 # producing a fixture with no preferences in it is the failure this prevents:
 # the migration test would still pass, having checked nothing.
+#
+# DO NOT LOWER MIN_REGISTERED_PREFS TO MAKE A FAILURE GO AWAY. If the committed
+# patches parse to fewer preferences than this, the shortfall IS the finding —
+# editing the constant to match it converts a signal into a silence, and states
+# in code that the smaller number was intended when nobody decided that. The
+# failure message below prints the committed count, the working-tree count and
+# the preferences that differ, precisely so the reader can act on the finding
+# instead of tuning the threshold that surfaced it. The same floor is duplicated
+# in tools/tests/cases/baseline-fixtures-have-no-secrets.sh, which parses the
+# patches independently; both carry this rule for the same reason.
 MIN_REGISTERED_PREFS = 15
 MIN_SETTINGS_MAPPINGS = 20
 MIN_WEBUI_HOSTS = 4
@@ -136,10 +157,15 @@ CATALOG_RE = re.compile(
 )
 
 
-def read_text(path: Path) -> str:
-    if not path.is_file():
-        raise SystemExit(f"ERROR source file not found: {path}")
-    return path.read_text(encoding="utf-8")
+def read_text(path: str) -> str:
+    """The COMMITTED text of a source file. The working tree is never consulted."""
+    if not committed_state.exists(path):
+        raise SystemExit(
+            f"ERROR source file not found at {committed_state.REVISION}: {path}\n"
+            f"      These fixtures are committed, so they are derived from committed\n"
+            f"      sources only. If the file is new, commit it first."
+        )
+    return committed_state.read_text(path)
 
 
 def added_lines(patch_text: str) -> str:
@@ -182,10 +208,10 @@ def parse_registered_prefs() -> list[dict]:
     the fixture describe a browser that no longer exists.
     """
     prefs: dict[str, dict] = {}
-    for patch in PREF_PATCHES:
-        source = str(patch.relative_to(REPO_ROOT))
+    by_source: dict[str, list[str]] = {}
+    for source in PREF_PATCHES:
         found = 0
-        for match in PREF_RE.finditer(added_lines(read_text(patch))):
+        for match in PREF_RE.finditer(added_lines(read_text(source))):
             name = match.group("name")
             if name in prefs:
                 raise SystemExit(
@@ -198,6 +224,7 @@ def parse_registered_prefs() -> list[dict]:
                 "default": parse_default(match.group("default")),
                 "source": source,
             }
+            by_source.setdefault(source, []).append(name)
             found += 1
         if not found:
             raise SystemExit(
@@ -208,13 +235,88 @@ def parse_registered_prefs() -> list[dict]:
 
     if len(prefs) < MIN_REGISTERED_PREFS:
         raise SystemExit(
-            f"ERROR parsed only {len(prefs)} Astro preferences, expected at least "
-            f"{MIN_REGISTERED_PREFS}.\n"
+            f"ERROR parsed only {len(prefs)} Astro preferences from committed "
+            f"content, expected at least {MIN_REGISTERED_PREFS}.\n"
             f"      A fixture generated from a broken parse would contain almost no\n"
             f"      preferences and every migration test over it would pass without\n"
-            f"      checking anything, so this is a hard failure rather than a warning."
+            f"      checking anything, so this is a hard failure rather than a warning.\n"
+            + pref_source_report(by_source, set(prefs))
         )
     return [prefs[name] for name in sorted(prefs)]
+
+
+def worktree_pref_names(source: str) -> list[str]:
+    """The preference names a patch registers ON DISK.
+
+    The only working-tree read in this tool. It exists to explain a failure and
+    never to produce a fixture — no value it returns reaches a generated file.
+    """
+    path = REPO_ROOT / source
+    if not path.is_file():
+        return []
+    names: list[str] = []
+    for match in PREF_RE.finditer(added_lines(path.read_text(encoding="utf-8"))):
+        if match.group("name") not in names:
+            names.append(match.group("name"))
+    return names
+
+
+def pref_source_report(by_source: dict[str, list[str]], committed_names: set[str]) -> str:
+    """Everything needed to act on the shortfall, per patch, with the conclusion stated.
+
+    Counts alone are not actionable: "10, expected 15" reads like a broken
+    regex. Naming each patch, both of its counts and the preferences that exist
+    on only one side turns it into a finding somebody can decide about.
+    """
+    lines = [
+        "",
+        "      Preferences registered, per patch:",
+        "",
+        "        %-46s %9s  %12s" % ("patch", "committed", "working tree"),
+    ]
+    worktree_only: list[str] = []
+    for source in PREF_PATCHES:
+        on_disk = worktree_pref_names(source)
+        lines.append(
+            "        %-46s %9d  %12d" % (source, len(by_source.get(source, [])), len(on_disk))
+        )
+        worktree_only += [
+            name
+            for name in on_disk
+            if name not in committed_names and name not in worktree_only
+        ]
+    lines.append(
+        "        %-46s %9d  %12d"
+        % ("total", len(committed_names), len(committed_names) + len(worktree_only))
+    )
+
+    if not worktree_only:
+        lines += [
+            "",
+            "      The working tree registers no preferences beyond the committed ones,",
+            "      so the shortfall is in the registry itself rather than in uncommitted",
+            "      work: either the registration idiom changed, or preferences were",
+            "      removed.",
+        ]
+        return "\n".join(lines)
+
+    lines += [
+        "",
+        f"      Registered in the working-tree copies but not at "
+        f"{committed_state.REVISION} ({len(worktree_only)}):",
+        "",
+    ]
+    lines += [f"        {name}" for name in worktree_only]
+    lines += [
+        "",
+        "      Conclusion: the committed patch stack does not register these",
+        f"      preferences, and the fixtures committed under {FIXTURE_DIR_REL}/",
+        "      contain them — so a clean checkout cannot reproduce those fixtures.",
+        "",
+        "      Do not lower MIN_REGISTERED_PREFS to clear this. The shortfall is the",
+        "      finding; the threshold is what surfaced it.",
+    ]
+    return "\n".join(lines)
 
 
 def parse_settings_surface() -> dict[str, list[dict]]:
@@ -235,10 +337,10 @@ def parse_settings_surface() -> dict[str, list[dict]]:
     ):
         start = text.find(f"{array}[] = {{")
         if start < 0:
-            raise SystemExit(f"ERROR {array}[] not found in {SETTINGS_HANDLER.name}")
+            raise SystemExit(f"ERROR {array}[] not found in {Path(SETTINGS_HANDLER).name}")
         end = text.find("\n};", start)
         if end < 0:
-            raise SystemExit(f"ERROR {array}[] is not terminated in {SETTINGS_HANDLER.name}")
+            raise SystemExit(f"ERROR {array}[] is not terminated in {Path(SETTINGS_HANDLER).name}")
         entries = [
             {"settings_id": settings_id, "pref_path": pref_path, "service": service}
             for settings_id, pref_path in MAPPING_RE.findall(text[start:end])
@@ -257,13 +359,13 @@ def parse_settings_surface() -> dict[str, list[dict]]:
 def parse_webui_hosts() -> list[dict]:
     """The internal hosts, read from the WebUI controllers that define them."""
     hosts: list[dict] = []
-    for header in sorted(WEBUI_DIR.glob("*.h")):
-        for symbol, host in HOST_RE.findall(header.read_text(encoding="utf-8")):
+    for header in committed_state.list_files(WEBUI_DIR, (".h",)):
+        for symbol, host in HOST_RE.findall(committed_state.read_text(header)):
             hosts.append(
                 {
                     "host": host,
                     "constant": f"kAstro{symbol}Host",
-                    "defined_in": str(header.relative_to(REPO_ROOT)),
+                    "defined_in": header,
                 }
             )
     if len(hosts) < MIN_WEBUI_HOSTS:
@@ -281,7 +383,7 @@ def parse_filter_catalog() -> list[dict]:
     ]
     if len(lists) < MIN_FILTER_LISTS:
         raise SystemExit(
-            f"ERROR parsed only {len(lists)} filter lists from {FILTER_CATALOG.name}, "
+            f"ERROR parsed only {len(lists)} filter lists from {Path(FILTER_CATALOG).name}, "
             f"expected at least {MIN_FILTER_LISTS}; the catalog parse is broken"
         )
     return lists
@@ -290,9 +392,7 @@ def parse_filter_catalog() -> list[dict]:
 def parse_adblock_layout() -> dict:
     text = read_text(ADBLOCK_SERVICE)
     names = dict(re.findall(r'constexpr char (k\w+)\[\] = "([^"]+)"\s*;', text))
-    updater = read_text(
-        ADBLOCK_SERVICE.with_name("astro_adblock_filter_list_updater.cc")
-    )
+    updater = read_text(ADBLOCK_UPDATER)
     names.update(re.findall(r'constexpr char (k\w+)\[\] = "([^"]+)"\s*;', updater))
     for required in ("kAdBlockDataDir", "kEngineCacheFileName", "kFilterListsSubdir"):
         if required not in names:
@@ -314,7 +414,7 @@ def parse_token_store() -> dict:
     directory = re.search(r'user_data_dir\.AppendASCII\("([^"]+)"\)', text)
     if not files or not directory:
         raise SystemExit(
-            f"ERROR could not read the token-store layout from {TOKEN_STORE.name}; "
+            f"ERROR could not read the token-store layout from {Path(TOKEN_STORE).name}; "
             f"the fixture would describe a layout that no longer exists"
         )
     # The description this fixture ships says the real files hold OSCrypt
@@ -322,7 +422,7 @@ def parse_token_store() -> dict:
     # false statement about the browser's security posture, so it is checked.
     if "OSCrypt::EncryptString" not in text:
         raise SystemExit(
-            f"ERROR {TOKEN_STORE.name} no longer calls OSCrypt::EncryptString, so the "
+            f"ERROR {Path(TOKEN_STORE).name} no longer calls OSCrypt::EncryptString, so the "
             f"token-store fixture's description of the on-disk format is wrong"
         )
     return {
@@ -339,8 +439,7 @@ def chromium_version() -> str:
     keep in sync, and a 40-character hex blob committed into a fixture tree is
     indistinguishable from a leaked key to a secret scanner.
     """
-    with LOCK_FILE.open(encoding="utf-8") as handle:
-        return json.load(handle)["chromium"]["version"]
+    return json.loads(read_text(LOCK_FILE))["chromium"]["version"]
 
 
 # ---------------------------------------------------------------------------
@@ -928,7 +1027,7 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
                 f"/{adblock['filter_lists_subdir']}/{entry['id']}.txt",
                 build_filter_list(entry["id"]).encode("utf-8"),
                 ["adblock filter lists"],
-                [str(FILTER_CATALOG.relative_to(REPO_ROOT))],
+                [FILTER_CATALOG],
             )
 
     # --- user-data-dir wide, generated --------------------------------------
@@ -936,7 +1035,7 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
         "user-data/Local State",
         as_json(build_local_state(version)),
         ["multiple browser profiles", "profile list and ordering"],
-        [str(LOCK_FILE.relative_to(REPO_ROOT))],
+        [LOCK_FILE],
     )
 
     for kind, filename in tokens["files"].items():
@@ -944,7 +1043,7 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
             f"user-data/{tokens['directory']}/{filename}",
             build_token_placeholder(kind, filename).encode("utf-8"),
             ["token-store layout with non-production dummy values"],
-            [str(TOKEN_STORE.relative_to(REPO_ROOT))],
+            [TOKEN_STORE],
         )
 
     # --- descriptive, generated ---------------------------------------------
@@ -1016,7 +1115,7 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
             }
         ),
         ["settings-page pref surface"],
-        [str(SETTINGS_HANDLER.relative_to(REPO_ROOT))],
+        [SETTINGS_HANDLER],
     )
 
     generated(
@@ -1038,11 +1137,11 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
                     "plaintext placeholder text, never a token and never valid "
                     "ciphertext; the encrypted form is a deferred capture"
                 ),
-                "source": str(TOKEN_STORE.relative_to(REPO_ROOT)),
+                "source": TOKEN_STORE,
             }
         ),
         ["token-store layout with non-production dummy values"],
-        [str(TOKEN_STORE.relative_to(REPO_ROOT))],
+        [TOKEN_STORE],
     )
 
     # --- deferred ------------------------------------------------------------
@@ -1336,6 +1435,16 @@ def main(argv: list[str]) -> int:
         help="check the fixtures on disk against this tool; write nothing",
     )
     args = parser.parse_args(argv[1:])
+
+    committed_state.require_repository()
+
+    # Printed before the parse, so that when a source's uncommitted state is
+    # what makes generation fail, the reader has already seen which files
+    # differ rather than having to guess from the failure alone.
+    committed_state.report_working_tree_observations(
+        "make_profile_fixtures.py",
+        committed_state.working_tree_observations(DERIVED_FROM),
+    )
 
     entries, content, meta = build_fixture_set()
     manifest = build_manifest(entries, meta)

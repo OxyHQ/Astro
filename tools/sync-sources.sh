@@ -134,13 +134,29 @@ assert_checkout_is_clean_enough() {
     local dir="$1" name="$2"
     local problems=""
 
+    # A patched tree is the NORMAL state at build time: the pipeline itself put
+    # 3,923 modifications there. So "is it unmodified" is the wrong question
+    # once patches have been applied — the right one is "is every modification
+    # one Astro made", which is what the patch report answers.
+    #
+    # This distinction only showed up against a real checkout: build.sh gates on
+    # --verify-only, and a pristine requirement made a correctly patched tree
+    # unbuildable.
     local dirty
     dirty="$(git -C "$dir" status --porcelain --untracked-files=all)"
     if [ -n "$dirty" ]; then
         local count
         count="$(printf '%s\n' "$dirty" | wc -l | tr -d '[:space:]')"
-        problems="$problems
-  $count uncommitted change(s) or untracked file(s)"
+        if [ -f "$ASTRO_REPORT_DIR/patch-report.json" ]; then
+            # Dies naming the paths if any are unaccounted for.
+            astro::require_attributable_chromium \
+                "$dir" "$ASTRO_ROOT/tools/overlay.allowlist" \
+                "$ASTRO_REPORT_DIR/patch-report.json" \
+                "$ASTRO_REPORT_DIR/overlay-manifest.json"
+        else
+            problems="$problems
+  $count uncommitted change(s) or untracked file(s), and no patch report to attribute them to"
+        fi
     fi
 
     # Only UNTRACKED .rej/.orig files are patch artifacts. Chromium itself ships

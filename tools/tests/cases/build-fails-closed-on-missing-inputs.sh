@@ -27,10 +27,12 @@ cp "$ASTRO_ROOT/tools/sync-sources.sh" "$fake_root/tools/"
 cp "$ASTRO_ROOT/tools/generate-provenance.sh" "$fake_root/tools/"
 cp "$ASTRO_ROOT/tools/overlay.allowlist" "$fake_root/tools/"
 cp "$ASTRO_ROOT/tools/gclient.template" "$fake_root/tools/"
+cp "$ASTRO_ROOT/tools/gn-check-baseline.json" "$fake_root/tools/"
 cp "$ASTRO_ROOT/browser.lock.schema.json" "$fake_root/"
 mkdir -p "$fake_root/tools/lib"
-cp "$ASTRO_ROOT/tools/lib/astro-common.sh" "$fake_root/tools/lib/"
-cp "$ASTRO_ROOT/tools/lib/lock.py" "$fake_root/tools/lib/"
+# The whole library, not a name list — see the same copy in
+# required-failures-exit-non-zero.sh for why.
+cp -R "$ASTRO_ROOT/tools/lib/." "$fake_root/tools/lib/"
 
 printf 'is_debug = false\n' > "$fake_root/gn_args/linux.gn"
 printf '! filter list\n' > "$fake_root/src/chrome/browser/oxy/adblock/resources/easylist.txt"

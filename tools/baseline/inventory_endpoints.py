@@ -16,6 +16,12 @@ mangled hosts that appear in the inherited patch text (`9oo91e.qjz9zk`,
 `ch40m1um.qjz9zk`) are upstream ungoogled-chromium's own already-substituted
 patch content, not anything Astro's pipeline produced.
 
+Source and patch text are read from `HEAD` through `committed_state`. A host
+somebody added in an uncommitted edit is not a host Astro contacts — it is a
+host one machine's build would contact — so it is reported as a working-tree
+observation instead of being written into the inventory a measured trace gets
+compared against.
+
 Usage:
     inventory_endpoints.py --yaml OUT.yaml --json OUT.json
     inventory_endpoints.py --verify
@@ -30,9 +36,10 @@ import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-OVERLAY = REPO_ROOT / "src"
-PATCHES = REPO_ROOT / "patches"
+import committed_state
+
+OVERLAY = "src"
+PATCHES = "patches"
 
 URL_RE = re.compile(r"https?://[A-Za-z0-9._~:/?#@!$&*+,;=%-]+")
 
@@ -57,18 +64,15 @@ def component_for(relative: str) -> str:
     return "other"
 
 
-def scan(root: Path, suffixes: tuple[str, ...]) -> dict[str, dict]:
+def scan(root: str, suffixes: tuple[str, ...]) -> dict[str, dict]:
     hosts: dict[str, dict] = {}
-    for path in sorted(root.rglob("*")):
-        if not path.is_file() or path.suffix not in suffixes:
-            continue
+    for relative in committed_state.list_files(root, suffixes):
         # Filter-list data is third-party rule content listing the whole
         # advertising internet; it is not Astro contacting anything.
-        relative = str(path.relative_to(REPO_ROOT))
         if "/adblock/resources/" in relative:
             continue
         try:
-            text = path.read_text(encoding="utf-8")
+            text = committed_state.read_bytes(relative).decode("utf-8")
         except UnicodeDecodeError:
             continue
         for url in URL_RE.findall(text):
@@ -155,7 +159,14 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args(argv[1:])
 
+    committed_state.require_repository()
     document = build()
+
+    observations = committed_state.working_tree_observations([OVERLAY, PATCHES])
+    committed_state.report_working_tree_observations(
+        "inventory_endpoints.py", observations
+    )
+    document["working_tree_observations"] = observations
 
     if args.verify:
         print(

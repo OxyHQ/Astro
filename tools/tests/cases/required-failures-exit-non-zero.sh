@@ -460,8 +460,12 @@ make_build_root() {
              "$root/src/chrome/browser/oxy/adblock/resources"
     cp "$TOOLS/build.sh" "$TOOLS/sync-overlay.sh" "$TOOLS/sync-sources.sh" \
        "$TOOLS/generate-provenance.sh" "$TOOLS/overlay.allowlist" \
-       "$TOOLS/gclient.template" "$root/tools/"
-    cp "$TOOLS/lib/astro-common.sh" "$TOOLS/lib/lock.py" "$root/tools/lib/"
+       "$TOOLS/gclient.template" "$TOOLS/gn-check-baseline.json" "$root/tools/"
+    # The whole library, not a name list. A name list means every tool added to
+    # tools/lib/ silently breaks this fixture, and the build then fails for a
+    # reason that has nothing to do with what the test is asserting — which is
+    # exactly how gn_args_drift.py first surfaced here.
+    cp -R "$TOOLS/lib/." "$root/tools/lib/"
     cp "$ASTRO_ROOT/browser.lock.schema.json" "$root/"
 
     printf 'is_debug = false\n' > "$root/gn_args/linux.gn"

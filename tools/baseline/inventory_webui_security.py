@@ -27,9 +27,17 @@ occurrence is Astro's — both are `$csp=` rules inside the shipped easylist
 filter data. A grep would report two epic-rule violations that do not exist, and
 a baseline that cries wolf is one nobody trusts.
 
+Controllers are read from `HEAD` through `committed_state`, so the committed
+document describes the browser a fresh clone builds. `--worktree-source` reads a
+directory off disk instead, for pointing the detectors at a constructed fixture;
+it says so loudly and refuses to write the committed document, because a
+security baseline that silently described somebody's unsaved edits is exactly
+the failure this tool is supposed to make impossible.
+
 Usage:
-    inventory_webui_security.py --json OUT.json --markdown OUT.md [--source DIR]
+    inventory_webui_security.py --json OUT.json --markdown OUT.md
     inventory_webui_security.py --verify
+    inventory_webui_security.py --verify --worktree-source DIR
 """
 
 from __future__ import annotations
@@ -40,8 +48,10 @@ import re
 import sys
 from pathlib import Path
 
+import committed_state
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SOURCE = REPO_ROOT / "src" / "chrome" / "browser" / "oxy"
+COMMITTED_SOURCE = "src/chrome/browser/oxy"
 
 # OverrideContentSecurityPolicy(CSPDirectiveName::X, "…"); possibly wrapped
 # across lines, with the value split into adjacent string literals.
@@ -58,9 +68,7 @@ DISABLES_TRUSTED_TYPES = "DisableTrustedTypesCSP()"
 SERVES_FROM_EXE_DIR = "base::DIR_EXE"
 
 
-def analyse(path: Path) -> dict:
-    text = path.read_text(encoding="utf-8")
-
+def analyse(display: str, text: str) -> dict:
     directives = {}
     for name, raw in OVERRIDE_RE.findall(text):
         value = "".join(STRING_PIECE_RE.findall(raw))
@@ -74,13 +82,6 @@ def analyse(path: Path) -> dict:
         for value in directives.values()
         for token in re.findall(r"'unsafe-[a-z-]+'", value)
     })
-
-    # A --source outside the repository (the test fixtures) has no repo-relative
-    # form; fall back to the absolute path rather than crashing.
-    try:
-        display = str(path.relative_to(REPO_ROOT))
-    except ValueError:
-        display = str(path)
 
     return {
         "file": display,
@@ -107,14 +108,38 @@ def violations(entry: dict) -> list[str]:
     return found
 
 
-def build(source_dir: Path) -> dict:
-    controllers = sorted(source_dir.rglob("*_ui.cc"))
+def committed_controllers() -> list[tuple[str, str]]:
+    return [
+        (path, committed_state.read_text(path))
+        for path in committed_state.list_files(COMMITTED_SOURCE, (".cc",))
+        if path.endswith("_ui.cc")
+    ]
+
+
+def worktree_controllers(source_dir: Path) -> list[tuple[str, str]]:
+    """Read a directory off disk. Never feeds the committed document."""
+    return [
+        (str(path), path.read_text(encoding="utf-8"))
+        for path in sorted(source_dir.rglob("*_ui.cc"))
+    ]
+
+
+def build(source_dir: Path | None) -> dict:
+    if source_dir is None:
+        controllers = committed_controllers()
+        source_display = COMMITTED_SOURCE
+        origin = "committed"
+    else:
+        controllers = worktree_controllers(source_dir)
+        source_display = str(source_dir)
+        origin = "worktree"
+
     if not controllers:
-        raise SystemExit(f"ERROR no WebUI controllers found under {source_dir}")
+        raise SystemExit(f"ERROR no WebUI controllers found under {source_display}")
 
     entries = []
-    for path in controllers:
-        entry = analyse(path)
+    for display, text in controllers:
+        entry = analyse(display, text)
         entry["violations"] = violations(entry)
         entries.append(entry)
 
@@ -123,14 +148,10 @@ def build(source_dir: Path) -> dict:
         for name in entry["violations"]:
             summary.setdefault(name, []).append(Path(entry["file"]).name)
 
-    try:
-        source_display = str(source_dir.relative_to(REPO_ROOT))
-    except ValueError:
-        source_display = str(source_dir)
-
     return {
         "tool": "tools/baseline/inventory_webui_security.py",
         "source": source_display,
+        "source_origin": origin,
         "controller_count": len(entries),
         "controllers": entries,
         "violations_by_rule": {k: sorted(v) for k, v in sorted(summary.items())},
@@ -247,11 +268,39 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json")
     parser.add_argument("--markdown")
-    parser.add_argument("--source", default=str(DEFAULT_SOURCE))
+    parser.add_argument(
+        "--worktree-source",
+        help="analyse an on-disk directory instead of committed content; "
+        "cannot produce the committed document",
+    )
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args(argv[1:])
 
-    document = build(Path(args.source))
+    committed_state.require_repository()
+
+    if args.worktree_source:
+        # Refused rather than warned about: the whole point of this change is
+        # that no committed artefact can be produced from unversioned content,
+        # and a warning is something a script pipes to /dev/null.
+        if args.markdown:
+            raise SystemExit(
+                "ERROR --worktree-source cannot produce --markdown.\n"
+                "      The committed security baseline must be reproducible from a\n"
+                "      clean checkout, so it is derived from committed content only."
+            )
+        print(
+            f"WORKING-TREE READ — NOT the baseline. Analysing {args.worktree_source} "
+            f"as it is on disk; this output describes no committed revision.",
+            file=sys.stderr,
+        )
+        document = build(Path(args.worktree_source))
+    else:
+        document = build(None)
+        observations = committed_state.working_tree_observations([COMMITTED_SOURCE])
+        committed_state.report_working_tree_observations(
+            "inventory_webui_security.py", observations
+        )
+        document["working_tree_observations"] = observations
 
     if args.verify:
         print(f"webui security: {document['controller_count']} controller(s)")

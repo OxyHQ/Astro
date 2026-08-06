@@ -31,7 +31,7 @@ harness::assert_status 0 "patch inventory JSON"
 
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
 python3 - "$tmp/patches.json" "$ASTRO_ROOT" <<'PY' || exit 1
-import json, pathlib, sys
+import json, pathlib, subprocess, sys
 
 path, repo = sys.argv[1:3]
 with open(path, encoding="utf-8") as handle:
@@ -39,10 +39,20 @@ with open(path, encoding="utf-8") as handle:
 
 astro = document["series"]["astro"]
 
-# Every patch on disk is in the inventory, and in the order the series declares.
-on_disk = sorted(p.name for p in (pathlib.Path(repo) / "patches/astro").glob("*.patch"))
-assert sorted(p["name"] for p in astro["patches"]) == on_disk, "inventory misses a patch"
-assert [p["order"] for p in astro["patches"]] == list(range(1, len(on_disk) + 1))
+# Every COMMITTED patch is in the inventory, and in the order the series
+# declares. Committed, not "on disk": the inventory is derived from HEAD so a
+# clean checkout reproduces it, and a directory listing would compare it against
+# whatever uncommitted patch files this machine happens to carry.
+committed = sorted(
+    pathlib.PurePosixPath(name).name
+    for name in subprocess.run(
+        ["git", "-C", repo, "ls-tree", "-r", "--name-only", "HEAD", "--", "patches/astro"],
+        capture_output=True, text=True, check=True,
+    ).stdout.split()
+    if name.endswith(".patch")
+)
+assert sorted(p["name"] for p in astro["patches"]) == committed, "inventory misses a patch"
+assert [p["order"] for p in astro["patches"]] == list(range(1, len(committed) + 1))
 
 # Every Astro patch carries a disposition, and it is one of the four values.
 valid = {"keep", "replace", "remove", "investigate"}
@@ -74,7 +84,13 @@ dispositions="$ASTRO_ROOT/docs/astro-next/baseline/patch-dispositions.json"
 harness::assert_file_exists "$dispositions"
 
 # A patch with no disposition must fail. Simulated by removing one entry from a
-# copy of the dispositions file and pointing the tool at it.
+# copy of the dispositions file and handing the tool that text.
+#
+# The dispositions document is passed in as TEXT rather than by swapping a path
+# on the module. The generator reads committed content and has no "read this
+# file from disk instead" switch by design — that escape hatch is how the
+# working tree got into the baseline in the first place — so the seam a test
+# uses is the same one the tool exposes to any caller.
 python3 - "$dispositions" "$tmp/missing.json" <<'PY'
 import json, sys
 src, dst = sys.argv[1:3]
@@ -84,15 +100,16 @@ del document["patches"]["001-branding-strings.patch"]
 with open(dst, "w", encoding="utf-8") as handle:
     json.dump(document, handle)
 PY
-harness::run env ASTRO_TEST_DISPOSITIONS="$tmp/missing.json" \
-    python3 - "$BASELINE/inventory_patches.py" "$tmp/missing.json" <<'PY'
+harness::run python3 - "$BASELINE/inventory_patches.py" "$tmp/missing.json" <<'PY'
 import importlib.util, pathlib, sys
 tool, dispositions = sys.argv[1:3]
+# The tool imports its sibling `committed_state`; loading it by path rather
+# than running it as a script means that directory is not already on sys.path.
+sys.path.insert(0, str(pathlib.Path(tool).resolve().parent))
 spec = importlib.util.spec_from_file_location("inv", tool)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
-module.DISPOSITIONS = pathlib.Path(dispositions)
-module.build(True)
+module.build(True, dispositions_text=pathlib.Path(dispositions).read_text(encoding="utf-8"))
 PY
 harness::assert_nonzero_status "a patch with no disposition"
 harness::assert_output_contains "no disposition for Astro patch" "refusal reason"
@@ -113,11 +130,11 @@ PY
 harness::run python3 - "$BASELINE/inventory_patches.py" "$tmp/orphan.json" <<'PY'
 import importlib.util, pathlib, sys
 tool, dispositions = sys.argv[1:3]
+sys.path.insert(0, str(pathlib.Path(tool).resolve().parent))
 spec = importlib.util.spec_from_file_location("inv", tool)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
-module.DISPOSITIONS = pathlib.Path(dispositions)
-module.build(True)
+module.build(True, dispositions_text=pathlib.Path(dispositions).read_text(encoding="utf-8"))
 PY
 harness::assert_nonzero_status "a disposition naming a patch that does not exist"
 harness::assert_output_contains "999-was-deleted.patch" "names the stale entry"
@@ -169,7 +186,7 @@ void Configure(content::WebUIDataSource* source) {
 }
 CONTROLLER
 
-harness::run python3 "$BASELINE/inventory_webui_security.py" --verify --source "$clean"
+harness::run python3 "$BASELINE/inventory_webui_security.py" --verify --worktree-source "$clean"
 harness::assert_status 0 "a controller with no violations"
 harness::assert_output_contains "1 controller(s)" "the clean controller was read"
 harness::assert_output_lacks "trusted-types-disabled" "no false positive on Trusted Types"
@@ -191,12 +208,25 @@ void Configure(content::WebUIDataSource* source) {
 }
 CONTROLLER
 
-harness::run python3 "$BASELINE/inventory_webui_security.py" --verify --source "$dirty"
+harness::run python3 "$BASELINE/inventory_webui_security.py" --verify --worktree-source "$dirty"
 harness::assert_status 0 "a controller with every violation"
 harness::assert_output_contains "trusted-types-disabled" "catches Trusted Types"
 harness::assert_output_contains "unsafe-inline" "catches unsafe-inline"
 harness::assert_output_contains "remote-origins" "catches remote origins"
 harness::assert_output_contains "serves-from-exe-dir" "catches DIR_EXE"
+
+# Reading a directory off disk is a diagnostic mode, and it must not be able to
+# write the committed document. Without this, --worktree-source is one flag away
+# from reintroducing exactly the bug this generator was changed to fix.
+harness::run python3 "$BASELINE/inventory_webui_security.py" \
+    --worktree-source "$dirty" --markdown "$tmp/should-not-exist.md"
+harness::assert_nonzero_status "--worktree-source asked to write the committed document"
+harness::assert_output_contains "cannot produce --markdown" "names the refusal"
+
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if [ -e "$tmp/should-not-exist.md" ]; then
+    harness::fail "--worktree-source wrote a markdown document after refusing to"
+fi
 
 # --------------------------------------------------------------------------
 # Source inventory

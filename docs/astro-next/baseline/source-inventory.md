@@ -39,13 +39,15 @@ larger half of Astro's delta.
 
 | | |
 |---|---|
-| Overlay files tracked by git | 61 |
-| Overlay bytes (tracked) | 3,992,504 |
+| Overlay files (committed) | 61 |
+| Overlay bytes (committed) | 3,973,982 |
 
-Counts cover committed files only. A working tree may carry additional
-uncommitted overlay files, which a fresh clone would not have; the
-generator reports those to stderr and records them in the JSON, but they
-are left out here so this document is reproducible from a clean checkout.
+Counts and byte sizes are read from committed content, not from the
+working tree. A working tree may carry uncommitted overlay files, or
+edits to committed ones, that a fresh clone would not have; the generator
+reports those to stderr and records them in the JSON under
+`build/reports/`, but they are left out here so this document is
+reproducible from a clean checkout.
 
 ### Declared destinations
 

@@ -46,10 +46,7 @@ overlay:
     component: webui
     substituted_shape: false
     references:
-      - "src/chrome/browser/oxy/webui/astro_alia_ui.cc"
-      - "src/chrome/browser/oxy/webui/astro_error_ui.cc"
       - "src/chrome/browser/oxy/webui/astro_ntp_ui.cc"
-      - "src/chrome/browser/oxy/webui/astro_whats_new_ui.cc"
   - host: "pgl.yoyo.org"
     component: adblock
     substituted_shape: false

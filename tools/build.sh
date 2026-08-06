@@ -27,6 +27,11 @@ source "$ASTRO_ROOT/tools/lib/astro-common.sh"
 
 BUILD_TYPE="Release"
 PLATFORM="linux"
+# Overrides the per-platform args file. Exists so a build can be made from the
+# COMMITTED gn args while a developer's working tree carries an experiment —
+# without touching their file. Reproducibility work (#5) needs to build what
+# the repository says, not what one machine happens to have.
+GN_ARGS_OVERRIDE=""
 
 # WebUI pages compiled into the product. A missing bundle is a build failure:
 # the page would render blank at runtime, which is not a warning-level event.
@@ -41,6 +46,8 @@ Platforms: linux, windows, windows-arm64, macos, android
 Options:
   --dry-run   Print every planned operation and validate every required
               input; run no generation, compile or copy.
+  --gn-args FILE
+              Use FILE instead of the platform's gn_args/*.gn.
 
 Environment:
   ASTRO_BUILD_JOBS               Parallel compile jobs (default: nproc)
@@ -54,6 +61,7 @@ while [ $# -gt 0 ]; do
         Release|Debug)  BUILD_TYPE="$1" ;;
         linux|windows|windows-arm64|macos|android) PLATFORM="$1" ;;
         --dry-run)      ASTRO_DRY_RUN=1 ;;
+        --gn-args)      shift; GN_ARGS_OVERRIDE="${1:?--gn-args needs a file}" ;;
         -h|--help)      usage; exit 0 ;;
         *)              usage; astro::die "Unknown argument: $1" ;;
     esac
@@ -116,8 +124,21 @@ case "$PLATFORM" in
     android)       GN_ARGS_FILE="$ASTRO_ROOT/gn_args/android.gn";       BUILD_TARGETS=(chrome_public_apk) ;;
 esac
 
+if [ -n "$GN_ARGS_OVERRIDE" ]; then
+    GN_ARGS_FILE="$GN_ARGS_OVERRIDE"
+    astro::warn "override:gn-args" "using $GN_ARGS_FILE instead of the $PLATFORM default"
+fi
+
 astro::require_file "$GN_ARGS_FILE" "GN args file for $PLATFORM"
 astro::require_cmd gn autoninja python3
+
+# The two build gates, required as inputs like everything else here. A missing
+# gate has to fail AS a missing gate: the first time gn_args_drift.py was absent
+# the build died claiming the GN args violated policy, which is a false report
+# about the tree rather than a true one about the toolbox.
+astro::require_file "$ASTRO_ROOT/tools/lib/gn_args_drift.py" "GN args drift reporter"
+astro::require_file "$ASTRO_ROOT/tools/lib/gn_check_baseline.py" "gn check ratchet"
+astro::require_file "$ASTRO_ROOT/tools/gn-check-baseline.json" "committed gn check baseline"
 
 # WebUI bundles. The old script warned and carried on; a build produced that
 # way ships a page that renders nothing.
@@ -172,6 +193,26 @@ fi
 OUT_DIR="out/$BUILD_TYPE"
 JOBS="${ASTRO_BUILD_JOBS:-$(nproc)}"
 
+# --------------------------------------------------------------------------
+# GN args provenance
+# --------------------------------------------------------------------------
+# The args come from a file in the WORKING TREE, so a one-character local edit
+# is indistinguishable from the repository's own configuration unless something
+# says otherwise. Nothing did, and it cost: an uncommitted
+# `safe_browsing_mode = 1` in gn_args/linux.gn produced a `gn gen` failure that
+# was nearly published as a defect in upstream ungoogled-chromium. See
+# docs/astro-next/baseline/findings.md, finding 2.
+#
+# This reports; it does not refuse. Editing GN args locally is ordinary work and
+# the epic requires developer local work to be preserved by default. Set
+# ASTRO_REQUIRE_COMMITTED_GN_ARGS=1 (release and CI builds should) to make any
+# difference fatal instead.
+astro::info ">>> GN args provenance ($GN_ARGS_FILE)"
+python3 "$ASTRO_ROOT/tools/lib/gn_args_drift.py" \
+    --repo "$ASTRO_ROOT" --args-file "$GN_ARGS_FILE" \
+    ${ASTRO_REQUIRE_COMMITTED_GN_ARGS:+--strict} \
+    || astro::die "GN args are not the committed ones (ASTRO_REQUIRE_COMMITTED_GN_ARGS=1)"
+
 if astro::dry_run; then
     astro::plan "gn gen $OUT_DIR --args=@$GN_ARGS_FILE"
     astro::plan "gn check $OUT_DIR"
@@ -180,8 +221,25 @@ else
     astro::info ">>> Running gn gen ($GN_ARGS_FILE)..."
     ( cd "$CHROMIUM_SRC" && gn gen "$OUT_DIR" --args="$(cat "$GN_ARGS_FILE")" )
 
+    # `gn check` is advisory: Chromium's own build does not consume it, and the
+    # inherited ungoogled stack rewrites 68 BUILD.gn/.gni files, so it reports
+    # pre-existing include-edge complaints that no Astro change introduced.
+    # Ignoring them silently is not an option either, so the count is ratcheted
+    # against a committed number and BOTH directions are fatal: more errors is a
+    # regression, fewer means the ratchet is stale and must be lowered in the
+    # same change that fixed them. See findings.md, finding 8.
     astro::info ">>> Running gn check..."
-    ( cd "$CHROMIUM_SRC" && gn check "$OUT_DIR" )
+    GN_CHECK_LOG="$ASTRO_ROOT/build/reports/gn-check-$PLATFORM.txt"
+    mkdir -p "$(dirname "$GN_CHECK_LOG")"
+    gn_check_status=0
+    ( cd "$CHROMIUM_SRC" && gn check "$OUT_DIR" ) > "$GN_CHECK_LOG" 2>&1 \
+        || gn_check_status=$?
+    astro::info "    gn check exited $gn_check_status; report at $GN_CHECK_LOG"
+    python3 "$ASTRO_ROOT/tools/lib/gn_check_baseline.py" \
+        --baseline "$ASTRO_ROOT/tools/gn-check-baseline.json" \
+        --log "$GN_CHECK_LOG" --platform "$PLATFORM" \
+        || astro::die "gn check error count does not match the committed baseline"
+
 
     astro::info ">>> Building ${BUILD_TARGETS[*]} for $PLATFORM..."
     astro::info "    first build takes hours; incremental builds are minutes"

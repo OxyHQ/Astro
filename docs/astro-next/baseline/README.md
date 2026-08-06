@@ -33,6 +33,80 @@ Hand-maintained documents must not restate a figure a generated document
 owns. A count copied out of `patch-inventory.md` into this file would go
 stale without anything noticing, because only the generated set is checked.
 
+## Every generated document is derived from committed state
+
+This is the rule the generators enforce, and it is not a style preference:
+
+> A generated document is a function of `HEAD` and nothing else. No generator
+> reads the working tree for anything that reaches a committed artefact.
+
+Without it, `--check` is worthless. The generators originally read files off
+disk, so a baseline produced on a machine carrying uncommitted work embedded
+that work, `--check` passed *there*, and a clean checkout regenerated
+different documents — meaning the check failed for everyone else, naming
+content they had never seen.
+
+The damage was not hypothetical. Measured on one such tree, the committed
+documents asserted all of the following about a repository in which none of it
+was true:
+
+- `security-baseline.md` credited **four** WebUI controllers with loading
+  remote fonts; only two do. `astro_error_ui.cc` and `astro_whats_new_ui.cc`
+  acquired `fonts.gstatic.com` in uncommitted work, and several `ImgSrc` and
+  `ScriptSrc` directive values were the uncommitted versions.
+- `network-inventory.yaml` listed those same two files as references to
+  `fonts.gstatic.com`.
+- `platform-matrix.md` reported **five** GN findings that do not exist in the
+  repository: `safe_browsing_mode` and `build_with_tflite_lib` as keys whose
+  value disagrees between platforms, `enable_supervised_users` with the wrong
+  value on `windows_arm64`, and `enable_rlz_support` and
+  `fatal_linker_warnings` as set on one platform only.
+- `source-inventory.md` put the overlay at 3,992,504 bytes — the working-tree
+  `stat` sizes. The committed blobs total 3,973,982.
+
+Each of those is the shape of finding a later issue would cite as evidence that
+something needs fixing, or as evidence that it already was.
+
+Every read that feeds a committed artefact therefore goes through
+`tools/baseline/committed_state.py`, which reads `HEAD` via git and **fails
+loudly** rather than falling back to the filesystem. Falling back silently is
+how the bug happened.
+
+This applies to `test/astro-next/fixtures/` too, which is generated and
+committed on the same terms.
+
+**The workflow consequence, which is real:** commit the source change first,
+then regenerate and commit the documents. Regenerating before committing the
+source produces documents that describe the *previous* revision, and CI —
+which regenerates at the merge commit — then reports drift. Two commits, or a
+regenerate-and-amend, both work.
+
+Working-tree differences are not swept away; they are reported **separately**,
+never merged in. Each generator prints a `WORKING-TREE DELTA` block to stderr
+and records the same data in its JSON under `build/reports/` (gitignored). It
+is a set difference, not a count — paths present in the working tree and absent
+from `HEAD`, paths present in `HEAD` and deleted, and paths present in both
+whose content differs, the last with line counts. The point of the report is
+that someone can see at a glance which baseline findings would change if the
+uncommitted work landed.
+
+An uncommitted overlay file is copied into Chromium by a local build and is
+absent from a fresh clone, so two people building "the same" revision get
+different browsers — worth saying out loud on every run, and worth keeping out
+of a document that describes the clean checkout.
+
+`inventory_webui_security.py` has a `--worktree-source DIR` mode for pointing
+the detectors at a constructed directory. It announces itself on stderr and
+**refuses** `--markdown`: a warning is something a script pipes to
+`/dev/null`, so the committed document is unreachable from that mode rather
+than merely discouraged.
+
+`inventory_gn_args.py` additionally reports its working-tree delta **per key**,
+not per file. "`gn_args/linux.gn` changed" is not the useful statement, because
+this document's findings are per key: the report names the platform, the key,
+the committed value and the working-tree one, so a reader can see which entry
+in the matrix would move.
+
 ## Regenerating
 
 ```sh
@@ -53,6 +127,16 @@ mutation-tests the check itself, in
 document deliberately and asserts the check fails and names the file. A
 drift check nobody has seen fail is indistinguishable from one that cannot
 fail.
+
+The same case is the regression test for the committed-state rule above. It
+plants content in two real working-tree files that between them feed four
+generators — a WebUI controller and a patch — regenerates, and asserts the
+whole baseline directory is byte-identical and that `--check` still exits 0.
+Comparing the directory rather than grepping for the planted marker is
+deliberate: it catches a leaked count or byte size just as well as leaked
+text. The planted files are restored from a pristine byte copy on any exit,
+written in place, never with `git checkout` — the targets may carry a
+developer's uncommitted work.
 
 That gate covers the generated set only. The two hand-maintained documents
 are work lists rather than derivations, and nothing can machine-check
@@ -107,6 +191,7 @@ recorded result must say which state the build was in.
 | Path | What it is |
 |---|---|
 | `tools/baseline/` | The generators, the fixture builder and the smoke runner |
+| `tools/baseline/committed_state.py` | The single seam through which every generator reads `HEAD`. Fails loudly rather than falling back to the working tree, and supplies the working-tree observation report |
 | `tools/baseline/smoke.sh` | Launches a clean build, navigates a representative URL set, writes `build/reports/smoke-report.json`. Refuses to write a report it did not measure |
 | `tools/baseline/make_profile_fixtures.py` | Builds the synthetic profile fixtures, splitting what it can derive from what needs a browser capture |
 | `test/astro-next/fixtures/` | The fixtures themselves, containing test data only |

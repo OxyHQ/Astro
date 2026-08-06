@@ -3,7 +3,7 @@
 
 # GN args matrix
 
-42 distinct keys across 6 configurations.
+40 distinct keys across 6 configurations.
 
 `linux_debug` is excluded from the consistency comparison: a debug
 configuration is *expected* to differ, and including it would report every
@@ -11,7 +11,7 @@ deliberate difference as an inconsistency and bury the real ones.
 
 ## Inconsistencies
 
-### Keys set on some release platforms and not others (10)
+### Keys set on some release platforms and not others (8)
 
 Each of these is either a deliberate platform difference or an oversight.
 Nothing in the repository currently records which — that is the point of
@@ -22,21 +22,17 @@ listing them.
 | `android_channel` | android | linux, macos, windows, windows_arm64 |
 | `android_default_version_name` | android | linux, macos, windows, windows_arm64 |
 | `enable_nacl` | android, macos, windows, windows_arm64 | linux |
-| `enable_rlz_support` | windows_arm64 | android, linux, macos, windows |
-| `fatal_linker_warnings` | windows_arm64 | android, linux, macos, windows |
 | `use_gnome_keyring` | linux | android, macos, windows, windows_arm64 |
 | `use_sysroot` | linux | android, macos, windows, windows_arm64 |
 | `use_system_freetype` | linux | android, macos, windows, windows_arm64 |
 | `use_system_harfbuzz` | linux | android, macos, windows, windows_arm64 |
 | `use_thin_lto` | linux, macos | android, windows, windows_arm64 |
 
-### Keys whose value differs across release platforms (5)
+### Keys whose value differs across release platforms (3)
 
 | Key | Values |
 |---|---|
-| `build_with_tflite_lib` | android = `false`, linux = `true`, macos = `false`, windows = `false`, windows_arm64 = `false` |
-| `enable_supervised_users` | android = `false`, linux = `true`, macos = `false`, windows = `false`, windows_arm64 = `true` |
-| `safe_browsing_mode` | android = `0`, linux = `1`, macos = `0`, windows = `0`, windows_arm64 = `0` |
+| `enable_supervised_users` | android = `false`, linux = `true`, macos = `false`, windows = `false`, windows_arm64 = `false` |
 | `target_cpu` | android = `"arm64"`, linux = `"x64"`, macos = `"arm64"`, windows = `"x64"`, windows_arm64 = `"arm64"` |
 | `target_os` | android = `"android"`, linux = `"linux"`, macos = `"mac"`, windows = `"win"`, windows_arm64 = `"win"` |
 
@@ -47,7 +43,7 @@ listing them.
 | `android_channel` | `"stable"` | — | — | — | — | — |
 | `android_default_version_name` | `"0.1.0"` | — | — | — | — | — |
 | `blink_symbol_level` | `0` | `0` | — | `0` | `0` | `0` |
-| `build_with_tflite_lib` | `false` | `true` | — | `false` | `false` | `false` |
+| `build_with_tflite_lib` | `false` | `false` | — | `false` | `false` | `false` |
 | `chrome_pgo_phase` | `0` | `0` | — | `0` | `0` | `0` |
 | `clang_use_chrome_plugins` | `false` | `false` | — | `false` | `false` | `false` |
 | `disable_fieldtrial_testing_config` | `true` | `true` | — | `true` | `true` | `true` |
@@ -58,12 +54,10 @@ listing them.
 | `enable_nacl` | `false` | — | `false` | `false` | `false` | `false` |
 | `enable_remoting` | `false` | `false` | — | `false` | `false` | `false` |
 | `enable_reporting` | `false` | `false` | `false` | `false` | `false` | `false` |
-| `enable_rlz_support` | — | — | — | — | — | `true` |
 | `enable_service_discovery` | `false` | `false` | — | `false` | `false` | `false` |
-| `enable_supervised_users` | `false` | `true` | `false` | `false` | `false` | `true` |
+| `enable_supervised_users` | `false` | `true` | `false` | `false` | `false` | `false` |
 | `enable_widevine` | `true` | `true` | — | `true` | `true` | `true` |
 | `exclude_unwind_tables` | `true` | `true` | — | `true` | `true` | `true` |
-| `fatal_linker_warnings` | — | — | — | — | — | `false` |
 | `ffmpeg_branding` | `"Chrome"` | `"Chrome"` | `"Chrome"` | `"Chrome"` | `"Chrome"` | `"Chrome"` |
 | `google_api_key` | `""` | `""` | `""` | `""` | `""` | `""` |
 | `google_chrome_branding` | `false` | `false` | `false` | `false` | `false` | `false` |
@@ -73,7 +67,7 @@ listing them.
 | `is_debug` | `false` | `false` | `true` | `false` | `false` | `false` |
 | `is_official_build` | `true` | `true` | `false` | `true` | `true` | `true` |
 | `proprietary_codecs` | `true` | `true` | `true` | `true` | `true` | `true` |
-| `safe_browsing_mode` | `0` | `1` | `0` | `0` | `0` | `0` |
+| `safe_browsing_mode` | `0` | `0` | `0` | `0` | `0` | `0` |
 | `symbol_level` | `0` | `0` | `2` | `0` | `0` | `0` |
 | `target_cpu` | `"arm64"` | `"x64"` | `"x64"` | `"arm64"` | `"x64"` | `"arm64"` |
 | `target_os` | `"android"` | `"linux"` | `"linux"` | `"mac"` | `"win"` | `"win"` |

@@ -9,6 +9,15 @@ platform-specific" and "somebody forgot" is invisible.
 This builds the matrix and flags both shapes: a key whose VALUE differs across
 platforms, and a key PRESENT on some platforms and absent on others.
 
+The matrix is read from `HEAD` through `committed_state`, never from the working
+tree, and the reason is not theoretical. Measured on this repository: the
+committed files set `safe_browsing_mode = 0` on all six configurations, while an
+uncommitted edit to `gn_args/linux.gn` sets it to `1`. Generated from disk, the
+matrix reported `safe_browsing_mode` as a key whose value disagrees between
+platforms — an inconsistency that does not exist in the repository, sitting in a
+document later issues cite as evidence. Uncommitted GN edits are reported
+separately, per key, with both values.
+
 Usage:
     inventory_gn_args.py --json OUT.json --markdown OUT.md
     inventory_gn_args.py --verify
@@ -22,8 +31,10 @@ import re
 import sys
 from pathlib import Path
 
+import committed_state
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
-GN_DIR = REPO_ROOT / "gn_args"
+GN_DIR = "gn_args"
 
 ASSIGNMENT = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$")
 
@@ -33,9 +44,9 @@ ASSIGNMENT = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$")
 DEBUG_FILES = {"linux_debug.gn"}
 
 
-def parse_gn(path: Path) -> dict[str, str]:
+def parse_gn(text: str) -> dict[str, str]:
     values: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         stripped = line.split("#", 1)[0].strip()
         if not stripped:
             continue
@@ -45,12 +56,22 @@ def parse_gn(path: Path) -> dict[str, str]:
     return values
 
 
-def build() -> dict:
-    files = sorted(p for p in GN_DIR.glob("*.gn"))
+def committed_gn_files() -> list[str]:
+    files = committed_state.list_files(GN_DIR, (".gn",))
     if not files:
-        raise SystemExit(f"ERROR no GN args files under {GN_DIR}")
+        raise SystemExit(
+            f"ERROR no committed GN args files under {GN_DIR}.\n"
+            f"      The matrix is derived from committed content only; GN files that\n"
+            f"      exist just in this working tree describe no revision."
+        )
+    return files
 
-    by_platform = {path.stem: parse_gn(path) for path in files}
+
+def build() -> dict:
+    by_platform = {
+        Path(path).stem: parse_gn(committed_state.read_text(path))
+        for path in committed_gn_files()
+    }
     release = {name: values for name, values in by_platform.items()
                if f"{name}.gn" not in DEBUG_FILES}
 
@@ -77,6 +98,63 @@ def build() -> dict:
         "differing_values": differing_values,
         "partially_set": partially_set,
     }
+
+
+def worktree_key_delta() -> list[dict]:
+    """Per-KEY differences between the committed GN files and this working tree.
+
+    The file-level delta says `gn_args/linux.gn` changed. That is not the useful
+    statement — this document's findings are per key, so the report has to be
+    per key too: which key, on which platform, committed value against
+    working-tree value. That is what tells a reader whether an inconsistency in
+    the matrix would appear or disappear if the uncommitted work landed.
+    """
+    delta: list[dict] = []
+    for path in committed_gn_files():
+        platform = Path(path).stem
+        committed = parse_gn(committed_state.read_text(path))
+        on_disk = REPO_ROOT / path
+        if not on_disk.is_file():
+            delta.append(
+                {
+                    "platform": platform,
+                    "key": "*",
+                    "committed": "the whole file",
+                    "worktree": "deleted",
+                }
+            )
+            continue
+        working = parse_gn(on_disk.read_text(encoding="utf-8"))
+        for key in sorted(set(committed) | set(working)):
+            before, after = committed.get(key), working.get(key)
+            if before != after:
+                delta.append(
+                    {
+                        "platform": platform,
+                        "key": key,
+                        "committed": before if before is not None else "(unset)",
+                        "worktree": after if after is not None else "(unset)",
+                    }
+                )
+    return delta
+
+
+def report_worktree_key_delta(delta: list[dict], stream=sys.stderr) -> None:
+    if not delta:
+        return
+    print(
+        f"WORKING-TREE GN DELTA ({len(delta)} key(s)) — NOT part of the baseline.\n"
+        f"          These GN args differ between {committed_state.REVISION} and this\n"
+        f"          working tree. The matrix above is the committed one; each line here\n"
+        f"          is a value that would change in it if the uncommitted work landed:",
+        file=stream,
+    )
+    for entry in delta:
+        print(
+            "            %-16s %-34s %s -> %s"
+            % (entry["platform"], entry["key"], entry["committed"], entry["worktree"]),
+            file=stream,
+        )
 
 
 def render_markdown(document: dict) -> str:
@@ -144,17 +222,29 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args(argv[1:])
 
+    committed_state.require_repository()
     document = build()
+
+    # Two reports, both separate from the document: the file-level set
+    # difference, and the per-key one this document's findings are made of.
+    committed_state.report_working_tree_observations(
+        "inventory_gn_args.py", committed_state.working_tree_observations([GN_DIR])
+    )
+    delta = worktree_key_delta()
+    report_worktree_key_delta(delta)
+    document["working_tree_key_delta"] = delta
 
     if args.verify:
         print(
             "gn args: %d keys across %d configurations; "
-            "%d partially set, %d differing values"
+            "%d partially set, %d differing values; "
+            "%d key(s) differ in the working tree"
             % (
                 document["key_count"],
                 len(document["platforms"]),
                 len(document["partially_set"]),
                 len(document["differing_values"]),
+                len(delta),
             )
         )
 

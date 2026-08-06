@@ -20,6 +20,11 @@ strict in both directions:
 which is the same series-must-match-directory property the patch runner
 enforces (#4), applied to documentation so this inventory cannot rot silently.
 
+Every byte of the committed document is read from `HEAD` through
+`committed_state`, never from the working tree, so a clean checkout regenerates
+it identically. Uncommitted patch edits are still reported — separately, as
+working-tree observations.
+
 Usage:
     inventory_patches.py --json OUT.json --markdown OUT.md
     inventory_patches.py --verify        Check the join; write nothing.
@@ -34,12 +39,13 @@ import re
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+import committed_state
+
 SERIES = {
-    "astro": REPO_ROOT / "patches" / "astro",
-    "ungoogled": REPO_ROOT / "patches" / "ungoogled",
+    "astro": "patches/astro",
+    "ungoogled": "patches/ungoogled",
 }
-DISPOSITIONS = REPO_ROOT / "docs" / "astro-next" / "baseline" / "patch-dispositions.json"
+DISPOSITIONS = "docs/astro-next/baseline/patch-dispositions.json"
 
 VALID_DISPOSITIONS = {"keep", "replace", "remove", "investigate"}
 
@@ -47,24 +53,28 @@ TARGET_RE = re.compile(r"^\+\+\+ b/(\S+)", re.MULTILINE)
 HUNK_RE = re.compile(r"^@@ ", re.MULTILINE)
 
 
-def read_series(directory: Path) -> list[str]:
+def read_series(directory: str) -> list[str]:
     """The declared order. Filesystem order is not a reviewed decision."""
-    series_file = directory / "series"
-    if not series_file.is_file():
-        raise SystemExit(f"ERROR no series file at {series_file}")
+    series_file = f"{directory}/series"
+    if not committed_state.exists(series_file):
+        raise SystemExit(f"ERROR no committed series file at {series_file}")
     entries = []
-    for line in series_file.read_text(encoding="utf-8").splitlines():
+    for line in committed_state.read_text(series_file).splitlines():
         line = line.split("#", 1)[0].strip()
         if line:
             entries.append(line)
     return entries
 
 
-def describe_patch(directory: Path, relative: str, order: int) -> dict:
-    path = directory / relative
-    if not path.is_file():
-        raise SystemExit(f"ERROR series entry has no file: {path}")
-    raw = path.read_bytes()
+def describe_patch(directory: str, relative: str, order: int) -> dict:
+    path = f"{directory}/{relative}"
+    if not committed_state.exists(path):
+        raise SystemExit(
+            f"ERROR series entry has no committed file: {path}\n"
+            f"      A patch that exists only in the working tree cannot be applied by\n"
+            f"      anyone else, so it is not part of the baseline. Commit it."
+        )
+    raw = committed_state.read_bytes(path)
     text = raw.decode("utf-8", "replace")
     files = sorted({match.split()[0] for match in TARGET_RE.findall(text)})
     return {
@@ -98,11 +108,15 @@ def find_overlaps(patches: list[dict]) -> list[dict]:
     ]
 
 
-def load_dispositions() -> dict:
-    if not DISPOSITIONS.is_file():
-        raise SystemExit(f"ERROR dispositions file not found: {DISPOSITIONS}")
-    with DISPOSITIONS.open(encoding="utf-8") as handle:
-        document = json.load(handle)
+def load_dispositions(raw: str) -> dict:
+    """Parse the dispositions document. The caller decides where the text came from.
+
+    Passed in rather than read here so a test can exercise the join against a
+    constructed document without the tool growing a "read this file instead of
+    the committed one" switch — which is exactly the escape hatch that let the
+    working tree into the baseline in the first place.
+    """
+    document = json.loads(raw)
 
     entries: dict[str, dict] = {}
     for name, entry in document.get("patches", {}).items():
@@ -125,7 +139,7 @@ def resolve_disposition(patch: dict, series: str, dispositions: dict) -> dict:
     if series == "astro":
         raise SystemExit(
             f"ERROR no disposition for Astro patch {patch['name']!r}.\n"
-            f"      Every Astro patch needs one in {DISPOSITIONS.name}. If its\n"
+            f"      Every Astro patch needs one in {Path(DISPOSITIONS).name}. If its\n"
             f"      purpose is not clear from the patch, record it as\n"
             f"      \"investigate\" with the specific question — a guess is worse\n"
             f"      than a recorded unknown."
@@ -140,8 +154,12 @@ def resolve_disposition(patch: dict, series: str, dispositions: dict) -> dict:
     return {**entry, "source": f"group:{group}"}
 
 
-def build(verify_only: bool) -> dict:
-    dispositions = load_dispositions()
+def build(verify_only: bool, dispositions_text: str | None = None) -> dict:
+    if dispositions_text is None:
+        if not committed_state.exists(DISPOSITIONS):
+            raise SystemExit(f"ERROR committed dispositions file not found: {DISPOSITIONS}")
+        dispositions_text = committed_state.read_text(DISPOSITIONS)
+    dispositions = load_dispositions(dispositions_text)
     document: dict = {"tool": "tools/baseline/inventory_patches.py", "series": {}}
     known_names: set[str] = set()
 
@@ -160,7 +178,7 @@ def build(verify_only: bool) -> dict:
             known_names.add(patch["name"])
 
         document["series"][series] = {
-            "directory": str(directory.relative_to(REPO_ROOT)),
+            "directory": directory,
             "count": len(patches),
             "patches": patches,
             "file_overlaps": find_overlaps(patches),
@@ -265,7 +283,19 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args(argv[1:])
 
+    committed_state.require_repository()
     document = build(args.verify)
+
+    # Reported, never merged. An edited patch changes what a local build applies
+    # and changes nothing about what this document describes, and conflating the
+    # two is what made the committed baseline unreproducible.
+    observations = committed_state.working_tree_observations(
+        [*SERIES.values(), DISPOSITIONS]
+    )
+    committed_state.report_working_tree_observations(
+        "inventory_patches.py", observations
+    )
+    document["working_tree_observations"] = observations
 
     if args.json:
         path = Path(args.json)

@@ -11,6 +11,13 @@ nothing enumerated what it wrote or whether any of it landed on top of an
 upstream file. A baseline that inventories only the patches would miss the
 larger half of Astro's delta.
 
+The inventory is taken from `HEAD` through `committed_state`, so the committed
+document describes the overlay a fresh clone gets. Overlay files that exist only
+in this working tree are the very thing this document is about — a build here
+copies them into Chromium and a build from a clean checkout does not — so they
+are reported loudly, to stderr and into the JSON report, and kept out of the
+committed document.
+
 Usage:
     inventory_sources.py --json OUT.json --markdown OUT.md
     inventory_sources.py --verify
@@ -24,17 +31,18 @@ import subprocess
 import sys
 from pathlib import Path
 
+import committed_state
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
-OVERLAY = REPO_ROOT / "src"
-ALLOWLIST = REPO_ROOT / "tools" / "overlay.allowlist"
-LOCK = REPO_ROOT / "browser.lock.json"
+OVERLAY = "src"
+ALLOWLIST = "tools/overlay.allowlist"
+LOCK = "browser.lock.json"
 
 
 def locked_revisions() -> dict:
-    if not LOCK.is_file():
-        raise SystemExit(f"ERROR lock file not found: {LOCK}")
-    with LOCK.open(encoding="utf-8") as handle:
-        lock = json.load(handle)
+    if not committed_state.exists(LOCK):
+        raise SystemExit(f"ERROR committed lock file not found: {LOCK}")
+    lock = json.loads(committed_state.read_text(LOCK))
     revisions = {}
     for name in ("chromium", "depot_tools", "ungoogled_chromium"):
         entry = lock.get(name)
@@ -70,9 +78,11 @@ def astro_revision() -> dict:
 
 def parse_allowlist() -> list[dict]:
     entries = []
-    if not ALLOWLIST.is_file():
+    if not committed_state.exists(ALLOWLIST):
         return entries
-    for number, line in enumerate(ALLOWLIST.read_text(encoding="utf-8").splitlines(), 1):
+    for number, line in enumerate(
+        committed_state.read_text(ALLOWLIST).splitlines(), 1
+    ):
         stripped = line.split("#", 1)[0].strip()
         if not stripped:
             continue
@@ -91,45 +101,32 @@ def parse_allowlist() -> list[dict]:
 
 
 def overlay_files() -> list[dict]:
-    files = []
-    for path in sorted(OVERLAY.rglob("*")):
-        if path.is_file():
-            destination = str(path.relative_to(OVERLAY))
-            files.append(
-                {
-                    "destination": destination,
-                    "bytes": path.stat().st_size,
-                    "tracked_by_git": is_tracked(path),
-                }
-            )
-    return files
+    """Every committed overlay file, with the size of its committed blob.
 
-
-def is_tracked(path: Path) -> bool:
-    result = subprocess.run(
-        ["git", "-C", str(REPO_ROOT), "ls-files", "--", str(path.relative_to(REPO_ROOT))],
-        capture_output=True, text=True, check=True,
-    )
-    return bool(result.stdout.strip())
+    Sizes come from the object database rather than `stat()`: a tracked file
+    edited in the working tree has a different size on disk, and a byte count
+    that moves with somebody's unsaved experiment is not a baseline.
+    """
+    sizes = committed_state.file_sizes(OVERLAY)
+    prefix = OVERLAY + "/"
+    return [
+        {"destination": path[len(prefix):], "bytes": sizes[path]}
+        for path in sorted(sizes)
+    ]
 
 
 def build() -> dict:
     entries = parse_allowlist()
     files = overlay_files()
     overwrites = [e for e in entries if e["kind"] == "overwrite"]
-    untracked = [f for f in files if not f["tracked_by_git"]]
 
     return {
         "tool": "tools/baseline/inventory_sources.py",
         "locked_revisions": locked_revisions(),
         "astro": astro_revision(),
         "overlay": {
-            "file_count": len(files),
-            "total_bytes": sum(f["bytes"] for f in files),
-            "tracked_file_count": len(files) - len(untracked),
-            "tracked_bytes": sum(f["bytes"] for f in files if f["tracked_by_git"]),
-            "untracked_file_count": len(untracked),
-            "untracked_files": [f["destination"] for f in untracked],
+            "committed_file_count": len(files),
+            "committed_bytes": sum(f["bytes"] for f in files),
             "files": files,
         },
         "declared_destinations": entries,
@@ -140,12 +137,13 @@ def build() -> dict:
 def render_markdown(document: dict) -> str:
     """The COMMITTED document, which must be reproducible from a clean checkout.
 
-    Deliberately excludes two things the JSON report does carry:
+    Every figure here is read from `HEAD`. Two things the JSON report carries
+    are deliberately left out:
 
       * Astro's own commit, which changes with every commit, so a committed
         document naming it is stale the moment it lands;
-      * the list of overlay files not tracked by git, which is a property of
-        whoever ran the generator.
+      * the working-tree observations, which are a property of whoever ran the
+        generator rather than of the repository.
 
     Both are real and both are reported — to stderr and into the JSON under
     build/reports/ — but putting either in a committed document would make the
@@ -210,13 +208,15 @@ def render_markdown(document: dict) -> str:
         "",
         "| | |",
         "|---|---|",
-        "| Overlay files tracked by git | %d |" % overlay["tracked_file_count"],
-        "| Overlay bytes (tracked) | %s |" % f"{overlay['tracked_bytes']:,}",
+        "| Overlay files (committed) | %d |" % overlay["committed_file_count"],
+        "| Overlay bytes (committed) | %s |" % f"{overlay['committed_bytes']:,}",
         "",
-        "Counts cover committed files only. A working tree may carry additional",
-        "uncommitted overlay files, which a fresh clone would not have; the",
-        "generator reports those to stderr and records them in the JSON, but they",
-        "are left out here so this document is reproducible from a clean checkout.",
+        "Counts and byte sizes are read from committed content, not from the",
+        "working tree. A working tree may carry uncommitted overlay files, or",
+        "edits to committed ones, that a fresh clone would not have; the generator",
+        "reports those to stderr and records them in the JSON under",
+        "`build/reports/`, but they are left out here so this document is",
+        "reproducible from a clean checkout.",
         "",
         "### Declared destinations",
         "",
@@ -267,29 +267,27 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args(argv[1:])
 
+    committed_state.require_repository()
     document = build()
 
     # An uncommitted overlay file is copied into Chromium by a build here and
     # absent from a fresh clone, so two people building "the same" revision get
-    # different browsers. Worth saying out loud on every run.
-    untracked = document["overlay"]["untracked_files"]
-    if untracked:
-        print(
-            "WARNING %d overlay file(s) are not tracked by git; a build from a "
-            "clean checkout would not include them:" % len(untracked),
-            file=sys.stderr,
-        )
-        for name in untracked:
-            print(f"          {name}", file=sys.stderr)
+    # different browsers. Worth saying out loud on every run — and worth keeping
+    # out of the document, which describes the clean checkout.
+    observations = committed_state.working_tree_observations([OVERLAY, ALLOWLIST, LOCK])
+    committed_state.report_working_tree_observations(
+        "inventory_sources.py", observations
+    )
+    document["working_tree_observations"] = observations
 
     if args.verify:
         overlay = document["overlay"]
         print(
-            "sources: %d overlay file(s), %d untracked, %d declared destination(s), "
-            "%d upstream overwrite(s)"
+            "sources: %d committed overlay file(s), %d working-tree difference(s), "
+            "%d declared destination(s), %d upstream overwrite(s)"
             % (
-                overlay["file_count"],
-                overlay["untracked_file_count"],
+                overlay["committed_file_count"],
+                len(observations),
                 len(document["declared_destinations"]),
                 len(document["upstream_overwrites"]),
             )

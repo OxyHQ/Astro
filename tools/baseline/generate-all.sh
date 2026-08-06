@@ -9,6 +9,13 @@
 # Without that, "later issues can cite this baseline" degrades to citing a
 # snapshot nobody revalidated.
 #
+# Every generator derives its committed output from HEAD (tools/baseline/
+# committed_state.py), never from the working tree — otherwise a baseline
+# produced on a machine carrying uncommitted work embeds that work, --check
+# passes there, and a clean checkout regenerates something else. Working-tree
+# differences are still reported, to stderr and into build/reports/, under a
+# heading that cannot be mistaken for baseline content.
+#
 # Usage:
 #   tools/baseline/generate-all.sh            Regenerate in place.
 #   tools/baseline/generate-all.sh --check    Regenerate; fail on any diff.
@@ -28,7 +35,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --check) CHECK=1 ;;
         -h|--help)
-            sed -n '2,18p' "${BASH_SOURCE[0]}" >&2
+            sed -n '2,24p' "${BASH_SOURCE[0]}" >&2
             exit 0
             ;;
         *) astro::die "Unknown argument: $1" ;;
@@ -129,7 +136,12 @@ if [ "$DRIFTED" = "1" ]; then
         "Later issues cite this baseline as their compatibility reference, so a" \
         "stale document is worse than a missing one." \
         "" \
-        "Regenerate and commit the result:  tools/baseline/generate-all.sh"
+        "Regenerate and commit the result:  tools/baseline/generate-all.sh" \
+        "" \
+        "Order matters. Every generated document is derived from HEAD, never from" \
+        "the working tree, so a document regenerated BEFORE its source change was" \
+        "committed describes the previous revision and drifts here. Commit the" \
+        "source first, then regenerate and commit the documents."
 fi
 
 astro::info "=== Baseline is current ==="

@@ -21,11 +21,20 @@ harness::setup
 
 GENERATOR="$ASTRO_ROOT/tools/baseline/make_profile_fixtures.py"
 COMMITTED="$ASTRO_ROOT/test/astro-next/fixtures"
-PREF_PATCH_020="$ASTRO_ROOT/patches/astro/020-register-oxy-prefs.patch"
-PREF_PATCH_046="$ASTRO_ROOT/patches/astro/046-adblock-prefs.patch"
 tmp="$(harness::tmpdir)"
 
 harness::assert_file_exists "$GENERATOR"
+
+# The pref patches are read from HEAD, not from disk, because the fixtures they
+# describe are committed. Checking the generator's output against a working-tree
+# parse would pass on the machine that generated the fixtures and fail for
+# everybody else — which is the bug that made this whole file's guarantee
+# hollow. Extracted into the fixture directory so every later grep is over
+# committed bytes.
+PREF_PATCH_020="$tmp/committed-020-register-oxy-prefs.patch"
+PREF_PATCH_046="$tmp/committed-046-adblock-prefs.patch"
+git -C "$ASTRO_ROOT" show HEAD:patches/astro/020-register-oxy-prefs.patch > "$PREF_PATCH_020"
+git -C "$ASTRO_ROOT" show HEAD:patches/astro/046-adblock-prefs.patch > "$PREF_PATCH_046"
 harness::assert_file_exists "$PREF_PATCH_020"
 harness::assert_file_exists "$PREF_PATCH_046"
 
@@ -269,9 +278,9 @@ harness::assert_output_contains "StrayProfileBlob" "the stray file is named"
 
 # --- The fixture's preference keys are the ones the patches register ---------
 #
-# Read out of the patches HERE, independently of the generator: comparing the
-# generator's output against the generator's own parse would pass even if the
-# parse had stopped matching reality.
+# Read out of the COMMITTED patches HERE, independently of the generator:
+# comparing the generator's output against the generator's own parse would pass
+# even if the parse had stopped matching reality.
 mapfile -t PATCH_PREFS < <(
     grep -hoE '^\+[[:space:]]*registry->Register[A-Za-z]+Pref\("[A-Za-z0-9_.]+"' \
         "$PREF_PATCH_020" "$PREF_PATCH_046" \
@@ -280,9 +289,19 @@ mapfile -t PATCH_PREFS < <(
         | sort -u
 )
 
+# The floor stays at 15 deliberately. If the committed patches register fewer
+# than that, the fixtures cannot be regenerated from committed content, and the
+# answer is to commit the preference work — not to lower the number, which would
+# ratify one machine's uncommitted state as the baseline.
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
 if [ "${#PATCH_PREFS[@]}" -lt 15 ]; then
-    harness::fail "parsed only ${#PATCH_PREFS[@]} preference names from the patches; expected at least 15 (the extraction is broken, or prefs were removed)"
+    worktree_count="$(
+        grep -hoE '^\+[[:space:]]*registry->Register[A-Za-z]+Pref\("[A-Za-z0-9_.]+"' \
+            "$ASTRO_ROOT/patches/astro/020-register-oxy-prefs.patch" \
+            "$ASTRO_ROOT/patches/astro/046-adblock-prefs.patch" \
+            | grep -coE '"[A-Za-z0-9_.]+"'
+    )"
+    harness::fail "parsed only ${#PATCH_PREFS[@]} preference names from the COMMITTED patches; expected at least 15. This working tree's copies register $worktree_count. Either the extraction is broken, prefs were removed, or the preference work is not committed yet"
 fi
 
 # Flatten the fixture into dotted pref paths, the way PrefService addresses

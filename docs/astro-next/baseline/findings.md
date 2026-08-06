@@ -1,0 +1,349 @@
+<!-- Hand-maintained. Unlike its neighbours this file is not generated, because
+     a finding is a judgement about what the measurements mean.
+     Every number in it is measured; the command that produced each is given. -->
+
+# Baseline findings
+
+What the first real build of the current committed source actually showed.
+
+Each finding was produced by running the pipeline against a genuine Chromium
+checkout at the locked commit `ae03f7fb2cf1215853896d6a4c15fdceee2badb7`, not by
+reading code. Several of them are invisible to any synthetic fixture.
+
+---
+
+## 1. The committed source is not a complete Astro build
+
+> **The committed current Astro source contains the Oxy target, but the
+> committed patch stack does not currently link that target into
+> `chrome/browser`. Therefore a clean build of the current committed source
+> does not represent the full Astro product.**
+
+This is the finding that governs how every other baseline document should be
+read, and how any binary built from this repository should be described.
+
+### Evidence
+
+`src/chrome/browser/oxy/BUILD.gn` **is** committed and does declare the target:
+
+```
+$ git ls-files src/chrome/browser/oxy/BUILD.gn
+src/chrome/browser/oxy/BUILD.gn
+$ git show HEAD:src/chrome/browser/oxy/BUILD.gn | head -4
+source_set("oxy") {
+  sources = [
+    "oxy_alia_side_panel.cc",
+```
+
+Nothing adds it to the build graph. `007-oxy-auth-build-hook.patch` did — it
+added `"//chrome/browser/oxy"` to `chrome/browser/BUILD.gn` — and it is a
+**0-byte file**. It was 9,580 bytes at `264d449` and empty from `9cc1043`
+onward. The previous patch runner counted its failure and carried on, so nothing
+ever surfaced it.
+
+Measured on a fully patched tree:
+
+```
+$ grep -rl 'browser/oxy' chromium/src --include='BUILD.gn' --include='*.gni' | wc -l
+0
+```
+
+The committed patch stack does reference the target exactly once, and the
+detail is worth stating precisely rather than rounding off: `008-os-crypt-visibility.patch`
+adds `"//chrome/browser/oxy"` to a **visibility allowlist** in
+`components/os_crypt/sync/BUILD.gn`. That grants the overlay permission to
+depend on `os_crypt`; it does not put the overlay in the build. So the stack
+grants the target a privilege it has no way to exercise — which is itself a
+sign that the loss of 007 went unnoticed for a long time. And `008` is one of
+the patches that no longer applies.
+
+### What follows from it
+
+- Any binary built from the current committed source is **Chromium plus the
+  legacy patch base**, with **no Astro overlay**: no Oxy Identity, no Alia, no
+  ad blocker, none of the five WebUI controllers. It must be described that way
+  and never as "Astro".
+- No behavioural criterion about Astro may be marked satisfied on the strength
+  of such a binary.
+- The runtime half of the baseline — behaviour, screenshots, network capture,
+  `astro://` runtime origins, process locks, Alia, Identity, adblock UI —
+  stays blocked until a real Astro build exists.
+
+### What is deliberately NOT done
+
+The historic 007 is **not** restored. It is not the isolated build hook its name
+implies: **7 added lines against 36 removed**, and only one of the 7 is the oxy
+target. The 36 removals strip Safe Browsing notification content detection,
+accessibility (`ax_main_node_annotator_controller`, `tree_fixing`), Screen AI,
+`download/download_danger_prompt` — the dangerous-download UI — the preloading
+model, and enterprise interstitials.
+
+Restoring it would reintroduce exactly the contaminated delta Astro Next exists
+to remove, and would silently re-delete security-relevant components under a
+patch named "build hook".
+
+Connecting Chromium to `//astro` is [#7](https://github.com/OxyHQ/Astro/issues/7),
+and it is to be done as a deliberate minimal hook derived from what `//astro`
+actually needs — not by recovering this diff.
+
+---
+
+## 2. The inherited patch stack applies exactly *and configures* — the `gn` failure was a local GN arg
+
+> **Corrects an earlier version of this document**, which reported this as a
+> defect in the composition of two inherited ungoogled patches. It is not one.
+> No upstream adaptation is missing, nothing was ported, and no Astro-owned
+> correction was created.
+
+All 112 ungoogled patches apply **exactly** — no fuzz, no three-way merge — and
+the tree they produce **does** configure:
+
+```
+$ gn gen out/PipelineCheck --args="$(cat build/reports/gn-args-committed-linux.gn)"
+Done. Made 29803 targets from 4348 files in 2957ms
+```
+
+The failure that was previously recorded here is real but has a different cause:
+
+```
+ERROR at //chrome/browser/safe_browsing/BUILD.gn:114:5: Undefined identifier.
+    sources += [
+```
+
+It reproduces with the committed args **and one value changed**:
+
+| GN args | `gn gen` result |
+|---|---|
+| committed (`safe_browsing_mode = 0`) | `Done. Made 29803 targets` |
+| identical except `safe_browsing_mode = 1` | `ERROR … BUILD.gn:114:5: Undefined identifier` |
+
+`safe_browsing_mode = 1` is an **uncommitted edit to `gn_args/linux.gn` on this
+machine**. The committed value is `0` on all six configurations.
+
+### Why the patch pair looks broken and is not
+
+Two patches with nearly the same name modify that file:
+
+| Patch | Effect on the file |
+|---|---|
+| `core/inox-patchset/0001-fix-building-without-safebrowsing.patch` | wraps `sources = [...]` in `if (false) { }` |
+| `core/ungoogled-chromium/fix-building-without-safebrowsing.patch` | removes the `if (enable_extensions)` block sitting between the wrapper's braces |
+
+Together they leave `sources` defined only inside `if (false)`. Line 114's
+`sources += [` sits inside `if (safe_browsing_mode != 0)`. At mode `0` — the
+configuration these patches target, and the one ungoogled-chromium's own
+`flags.gn` sets — that branch is never evaluated, so nothing appends to a
+`sources` that does not exist. At mode `1` it is evaluated and there is nothing
+to append to.
+
+The patch pair is therefore **correct for its target configuration**, and the
+failure was a configuration the ungoogled stack does not support. Both files are
+byte-identical to upstream's and remain so.
+
+### What was ruled out, and how
+
+- **A stale output directory.** Tested directly: `gn gen` into a directory
+  previously generated with `safe_browsing_mode = 1` and passed the committed
+  args succeeds (`Done. Made 29803 targets`). `gn` honours new args in an
+  existing directory, so the earlier failing run was passed mode `1`, not
+  poisoned by leftovers.
+- **A different patch applier.** Upstream applies with GNU
+  `patch -p1 --ignore-whitespace`; this pipeline uses `git apply`. Scoping both
+  appliers to `chrome/browser/safe_browsing/BUILD.gn` alone
+  (`git apply --include=<file>` against `patch -p1 --ignore-whitespace -F0`) on
+  the pristine upstream file produced **byte-identical output**. The applier is
+  not a variable here.
+  A first version of that experiment was invalid and is recorded because the
+  invalidity is the reusable part: run unscoped, the patches touch files absent
+  from the fixture, so atomic `git apply` applied *nothing* while GNU `patch`
+  applied *partially*, and the resulting difference measured the fixture rather
+  than the appliers.
+
+### What it cost, and the guard added
+
+This was nearly published as an upstream-composition defect, with a temporary
+Astro-owned correction written to repair it. The near-miss has one cause: a
+build read its GN args from the working tree and reported nothing about them, so
+a one-character local edit was indistinguishable from the repository's own
+configuration. `tools/build.sh` now compares the GN args it is about to use
+against the committed ones and reports every differing key before configuring.
+
+`safe_browsing_mode = 0` remains what it was: a property of the legacy baseline,
+**not** an Astro Next decision. Designing real phishing, malware and
+dangerous-download protection without adopting Google's backend wholesale is
+[#20](https://github.com/OxyHQ/Astro/issues/20).
+
+---
+
+## 3. Two patch files are empty, and seven are structurally malformed
+
+Of 56 Astro patches, **38 apply and 16 do not**, plus 2 that are empty files.
+
+**Empty (removed from the stack — an empty file is not a patch):**
+
+- `007-oxy-auth-build-hook.patch` — see finding 1
+- `035-auth-https-callback.patch` — 0 bytes throughout its recorded history
+
+**Structurally malformed (7).** `git apply` reports `corrupt patch at line N`:
+the `@@` header's declared line counts disagree with the hunk body, i.e. the
+file was hand-edited without updating the header.
+
+| Patch | Header says | Body has |
+|---|---|---|
+| `045-adblock-throttle-register.patch` | `-6 +16` | `-6 +19` |
+| `054-adblock-webui-register.patch` | `-6 +7` | `-5 +6` |
+
+Also `046`, `052`, `053`, `055`, `056` — all adblock or NTP registration.
+
+This is the sharpest justification for removing the fuzzy fallback. `patch -F3`
+and `-F10` tolerate a wrong hunk header and apply anyway; `git apply` does not.
+The old runner was therefore not absorbing context drift — it was compensating
+for seven malformed files, indefinitely and silently.
+
+**Context drift (9):** `009`, `012`, `013`, `015`, `020`, `023`, `027`, `036`,
+`039`. Well-formed patches whose surrounding Chromium code has moved.
+
+---
+
+## 4. The depot_tools pin did not hold
+
+`depot_tools` self-updates to `origin/main` on every invocation unless
+`DEPOT_TOOLS_UPDATE=0` is set. No script set it, so the pin in
+`browser.lock.json` was decorative. Its own reflog records the jump:
+
+```
+5dae8da42 HEAD@{0}: checkout: moving from 41c40cfa... to origin/main
+```
+
+This was not found by inspection. A `gclient sync` moved it, and the next build
+**refused** — the lock gate caught a drift nobody had introduced deliberately,
+which is the first real demonstration that the gate does what it was built for.
+
+`DEPOT_TOOLS_UPDATE=0` is now exported from `tools/lib/astro-common.sh`, so
+every script that sources it is covered rather than each remembering.
+
+---
+
+## 5. Recovering from a pruning run needs gclient, not git
+
+Binary pruning deletes 12,392 files. `docs/recovery.mdx` previously said to
+recover with `git checkout -- .` and `git clean -fd`. Measured:
+
+| Recovery method | Pruning-list paths still absent afterwards |
+|---|---|
+| `git checkout -- .` + `git clean -fd` | 9,172 |
+| `gclient sync --force` | 0 (12,392 / 12,392 present) |
+
+Much of what pruning removes is DEPS-provided and is not restored by the
+checkout's own git. The recovery documentation has been corrected.
+
+---
+
+## 6. Working-tree state is not repository state
+
+Several measurements differ between the committed repository and the working
+tree this baseline was first drafted on. The baseline is now derived
+**only** from committed content, with working-tree differences reported
+separately, because a baseline that varies per machine cannot be a
+compatibility reference.
+
+Measured differences at the time of writing:
+
+| Subject | Committed | Working tree |
+|---|---|---|
+| Astro preferences registered by `020` + `046` | 10 | 18 |
+| `safe_browsing_mode` in `gn_args/linux.gn` | `0` | `1` |
+| Overlay files under `src/` | 61 | 66 |
+
+### The GN matrix carried five findings that the repository does not contain
+
+`safe_browsing_mode` was not an isolated slip. The committed `platform-matrix.md`
+had been generated from disk, so it asserted **10** partially-set keys and **5**
+differing-value keys; regenerated from `HEAD` the repository has **8** and **3**.
+The five that vanished:
+
+| Key | The document asserted | `HEAD` |
+|---|---|---|
+| `safe_browsing_mode` | linux `1`, disagreeing with the rest | `0` on all six |
+| `build_with_tflite_lib` | linux `true`, disagreeing with the rest | `false` wherever set |
+| `enable_supervised_users` | `true` on `windows_arm64` | `false` there |
+| `enable_rlz_support` | "set on `windows_arm64` only" | unset on all six |
+| `fatal_linker_warnings` | "set on `windows_arm64` only" | unset on all six |
+
+Two of them — `enable_rlz_support` and `fatal_linker_warnings` — were of exactly
+the shape the document exists to surface: a flag set on one platform and missing
+on the others, which the document itself describes as "almost always an oversight
+rather than a decision". They were **fabricated oversights**. Nobody had made
+that mistake; a generator reading one machine's working tree invented it, and a
+later issue acting on the document would have gone looking for a decision that
+was never taken.
+
+`enable_supervised_users` needs one distinction to stay accurate: the committed
+matrix *does* disagree across platforms for that key (linux `true`, the rest
+`false`). Only the `windows_arm64` value was phantom.
+
+Every generator now reads `HEAD` and reports its working-tree delta separately —
+`inventory_gn_args.py` per key, the rest as a three-way set difference (added,
+deleted, differing with `+N -M` line counts) under a header saying which baseline
+findings would change if the uncommitted work landed.
+
+The pref gap matters beyond tooling: the committed patch stack registers none of
+the seven `astro.ntp_show_*` preferences the New Tab Page reads.
+
+The `safe_browsing_mode` row is not a tooling detail either. That single
+uncommitted character is what produced the `gn` failure in finding 2, and it was
+very nearly published as a defect in upstream ungoogled-chromium.
+
+---
+
+## 7. There is no same-configuration pristine baseline to compare against
+
+The obvious way to decide whether the patch stack introduced a `gn` complaint is
+to run the same check on the unpatched tree. On this repository that comparison
+**cannot be made**, and the reason is worth recording because it invalidates the
+instinct rather than merely failing once.
+
+With the tracked patch modifications stashed, the committed GN args do not
+configure the pristine tree at all:
+
+```
+ERROR at //components/optimization_guide/core/inference/BUILD.gn:8:1: Assertion failed.
+```
+
+The committed args and the patch stack are **coupled**: the args select a
+configuration that only the patched tree supports. A pristine run is therefore
+not a baseline for the patched run — it is a different question.
+
+**The failure mode this creates is silent.** `gn gen` failing means no build
+graph is written, and `gn check` against a directory with no build graph reports
+`0 errors` — which reads exactly like "clean". The first run of this experiment
+produced that `0` and it meant nothing at all. Any check whose "pass" and
+"nothing was measured" look identical needs a vacuity floor before it is
+believed; here, the floor is the target count `gn gen` reports.
+
+The stash experiment is safe to repeat and was verified as such: `git status
+--porcelain` was byte-identical before and after (3,923 entries), and an md5 of
+`chrome/browser/safe_browsing/BUILD.gn` matched.
+
+---
+
+## 8. `gn check` reports 26 errors, and they cannot be attributed by differencing
+
+For the record, and bounded honestly:
+
+```
+$ gn check out/PipelineCheck
+… 26 errors across 18 files
+```
+
+Six of those 18 files are modified by the patch stack; twelve are not. That is
+not enough to attribute them, because `gn check` errors are about dependency
+*edges*, and the stack modifies **68** `BUILD.gn`/`.gni` files — including
+`chrome/browser/BUILD.gn`, `content/browser/BUILD.gn` and `chrome/test/BUILD.gn`,
+which own three of the targets named in the errors. Per finding 7 there is no
+same-configuration pristine run to difference against.
+
+`gn check` is advisory rather than a build gate — the compile does not consume
+it — so this is recorded as an observation with its attribution limits stated,
+not as a pass or a failure. Curating it belongs with the rest of the aggregate
+ungoogled work in [#8](https://github.com/OxyHQ/Astro/issues/8).

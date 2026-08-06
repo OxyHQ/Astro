@@ -43,6 +43,38 @@ signal to stop and report it on the issue.
   step. A genuinely optional step is declared with `astro::optional <reason>`,
   which prints a structured `WARN [optional:<reason>]` and continues, so
   `grep -rn astro::optional tools/` is the complete list of tolerated failures.
+- **Never pipe `find` into `head`.** Once `head` has its N lines it closes the
+  pipe, `find` takes SIGPIPE, and `set -o pipefail` surfaces exit 141 — killing
+  the run with a stack trace instead of a verdict. It never fired on the
+  synthetic fixtures because `find` always finished first; it fires reliably
+  against a real checkout's 400,000 files. Bound the producer instead, or ask
+  git, which is usually both exact and cheaper. No scanner rule catches this
+  shape, which is why it is written down here.
+- **Only *untracked* `.rej` / `.orig` files are patch artifacts.** Chromium
+  ships 181 tracked `.orig` files — `cargo vendor` writes a `Cargo.toml.orig`
+  for every vendored Rust crate — so a `find`-based artifact check condemns a
+  pristine upstream checkout on sight. Measured on the real tree: 181 tracked
+  `.orig`, 0 tracked `.rej`, 0 untracked of either. Both checks ask git for
+  untracked files only: the pristine-tree guard before a run, the
+  post-application scan after the series is applied.
+- **Before blaming a patch for a `gn` failure, prove the GN args are the
+  committed ones.** The build reads its args from a file in the working tree, so
+  a one-character local edit is indistinguishable from the repository's own
+  configuration. Measured: an uncommitted `safe_browsing_mode = 1` in
+  `gn_args/linux.gn` produced `ERROR at //chrome/browser/safe_browsing/BUILD.gn:114:5:
+  Undefined identifier`, which was very nearly published as a composition defect
+  in two upstream ungoogled patches — with a temporary Astro-owned correction
+  written to repair a defect that does not exist. The committed value is `0`, and
+  at `0` the same tree generates 29,803 targets. `tools/build.sh` now reports
+  every key that differs from `HEAD` before configuring; read that block before
+  attributing a configuration failure to anything in `patches/`.
+- **A `gn gen` that fails writes no build graph, and `gn check` against no build
+  graph reports `0 errors`.** That reads exactly like "clean". Any check whose
+  pass and whose *nothing-was-measured* look identical needs a vacuity floor —
+  here, the target count `gn gen` prints. Related: the committed GN args and the
+  patch stack are coupled, so there is no same-configuration unpatched baseline
+  to difference against (the pristine tree fails at
+  `components/optimization_guide/core/inference/BUILD.gn:8:1: Assertion failed`).
 - **Never write into `chromium/src` without resolving it first** through
   `astro::resolve_chromium_src`. It requires the path to be a git work tree
   *whose top level is the path itself* — a `chromium/src` holding only the
