@@ -1,0 +1,25 @@
+# gclient.template — the committed source of Astro's .gclient file.
+#
+# tools/sync-sources.sh renders this into chromium/.gclient on every sync, and
+# --verify-only fails when the file on disk does not match. The previous
+# implementation string-built .gclient inside fetch-chromium.sh, so the
+# effective configuration depended on which flags that run happened to receive
+# and nothing recorded what a given checkout had been configured with.
+#
+# Placeholders, substituted from browser.lock.json and --targets:
+#   @CHROMIUM_URL@   chromium.url from the lock
+#   @TARGET_OS@      quoted, comma-separated gclient target_os list
+#
+# managed = False is deliberate: gclient must not move the checkout on its own.
+# tools/sync-sources.sh selects the commit, from the lock, and verifies HEAD
+# afterwards.
+solutions = [
+  {
+    "name": "src",
+    "url": "@CHROMIUM_URL@",
+    "managed": False,
+    "custom_deps": {},
+    "custom_vars": {},
+  },
+]
+target_os = [@TARGET_OS@]
