@@ -435,6 +435,11 @@ are declared optional.
 An artifact named after the product but not containing it is the most misleading
 thing this pipeline can emit. `tools/lib/overlay_in_binary.py` now decides the
 question before the archive is written, and the packager refuses by default.
+`ASTRO_ALLOW_OVERLAYLESS_PACKAGE=1` produces the archive deliberately, renamed
+`pipeline-validation-<version>-linux-x64-NO-ASTRO-OVERLAY.tar.gz`. The detector
+reports `unmeasurable` separately from `absent`, so a wrong path cannot
+impersonate the real defect, and the packager treats `unmeasurable` as a refusal
+rather than as permission.
 
 ---
 
@@ -489,8 +494,120 @@ continued shape. Stripping all five markers and rescanning produced three
 findings before the fix and five after it — so until now a reader could not tell
 a reviewed exception from a decorative comment, and the suite asserts all five
 are load-bearing precisely so that cannot recur.
-`ASTRO_ALLOW_OVERLAYLESS_PACKAGE=1` produces the archive deliberately, renamed
-`pipeline-validation-<version>-linux-x64-NO-ASTRO-OVERLAY.tar.gz`. The detector
-reports `unmeasurable` separately from `absent`, so a wrong path cannot
-impersonate the real defect, and the packager treats `unmeasurable` as a refusal
-rather than as permission.
+
+---
+
+## 12. The overlay gate covered one packager of six, and could not tell a crash from a verdict
+
+`tools/package-release.sh` was gated after it shipped an overlayless build as
+`astro-0.1.0-linux-x64.tar.gz`. The other five — deb, linux, windows, macos,
+android — would each have done the same thing. The check now lives in
+`astro::require_astro_overlay` in `tools/lib/astro-common.sh`, which every
+packager already sources, so a new one cannot omit it by forgetting a second
+`source` line.
+
+Three verdicts, and the third is what makes the other two mean anything: present
+may be named after the product, **absent refuses, and unmeasurable refuses too**
+— including when the operator sets `ASTRO_ALLOW_OVERLAYLESS_PACKAGE=1`. That
+override says "this build was measured and found empty"; it cannot say "nobody
+measured it". Verified in the dispatch itself: the unmeasurable arm and the
+crash arm both exit before the override is ever consulted.
+
+**A crash is not a verdict.** The detector exits 1 for "absent", which is also
+what an unhandled Python exception exits, and a signal-level death exits 128+n.
+Both were observed here on real artifacts rather than theorised — a SIGSEGV on
+the 118 MB `mini_installer.exe`, and a non-reproducible `TypeError` on the
+465 MB ELF. Any status outside {0,1,2} is now unmeasurable, never absent.
+
+### Two things only real artifacts could teach
+
+Measured against the shipped Windows artifact, not inferred from Linux:
+
+| Real file | Bytes | Verdict |
+|---|---|---|
+| `chrome.exe` from `astro-0.1.0-windows-arm64-portable.zip` | 2,575,872 | **unmeasurable** — a launcher stub carrying neither marker |
+| `chrome.dll` beside it | 269,735,424 | **present** — `astro-error ×2, astro-ntp ×2, chrome://alia ×1` |
+
+The obvious probe — gate on `chrome.exe` — would have refused every Windows
+package permanently: fail-closed and useless. Both files are passed and the
+verdict taken over the pair. macOS splits the same way, which is why its probe
+walks the bundle for Mach-O images rather than naming a path. And
+`mini_installer.exe` measures nothing at all, its payload being compressed, so
+the gate is on the DLL the installer is built from — a tradeoff written into the
+script along with what it does not catch.
+
+Incidentally this is the detector's `present` direction confirmed on a genuine
+Astro build: the April Windows artifact does contain the overlay. Today's Linux
+build does not, and the same scan says so.
+
+The markers in the real PE are **ASCII** — the same format-agnostic
+printable-run scan reads an ELF and a PE unchanged. `chrome://version` also
+occurs once as UTF-16LE there, so wide literals are scanned for too; that can
+only turn a false `unmeasurable` into a correct `present`, never the reverse.
+
+### A resource must not be allowed to answer
+
+Every packaged artifact carries the WebUI dist, and `astro-ntp` in an HTML file
+says nothing about whether any code was compiled in. Worse, `package-macos.sh`
+copies those resources into the bundle inside the build directory, so its second
+run would find its first run's copy. The macOS probe therefore scans only Mach-O
+images, and the Android probe only `*.so` zip members.
+
+### Declared, not hidden
+
+**Android and macOS are gated but not calibrated against a real artifact**,
+because neither can be produced on this machine. The zip-member scan is verified
+on a real 313 MB archive, but whether a real Chromium APK's native library
+carries the control marker is unmeasured. If it does not, `package-android.sh`
+refuses until somebody calibrates it against a real APK. That is the correct
+direction, and it is loud.
+
+---
+
+## 13. Builds silently incorporated uncommitted overlay content
+
+`tools/sync-overlay.sh` copied `src/` from the working tree, so any build made
+through `tools/build.sh` could include content no revision records — which is
+exactly how finding 9's compile failure happened. The sync now compares against
+`HEAD` before copying anything, classifies each difference as modified, deleted
+or untracked, prints every path, and refuses. Measured against this repository,
+whose `src/` genuinely carries local work, it names all of them and reports
+`Nothing has been copied and nothing of yours has been touched` — nothing is
+deleted, stashed or overwritten.
+
+`ASTRO_ALLOW_DIRTY_OVERLAY=1` is a developer-only override. It records the build
+as not reproducible in provenance, packaging then refuses to ship it as a
+release, and CI is asserted never to set it. As with the overlay-in-binary gate,
+provenance's "nothing was measured" state is a refusal rather than permission,
+so the two gates fail the same way for the same reason.
+
+---
+
+## 14. A threshold cannot tell a shrinking source from a broken parser
+
+The fixture generator carried `MIN_REGISTERED_PREFS = 15` against a committed
+stack registering 10, so the suite was red — and the only two ways to clear it
+were to commit somebody's uncommitted patch edits or to lower the number. Both
+would have recorded a decision nobody made.
+
+It is replaced by a structural invariant. A deliberately **looser** recogniser
+finds where each declaration begins, and every site must pair one-to-one with a
+strict parse. The asymmetry is the whole point: two counts derived from the same
+regex agree by construction and prove nothing. Three distinct failures are
+reported, because they have different causes — a site the strict parser missed,
+one strict match covering several sites (the DOTALL run-on, which counting alone
+cannot see), and a strict match covering no site, which is a vacuity guard on
+the check itself.
+
+Measured on committed state: **11 declaration sites detected, 11 parsed, 10
+distinct Astro-owned preferences**. Mutation-tested by feeding it a registration
+whose name is held in a constant and one whose name carries a character the
+strict class excludes; both raise and name the exact line.
+
+The absolute number is now free to be 10, 18 or 40. The eight preferences that
+exist only in a working tree are recorded in `pref-dispositions.json` as
+observed-local-only candidates — `astro.ntp_show_*` for
+[#22](https://github.com/OxyHQ/Astro/issues/22) and
+`oxy.adblock.lifetime_blocked_count` for
+[#18](https://github.com/OxyHQ/Astro/issues/18)/[#19](https://github.com/OxyHQ/Astro/issues/19)
+— not as part of the reproducible legacy baseline.
