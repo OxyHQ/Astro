@@ -1,0 +1,61 @@
+name: Build safety
+
+# Enforces the build-pipeline guarantees from ASTRO-NEXT-001 (#4):
+# the overlay step deletes nothing, patches never apply fuzzily or through a
+# merge fallback, required failures exit non-zero, dry-run changes nothing, and
+# unrelated work in the Chromium checkout is refused rather than overwritten.
+#
+# The suite needs no Chromium checkout: it drives synthetic fixtures, so it
+# runs in about a minute on a standard runner and gates every pull request.
+
+on:
+  pull_request:
+    paths:
+      - 'tools/**'
+      - 'patches/**'
+      - 'src/**'
+      - '.github/workflows/build-safety.yml'
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-safety:
+    name: Build-pipeline safety suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ShellCheck is a required part of the gate, not an optional extra:
+      # every defect this suite guards against parses cleanly, so `bash -n`
+      # alone proves nothing. The suite fails rather than skips without it.
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Report tool versions
+        run: |
+          bash --version | head -1
+          python3 --version
+          shellcheck --version | grep version:
+          git --version
+
+      - name: Run the build-safety suite
+        run: tools/tests/run.sh
+
+      # ASTRO_ALLOW_DIRTY_CHROMIUM is a developer-only escape hatch. If it ever
+      # appears in CI configuration, the guards it bypasses stop being gates.
+      - name: Assert no override is set in CI
+        run: |
+          if [ -n "${ASTRO_ALLOW_DIRTY_CHROMIUM:-}" ]; then
+            echo "ASTRO_ALLOW_DIRTY_CHROMIUM is set in CI; it is developer-only." >&2
+            exit 1
+          fi
+          if grep -rn 'ASTRO_ALLOW_DIRTY_CHROMIUM' .github/workflows/ \
+              | grep -v 'build-safety.yml'; then
+            echo "A workflow sets the dirty-checkout override." >&2
+            exit 1
+          fi
+          echo "No override set."

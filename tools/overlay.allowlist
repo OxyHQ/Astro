@@ -1,0 +1,80 @@
+# overlay.allowlist — the complete, declared set of destinations the Astro
+# overlay is permitted to write into the Chromium source tree.
+#
+# tools/sync-overlay.sh refuses to copy any file whose destination does not
+# match exactly one entry here, and refuses to write anywhere else at all.
+# This replaces the old `rsync -av --delete src/ chromium/src/`, which copied
+# the whole overlay root at whatever paths happened to exist and deleted every
+# upstream file that did not.
+#
+# Format:  <kind> <destination-path> [key=value ...]
+#
+#   dir        Astro owns this destination directory entirely. Every file
+#              beneath it comes from the overlay, and none of them exist
+#              upstream. If any file beneath it turns out to be tracked by
+#              the Chromium checkout, the sync fails.
+#
+#   file       A single Astro-owned file placed inside a Chromium-owned
+#              directory. It must NOT exist upstream; if it does, it is an
+#              undeclared overwrite and the sync fails.
+#
+#   overwrite  A single destination that REPLACES a file Chromium tracks.
+#              Requires owner= and issue=. This is the shape the Astro Next
+#              epic (#3) exists to remove — "no source-copy overlay is
+#              required" — so every entry is a temporary, owned exception
+#              with a removal issue, not a permanent arrangement.
+#
+#              If any patch in a declared series also modifies the same
+#              destination, the entry must additionally carry
+#              conflicts-with=<patch,...> naming every one of them. A
+#              conflict that is not declared fails the sync, because the
+#              overlay is copied AFTER patches are applied and therefore
+#              silently reverts them.
+#
+# Comments and blank lines are ignored. Paths are relative to the Chromium
+# source root and must not contain "..".
+
+# --- Astro-owned code --------------------------------------------------------
+
+# The Brave-style self-contained overlay. Everything Astro implements lives
+# here; nothing upstream does.
+dir       chrome/browser/oxy
+
+# Vector icon for the Alia side-panel entry. Chromium owns the directory, but
+# this file is new: chrome/app/vector_icons is a drop-in icon directory.
+file      chrome/app/vector_icons/alia_spark.icon
+
+# --- Declared overwrites of Chromium-owned files -----------------------------
+
+# WebUI config registration. A full copy of this 483-line upstream file is used
+# to register Astro's five WebUI controllers.
+#
+# NOTE ON STATE: as of this entry the copy is UNTRACKED working-tree content,
+# not committed to the repository — `git ls-files src/chrome/browser/ui`
+# returns nothing. The entry is declared anyway so that the pipeline behaves
+# identically, and loudly, on any checkout that does have the file, and so that
+# a future committed copy is covered from the moment it lands rather than
+# passing unnoticed.
+#
+# KNOWN DEFECT, declared rather than hidden (see issue #4):
+# FOUR patches also modify this exact file — two Astro, two inherited from
+# ungoogled-chromium — and the overlay is copied after patches are applied, so
+# the copy wins and every one of them is reverted:
+#
+#   054-adblock-webui-register.patch   registers AstroAdBlockUIConfig
+#   055-ntp-webui-register.patch       registers AstroNtpUIConfig
+#   disable-ai.patch                   ungoogled: removes AI WebUI configs
+#   first-run-page.patch               ungoogled: first-run page config
+#
+# The shipped copy does not contain patch 054's `AstroAdBlockUIConfig`
+# registration at all, so the adblock WebUI is silently unregistered in every
+# build the current pipeline produces. Patch 055's NTP registration survives
+# only because the copy happens to carry an equivalent line, in a different,
+# platform-gated location. The effect of the two ungoogled patches on this
+# file is likewise whatever the copy happens to encode, not what they say.
+#
+# This entry does not fix that — fixing it means replacing the whole-file copy
+# with a minimal integration hook, which is #7's work. What it does is make
+# the collision declared, greppable and loud, and make any NEW collision of
+# this shape a hard build failure.
+overwrite chrome/browser/ui/webui/chrome_web_ui_configs.cc owner=oxy-browser issue=7 conflicts-with=054-adblock-webui-register.patch,055-ntp-webui-register.patch,disable-ai.patch,first-run-page.patch
