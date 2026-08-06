@@ -86,6 +86,21 @@ astro::resolve_chromium_src ""
 CHROMIUM_SRC="$ASTRO_RESOLVED_CHROMIUM_SRC"
 astro::info "Checkout:   $CHROMIUM_SRC"
 
+# The checkout must be at the revision browser.lock.json declares. Without this
+# gate a stale tree — a self-hosted runner's cache, a local experiment left
+# checked out — compiles silently and the resulting binary claims to be
+# something it is not. ASTRO_SKIP_LOCK_VERIFY exists for bisecting an upstream
+# regression, where being deliberately off-lock is the entire point; it prints
+# a structured warning and lands in the provenance file as drift.
+if [ "${ASTRO_SKIP_LOCK_VERIFY:-0}" = "1" ]; then
+    astro::warn "override:skip-lock-verify" \
+        "building without verifying source revisions against browser.lock.json"
+else
+    astro::info ">>> Verifying source revisions against browser.lock.json..."
+    "$ASTRO_ROOT/tools/sync-sources.sh" --verify-only --no-deps \
+        --chromium-src "$CHROMIUM_SRC"
+fi
+
 case "$PLATFORM" in
     linux)
         if [ "$BUILD_TYPE" = "Debug" ]; then
@@ -199,6 +214,22 @@ if astro::dry_run; then
 else
     mkdir -p "$BUILD_OUT/adblock_resources"
     rsync -a "$ADBLOCK_RESOURCES/" "$BUILD_OUT/adblock_resources/"
+fi
+
+# --------------------------------------------------------------------------
+# Provenance — what this build was actually made from
+#
+# Generated from the trees on disk, not from the lock, so a build that drifted
+# says so instead of restating what it was supposed to be.
+# --------------------------------------------------------------------------
+
+if astro::dry_run; then
+    astro::plan "generate build/reports/provenance.json"
+else
+    "$ASTRO_ROOT/tools/generate-provenance.sh" \
+        --gn-args "$GN_ARGS_FILE" \
+        --platform "$PLATFORM" \
+        --build-type "$BUILD_TYPE"
 fi
 
 astro::info "=== Build complete ==="

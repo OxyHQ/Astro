@@ -14,7 +14,9 @@ on:
       - 'tools/**'
       - 'patches/**'
       - 'src/**'
-      - '.github/workflows/build-safety.yml'
+      - 'browser.lock.json'
+      - 'browser.lock.schema.json'
+      - '.github/workflows/**'
   push:
     branches: [master]
   workflow_dispatch:
@@ -41,6 +43,9 @@ jobs:
           python3 --version
           shellcheck --version | grep version:
           git --version
+
+      - name: Validate the source lock
+        run: python3 tools/lib/lock.py --validate
 
       - name: Run the build-safety suite
         run: tools/tests/run.sh

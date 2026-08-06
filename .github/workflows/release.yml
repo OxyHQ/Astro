@@ -40,8 +40,14 @@ on:
 permissions:
   contents: write
 
-env:
-  CHROMIUM_VERSION: "146.0.7680.177"
+# No CHROMIUM_VERSION here on purpose. browser.lock.json is the single
+# declaration of what gets compiled; an env var that could disagree with it is
+# exactly the ambiguity ASTRO-NEXT-002 (#5) removes.
+
+# One shared checkout per runner must not be mutated by two jobs at once.
+concurrency:
+  group: astro-sources-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -67,24 +73,30 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Fetch Chromium (skip if cached)
-        run: |
-          if [ ! -d "chromium/src/.git" ]; then
-            tools/fetch-chromium.sh
-          else
-            echo "Chromium source cached, skipping fetch"
-          fi
+      # A cache is an object/download cache, never source-of-truth state.
+      # The previous version skipped synchronisation whenever
+      # chromium/src/.git existed, so a runner that had ever fetched
+      # Chromium compiled whatever commit it happened to hold, forever,
+      # with nothing validating it.
+      - name: Sync sources to the locked revisions
+        run: tools/sync-sources.sh
+
+      # Fails the job if anything on disk disagrees with browser.lock.json.
+      # Separate from the sync above so a sync that silently did nothing
+      # still cannot produce a build.
+      - name: Verify source revisions against the lock
+        run: tools/sync-sources.sh --verify-only
 
       - name: Sync ungoogled patches
         run: tools/sync-ungoogled.sh
 
-      - name: Reset and apply patches
-        run: |
-          cd chromium/src
-          git checkout -- . 2>/dev/null || true
-          git clean -fd 2>/dev/null || true
-          cd ../..
-          tools/apply-patches.sh all
+      # tools/sync-sources.sh has already put the checkout at the locked
+      # commit and refused it if it carried state nobody can account for.
+      # The previous `git checkout -- . 2>/dev/null || true` plus
+      # `git clean -fd 2>/dev/null || true` discarded whatever it found
+      # and hid its own failures while doing so.
+      - name: Apply patches
+        run: tools/apply-patches.sh all --skip-domain-substitution
 
       - name: Build WebUI
         run: |
@@ -146,27 +158,34 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Fetch Chromium (skip if cached)
+      # A cache is an object/download cache, never source-of-truth state.
+      # The previous version skipped synchronisation whenever
+      # chromium/src/.git existed, so a runner that had ever fetched
+      # Chromium compiled whatever commit it happened to hold, forever,
+      # with nothing validating it.
+      - name: Sync sources to the locked revisions
         shell: bash
-        run: |
-          if [ ! -d "chromium/src/.git" ]; then
-            tools/fetch-chromium.sh
-          else
-            echo "Chromium source cached, skipping fetch"
-          fi
+        run: tools/sync-sources.sh
+
+      # Fails the job if anything on disk disagrees with browser.lock.json.
+      # Separate from the sync above so a sync that silently did nothing
+      # still cannot produce a build.
+      - name: Verify source revisions against the lock
+        shell: bash
+        run: tools/sync-sources.sh --verify-only
 
       - name: Sync ungoogled patches
         shell: bash
         run: tools/sync-ungoogled.sh
 
-      - name: Reset and apply patches
+      # tools/sync-sources.sh has already put the checkout at the locked
+      # commit and refused it if it carried state nobody can account for.
+      # The previous `git checkout -- . 2>/dev/null || true` plus
+      # `git clean -fd 2>/dev/null || true` discarded whatever it found
+      # and hid its own failures while doing so.
+      - name: Apply patches
         shell: bash
-        run: |
-          cd chromium/src
-          git checkout -- . 2>/dev/null || true
-          git clean -fd 2>/dev/null || true
-          cd ../..
-          tools/apply-patches.sh all
+        run: tools/apply-patches.sh all --skip-domain-substitution
 
       - name: Build WebUI
         shell: bash
@@ -235,27 +254,34 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Fetch Chromium (skip if cached)
+      # A cache is an object/download cache, never source-of-truth state.
+      # The previous version skipped synchronisation whenever
+      # chromium/src/.git existed, so a runner that had ever fetched
+      # Chromium compiled whatever commit it happened to hold, forever,
+      # with nothing validating it.
+      - name: Sync sources to the locked revisions
         shell: bash
-        run: |
-          if [ ! -d "chromium/src/.git" ]; then
-            tools/fetch-chromium.sh
-          else
-            echo "Chromium source cached, skipping fetch"
-          fi
+        run: tools/sync-sources.sh
+
+      # Fails the job if anything on disk disagrees with browser.lock.json.
+      # Separate from the sync above so a sync that silently did nothing
+      # still cannot produce a build.
+      - name: Verify source revisions against the lock
+        shell: bash
+        run: tools/sync-sources.sh --verify-only
 
       - name: Sync ungoogled patches
         shell: bash
         run: tools/sync-ungoogled.sh
 
-      - name: Reset and apply patches
+      # tools/sync-sources.sh has already put the checkout at the locked
+      # commit and refused it if it carried state nobody can account for.
+      # The previous `git checkout -- . 2>/dev/null || true` plus
+      # `git clean -fd 2>/dev/null || true` discarded whatever it found
+      # and hid its own failures while doing so.
+      - name: Apply patches
         shell: bash
-        run: |
-          cd chromium/src
-          git checkout -- . 2>/dev/null || true
-          git clean -fd 2>/dev/null || true
-          cd ../..
-          tools/apply-patches.sh all
+        run: tools/apply-patches.sh all --skip-domain-substitution
 
       - name: Build WebUI
         shell: bash
@@ -322,24 +348,30 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Fetch Chromium (skip if cached)
-        run: |
-          if [ ! -d "chromium/src/.git" ]; then
-            tools/fetch-chromium.sh
-          else
-            echo "Chromium source cached, skipping fetch"
-          fi
+      # A cache is an object/download cache, never source-of-truth state.
+      # The previous version skipped synchronisation whenever
+      # chromium/src/.git existed, so a runner that had ever fetched
+      # Chromium compiled whatever commit it happened to hold, forever,
+      # with nothing validating it.
+      - name: Sync sources to the locked revisions
+        run: tools/sync-sources.sh
+
+      # Fails the job if anything on disk disagrees with browser.lock.json.
+      # Separate from the sync above so a sync that silently did nothing
+      # still cannot produce a build.
+      - name: Verify source revisions against the lock
+        run: tools/sync-sources.sh --verify-only
 
       - name: Sync ungoogled patches
         run: tools/sync-ungoogled.sh
 
-      - name: Reset and apply patches
-        run: |
-          cd chromium/src
-          git checkout -- . 2>/dev/null || true
-          git clean -fd 2>/dev/null || true
-          cd ../..
-          tools/apply-patches.sh all
+      # tools/sync-sources.sh has already put the checkout at the locked
+      # commit and refused it if it carried state nobody can account for.
+      # The previous `git checkout -- . 2>/dev/null || true` plus
+      # `git clean -fd 2>/dev/null || true` discarded whatever it found
+      # and hid its own failures while doing so.
+      - name: Apply patches
+        run: tools/apply-patches.sh all --skip-domain-substitution
 
       - name: Build WebUI
         run: |
@@ -396,13 +428,19 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Fetch Chromium (skip if cached)
-        run: |
-          if [ ! -d "chromium/src/.git" ]; then
-            CHROMIUM_VERSION=${{ env.CHROMIUM_VERSION }} tools/fetch-chromium.sh
-          else
-            echo "Chromium source cached, skipping fetch"
-          fi
+      # A cache is an object/download cache, never source-of-truth state.
+      # The previous version skipped synchronisation whenever
+      # chromium/src/.git existed, so a runner that had ever fetched
+      # Chromium compiled whatever commit it happened to hold, forever,
+      # with nothing validating it.
+      - name: Sync sources to the locked revisions
+        run: tools/sync-sources.sh
+
+      # Fails the job if anything on disk disagrees with browser.lock.json.
+      # Separate from the sync above so a sync that silently did nothing
+      # still cannot produce a build.
+      - name: Verify source revisions against the lock
+        run: tools/sync-sources.sh --verify-only
 
       - name: Install Android dependencies
         run: |
@@ -412,13 +450,13 @@ jobs:
       - name: Sync ungoogled patches
         run: tools/sync-ungoogled.sh
 
-      - name: Reset and apply patches
-        run: |
-          cd chromium/src
-          git checkout -- . 2>/dev/null || true
-          git clean -fd 2>/dev/null || true
-          cd ../..
-          tools/apply-patches.sh all
+      # tools/sync-sources.sh has already put the checkout at the locked
+      # commit and refused it if it carried state nobody can account for.
+      # The previous `git checkout -- . 2>/dev/null || true` plus
+      # `git clean -fd 2>/dev/null || true` discarded whatever it found
+      # and hid its own failures while doing so.
+      - name: Apply patches
+        run: tools/apply-patches.sh all --skip-domain-substitution
 
       - name: Build WebUI
         run: |

@@ -77,6 +77,11 @@ for page in ntp alia settings whats-new error; do
     fi
 done
 
+# Build provenance: a release artifact must carry the exact source revisions,
+# GN args and toolchain identity it was produced from (ASTRO-NEXT-002, #5).
+astro::copy_required "$ASTRO_ROOT/build/reports/provenance.json" \
+    "$STAGING/astro/provenance.json" "build provenance (run tools/build.sh)"
+
 # Launcher script. The generated install.sh symlinks to it, so a package
 # without it installs a broken `astro` command.
 astro::copy_required "$ASTRO_ROOT/tools/astro-launch.sh" "$STAGING/astro/" "launcher script"

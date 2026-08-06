@@ -56,6 +56,12 @@ for member in "${OPTIONAL_MEMBERS[@]}"; do
     fi
 done
 
+# A release artifact must carry the exact source revisions, GN args and
+# toolchain identity it was produced from (ASTRO-NEXT-002, #5).
+astro::copy_required "$ASTRO_ROOT/build/reports/provenance.json" \
+    "$BUILD_DIR/provenance.json" "build provenance (run tools/build.sh)"
+MEMBERS+=("provenance.json")
+
 ( cd "$BUILD_DIR" && tar czf "$RELEASE_DIR/$ARCHIVE_NAME" "${MEMBERS[@]}" )
 astro::require_file "$RELEASE_DIR/$ARCHIVE_NAME" "release archive"
 

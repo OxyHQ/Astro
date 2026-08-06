@@ -61,6 +61,11 @@ if [ -f "$BUILD_DIR/chrome.exe" ]; then
     astro::copy_glob "data-files"        "$BUILD_DIR" '*.dat' "$STAGING/astro/"
     astro::copy_required "$BUILD_DIR/icudtl.dat" "$STAGING/astro/" "ICU data"
 
+    # A release artifact must carry the exact source revisions, GN args and
+    # toolchain identity it was produced from (ASTRO-NEXT-002, #5).
+    astro::copy_required "$ASTRO_ROOT/build/reports/provenance.json" \
+        "$STAGING/astro/provenance.json" "build provenance (run tools/build.sh)"
+
     # Locales
     if [ -d "$BUILD_DIR/locales" ]; then
         cp -r "$BUILD_DIR/locales" "$STAGING/astro/"
