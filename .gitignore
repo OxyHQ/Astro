@@ -15,6 +15,10 @@ build/
 *.deb
 *.rpm
 
+# Python bytecode from the baseline generators
+__pycache__/
+*.pyc
+
 # OS files
 .DS_Store
 Thumbs.db

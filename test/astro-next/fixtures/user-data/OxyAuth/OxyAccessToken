@@ -1,0 +1,5 @@
+ASTRO FIXTURE PLACEHOLDER - access token slot (OxyAccessToken)
+Not a token. Not encrypted. Never valid anywhere.
+The real file at this path holds OSCrypt ciphertext, which is keyed on
+the OS credential store and cannot be produced offline - see the
+requires-browser-capture entry for the encrypted form in manifest.json.

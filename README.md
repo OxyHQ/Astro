@@ -194,6 +194,7 @@ That rewrites the `.grd` resource strings and the `BRANDING` file Chromium's bui
 | [`docs/oxy-integration.mdx`](docs/oxy-integration.mdx) | Auth, Alia, and the Oxy services behind them |
 | [`docs/recovery.mdx`](docs/recovery.mdx) | Recovering from an interrupted or failed patch run |
 | [`docs/reproducibility.mdx`](docs/reproducibility.mdx) | The source lock, deterministic sync, and build provenance |
+| [`docs/astro-next/baseline/`](docs/astro-next/baseline) | The product, source, security and network baseline |
 
 ## License
 

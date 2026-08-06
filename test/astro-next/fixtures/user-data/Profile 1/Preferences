@@ -1,0 +1,99 @@
+{
+  "astro": {
+    "ntp_show_alia": true,
+    "ntp_show_clock": true,
+    "ntp_show_discover": true,
+    "ntp_show_notes": true,
+    "ntp_show_quick_links": true,
+    "ntp_show_sites": true,
+    "ntp_show_weather": true
+  },
+  "bookmark_bar": {
+    "show_on_all_tabs": true
+  },
+  "browser": {
+    "show_home_button": true
+  },
+  "default_search_provider_data": {
+    "template_url_data": {
+      "date_created": "13350096000000000",
+      "favicon_url": "https://search.example.com/favicon.ico",
+      "id": "2",
+      "input_encodings": [
+        "UTF-8"
+      ],
+      "is_active": 1,
+      "keyword": "fixture-search",
+      "last_modified": "13350182400000000",
+      "prepopulate_id": 0,
+      "safe_for_autoreplace": false,
+      "short_name": "Astro Fixture Search",
+      "suggestions_url": "https://search.example.com/ac?q={searchTerms}",
+      "synced_guid": "00000000-0000-4000-8000-0000000005e1",
+      "url": "https://search.example.com/search?q={searchTerms}"
+    }
+  },
+  "homepage": "astro://newtab",
+  "homepage_is_newtabpage": false,
+  "oxy": {
+    "access_token": "",
+    "adblock": {
+      "custom_rules": "! Astro fixture rules - synthetic, not a real filter list.\n||ads.example.com^\nexample.org##.ad-slot\n",
+      "enabled": true,
+      "lifetime_blocked_count": 3,
+      "site_overrides": {
+        "news.example.org": false
+      }
+    },
+    "refresh_token": "",
+    "session_id": "",
+    "token_expiry": "",
+    "user_avatar": "",
+    "user_id": "",
+    "username": ""
+  },
+  "pinned_tabs": [],
+  "profile": {
+    "content_settings": {
+      "exceptions": {
+        "geolocation": {
+          "https://maps.example.com:443,*": {
+            "last_modified": "13350182400000000",
+            "setting": 2
+          }
+        },
+        "media_stream_camera": {
+          "https://meet.example.com:443,*": {
+            "last_modified": "13350182400000000",
+            "setting": 1
+          }
+        },
+        "media_stream_mic": {
+          "https://meet.example.com:443,*": {
+            "last_modified": "13350182400000000",
+            "setting": 1
+          }
+        },
+        "notifications": {
+          "https://news.example.org:443,*": {
+            "last_modified": "13350182400000000",
+            "setting": 2
+          }
+        },
+        "popups": {
+          "https://shop.example.net:443,*": {
+            "last_modified": "13350182400000000",
+            "setting": 1
+          }
+        }
+      }
+    },
+    "created_by_version": "146.0.7680.177",
+    "exit_type": "Normal",
+    "name": "Profile 1"
+  },
+  "session": {
+    "restore_on_startup": 5,
+    "startup_urls": []
+  }
+}

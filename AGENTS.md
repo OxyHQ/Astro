@@ -17,6 +17,7 @@ tools/update-chromium.sh VER     # Propose a Chromium revision update
 tools/apply-branding.sh          # Apply branding from branding/astro.conf
 tools/vendor-adblock-rust.sh     # Vendor Rust adblock engine dependencies
 tools/generate-provenance.sh     # Record what a build was made from
+tools/baseline/generate-all.sh   # Regenerate the Astro Next baseline documents
 tools/tests/run.sh               # Build-safety suite (no Chromium checkout needed)
 ```
 
@@ -76,6 +77,18 @@ the full commit SHA of Chromium, depot_tools and the ungoogled patch set.
   env var can wave through is not a gate.
 - Provenance is generated from the trees on disk, never from the lock — the
   disagreement between them is the fact worth recording.
+
+**The baseline is generated, not hand-maintained.** `docs/astro-next/baseline/`
+is produced by `tools/baseline/*` and CI runs `generate-all.sh --check`, so a
+document that stops matching the repository fails the build. Never hand-edit a
+file whose header says it is generated — the next check reverts the edit with
+no explanation. Dispositions in `patch-dispositions.json` are the one
+hand-maintained input, and the join against the two patch series is strict in
+both directions.
+
+Anything the baseline could not measure says `not-captured` and names the
+command that will capture it. Do not fill one in from reasoning: the whole
+point is that later issues can tell a measurement from an expectation.
 
 **Known defects, declared rather than hidden.** Do not "fix" these silently, and
 do not let a build imply they are resolved:

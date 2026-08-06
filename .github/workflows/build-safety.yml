@@ -16,6 +16,8 @@ on:
       - 'src/**'
       - 'browser.lock.json'
       - 'browser.lock.schema.json'
+      - 'docs/astro-next/**'
+      - 'gn_args/**'
       - '.github/workflows/**'
   push:
     branches: [master]
@@ -46,6 +48,11 @@ jobs:
 
       - name: Validate the source lock
         run: python3 tools/lib/lock.py --validate
+
+      # The baseline is what later issues cite as their compatibility
+      # reference, so a stale document is worse than a missing one.
+      - name: Check the Astro Next baseline is current
+        run: tools/baseline/generate-all.sh --check
 
       - name: Run the build-safety suite
         run: tools/tests/run.sh

@@ -1,0 +1,13 @@
+{
+  "_generated_by": "tools/baseline/make_profile_fixtures.py",
+  "directory": "OxyAuth",
+  "files": {
+    "access": "OxyAccessToken",
+    "refresh": "OxyRefreshToken"
+  },
+  "fixture_contents": "plaintext placeholder text, never a token and never valid ciphertext; the encrypted form is a deferred capture",
+  "note": "The token store is rooted at the USER DATA DIR, not the profile dir, so both profiles share one set of tokens. A migration that assumes per-profile tokens loses the session for every profile but one.",
+  "on_disk_format": "OSCrypt::EncryptString ciphertext (binary)",
+  "relative_to": "user data dir",
+  "source": "src/chrome/browser/oxy/oxy_auth_token_store.cc"
+}
