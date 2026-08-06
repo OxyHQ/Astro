@@ -240,3 +240,84 @@ diff --git a/$target b/$target
 +$new
 EOF
 }
+
+# --------------------------------------------------------------------------
+# Source-lock fixtures (ASTRO-NEXT-002)
+# --------------------------------------------------------------------------
+
+# Creates a source repository with three commits and a `main` branch, plus an
+# annotated tag on the second. Echoes the three commit SHAs, oldest first.
+#
+# The tag is ANNOTATED on purpose: `git ls-remote` reports an annotated tag as
+# the tag OBJECT, and only `refs/tags/X^{}` as the commit. Comparing against
+# the unpeeled value reports permanent bogus drift, which is a real trap this
+# repository hit against ungoogled-chromium's own tag.
+harness::make_source_repo() {
+    local dir="$1" name="${2:-fixture}" with_sentinels="${3:-no}"
+    mkdir -p "$dir"
+    git -C "$dir" init --quiet --initial-branch=main
+
+    # Chromium's sentinel files exist at every real commit, so a fixture
+    # standing in for Chromium must carry them from the first commit onward.
+    # Adding them only at the tip makes every earlier commit unrecognisable to
+    # astro::resolve_chromium_src, which then blocks the very correction the
+    # sync is supposed to perform.
+    if [ "$with_sentinels" = "sentinels" ]; then
+        mkdir -p "$dir/chrome" "$dir/base" "$dir/build/config"
+        printf 'buildconfig = "//build/config/BUILDCONFIG.gn"\n' > "$dir/.gn"
+        printf 'MAJOR=146\nMINOR=0\nBUILD=7680\nPATCH=177\n' > "$dir/chrome/VERSION"
+        printf 'group("base") {}\n' > "$dir/base/BUILD.gn"
+        printf '# BUILDCONFIG\n' > "$dir/build/config/BUILDCONFIG.gn"
+    fi
+
+    local shas=()
+    local index
+    for index in 1 2 3; do
+        printf '%s commit %s\n' "$name" "$index" > "$dir/content.txt"
+        git -C "$dir" add -A
+        git -C "$dir" commit --quiet -m "$name $index"
+        shas+=("$(git -C "$dir" rev-parse HEAD)")
+        if [ "$index" -eq 2 ]; then
+            git -C "$dir" tag -a "v$index" -m "annotated v$index"
+        fi
+    done
+    printf '%s\n' "${shas[@]}"
+}
+
+# Writes a lock file pointing at local fixture repositories.
+harness::write_lock() {
+    local path="$1" chromium_url="$2" chromium_commit="$3" \
+          depot_url="$4" depot_commit="$5" \
+          ungoogled_url="$6" ungoogled_commit="$7" chromium_ref="${8:-}"
+
+    python3 - "$path" "$chromium_url" "$chromium_commit" "$depot_url" \
+                "$depot_commit" "$ungoogled_url" "$ungoogled_commit" \
+                "$chromium_ref" <<'PY'
+import json, sys
+
+(path, chromium_url, chromium_commit, depot_url, depot_commit,
+ ungoogled_url, ungoogled_commit, chromium_ref) = sys.argv[1:9]
+
+document = {
+    "lockfile_version": 1,
+    "chromium": {
+        "version": "146.0.7680.177",
+        "commit": chromium_commit,
+        "url": chromium_url,
+    },
+    "depot_tools": {"commit": depot_commit, "url": depot_url},
+    "ungoogled_chromium": {
+        "version": "146.0.7680.177-1",
+        "commit": ungoogled_commit,
+        "url": ungoogled_url,
+        "legacy": True,
+    },
+}
+if chromium_ref:
+    document["chromium"]["ref"] = chromium_ref
+
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(document, handle, indent=2)
+    handle.write("\n")
+PY
+}

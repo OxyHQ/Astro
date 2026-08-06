@@ -77,9 +77,9 @@ returned to:
 # 1. Confirm the checkout is its own work tree (see the warning above).
 git -C chromium/src rev-parse --show-toplevel
 
-# 2. Print the revision you are returning to.
+# 2. Print the revision you are returning to, and the one that is declared.
 git -C chromium/src log -1 --format='%H %d %s'
-cat VERSION
+python3 tools/lib/lock.py --get chromium.commit
 
 # 3. Review what will be discarded.
 git -C chromium/src status --short
@@ -132,11 +132,18 @@ the fix belongs in it rather than in a runner that quietly tolerates drift.
 ### `is not its own git work tree`
 
 `chromium/src` exists but is not a Chromium checkout — most often an empty or
-partially populated directory inside the Astro repository. Fetch a real one:
+partially populated directory inside the Astro repository. Create a real one at
+the locked revision:
 
 ```bash
-tools/fetch-chromium.sh
+tools/sync-sources.sh
 ```
+
+### `is at the wrong commit`
+
+The checkout does not match `browser.lock.json`. This is the check a stale
+self-hosted runner must fail. `tools/sync-sources.sh` corrects it;
+`--verify-only` only reports it. See [Reproducibility](/reproducibility).
 
 ### `has N local modification(s) and must be pristine`
 
@@ -192,7 +199,8 @@ Otherwise stop overwriting the file. See `tools/overlay.allowlist`.
 
 | Script | Mutates `chromium/src`? |
 |---|---|
-| `tools/fetch-chromium.sh` | Yes — creates and checks it out |
+| `tools/sync-sources.sh` | Yes — creates it and detaches it at the locked commit |
+| `tools/fetch-chromium.sh` | Yes — deprecated wrapper; delegates to `sync-sources.sh` |
 | `tools/fetch-cross-deps.sh` | Yes — **discards local modifications**, syncs deps |
 | `tools/apply-patches.sh` | Yes — prunes files and applies patches |
 | `tools/sync-overlay.sh` | Yes — copies overlay files in; never deletes |

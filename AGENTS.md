@@ -5,21 +5,23 @@ Astro is a Chromium fork that removes all Google services and replaces them with
 ## Build Commands
 
 ```bash
-tools/fetch-chromium.sh          # Fetch Chromium source (~55 GB, first time only)
-tools/sync-ungoogled.sh          # Get matching ungoogled-chromium patches
+tools/sync-sources.sh            # Check out every source at its locked commit
+tools/sync-ungoogled.sh          # Stage patches from the locked ungoogled checkout
 tools/apply-patches.sh           # Apply all patches (ungoogled + Astro)
 tools/sync-overlay.sh            # Copy Astro overlay into the Chromium tree
 tools/build.sh                   # Release build (uses all CPU cores)
 tools/build.sh Debug             # Debug build
 tools/install-local.sh           # Install to system
 tools/package-release.sh         # Package for distribution
-tools/update-chromium.sh VER     # Update to a new Chromium version
+tools/update-chromium.sh VER     # Propose a Chromium revision update
 tools/apply-branding.sh          # Apply branding from branding/astro.conf
 tools/vendor-adblock-rust.sh     # Vendor Rust adblock engine dependencies
+tools/generate-provenance.sh     # Record what a build was made from
 tools/tests/run.sh               # Build-safety suite (no Chromium checkout needed)
 ```
 
-`--dry-run` works on `apply-patches.sh`, `sync-overlay.sh` and `build.sh`: it
+`--dry-run` works on `sync-sources.sh`, `apply-patches.sh`, `sync-overlay.sh`
+and `build.sh`: it
 validates every required input and prints every planned operation without
 touching a file.
 
@@ -54,6 +56,26 @@ signal to stop and report it on the issue.
 - Shared helpers live in `tools/lib/astro-common.sh`; every script sources it
   rather than re-implementing strict mode, logging or the guards.
 - Run `tools/tests/run.sh` before touching anything under `tools/`.
+
+**Source revisions are declared, never discovered.** `browser.lock.json` holds
+the full commit SHA of Chromium, depot_tools and the ungoogled patch set.
+
+- **Never `git pull` a build dependency**, and never let an env var or a CLI
+  flag select a version. `tools/update-chromium.sh` resolves a version to one
+  commit and updates the lock; the lock diff is the review.
+- **Never fall back to a similar version.** No exact tag means the command
+  fails. The old `git tag -l "$MAJOR.*" | tail -1` → `master` chain exited zero
+  while silently targeting a different browser.
+- **Never decide in CI whether to synchronise.** A job runs
+  `tools/sync-sources.sh` unconditionally, then `--verify-only`. Testing for an
+  existing `.git` treats a cache as source-of-truth state and is rejected by
+  the pattern scanner, which reads the workflow files too.
+- **Checkouts are detached at the locked commit.** A branch at the right commit
+  can be advanced afterwards; that is how a pinned build stops being pinned.
+- `ASTRO_ALLOW_DIRTY_CHROMIUM=1` has no effect under `--verify-only`. A gate an
+  env var can wave through is not a gate.
+- Provenance is generated from the trees on disk, never from the lock — the
+  disagreement between them is the fact worth recording.
 
 **Known defects, declared rather than hidden.** Do not "fix" these silently, and
 do not let a build imply they are resolved:

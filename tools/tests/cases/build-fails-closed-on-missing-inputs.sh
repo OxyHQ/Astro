@@ -23,9 +23,15 @@ mkdir -p "$fake_root/tools" "$fake_root/gn_args" "$fake_root/depot_tools" \
          "$fake_root/patches"
 cp "$ASTRO_ROOT/tools/build.sh" "$fake_root/tools/"
 cp "$ASTRO_ROOT/tools/sync-overlay.sh" "$fake_root/tools/"
+cp "$ASTRO_ROOT/tools/sync-sources.sh" "$fake_root/tools/"
+cp "$ASTRO_ROOT/tools/generate-provenance.sh" "$fake_root/tools/"
 cp "$ASTRO_ROOT/tools/overlay.allowlist" "$fake_root/tools/"
+cp "$ASTRO_ROOT/tools/gclient.template" "$fake_root/tools/"
+cp "$ASTRO_ROOT/browser.lock.schema.json" "$fake_root/"
 mkdir -p "$fake_root/tools/lib"
 cp "$ASTRO_ROOT/tools/lib/astro-common.sh" "$fake_root/tools/lib/"
+cp "$ASTRO_ROOT/tools/lib/lock.py" "$fake_root/tools/lib/"
+
 printf 'is_debug = false\n' > "$fake_root/gn_args/linux.gn"
 printf '! filter list\n' > "$fake_root/src/chrome/browser/oxy/adblock/resources/easylist.txt"
 
@@ -43,6 +49,42 @@ EOF
 cp "$fake_root/depot_tools/gn" "$fake_root/depot_tools/autoninja"
 chmod +x "$fake_root/depot_tools/gn" "$fake_root/depot_tools/autoninja"
 
+# build.sh gates on tools/sync-sources.sh --verify-only, which inspects every
+# locked source, so the fixture's depot_tools and ungoogled trees have to be
+# real checkouts sitting at the commits the lock names.
+git -C "$fake_root/depot_tools" init --quiet --initial-branch=main
+git -C "$fake_root/depot_tools" add -A
+git -C "$fake_root/depot_tools" commit --quiet -m "depot_tools fixture"
+git -C "$fake_root/depot_tools" checkout --quiet --detach HEAD
+
+mkdir -p "$fake_root/.ungoogled-chromium"
+printf 'patches\n' > "$fake_root/.ungoogled-chromium/README"
+git -C "$fake_root/.ungoogled-chromium" init --quiet --initial-branch=main
+git -C "$fake_root/.ungoogled-chromium" add -A
+git -C "$fake_root/.ungoogled-chromium" commit --quiet -m "ungoogled fixture"
+git -C "$fake_root/.ungoogled-chromium" checkout --quiet --detach HEAD
+
+git -C "$chromium" checkout --quiet --detach HEAD
+
+# A lock naming each fixture's own HEAD, so the revision gate is satisfied and
+# the case can test what it is actually about: required build inputs.
+write_matching_lock() {
+    harness::write_lock "$fake_root/browser.lock.json" \
+        "file://$chromium" "$(git -C "$chromium" rev-parse HEAD)" \
+        "file://$fake_root/depot_tools" "$(git -C "$fake_root/depot_tools" rev-parse HEAD)" \
+        "file://$fake_root/.ungoogled-chromium" "$(git -C "$fake_root/.ungoogled-chromium" rev-parse HEAD)"
+}
+write_matching_lock
+
+# One real sync renders .gclient from the committed template, which the
+# verify-only gate below then checks. Without it the gate would fail on
+# configuration rather than on the build inputs this case is about.
+env ASTRO_CHROMIUM_SRC="$chromium" "$fake_root/tools/sync-sources.sh" \
+    --no-deps --lock "$fake_root/browser.lock.json" \
+    --chromium-src "$chromium" \
+    --depot-tools "$fake_root/depot_tools" \
+    --ungoogled "$fake_root/.ungoogled-chromium" >/dev/null 2>&1
+
 before="$(harness::manifest "$chromium")"
 
 # --- Baseline: with every input present, the dry run validates and passes ---
@@ -51,6 +93,7 @@ harness::run env ASTRO_CHROMIUM_SRC="$chromium" \
     "$fake_root/tools/build.sh" Release linux --dry-run
 
 harness::assert_status 0 "dry run with every required input present"
+harness::assert_output_contains "Verifying source revisions" "the lock gate runs"
 harness::assert_output_contains "all 5 bundles present" "webui bundle check ran"
 harness::assert_output_contains "gn gen" "planned generation"
 harness::assert_output_contains "gn check" "gn check is a required step"
@@ -61,7 +104,7 @@ harness::assert_tree_unchanged "$chromium" "$before"
 
 rm -rf "$fake_root/webui/settings/dist"
 
-harness::run env ASTRO_CHROMIUM_SRC="$chromium" \
+harness::run env ASTRO_CHROMIUM_SRC="$chromium" ASTRO_SKIP_LOCK_VERIFY=1 \
     "$fake_root/tools/build.sh" Release linux --dry-run
 
 harness::assert_nonzero_status "missing WebUI bundle"
@@ -78,7 +121,7 @@ printf '<!doctype html>\n' > "$fake_root/webui/settings/dist/index.html"
 
 rm -f "$fake_root/webui/ntp/dist/index.html"
 
-harness::run env ASTRO_CHROMIUM_SRC="$chromium" \
+harness::run env ASTRO_CHROMIUM_SRC="$chromium" ASTRO_SKIP_LOCK_VERIFY=1 \
     "$fake_root/tools/build.sh" Release linux --dry-run
 
 harness::assert_nonzero_status "WebUI bundle without index.html"
@@ -90,7 +133,7 @@ printf '<!doctype html>\n' > "$fake_root/webui/ntp/dist/index.html"
 
 rm -rf "$fake_root/src/chrome/browser/oxy/adblock/resources"
 
-harness::run env ASTRO_CHROMIUM_SRC="$chromium" \
+harness::run env ASTRO_CHROMIUM_SRC="$chromium" ASTRO_SKIP_LOCK_VERIFY=1 \
     "$fake_root/tools/build.sh" Release linux --dry-run
 
 harness::assert_nonzero_status "missing ad blocker filter lists"
@@ -104,7 +147,7 @@ printf '! filter list\n' > "$fake_root/src/chrome/browser/oxy/adblock/resources/
 
 rm -f "$fake_root/gn_args/linux.gn"
 
-harness::run env ASTRO_CHROMIUM_SRC="$chromium" \
+harness::run env ASTRO_CHROMIUM_SRC="$chromium" ASTRO_SKIP_LOCK_VERIFY=1 \
     "$fake_root/tools/build.sh" Release linux --dry-run
 
 harness::assert_nonzero_status "missing GN args file"
@@ -112,5 +155,30 @@ harness::assert_output_contains "GN args file for linux" "names the missing inpu
 harness::assert_output_lacks "gn gen" "must fail before build generation"
 
 harness::assert_tree_unchanged "$chromium" "$before"
+
+# --- The lock gate: a checkout off the locked revision stops the build -------
+#
+# This is the property that makes a stale self-hosted runner unable to ship a
+# binary built from a commit nobody declared.
+
+printf 'is_debug = false\n' > "$fake_root/gn_args/linux.gn"
+
+# Point the lock at a commit the fixture is not on.
+harness::write_lock "$fake_root/browser.lock.json" \
+    "file://$chromium" "0000000000000000000000000000000000000001" \
+    "file://$fake_root/depot_tools" "$(git -C "$fake_root/depot_tools" rev-parse HEAD)" \
+    "file://$fake_root/.ungoogled-chromium" "$(git -C "$fake_root/.ungoogled-chromium" rev-parse HEAD)"
+
+harness::run env ASTRO_CHROMIUM_SRC="$chromium" \
+    "$fake_root/tools/build.sh" Release linux --dry-run
+harness::assert_nonzero_status "build against a checkout off the locked revision"
+harness::assert_output_contains "wrong commit" "refusal reason"
+harness::assert_output_lacks "gn gen" "must fail before build generation"
+
+# The override exists for bisecting upstream, and announces itself.
+harness::run env ASTRO_CHROMIUM_SRC="$chromium" ASTRO_SKIP_LOCK_VERIFY=1 \
+    "$fake_root/tools/build.sh" Release linux --dry-run
+harness::assert_status 0 "explicit lock-verification override"
+harness::assert_output_contains "override:skip-lock-verify" "structured override warning"
 
 harness::pass

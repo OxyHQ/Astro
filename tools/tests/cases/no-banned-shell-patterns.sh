@@ -17,10 +17,15 @@ harness::assert_file_exists "$SCANNER"
 
 # --- The real tree is clean --------------------------------------------------
 
+# CI workflow files are scanned too: `git pull` for a build dependency and
+# "skip synchronisation because .git exists" are ways a build stops being
+# pinned, and both lived in .github/workflows/release.yml.
 # shellcheck disable=SC2046  # deliberate word splitting over the file list
-harness::run python3 "$SCANNER" $(printf '%s\n' "$ASTRO_ROOT"/tools/*.sh "$ASTRO_ROOT"/tools/lib/*.sh)
+harness::run python3 "$SCANNER" $(printf '%s\n' \
+    "$ASTRO_ROOT"/tools/*.sh "$ASTRO_ROOT"/tools/lib/*.sh \
+    "$ASTRO_ROOT"/.github/workflows/*.yml)
 
-harness::assert_status 0 "scan of tools/*.sh"
+harness::assert_status 0 "scan of tools/*.sh and .github/workflows/*.yml"
 harness::assert_output_contains "no banned patterns" "clean result"
 
 # A vacuity floor: the scan must actually have read a meaningful number of
@@ -51,14 +56,13 @@ while IFS= read -r tracked_path; do
     mkdir -p "$committed/$(dirname "$tracked_path")"
     git -C "$ASTRO_ROOT" show "HEAD:$tracked_path" > "$committed/$tracked_path"
     tracked=$((tracked + 1))
-    # A git pathspec's `*` matches `/` too, so 'tools/*.sh' would sweep in
-    # tools/tests/**; the production scripts are tools/*.sh and tools/lib/*.sh
-    # only. The test suite is scanned separately and deliberately differently:
-    # patch-rejects-fuzz-and-3way.sh runs the banned constructs itself, to
-    # prove they would have applied the patch before asserting the runner
-    # refuses.
-done < <(git -C "$ASTRO_ROOT" ls-files 'tools/*.sh' \
-             | grep -E '^tools/(lib/)?[^/]+\.sh$')
+# A git pathspec's `*` matches `/` too, so 'tools/*.sh' would sweep in
+# tools/tests/**; the production scripts are tools/*.sh and tools/lib/*.sh
+# only. The test suite is scanned separately and deliberately differently:
+# patch-rejects-fuzz-and-3way.sh runs the banned constructs itself, to prove
+# they would have applied the patch before asserting the runner refuses.
+done < <(git -C "$ASTRO_ROOT" ls-files 'tools/*.sh' '.github/workflows/*.yml' \
+             | grep -E '^(tools/(lib/)?[^/]+\.sh|\.github/workflows/[^/]+\.ya?ml)$')
 
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
 if [ "$tracked" -lt 15 ]; then
@@ -66,8 +70,8 @@ if [ "$tracked" -lt 15 ]; then
 fi
 
 # shellcheck disable=SC2046  # deliberate word splitting over the file list
-harness::run python3 "$SCANNER" $(find "$committed" -name '*.sh' | sort)
-harness::assert_status 0 "scan of the COMMITTED tools/*.sh"
+harness::run python3 "$SCANNER" $(find "$committed" \( -name '*.sh' -o -name '*.yml' \) | sort)
+harness::assert_status 0 "scan of the COMMITTED tools/*.sh and workflows"
 
 # --- An empty invocation must not read as a pass -----------------------------
 
@@ -102,7 +106,38 @@ assert_rule_fires() {
     assert_rule_fires "fuzzy-patch"        'patch -p1 --forward -F3 < "$patch"'
     assert_rule_fires "suppressed-failure" 'cp "$a" "$b" || true'
     assert_rule_fires "suppressed-stderr"  'ninja -C out/Release chrome 2>/dev/null'
+    assert_rule_fires "unconstrained-pull" 'cd depot_tools && git pull'
 }
+
+# cache-as-source-of-truth is a workflow-only rule: a bootstrapping script may
+# test whether a checkout exists, a CI job may not decide for itself whether to
+# synchronise. Probe it with a workflow file, and assert a shell script with
+# the same line is NOT flagged, so the scoping is deliberate and tested rather
+# than an accident of the regex.
+cat > "$tmp/probe-workflow.yml" <<'PROBE'
+name: probe
+jobs:
+  build:
+    steps:
+      - run: |
+          if [ ! -d "chromium/src/.git" ]; then
+            tools/sync-sources.sh
+          else
+            echo "cached, skipping fetch"
+          fi
+PROBE
+harness::run python3 "$SCANNER" "$tmp/probe-workflow.yml"
+harness::assert_status 1 "a workflow branching on .git existence"
+harness::assert_output_contains "cache-as-source-of-truth" "rule name"
+
+cat > "$tmp/probe-bootstrap.sh" <<'PROBE'
+#!/usr/bin/env bash
+if [ ! -d "$dir/.git" ]; then
+    git clone "$url" "$dir"
+fi
+PROBE
+harness::run python3 "$SCANNER" "$tmp/probe-bootstrap.sh"
+harness::assert_status 0 "a script bootstrapping a missing checkout is allowed"
 
 # --- The scanner must not fire on descriptions of the patterns ---------------
 #
@@ -164,6 +199,16 @@ if grep -qE '^[^#]*git apply[^#]*--3way' "${PRODUCTION_SCRIPTS[@]}"; then
 fi
 if grep -qE '^[^#]*patch -p1[^#]*-F[0-9]' "${PRODUCTION_SCRIPTS[@]}"; then
     harness::fail "the fuzzy patch fallbacks must stay removed"
+fi
+
+# The two shapes ASTRO-NEXT-002 removed, checked by name so a reviewer sees
+# what is being guarded rather than only a rule id.
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 2))
+if grep -rq 'skipping fetch' "$ASTRO_ROOT/.github/workflows/"; then
+    harness::fail "CI must not skip source synchronisation because a cache exists"
+fi
+if grep -qE '^[^#]*git .*\bpull\b' "${PRODUCTION_SCRIPTS[@]}"; then
+    harness::fail "no build dependency may be updated with an unconstrained git pull"
 fi
 
 harness::pass

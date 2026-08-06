@@ -35,19 +35,23 @@ cd webui/whats-new  && bun install && cd -
 cd webui/error      && bun install && cd -
 ```
 
-`tools/fetch-chromium.sh` will clone Google's `depot_tools` into `./depot_tools/` on first run if it is not already present.
+`tools/sync-sources.sh` will clone Google's `depot_tools` into `./depot_tools/` on first run if it is not already present, and check it out at the commit `browser.lock.json` pins.
 
 ## Build workflow
 
 A clean build is five scripts:
 
 ```sh
-tools/fetch-chromium.sh        # 1. Fetch Chromium source (~55 GB)
-tools/sync-ungoogled.sh        # 2. Sync ungoogled-chromium patches
+tools/sync-sources.sh          # 1. Check out every source at its locked commit
+tools/sync-ungoogled.sh        # 2. Stage the ungoogled-chromium patches
 tools/apply-patches.sh         # 3. Prune binaries, then apply 168 patches
 tools/sync-overlay.sh          # 4. Copy the Astro overlay onto the tree
 tools/build.sh                 # 5. Build with autoninja
 ```
+
+Which revisions get compiled is declared in `browser.lock.json` by full commit
+SHA. See [Reproducibility](/reproducibility) for the lock, the sync command and
+build provenance.
 
 Every step is fail-closed: a failure exits non-zero and stops the pipeline.
 Every step that writes into `chromium/src` verifies the destination first and
@@ -62,13 +66,25 @@ tools/sync-overlay.sh  --dry-run
 tools/build.sh Release linux --dry-run
 ```
 
-### 1. `tools/fetch-chromium.sh`
+### 1. `tools/sync-sources.sh`
 
-Pinned to the version in the script (currently `146.0.7680.177`; override with `CHROMIUM_VERSION=...`). Uses `gclient` to fetch source + third-party deps + toolchain. Accepts `--targets=linux,win,android,mac` for cross-compile setups (pulls additional sysroots).
+Checks out Chromium, depot_tools and ungoogled-chromium at the commits
+`browser.lock.json` declares, detached, and verifies each afterwards. Pins
+depot_tools first, because it resolves every other revision. Renders `.gclient`
+from `tools/gclient.template` and anchors `gclient sync` to the locked commit.
+Accepts `--targets "linux win android mac"` for cross-compile setups.
+
+`--verify-only` never writes and fails on any difference; CI runs it before
+every build. `tools/fetch-chromium.sh` is a deprecated wrapper that delegates
+here, and rejects a `CHROMIUM_VERSION` that disagrees with the lock — an
+environment variable no longer selects what gets compiled.
 
 ### 2. `tools/sync-ungoogled.sh`
 
-Clones the matching ungoogled-chromium tag into `.ungoogled-chromium/` and copies the version-appropriate `patches/`, `pruning.list`, and `domain_substitution.list` into `patches/ungoogled/`. Re-run any time you bump the Chromium version.
+Copies `patches/`, `pruning.list` and `domain_substitution.list` out of the
+locked `.ungoogled-chromium/` checkout into `patches/ungoogled/`. It no longer
+searches for a tag that looks close enough: if the checkout is not at the
+locked commit it fails and tells you to run `tools/sync-sources.sh`.
 
 ### 3. `tools/apply-patches.sh`
 
@@ -220,7 +236,7 @@ tools/fetch-cross-deps.sh
 tools/setup-win-sdk.sh             # Only if cross-building Windows from Linux
 
 # Per build
-tools/fetch-chromium.sh --targets=linux,win,android
+tools/sync-sources.sh --targets "linux win android"
 tools/apply-patches.sh
 tools/sync-overlay.sh
 tools/build.sh Release linux

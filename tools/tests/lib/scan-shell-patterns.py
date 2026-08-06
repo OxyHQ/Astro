@@ -48,13 +48,42 @@ RULES: list[tuple[str, re.Pattern[str], str]] = [
     ),
     (
         "suppressed-failure",
-        re.compile(r"\|\|\s*(?:true|:)\s*(?:$|;|&)"),
+        re.compile(r"\|\|\s*(?:true|:)\s*(?:$|[;&)`])"),
         "a swallowed failure; classify the step with astro::optional instead",
     ),
     (
         "suppressed-stderr",
         re.compile(r"2>\s*/dev/null|&>\s*/dev/null|>&\s*/dev/null"),
         "discarded stderr hides the reason a required step failed",
+    ),
+]
+
+# Applies to shell scripts AND to CI workflow files (ASTRO-NEXT-002, issue #5).
+SOURCE_RULES: list[tuple[str, re.Pattern[str], str]] = [
+    (
+        "unconstrained-pull",
+        re.compile(r"\bgit\s+(-C\s+\S+\s+)?pull\b"),
+        "`git pull` takes whatever the remote's branch points at now; a build "
+        "dependency must be checked out at a locked commit instead",
+    ),
+]
+
+# Applies to CI workflow files ONLY, and the distinction is principled rather
+# than a concession to false positives.
+#
+# tools/sync-sources.sh legitimately tests whether a checkout exists, because
+# bootstrapping one is its job. A CI job has no such licence: it must invoke
+# the sync command unconditionally and let that command decide. A workflow that
+# branches on `.git` existence is deciding for itself whether to synchronise,
+# which is precisely how a self-hosted runner ends up compiling whatever commit
+# it happens to hold.
+WORKFLOW_RULES: list[tuple[str, re.Pattern[str], str]] = [
+    (
+        "cache-as-source-of-truth",
+        re.compile(r"-d\s+[\"']?[^\"'\s]*\.git[\"']?\s*\]"),
+        "a CI job deciding whether to synchronise by testing for an existing "
+        ".git treats a cache as source-of-truth state, so a stale runner keeps "
+        "compiling whatever commit it happens to hold",
     ),
 ]
 
@@ -68,12 +97,43 @@ PROBE = re.compile(r"\bcommand\s+-v\b")
 
 
 def strip_noncode(line: str) -> str:
-    """Return the line with quoted literals and the trailing comment removed."""
+    """Return the line with quoted literals and the trailing comment removed.
+
+    Command substitutions are kept as CODE even inside a double-quoted string,
+    and quoting restarts within them. Without that, a line like
+
+        branch="$(git symbolic-ref --short HEAD || true)"
+
+    reads as one quoted literal — the inner `"` closes the outer one — and the
+    `|| true` inside it disappears from the scan. That is a false negative, the
+    dangerous direction for this check, and it was found in real code here.
+
+    Nesting is tracked with a stack, so `"$(f "$(g)" || true)"` behaves too.
+    """
     out: list[str] = []
     quote: str | None = None
+    # Each entry is the quoting state to restore when a `$(` is closed.
+    substitution_stack: list[str | None] = []
     index = 0
+
     while index < len(line):
         char = line[index]
+
+        # A `$(` opens code, whatever the surrounding quoting — except inside
+        # single quotes, where nothing expands.
+        if quote != "'" and line.startswith("$(", index):
+            substitution_stack.append(quote)
+            quote = None
+            out.append(" ")
+            index += 2
+            continue
+
+        if substitution_stack and quote is None and char == ")":
+            quote = substitution_stack.pop()
+            out.append(" ")
+            index += 1
+            continue
+
         if quote:
             if char == "\\" and quote == '"':
                 index += 2
@@ -82,31 +142,84 @@ def strip_noncode(line: str) -> str:
                 quote = None
             index += 1
             continue
+
         if char in ("'", '"'):
             quote = char
             out.append(" ")
             index += 1
             continue
+
         if char == "#":
-            # A '#' only starts a comment at the start of a word.
-            if not out or out[-1].isspace():
+            # A '#' only starts a comment at the start of a word, and never
+            # inside a command substitution.
+            if not substitution_stack and (not out or out[-1].isspace()):
                 break
             out.append(char)
             index += 1
             continue
+
         if char == "\\":
             out.append(" ")
             index += 2
             continue
+
         out.append(char)
         index += 1
+
     return "".join(out)
+
+
+def strip_comments_only(line: str) -> str:
+    """Drop a trailing shell comment but KEEP string contents.
+
+    The source-pinning rules match paths and arguments that are normally
+    quoted — `[ ! -d "chromium/src/.git" ]`, for instance. strip_noncode
+    removes quoted text, so those rules would never fire on real code while
+    still firing on the prose in a comment: exactly backwards.
+
+    Comments are still removed, which is what keeps a script's own description
+    of the shape it removed from tripping the check.
+    """
+    quote: str | None = None
+    for index, char in enumerate(line):
+        if quote:
+            if char == "\\" and quote == '"':
+                continue
+            if char == quote:
+                quote = None
+            continue
+        if char in ("'", '"'):
+            quote = char
+            continue
+        if char == "#" and (index == 0 or line[index - 1].isspace()):
+            return line[:index]
+    return line
+
+
+def strip_yaml_noncode(line: str) -> str:
+    """Drop a YAML comment. Workflow files embed shell in `run:` blocks, so the
+    shell rules apply, but the shell tokenizer's heredoc and quoting rules do
+    not map onto YAML block scalars."""
+    quote: str | None = None
+    for index, char in enumerate(line):
+        if quote:
+            if char == quote:
+                quote = None
+            continue
+        if char in ("'", '"'):
+            quote = char
+            continue
+        if char == "#" and (index == 0 or line[index - 1].isspace()):
+            return line[:index]
+    return line
 
 
 def scan(path: str) -> list[tuple[int, str, str]]:
     violations: list[tuple[int, str, str]] = []
     heredoc_terminator: str | None = None
     previous = ""
+    is_workflow = path.endswith((".yml", ".yaml"))
+    rules = (SOURCE_RULES + WORKFLOW_RULES) if is_workflow else RULES + SOURCE_RULES
 
     with open(path, encoding="utf-8") as handle:
         for number, raw in enumerate(handle, start=1):
@@ -117,27 +230,34 @@ def scan(path: str) -> list[tuple[int, str, str]]:
             allowed = ALLOW_MARKER in raw or ALLOW_MARKER in previous
             previous = raw
 
-            if heredoc_terminator is not None:
-                if raw.strip() == heredoc_terminator:
-                    heredoc_terminator = None
-                continue
-
-            code = strip_noncode(raw)
+            if is_workflow:
+                code = strip_yaml_noncode(raw)
+                source_code = code
+            else:
+                if heredoc_terminator is not None:
+                    if raw.strip() == heredoc_terminator:
+                        heredoc_terminator = None
+                    continue
+                code = strip_noncode(raw)
+                source_code = strip_comments_only(raw)
 
             if not allowed:
-                for rule, pattern, _reason in RULES:
+                source_rule_names = {name for name, _p, _r in SOURCE_RULES}
+                for rule, pattern, _reason in rules:
                     if rule == "suppressed-stderr" and PROBE.search(code):
                         continue
-                    if pattern.search(code):
+                    target = source_code if rule in source_rule_names else code
+                    if pattern.search(target):
                         violations.append((number, rule, raw.strip()))
 
             # Matched against the RAW line: the terminator is usually quoted
             # (`<< 'EOF'`), and strip_noncode removes quoted text, so scanning
             # the stripped line never sees a heredoc start and every generated
             # script body gets scanned as if it were this script's own code.
-            match = HEREDOC_START.search(raw)
-            if match:
-                heredoc_terminator = match.group(2)
+            if not is_workflow:
+                match = HEREDOC_START.search(raw)
+                if match:
+                    heredoc_terminator = match.group(2)
 
     return violations
 
@@ -157,7 +277,7 @@ def main(argv: list[str]) -> int:
     if total:
         print(f"\n{total} banned pattern(s) found.", file=sys.stderr)
         print("Reasons:", file=sys.stderr)
-        for rule, _pattern, reason in RULES:
+        for rule, _pattern, reason in RULES + SOURCE_RULES + WORKFLOW_RULES:
             print(f"  {rule}: {reason}", file=sys.stderr)
         print(
             f"\nA reviewed exception carries an inline '# {ALLOW_MARKER} reason' marker.",
