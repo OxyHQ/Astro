@@ -435,6 +435,60 @@ are declared optional.
 An artifact named after the product but not containing it is the most misleading
 thing this pipeline can emit. `tools/lib/overlay_in_binary.py` now decides the
 question before the archive is written, and the packager refuses by default.
+
+---
+
+## 11. The banned-pattern scanner could be disarmed two ways, one of them free
+
+The scanner enforcing the epic's non-negotiable rules had two independent
+bypasses. Both were confirmed by experiment in both directions before either was
+fixed — the same lines with the bypass removed exit non-zero and name the rule,
+which is what distinguishes a real bypass from a regex that simply never
+matched.
+
+### The marker was a bare substring test
+
+`astro-allow:` was accepted wherever the literal string appeared in the offending
+line *or the line above it*, with no requirement that it be a comment, name a
+rule, or justify itself. A string literal, a variable's value, or any executable
+line granted an exception. Seven forged shapes each exited 0.
+
+Because the marker named no rule, one occurrence disabled **every** rule on the
+line. Measured on a line breaking three at once — `rsync --delete`,
+`2>/dev/null` and `|| true` — a single unqualified marker cleared all three.
+
+An exception is now valid only as a real comment, located by the same
+quote-aware scan the strippers use, sitting on the offending line or on a
+pure-comment line directly above it, naming a known rule id and carrying a
+justification. It suppresses only the rule it names, and rule ids are derived
+from the rule tables so a marker cannot name a rule that does not exist.
+
+### Continued lines were invisible, and needed no marker at all
+
+The scanner read physical lines. A string opened on one physical line and closed
+on the next left the closing quote reading as an *opening* one, so everything
+after it was treated as quoted text and never scanned:
+
+```
+astro::info "a message that spans \
+    two physical lines" && rm -f /tmp/x || true
+```
+
+`scanned 1 file(s), no banned patterns`, exit 0. Any `|| true`, `2>/dev/null`,
+`--delete`, `--3way` or `-F` on a continued logical line was undetectable. The
+first bypass at least required somebody to type a marker; this one was free, and
+it disarmed the rule the epic exists to enforce.
+
+Physical lines are now joined into logical ones before scanning, so quote state
+carries across the join. Two shapes deliberately do not continue a line and are
+tested: an escaped backslash (`\\`), and a trailing backslash inside a comment.
+
+**The sharpest evidence that this mattered: two of the repository's five
+`astro-allow:` markers had never suppressed anything.** Both sit on exactly this
+continued shape. Stripping all five markers and rescanning produced three
+findings before the fix and five after it — so until now a reader could not tell
+a reviewed exception from a decorative comment, and the suite asserts all five
+are load-bearing precisely so that cannot recur.
 `ASTRO_ALLOW_OVERLAYLESS_PACKAGE=1` produces the archive deliberately, renamed
 `pipeline-validation-<version>-linux-x64-NO-ASTRO-OVERLAY.tar.gz`. The detector
 reports `unmeasurable` separately from `absent`, so a wrong path cannot

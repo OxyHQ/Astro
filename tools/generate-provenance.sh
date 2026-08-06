@@ -14,8 +14,13 @@
 #   --gn-args FILE    GN args file used for this build
 #   --platform NAME   Target platform (linux, windows, macos, android, ...)
 #   --build-type NAME Release or Debug
+#   --overlay-manifest FILE
+#                     Manifest written by tools/sync-overlay.sh, which records
+#                     whether the overlay came from the commit being built
+#                     (default: build/reports/overlay-manifest.json)
 #   --require-match   Exit non-zero if any on-disk revision differs from the
-#                     lock. Release builds use this.
+#                     lock, or if the overlay did not come from a commit.
+#                     Release builds use this.
 
 ASTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export ASTRO_ROOT
@@ -31,6 +36,7 @@ REQUIRE_MATCH=0
 CHROMIUM_SRC_OPT=""
 DEPOT_TOOLS_DIR="$ASTRO_ROOT/depot_tools"
 UNGOOGLED_DIR="$ASTRO_ROOT/.ungoogled-chromium"
+OVERLAY_MANIFEST="$ASTRO_REPORT_DIR/overlay-manifest.json"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -42,9 +48,10 @@ while [ $# -gt 0 ]; do
         --chromium-src)  shift; CHROMIUM_SRC_OPT="${1:?--chromium-src needs a directory}" ;;
         --depot-tools)   shift; DEPOT_TOOLS_DIR="${1:?--depot-tools needs a directory}" ;;
         --ungoogled)     shift; UNGOOGLED_DIR="${1:?--ungoogled needs a directory}" ;;
+        --overlay-manifest) shift; OVERLAY_MANIFEST="${1:?--overlay-manifest needs a file}" ;;
         --require-match) REQUIRE_MATCH=1 ;;
         -h|--help)
-            sed -n '2,22p' "${BASH_SOURCE[0]}" >&2
+            sed -n '2,27p' "${BASH_SOURCE[0]}" >&2
             exit 0
             ;;
         *) astro::die "Unknown argument: $1" ;;
@@ -126,7 +133,7 @@ python3 - \
     "$ASTRO_DISK" "$ASTRO_STATE" \
     "$PLATFORM" "$BUILD_TYPE" "$GN_ARGS_FILE" \
     "$COMPILER_PATH" "$COMPILER_VERSION" "$HOST_OS" "$HOST_ARCH" \
-    "$REQUIRE_MATCH" <<'PY'
+    "$REQUIRE_MATCH" "$OVERLAY_MANIFEST" <<'PY'
 import hashlib
 import importlib.util
 import json
@@ -136,7 +143,8 @@ import sys
 (output, lock_path, lock_module_path, chromium_src, chromium_disk,
  chromium_state, depot_disk, depot_state, ungoogled_disk, ungoogled_state,
  astro_disk, astro_state, platform, build_type, gn_args_file, compiler_path,
- compiler_version, host_os, host_arch, require_match) = sys.argv[1:21]
+ compiler_version, host_os, host_arch, require_match,
+ overlay_manifest_path) = sys.argv[1:22]
 
 spec = importlib.util.spec_from_file_location("astro_lock", lock_module_path)
 lock_module = importlib.util.module_from_spec(spec)
@@ -193,6 +201,76 @@ drift = [
 ]
 dirty = [name for name, info in sources.items() if info["worktree"] == "dirty"]
 
+# --------------------------------------------------------------------------
+# Overlay state
+#
+# The overlay is Astro's own contribution to the build, and it is COPIED from
+# the working tree rather than checked out, so the Astro revision recorded
+# above does not describe it: an untracked file under src/ is invisible to
+# `git status --untracked-files=no`, and an ignored one is invisible to git
+# status entirely, yet both are copied into Chromium.
+#
+# tools/sync-overlay.sh measures it and records the verdict; this reads that
+# record. A missing or unreadable manifest is reported as "unmeasured", never
+# as "clean" — a check whose pass and whose nothing-was-measured look the same
+# certifies nothing.
+# --------------------------------------------------------------------------
+
+overlay = {
+    "manifest": overlay_manifest_path,
+    "state": "unmeasured",
+    "clean": False,
+    "revision": None,
+    "override": False,
+    "reason": (
+        f"no overlay manifest at {overlay_manifest_path}; "
+        "tools/sync-overlay.sh did not run for this build"
+    ),
+    "differences": [],
+}
+
+try:
+    with open(overlay_manifest_path, encoding="utf-8") as handle:
+        overlay_manifest = json.load(handle)
+except FileNotFoundError:
+    pass
+except (json.JSONDecodeError, OSError) as error:
+    overlay["reason"] = f"overlay manifest {overlay_manifest_path} is unreadable: {error}"
+else:
+    recorded = overlay_manifest.get("source_state")
+    if not isinstance(recorded, dict):
+        overlay["reason"] = (
+            f"{overlay_manifest_path} records no source_state; it was written by an "
+            "older tools/sync-overlay.sh"
+        )
+    else:
+        overlay.update(
+            {
+                "state": recorded.get("state", "unmeasured"),
+                "clean": bool(recorded.get("clean")),
+                "revision": recorded.get("revision"),
+                "override": bool(recorded.get("override")),
+                "reason": recorded.get("reason"),
+                "differences": recorded.get("differences", []),
+            }
+        )
+
+not_reproducible = []
+not_reproducible += [f"source drift — {line}" for line in drift]
+not_reproducible += [f"dirty worktree — {name} has uncommitted changes" for name in dirty]
+
+if overlay["state"] == "dirty":
+    listed = ", ".join(
+        f"{entry.get('overlay_path')} ({entry.get('classification')})"
+        for entry in overlay["differences"]
+    )
+    not_reproducible.append(
+        f"dirty overlay — {len(overlay['differences'])} overlay path(s) differ from "
+        f"HEAD {overlay['revision']}: {listed}"
+    )
+elif overlay["state"] != "clean":
+    not_reproducible.append(f"overlay {overlay['state']} — {overlay['reason']}")
+
 gn_args = None
 if gn_args_file and os.path.isfile(gn_args_file):
     with open(gn_args_file, encoding="utf-8") as handle:
@@ -230,7 +308,12 @@ document = {
     } if os.environ.get("GITHUB_RUN_ID") else None,
     "drift": drift,
     "dirty_worktrees": dirty,
-    "reproducible": not drift and not dirty,
+    "overlay": overlay,
+    # A single machine-readable verdict, plus the reasons behind it in the
+    # same document. tools/package-release.sh reads these rather than
+    # re-deriving them, so one place decides what "reproducible" means.
+    "reproducible": not not_reproducible,
+    "not_reproducible_because": not_reproducible,
 }
 
 with open(output, "w", encoding="utf-8") as handle:
@@ -241,14 +324,27 @@ for line in drift:
     print(f"DRIFT {line}", file=sys.stderr)
 for name in dirty:
     print(f"DIRTY {name} has uncommitted changes", file=sys.stderr)
+for line in not_reproducible:
+    print(f"NOT-REPRODUCIBLE {line}", file=sys.stderr)
 
-if require_match == "1" and (drift or dirty):
-    print(
-        "\nERROR --require-match: this build does not correspond to the lock.\n"
-        "      A release artifact must record revisions that can be checked out\n"
-        "      again. Run tools/sync-sources.sh, or commit the local changes.",
-        file=sys.stderr,
-    )
+if require_match == "1" and not_reproducible:
+    print("\nERROR --require-match: this build is not reproducible.", file=sys.stderr)
+    for line in not_reproducible:
+        print(f"      {line}", file=sys.stderr)
+    if drift or dirty:
+        print(
+            "      This build does not correspond to the lock. A release artifact must\n"
+            "      record revisions that can be checked out again. Run\n"
+            "      tools/sync-sources.sh, or commit the local changes.",
+            file=sys.stderr,
+        )
+    if not overlay["clean"]:
+        print(
+            "      The overlay this build was made from did not come from a commit, so\n"
+            "      the artifact cannot be reproduced from any revision. Commit the\n"
+            "      overlay changes and rebuild.",
+            file=sys.stderr,
+        )
     sys.exit(1)
 PY
 

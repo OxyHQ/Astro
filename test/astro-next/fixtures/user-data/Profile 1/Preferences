@@ -1,13 +1,4 @@
 {
-  "astro": {
-    "ntp_show_alia": true,
-    "ntp_show_clock": true,
-    "ntp_show_discover": true,
-    "ntp_show_notes": true,
-    "ntp_show_quick_links": true,
-    "ntp_show_sites": true,
-    "ntp_show_weather": true
-  },
   "bookmark_bar": {
     "show_on_all_tabs": true
   },
@@ -40,7 +31,6 @@
     "adblock": {
       "custom_rules": "! Astro fixture rules - synthetic, not a real filter list.\n||ads.example.com^\nexample.org##.ad-slot\n",
       "enabled": true,
-      "lifetime_blocked_count": 3,
       "site_overrides": {
         "news.example.org": false
       }

@@ -42,10 +42,12 @@
     },
     {
       "covers": [
-        "settings-page pref surface"
+        "settings-page pref surface",
+        "Astro-owned prefs excluded from the baseline"
       ],
       "derived_from": [
-        "src/chrome/browser/oxy/webui/astro_settings_handler.cc"
+        "src/chrome/browser/oxy/webui/astro_settings_handler.cc",
+        "docs/astro-next/baseline/pref-dispositions.json"
       ],
       "kind": "file",
       "owner": "astro",
@@ -375,11 +377,33 @@
   ],
   "fixture_version": 1,
   "issue": "https://github.com/OxyHQ/Astro/issues/6",
+  "observed_local_only_pref_count": 8,
+  "parse_invariant": {
+    "note": "'detected' comes from a deliberately loose recogniser and 'parsed' from the strict parser, measured by different rules so they can disagree; generation fails unless they pair one-to-one and unless the same number reaches the generated fixtures. There is no minimum: the only floor is zero, which would satisfy the identity while describing nothing.",
+    "surfaces": {
+      "WebUI host constants": {
+        "detected": 5,
+        "parsed": 5
+      },
+      "filter list entries": {
+        "detected": 11,
+        "parsed": 11
+      },
+      "preference registrations": {
+        "detected": 10,
+        "parsed": 10
+      },
+      "settings pref mappings": {
+        "detected": 34,
+        "parsed": 34
+      }
+    }
+  },
   "profiles": [
     "Default",
     "Profile 1"
   ],
-  "registered_pref_count": 18,
+  "registered_pref_count": 10,
   "revision_authority": "browser.lock.json",
   "tool": "tools/baseline/make_profile_fixtures.py"
 }

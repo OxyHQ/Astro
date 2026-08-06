@@ -206,7 +206,7 @@ astro::copy_glob() {
 # silently treat as zero.
 astro::file_size() {
     local path="$1"
-    if stat -c%s "$path" 2>/dev/null; then   # astro-allow: GNU probe; BSD fallback below covers the failure
+    if stat -c%s "$path" 2>/dev/null; then   # astro-allow:suppressed-stderr GNU probe; BSD fallback below covers the failure
         return 0
     fi
     stat -f%z "$path"
@@ -219,6 +219,173 @@ astro::sha256() {
     else
         shasum -a 256 "$path" | cut -d' ' -f1
     fi
+}
+
+# --------------------------------------------------------------------------
+# Release gate: an artifact named after the product must contain the product
+#
+# tools/package-release.sh produced `astro-0.1.0-linux-x64.tar.gz` from a build
+# with no Oxy Identity, no Alia, no ad blocker and none of the five WebUI
+# controllers, reported success, and left it in releases/ beside genuine
+# artifacts, distinguishable only by reading it. Every packager must therefore
+# answer the same question before it writes anything, and answer it in three
+# values rather than two:
+#
+#   present       -> may be packaged under the product's name
+#   absent        -> refusal, unless deliberately overridden AND renamed
+#   unmeasurable  -> refusal, always
+#
+# The third value is the one that carries the weight. "I could not measure it"
+# must never become "it is probably there", and it must never become "it is
+# absent" either: a wrong path, an unexpected binary format and the real defect
+# would then all produce the same verdict, which is the same as having no check.
+#
+# This lives in astro-common.sh, which every packager already sources, so a new
+# packager cannot omit the gate by forgetting a second `source` line.
+# --------------------------------------------------------------------------
+
+# "present" or "overlayless", set by astro::require_astro_overlay. Assigned on
+# load so an exported value inherited from a parent shell cannot stand in for a
+# gate that never ran.
+export ASTRO_OVERLAY_VERDICT=""
+
+# astro::require_astro_overlay <platform label> <detector argument>...
+#
+# The detector arguments are passed straight to tools/lib/overlay_in_binary.py,
+# because the right probe differs by artifact shape and the choice belongs at
+# the call site where it can be justified against a real artifact.
+astro::require_astro_overlay() {
+    local platform="$1"
+    shift
+    if [ "$#" -eq 0 ]; then
+        astro::die "astro::require_astro_overlay($platform): no probe arguments given"
+    fi
+
+    astro::require_cmd python3
+    local detector="${ASTRO_ROOT:?ASTRO_ROOT must be set}/tools/lib/overlay_in_binary.py"
+    astro::require_file "$detector" "overlay detector"
+
+    astro::info ">>> Verifying the Astro overlay is in the $platform artifact..."
+    local status=0
+    python3 "$detector" "$@" || status=$?
+
+    case "$status" in
+        0)
+            ASTRO_OVERLAY_VERDICT="present"
+            return 0
+            ;;
+        1)
+            # Measured, and the answer is no. Handled below.
+            ;;
+        2)
+            astro::die_with_hint \
+                "Cannot determine whether the overlay is present; refusing to package." \
+                "The scan measured nothing, so packaging now would be a guess in the" \
+                "one direction that cannot be corrected later: an artifact named after" \
+                "the product that may not contain it." \
+                "" \
+                "Probe: $*"
+            ;;
+        *)
+            # A crash is not a verdict. The detector exits 1 for "absent", which
+            # is also what an unhandled exception exits, and a signal-level death
+            # exits 128+n; both were observed on real artifacts on this machine.
+            # Anything outside {0,1,2} is therefore unmeasurable, never absent.
+            astro::die_with_hint \
+                "Cannot determine whether the overlay is present; refusing to package." \
+                "The scan exited $status, which is not one of its three verdicts" \
+                "(0 present, 1 absent, 2 unmeasurable). It crashed rather than" \
+                "answered, and a crash must not be read as an answer." \
+                "" \
+                "Probe: $*"
+            ;;
+    esac
+
+    if [ "${ASTRO_ALLOW_OVERLAYLESS_PACKAGE:-0}" != "1" ]; then
+        astro::die_with_hint \
+            "Refusing to package a build with no Astro overlay as an Astro release." \
+            "This is a pipeline-validation build: Chromium plus the legacy patch" \
+            "base. Naming it after the product would misrepresent it." \
+            "" \
+            "To package it deliberately as a validation artifact:" \
+            "    ASTRO_ALLOW_OVERLAYLESS_PACKAGE=1 $0" \
+            "The artifact is then named, and its provenance recorded, so its nature" \
+            "cannot be mistaken."
+    fi
+
+    astro::warn "override:overlayless-package" \
+        "packaging a build with no Astro overlay; renaming the $platform artifact accordingly"
+    ASTRO_OVERLAY_VERDICT="overlayless"
+}
+
+# astro::overlayless_artifact_name <descriptor> <extension>
+#
+# The one place an overridden artifact's name is composed, so every platform
+# carries the same two unmistakable words and a test can assert on them without
+# a per-platform table. The descriptor is the version-and-platform part only:
+# nothing derived from the product name reaches the result.
+#
+#   astro::overlayless_artifact_name "0.1.0-linux-x64" ".tar.gz"
+#     -> pipeline-validation-0.1.0-linux-x64-NO-ASTRO-OVERLAY.tar.gz
+astro::overlayless_artifact_name() {
+    local descriptor="$1" extension="$2"
+    printf 'pipeline-validation-%s-NO-ASTRO-OVERLAY%s\n' "$descriptor" "$extension"
+}
+
+# astro::stage_provenance <destination file>
+#
+# Copies the build provenance into an artifact and records the overlay verdict
+# in it. The filename says what the artifact is to whoever is looking at the
+# directory; the provenance says it to whoever has already unpacked it and is
+# about to run it.
+#
+# Refuses if the gate has not run, which couples the two: a packager cannot
+# stage provenance for an artifact whose contents were never checked.
+astro::stage_provenance() {
+    local destination="$1"
+    local source_file="${ASTRO_REPORT_DIR:?}/provenance.json"
+
+    if [ -z "${ASTRO_OVERLAY_VERDICT:-}" ]; then
+        astro::die "astro::stage_provenance called before the overlay gate ran: $destination"
+    fi
+
+    astro::copy_required "$source_file" "$destination" \
+        "build provenance (run tools/build.sh)"
+
+    if astro::dry_run; then
+        astro::plan "annotate $destination with overlay verdict $ASTRO_OVERLAY_VERDICT"
+        return 0
+    fi
+
+    python3 - "$destination" "$ASTRO_OVERLAY_VERDICT" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+present = sys.argv[2] == "present"
+
+document = json.loads(path.read_text(encoding="utf-8"))
+record = {
+    "present": present,
+    "detector": "tools/lib/overlay_in_binary.py",
+    "artifact_class": "astro-release" if present else "pipeline-validation",
+}
+if not present:
+    record["warning"] = (
+        "NO-ASTRO-OVERLAY. This artifact is Chromium plus the legacy patch base: "
+        "no Oxy Identity, no Alia, no ad blocker, none of the five WebUI "
+        "controllers. It was packaged deliberately under "
+        "ASTRO_ALLOW_OVERLAYLESS_PACKAGE=1 for pipeline validation, and is not an "
+        "Astro release."
+    )
+# Deliberately NOT "overlay": tools/generate-provenance.sh already writes that
+# key, and it answers a different question — which overlay REVISION the build
+# was made from. This one answers whether the overlay reached the binary at all.
+document["overlay_in_binary"] = record
+
+path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+PY
 }
 
 # --------------------------------------------------------------------------

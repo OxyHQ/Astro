@@ -16,6 +16,7 @@ distinguishes carefully between what has been measured and what has not.
 | [`source-inventory.md`](source-inventory.md) | generated | `tools/baseline/inventory_sources.py` | What this baseline was taken from: the locked revisions, and what is declared rather than measured |
 | [`patch-inventory.md`](patch-inventory.md) | generated | `tools/baseline/inventory_patches.py` | Every patch in series order with its files, hunks, purpose and disposition |
 | [`patch-dispositions.json`](patch-dispositions.json) | hand-maintained | — | The judgement half of the patch inventory: what each patch is for and whether it is kept, replaced, removed or still to be investigated |
+| [`pref-dispositions.json`](pref-dispositions.json) | hand-maintained | — | The judgement half of the preference registry: what each Astro-owned preference is for, and whether it belongs to the reproducible baseline or is a candidate preference observed only in a working tree |
 | [`platform-matrix.md`](platform-matrix.md) | generated | `tools/baseline/inventory_gn_args.py` | GN args across every platform configuration, and the keys that disagree between them |
 | [`security-baseline.md`](security-baseline.md) | generated | `tools/baseline/inventory_webui_security.py` | Per-WebUI CSP directives, Trusted Types and remote content, read from the controller sources |
 | [`network-inventory.yaml`](network-inventory.yaml) | generated | `tools/baseline/inventory_endpoints.py` | Endpoints referenced in source and patch text. Static today: it carries `measured: false` and says so |
@@ -28,6 +29,12 @@ next regeneration discards the edit, and the check below fails in the
 meantime. Fix the tool, or — for a patch's purpose and disposition, which
 cannot be derived from a diff — fix `patch-dispositions.json`, which the
 inventory joins in strictly and which fails generation in both directions.
+`pref-dispositions.json` is the same shape for preferences: the names are
+parsed out of the committed patch stack, the judgement is declared, and the
+join fails in both directions. Its `observed-local-only` entries each assert
+that the committed stack does **not** register that preference, so the day
+that work lands the join fails naming every one of them rather than letting
+the record quietly become untrue.
 
 Hand-maintained documents must not restate a figure a generated document
 owns. A count copied out of `patch-inventory.md` into this file would go

@@ -1,13 +1,4 @@
 {
-  "astro": {
-    "ntp_show_alia": false,
-    "ntp_show_clock": false,
-    "ntp_show_discover": false,
-    "ntp_show_notes": false,
-    "ntp_show_quick_links": false,
-    "ntp_show_sites": false,
-    "ntp_show_weather": false
-  },
   "bookmark_bar": {
     "show_on_all_tabs": true
   },
@@ -40,7 +31,6 @@
     "adblock": {
       "custom_rules": "! Astro fixture rules - synthetic, not a real filter list.\n||ads.example.com^\nexample.org##.ad-slot\n",
       "enabled": false,
-      "lifetime_blocked_count": 24917,
       "site_overrides": {
         "example.com": false,
         "shop.example.net": false

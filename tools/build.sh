@@ -53,6 +53,10 @@ Environment:
   ASTRO_BUILD_JOBS               Parallel compile jobs (default: nproc)
   ASTRO_ALLOW_DIRTY_CHROMIUM=1   Developer-only override for the unrelated
                                  local-changes guard. Never set in CI.
+  ASTRO_ALLOW_DIRTY_OVERLAY=1    Developer-only override permitting a build from
+                                 an overlay that differs from HEAD. The build is
+                                 recorded as not reproducible and normal
+                                 packaging refuses it. Never set in CI.
 EOF
 }
 
@@ -284,10 +288,14 @@ fi
 if astro::dry_run; then
     astro::plan "generate build/reports/provenance.json"
 else
+    # The overlay manifest is the only record of whether the copied overlay
+    # came from the commit being built, so provenance is pointed at the one
+    # this run's sync-overlay wrote rather than left to find it by default.
     "$ASTRO_ROOT/tools/generate-provenance.sh" \
         --gn-args "$GN_ARGS_FILE" \
         --platform "$PLATFORM" \
-        --build-type "$BUILD_TYPE"
+        --build-type "$BUILD_TYPE" \
+        --overlay-manifest "$ASTRO_REPORT_DIR/overlay-manifest.json"
 fi
 
 astro::info "=== Build complete ==="

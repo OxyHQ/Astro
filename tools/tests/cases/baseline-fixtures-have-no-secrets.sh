@@ -289,19 +289,81 @@ mapfile -t PATCH_PREFS < <(
         | sort -u
 )
 
-# The floor stays at 15 deliberately. If the committed patches register fewer
-# than that, the fixtures cannot be regenerated from committed content, and the
-# answer is to commit the preference work — not to lower the number, which would
-# ratify one machine's uncommitted state as the baseline.
+# There is no minimum. What the committed patches register is a product decision
+# that moves in both directions, and a floor above zero can only be wrong in one
+# of two ways: too low to catch a broken extraction, or high enough to fail on a
+# legitimate number — at which point the repairs available are to edit the
+# constant or to commit somebody's uncommitted work to reach it. This one
+# stopped at 15 while the committed stack registered 10 and one working tree
+# registered 18, and the fixtures had been generated from the 18.
+#
+# What must hold whatever the number is: the extraction loses nothing. Stated as
+# an identity between three counts, each measured differently:
+#
+#   detected     call sites found by a LOOSE grep -- no receiver, no quoted
+#                name, no character class
+#   parsed       names the STRICT grep above extracted
+#   represented  Astro-owned prefs actually present in the generated fixture
+#
+# The looseness is the point. If both counts came from the strict pattern they
+# would agree by construction. This grep sees `registry_->`, a name held in a
+# constant, and a name carrying a character the strict class excludes — none of
+# which the strict one can extract — so a registration it cannot handle shows up
+# as a discrepancy naming the line rather than as a quietly smaller fixture.
+#
+# The generator enforces the same identity over the same patches. It is
+# duplicated here on purpose and written differently on purpose: comparing the
+# generator's output against the generator's own parse would pass even if that
+# parse had stopped matching reality.
+pref_added_lines() {
+    local status=0
+    grep -hE '^\+' "$@" | grep -vE '^\+\+\+' > "$tmp/pref-added-lines" || status=$?
+    if [ "$status" -gt 1 ]; then
+        harness::fail "reading added lines from the pref patches: grep exit $status"
+    fi
+}
+
+pref_added_lines "$PREF_PATCH_020" "$PREF_PATCH_046"
+
+grep_count() {
+    local pattern="$1" file="$2" status=0 hits
+    hits="$(grep -oE -- "$pattern" "$file")" || status=$?
+    if [ "$status" -gt 1 ]; then
+        harness::fail "counting /$pattern/ in $file: grep exit $status"
+    fi
+    if [ -z "$hits" ]; then
+        printf '0\n'
+    else
+        printf '%s\n' "$hits" | wc -l
+    fi
+}
+
+PREF_SITES_DETECTED="$(grep_count 'Register[A-Za-z0-9_]*Pref[[:space:]]*\(' "$tmp/pref-added-lines")"
+PREF_SITES_PARSED="$(grep_count 'registry->Register[A-Za-z]+Pref\("[A-Za-z0-9_.]+"' \
+    "$tmp/pref-added-lines")"
+
+# The only floor, and it encodes no expectation about the product: zero. Three
+# counts agree at zero while describing nothing, so the identity alone cannot
+# catch a pattern that stopped matching entirely.
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-if [ "${#PATCH_PREFS[@]}" -lt 15 ]; then
-    worktree_count="$(
-        grep -hoE '^\+[[:space:]]*registry->Register[A-Za-z]+Pref\("[A-Za-z0-9_.]+"' \
-            "$ASTRO_ROOT/patches/astro/020-register-oxy-prefs.patch" \
-            "$ASTRO_ROOT/patches/astro/046-adblock-prefs.patch" \
-            | grep -coE '"[A-Za-z0-9_.]+"'
-    )"
-    harness::fail "parsed only ${#PATCH_PREFS[@]} preference names from the COMMITTED patches; expected at least 15. This working tree's copies register $worktree_count. Either the extraction is broken, prefs were removed, or the preference work is not committed yet"
+if [ "$PREF_SITES_DETECTED" -eq 0 ]; then
+    harness::fail "no preference registration call sites found in the committed patches at all; the extraction is broken or the registrations are gone"
+fi
+
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if [ "$PREF_SITES_DETECTED" != "$PREF_SITES_PARSED" ]; then
+    printf -- '--- registration call sites the strict pattern did not extract ---\n' >&2
+    grep -nE 'Register[A-Za-z0-9_]*Pref[[:space:]]*\(' "$tmp/pref-added-lines" \
+        | grep -vE 'registry->Register[A-Za-z]+Pref\("[A-Za-z0-9_.]+"' >&2
+    harness::fail "$PREF_SITES_DETECTED preference registration call site(s) detected in the committed patches but only $PREF_SITES_PARSED extracted; the strict extraction is losing registrations named above"
+fi
+
+# A name extracted twice is a preference registered twice, which the generator
+# rejects outright. Comparing the deduplicated list against the raw count keeps
+# the identity above honest, since `sort -u` would otherwise hide it.
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if [ "${#PATCH_PREFS[@]}" != "$PREF_SITES_PARSED" ]; then
+    harness::fail "${#PATCH_PREFS[@]} distinct preference name(s) from $PREF_SITES_PARSED registration(s); a preference is registered more than once"
 fi
 
 # Flatten the fixture into dotted pref paths, the way PrefService addresses
@@ -335,12 +397,23 @@ def walk(node, prefix):
 walk(document, "")
 PY
 
+# The third count, `represented`. Membership rather than arithmetic, because a
+# count that disagrees says only that something is missing; naming it says which.
+# The tally is still asserted afterwards, so the identity the two counts above
+# state is closed here rather than left implied.
+PREF_SITES_REPRESENTED=0
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
 for pref in "${PATCH_PREFS[@]}"; do
     if ! grep -qxF "$pref" "$tmp/pref-paths.txt"; then
         harness::fail "preference '$pref' is registered by a patch but missing from the fixture"
     fi
+    PREF_SITES_REPRESENTED=$((PREF_SITES_REPRESENTED + 1))
 done
+
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if [ "$PREF_SITES_REPRESENTED" != "$PREF_SITES_PARSED" ]; then
+    harness::fail "detected $PREF_SITES_DETECTED registration call site(s), parsed $PREF_SITES_PARSED, but $PREF_SITES_REPRESENTED reached the fixture; the three must agree"
+fi
 
 # And the fixture must not have wandered off the other way: every astro./oxy.
 # leaf in the fixture has to be a pref something actually registers.

@@ -36,9 +36,37 @@ if [ -z "$APK" ]; then
 fi
 
 echo "Found APK: $APK"
+
+# An artifact named after the product must contain the product, and the verdict
+# is reached before the APK is copied, aligned or signed.
+#
+# An APK is a zip, so it is scanned as one. The member filter is the whole
+# decision: an APK carries the WebUI resources as well as the code, and an
+# `astro-ntp` string in a packaged HTML file says nothing about whether the
+# overlay was compiled into the browser — which is the entire question. So only
+# native code is scanned, and the control marker has to be found in that same
+# native code for the verdict to count.
+#
+# If a build lays its native libraries out some other way, no member matches,
+# nothing is measured, and the packager refuses. That is the correct outcome
+# rather than a reason to widen the filter until something matches: a filter
+# widened to `*` would let the resources answer, and then an overlayless
+# Android build would package itself as Astro.
+#
+# Verified against a synthetic zip fixture in all three directions, NOT against
+# a real Chromium APK — none exists in this repository and none can be built
+# here. Whether a real libmonochrome.so carries `chrome://version` is therefore
+# UNMEASURED; if it does not, this packager will refuse until someone calibrates
+# the probe against a real APK. Refusing is the safe direction, and it is loud.
+astro::require_astro_overlay "android arm64" \
+    --zip "$APK" --zip-member-glob '*.so'
+
 mkdir -p "$RELEASE_DIR"
 
 OUTPUT_NAME="astro-${VERSION}-android-arm64.apk"
+if [ "$ASTRO_OVERLAY_VERDICT" = "overlayless" ]; then
+    OUTPUT_NAME="$(astro::overlayless_artifact_name "${VERSION}-android-arm64" ".apk")"
+fi
 OUTPUT_PATH="$RELEASE_DIR/$OUTPUT_NAME"
 
 # --- Sign APK (optional, requires keystore) ---
@@ -97,6 +125,11 @@ else
     echo ">>> No keystore configured, copying unsigned APK"
     cp "$APK" "$OUTPUT_PATH"
 fi
+
+# An APK cannot carry the provenance inside it — adding a member after signing
+# invalidates the signature, and adding one before it changes what was signed —
+# so it travels beside the artifact.
+astro::stage_provenance "$OUTPUT_PATH.provenance.json"
 
 echo ""
 echo "=== Android packaging complete ==="

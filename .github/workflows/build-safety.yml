@@ -57,17 +57,23 @@ jobs:
       - name: Run the build-safety suite
         run: tools/tests/run.sh
 
-      # ASTRO_ALLOW_DIRTY_CHROMIUM is a developer-only escape hatch. If it ever
-      # appears in CI configuration, the guards it bypasses stop being gates.
+      # These are developer-only escape hatches: one waves through a Chromium
+      # checkout carrying unrelated local changes, the other waves through an
+      # overlay that does not match the commit being built. If either ever
+      # appears in CI configuration, the guard it bypasses stops being a gate.
+      # The prefix match also covers ASTRO_ALLOW_DIRTY_OVERLAY_PACKAGE, which
+      # would let CI publish an artifact no revision reproduces.
       - name: Assert no override is set in CI
         run: |
-          if [ -n "${ASTRO_ALLOW_DIRTY_CHROMIUM:-}" ]; then
-            echo "ASTRO_ALLOW_DIRTY_CHROMIUM is set in CI; it is developer-only." >&2
-            exit 1
-          fi
-          if grep -rn 'ASTRO_ALLOW_DIRTY_CHROMIUM' .github/workflows/ \
-              | grep -v 'build-safety.yml'; then
-            echo "A workflow sets the dirty-checkout override." >&2
-            exit 1
-          fi
+          for override in ASTRO_ALLOW_DIRTY_CHROMIUM ASTRO_ALLOW_DIRTY_OVERLAY; do
+            if [ -n "${!override:-}" ]; then
+              echo "$override is set in CI; it is developer-only." >&2
+              exit 1
+            fi
+            if grep -rn "$override" .github/workflows/ \
+                | grep -v 'build-safety.yml'; then
+              echo "A workflow sets $override." >&2
+              exit 1
+            fi
+          done
           echo "No override set."

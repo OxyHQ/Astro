@@ -18,6 +18,25 @@ if [ ! -f "$BUILD_DIR/chrome" ]; then
     exit 1
 fi
 
+# An artifact named after the product must contain the product, and the verdict
+# is reached before the staging tree exists. A .deb payload is the same ELF the
+# Linux archive ships, so the same direct scan applies with no per-format
+# handling — verified against the `chrome` inside the shipped
+# astro-browser_0.1.0_amd64.deb, which reports present.
+astro::require_astro_overlay "deb" --binary "$BUILD_DIR/chrome"
+
+# A .deb carries its identity twice: in the filename and in the control file's
+# Package field, which is what `dpkg -l` and every dependency resolver report
+# afterwards. Renaming only the file would leave `astro-browser` installed on
+# the machine, so both are changed together.
+DEB_FILE="$RELEASE_DIR/${PKG_NAME}_${VERSION}_${ARCH}.deb"
+PKG_SUMMARY="Astro Web Browser by Oxy"
+if [ "$ASTRO_OVERLAY_VERDICT" = "overlayless" ]; then
+    PKG_NAME="pipeline-validation-browser"
+    PKG_SUMMARY="PIPELINE VALIDATION BUILD - NO ASTRO OVERLAY"
+    DEB_FILE="$RELEASE_DIR/$(astro::overlayless_artifact_name "${VERSION}_${ARCH}" ".deb")"
+fi
+
 mkdir -p "$RELEASE_DIR"
 
 # --- Build the .deb directory structure ---
@@ -41,7 +60,7 @@ Architecture: $ARCH
 Depends: libasound2, libatk-bridge2.0-0, libatk1.0-0, libatspi2.0-0, libc6 (>= 2.17), libcairo2, libcups2, libdbus-1-3, libdrm2, libexpat1, libgbm1, libglib2.0-0, libgtk-3-0, libnspr4, libnss3, libpango-1.0-0, libx11-6, libxcb1, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxkbcommon0, libxrandr2, wget
 Maintainer: Oxy <hello@oxy.so>
 Homepage: https://oxy.so
-Description: Astro Web Browser by Oxy
+Description: $PKG_SUMMARY
  A privacy-focused, de-Googled Chromium browser with built-in
  ad blocker, Oxy platform integration, and Alia AI assistant.
  .
@@ -109,9 +128,9 @@ astro::copy_glob "data-files"        "$BUILD_DIR" '*.dat' "$INSTALL_PREFIX/"
 astro::copy_required "$BUILD_DIR/icudtl.dat" "$INSTALL_PREFIX/" "ICU data"
 
 # A release artifact must carry the exact source revisions, GN args and
-# toolchain identity it was produced from (ASTRO-NEXT-002, #5).
-astro::copy_required "$ASTRO_ROOT/build/reports/provenance.json" \
-    "$INSTALL_PREFIX/provenance.json" "build provenance (run tools/build.sh)"
+# toolchain identity it was produced from (ASTRO-NEXT-002, #5), plus the overlay
+# verdict, so an installed tree says what it is even once its filename is gone.
+astro::stage_provenance "$INSTALL_PREFIX/provenance.json"
 
 # Locales
 if [ -d "$BUILD_DIR/locales" ]; then
@@ -248,7 +267,6 @@ echo ">>> Building .deb package..."
 INSTALLED_SIZE=$(du -sk "$DEB_ROOT" | cut -f1)
 echo "Installed-Size: $INSTALLED_SIZE" >> "$DEB_ROOT/DEBIAN/control"
 
-DEB_FILE="$RELEASE_DIR/${PKG_NAME}_${VERSION}_${ARCH}.deb"
 dpkg-deb --build --root-owner-group "$DEB_ROOT" "$DEB_FILE"
 
 # Clean up

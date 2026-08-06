@@ -68,8 +68,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = REPO_ROOT / "test" / "astro-next" / "fixtures"
 
 # Sources every generated value is derived from, as repository-relative paths:
-# they are addressed in git, not on disk. Each one is parsed, and each parse
-# carries a floor below which it is treated as broken rather than empty.
+# they are addressed in git, not on disk. Every parse over them is held to the
+# structural invariant below rather than to a minimum count.
 PREF_PATCHES = (
     "patches/astro/020-register-oxy-prefs.patch",
     "patches/astro/046-adblock-prefs.patch",
@@ -82,9 +82,17 @@ ADBLOCK_UPDATER = "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_upda
 TOKEN_STORE = "src/chrome/browser/oxy/oxy_auth_token_store.cc"
 LOCK_FILE = "browser.lock.json"
 
+# The judgement half of the preference registry: which preferences belong to the
+# reproducible baseline and which are candidate future work observed only in a
+# working tree. Names are parsed, dispositions are declared, and the join
+# between them is strict in both directions — see the file's own header.
+PREF_DISPOSITIONS = "docs/astro-next/baseline/pref-dispositions.json"
+VALID_PREF_STATUSES = ("legacy-baseline", "observed-local-only")
+
 # Everything above, for the working-tree difference report.
 DERIVED_FROM = (
     *PREF_PATCHES,
+    PREF_DISPOSITIONS,
     SETTINGS_HANDLER,
     WEBUI_DIR,
     FILTER_CATALOG,
@@ -93,25 +101,6 @@ DERIVED_FROM = (
     TOKEN_STORE,
     LOCK_FILE,
 )
-
-# Vacuity floors. A regex that stops matching — because a patch was reformatted,
-# a file moved, or the registration idiom changed — must fail loudly. Silently
-# producing a fixture with no preferences in it is the failure this prevents:
-# the migration test would still pass, having checked nothing.
-#
-# DO NOT LOWER MIN_REGISTERED_PREFS TO MAKE A FAILURE GO AWAY. If the committed
-# patches parse to fewer preferences than this, the shortfall IS the finding —
-# editing the constant to match it converts a signal into a silence, and states
-# in code that the smaller number was intended when nobody decided that. The
-# failure message below prints the committed count, the working-tree count and
-# the preferences that differ, precisely so the reader can act on the finding
-# instead of tuning the threshold that surfaced it. The same floor is duplicated
-# in tools/tests/cases/baseline-fixtures-have-no-secrets.sh, which parses the
-# patches independently; both carry this rule for the same reason.
-MIN_REGISTERED_PREFS = 15
-MIN_SETTINGS_MAPPINGS = 20
-MIN_WEBUI_HOSTS = 4
-MIN_FILTER_LISTS = 5
 
 # Chromium's own NTP host. `chrome://astro-ntp` is the page that actually
 # exists; patch 056 teaches search.cc to treat it as an NTP so the omnibox
@@ -145,6 +134,11 @@ FIXTURE_DIR_REL = str(DEFAULT_OUTPUT.relative_to(REPO_ROOT))
 # Parsing the sources
 # ---------------------------------------------------------------------------
 
+# STRICT parsers. Each one turns a declaration into structured data, and each
+# narrows what it accepts: a name character class, a required receiver, a
+# required qualifier. That narrowing is deliberate and is what makes the parsed
+# values trustworthy — it is also exactly what makes a parser able to LOSE a
+# declaration without saying so.
 PREF_RE = re.compile(
     r'registry->Register(?P<kind>[A-Za-z0-9]+)Pref\(\s*"(?P<name>[A-Za-z0-9_.]+)"'
     r"(?:\s*,\s*(?P<default>.*?))?\s*\)\s*;",
@@ -155,6 +149,202 @@ HOST_RE = re.compile(r'inline constexpr char kAstro(\w+)Host\[\]\s*=\s*"([^"]+)"
 CATALOG_RE = re.compile(
     r'\.id = "(?P<id>[^"]+)".*?\.default_enabled = (?P<enabled>true|false)', re.DOTALL
 )
+
+# LOOSE recognisers, one per strict parser above, deliberately written by a
+# different rule: find where a declaration BEGINS and nothing else. No receiver
+# name, no qualifier, no character class on the value, no closing punctuation.
+#
+# The asymmetry is the entire point and is why the invariant below is not
+# vacuous. If "how many declarations are there" and "how many did we parse" both
+# came from PREF_RE they would agree by construction, and the check would be an
+# expensive way of writing `True`. Because these accept a strict superset, a
+# declaration the strict parser cannot handle — a receiver not spelled
+# `registry->`, a name held in a constant rather than a string literal, a
+# character the strict name class excludes, a field the DOTALL parser swallowed
+# along with the entry after it — shows up as a discrepancy that NAMES the
+# offending line instead of silently shrinking the fixture.
+#
+# Keep them loose. Narrowing one to match its strict partner more closely
+# quietly disables the check it exists to perform.
+PREF_CALL_SITE_RE = re.compile(r"Register\w*Pref\s*\(")
+MAPPING_SITE_RE = re.compile(r'\{\s*"[^"]*"\s*,\s*"[^"]*"\s*\}')
+HOST_SITE_RE = re.compile(r"kAstro\w*Host\s*\[\s*\]")
+CATALOG_SITE_RE = re.compile(r'\.id\s*=\s*"')
+
+# A registration that DELEGATES (`oxy::RegisterOxyPrefs(registry);`) hides an
+# unbounded number of preferences behind one call, so the set stops being
+# enumerable from the patch text at all — and the invariant below would report
+# three agreeing counts while the fixture silently lost every pref behind it.
+# There are none today; this exists so the day one appears it is a loud failure
+# rather than a smaller fixture nobody notices.
+PREF_DELEGATION_RE = re.compile(r"\w+::Register\w*Prefs\s*\(")
+
+
+# ---------------------------------------------------------------------------
+# The structural invariant
+# ---------------------------------------------------------------------------
+#
+# What replaced four minimum-count thresholds, and why.
+#
+# A floor ("at least 15 preferences") answers a question nobody asked. How many
+# preferences Astro registers is a product decision that moves in both
+# directions; 10 is not more or less correct than 18 or 40. So the floor could
+# only ever be wrong in one of two ways: too low to catch a broken parse, or —
+# the way it actually failed here — high enough to fail on a legitimate number,
+# at which point the only available repairs are to edit the threshold (turning a
+# signal into a silence) or to commit somebody's uncommitted work to reach it.
+#
+# What must hold regardless of the number is that the parse LOSES NOTHING. That
+# is a structural property, and it is stated as an identity between three counts,
+# each arrived at by a different route:
+#
+#   detected      declaration sites found by the LOOSE recogniser
+#   parsed        declarations the STRICT parser turned into structured data
+#   represented   items that actually reached the generated fixtures
+#
+# All three must agree. Each pairing catches a different failure:
+#
+#   detected != parsed        the strict parser cannot handle a declaration that
+#                             is really there — a reformat, a renamed receiver, a
+#                             name that moved into a constant, a DOTALL match
+#                             that swallowed the entry after it.
+#   parsed != represented     the parse worked and the value fell out anyway — a
+#                             nested-path collision, a duplicate key, a synthesis
+#                             branch that skipped it.
+#
+# and the three-way agreement is what a bare count cannot give: a fixture with
+# ten preferences in it is correct if the repository declares ten, and broken if
+# it declares eighteen. Only the comparison knows which.
+#
+# The counts are recorded in the manifest, so the numbers move visibly in a
+# diff rather than living in a threshold somebody has to maintain.
+
+
+def line_at(text: str, offset: int) -> tuple[int, str]:
+    """The 1-based line number containing `offset`, and that line's text.
+
+    A discrepancy is only actionable if it names the line, so this exists to
+    make every failure below quote the source rather than print an arithmetic
+    complaint about two integers.
+    """
+    number = text.count("\n", 0, offset) + 1
+    start = text.rfind("\n", 0, offset) + 1
+    end = text.find("\n", offset)
+    return number, text[start:] if end < 0 else text[start:end]
+
+
+def assert_parse_is_lossless(
+    what: str,
+    source: str,
+    text: str,
+    loose: re.Pattern,
+    strict: list[re.Match],
+) -> int:
+    """Pair every loose declaration site with the strict match covering it.
+
+    Returns the DETECTED count. Raises if the pairing is not a bijection, which
+    is the same thing as saying `detected == parsed` — stated as a pairing
+    rather than as a comparison of two integers so the failure can name lines.
+
+    Three ways it breaks, all reported, because they have different causes:
+
+      unparsed   a loose site inside no strict match. The strict parser is
+                 losing a declaration that is right there in the text.
+      merged     one strict match covering several loose sites. This is the
+                 DOTALL failure specifically: `.id = "a" .*? .default_enabled`
+                 with `a`'s field missing runs on into the NEXT entry, reporting
+                 one entry where there are two and silently adopting the wrong
+                 value. It cannot be seen by counting alone.
+      uncovered  a strict match containing no loose site. That means the loose
+                 recogniser is NOT a superset of the strict one, so agreement
+                 between the two counts would prove nothing — a vacuity guard on
+                 the check itself.
+    """
+    spans = [(match.start(), match.end()) for match in strict]
+    sites = [match.start() for match in loose.finditer(text)]
+
+    unparsed = [
+        line_at(text, site)
+        for site in sites
+        if not any(start <= site < end for start, end in spans)
+    ]
+    merged = [
+        line_at(text, start)
+        for start, end in spans
+        if sum(1 for site in sites if start <= site < end) > 1
+    ]
+    uncovered = [
+        line_at(text, start)
+        for start, end in spans
+        if not any(start <= site < end for site in sites)
+    ]
+
+    if unparsed or merged or uncovered:
+        report = [
+            f"ERROR the {what} parse is losing declarations in {source}.",
+            "",
+            f"      declaration sites detected (loose scan): {len(sites)}",
+            f"      declarations parsed (strict parse):      {len(strict)}",
+            "",
+            "      The two are measured by deliberately different rules so that they",
+            "      CAN disagree. They disagree here, which means the strict parser no",
+            "      longer matches what the source actually declares. Fix the parser",
+            "      rather than the source, and never by loosening the check.",
+        ]
+        for label, hint, group in (
+            (
+                "not parsed",
+                "declared here, and the strict parser did not produce a value for it",
+                unparsed,
+            ),
+            (
+                "swallowed the following declaration",
+                "one strict match spans two or more declarations; a field the parser "
+                "requires is missing, so it ran on into the next one",
+                merged,
+            ),
+            (
+                "parsed but not detected",
+                "the loose recogniser did not see this, so it is not a superset of "
+                "the strict parser and comparing their counts proves nothing",
+                uncovered,
+            ),
+        ):
+            if not group:
+                continue
+            report += ["", f"      {label} ({len(group)}) — {hint}:", ""]
+            report += [f"        {source}:{number}: {line.strip()}" for number, line in group]
+        raise SystemExit("\n".join(report))
+
+    # Arithmetic restatement of the bijection just proved. Cheap, and it makes
+    # "the three counts agree" literally true of three integers rather than a
+    # property the reader has to reconstruct from the pairing above.
+    if len(sites) != len(strict):
+        raise SystemExit(
+            f"ERROR {what} in {source}: {len(sites)} declaration site(s) detected but "
+            f"{len(strict)} parsed, with every site paired. The pairing above and this "
+            f"count disagree, which is a bug in this tool, not in the source."
+        )
+    return len(sites)
+
+
+def assert_represented(what: str, parsed: int, represented: int, detail: str) -> None:
+    """The third count: what actually reached the generated fixtures.
+
+    Separate from the pairing above because it catches the opposite failure. The
+    parse can be perfect and the value can still fall out on the way to disk —
+    a dotted path colliding with a parent, two declarations normalising to one
+    key, a synthesis branch that returned early. Nothing upstream can see that;
+    only counting the output can.
+    """
+    if parsed != represented:
+        raise SystemExit(
+            f"ERROR {parsed} {what} were parsed but {represented} reached the "
+            f"generated fixtures.\n"
+            f"      {detail}\n"
+            f"      A fixture missing an item a migration is supposed to carry across\n"
+            f"      makes the migration test pass without exercising it."
+        )
 
 
 def read_text(path: str) -> str:
@@ -200,18 +390,46 @@ def parse_default(raw: str | None) -> object:
     return None
 
 
-def parse_registered_prefs() -> list[dict]:
+def parse_registered_prefs() -> tuple[list[dict], int]:
     """Every Astro-owned preference, read out of the patches that register it.
+
+    Returns the preferences and the DETECTED declaration-site count, which the
+    caller compares against what reaches the fixtures.
 
     The names are not hardcoded on purpose. A hardcoded list is a second copy
     of the pref registry that nothing keeps in sync, and the first rename makes
     the fixture describe a browser that no longer exists.
     """
     prefs: dict[str, dict] = {}
-    by_source: dict[str, list[str]] = {}
+    detected = 0
     for source in PREF_PATCHES:
-        found = 0
-        for match in PREF_RE.finditer(added_lines(read_text(source))):
+        text = added_lines(read_text(source))
+
+        delegations = [
+            line_at(text, match.start()) for match in PREF_DELEGATION_RE.finditer(text)
+        ]
+        if delegations:
+            raise SystemExit(
+                f"ERROR {source} registers preferences through a delegating call.\n"
+                f"      One call registers an unknown number of preferences, so the set\n"
+                f"      is no longer enumerable from the patch text and the fixture would\n"
+                f"      silently lose every preference behind it — with the counts below\n"
+                f"      still agreeing. Teach this tool to follow the delegation.\n"
+                + "\n".join(f"        {source}:{n}: {line.strip()}" for n, line in delegations)
+            )
+
+        strict = list(PREF_RE.finditer(text))
+        if not strict:
+            raise SystemExit(
+                f"ERROR no preference registrations parsed from {source}.\n"
+                f"      The registration idiom this tool matches "
+                f"(registry->Register<Kind>Pref(\"name\", …)) is gone or changed."
+            )
+        detected += assert_parse_is_lossless(
+            "preference registration", source, text, PREF_CALL_SITE_RE, strict
+        )
+
+        for match in strict:
             name = match.group("name")
             if name in prefs:
                 raise SystemExit(
@@ -224,25 +442,134 @@ def parse_registered_prefs() -> list[dict]:
                 "default": parse_default(match.group("default")),
                 "source": source,
             }
-            by_source.setdefault(source, []).append(name)
-            found += 1
-        if not found:
-            raise SystemExit(
-                f"ERROR no preference registrations parsed from {source}.\n"
-                f"      The registration idiom this tool matches "
-                f"(registry->Register<Kind>Pref(\"name\", …)) is gone or changed."
-            )
 
-    if len(prefs) < MIN_REGISTERED_PREFS:
+    return [prefs[name] for name in sorted(prefs)], detected
+
+
+def load_pref_dispositions(raw: str, committed_names: set[str]) -> dict[str, dict]:
+    """Join the declared dispositions against the committed registry, both ways.
+
+    The names come from the patches; the judgement comes from the disposition
+    file. The join is what keeps the two from drifting apart, and it fails in
+    both directions for the same reason `patch-dispositions.json`'s does.
+
+    The direction that matters most is the last one. Every `observed-local-only`
+    entry is an assertion that the committed stack does NOT register that
+    preference. The day the local preference work lands, all of them become
+    false at once — and this fails naming each, so the file has to be brought up
+    to date rather than quietly becoming untrue.
+
+    The document text is passed in rather than read here, so a test can exercise
+    the join against a constructed one without this tool growing a "read that
+    file instead of the committed one" switch — the same escape hatch that let
+    the working tree into the baseline in the first place.
+    """
+    document = json.loads(raw)
+    declared = document.get("prefs")
+    if not isinstance(declared, dict) or not declared:
         raise SystemExit(
-            f"ERROR parsed only {len(prefs)} Astro preferences from committed "
-            f"content, expected at least {MIN_REGISTERED_PREFS}.\n"
-            f"      A fixture generated from a broken parse would contain almost no\n"
-            f"      preferences and every migration test over it would pass without\n"
-            f"      checking anything, so this is a hard failure rather than a warning.\n"
-            + pref_source_report(by_source, set(prefs))
+            f"ERROR {PREF_DISPOSITIONS} has no 'prefs' object, so no preference has a "
+            f"declared disposition and the join below would pass vacuously"
         )
-    return [prefs[name] for name in sorted(prefs)]
+
+    problems: list[str] = []
+    for name, entry in sorted(declared.items()):
+        status = entry.get("status")
+        if status not in VALID_PREF_STATUSES:
+            problems.append(
+                f"{name}: status {status!r} is not one of {', '.join(VALID_PREF_STATUSES)}"
+            )
+            continue
+        if not str(entry.get("purpose", "")).strip():
+            problems.append(f"{name}: no purpose recorded")
+        if status == "legacy-baseline" and name not in committed_names:
+            problems.append(
+                f"{name}: declared legacy-baseline, but the committed patches do not "
+                f"register it. Either it was removed — reclassify or delete the entry — "
+                f"or the parse above is broken."
+            )
+        if status == "observed-local-only":
+            if name in committed_names:
+                problems.append(
+                    f"{name}: declared observed-local-only, but the committed patches "
+                    f"DO register it now. The work has landed: reclassify it as "
+                    f"legacy-baseline so the fixtures start carrying it."
+                )
+            if not isinstance(entry.get("owner_issue"), int):
+                problems.append(
+                    f"{name}: observed-local-only with no owner_issue, so nothing "
+                    f"records who decides whether it ships"
+                )
+            observed_in = entry.get("observed_in")
+            if observed_in not in PREF_PATCHES:
+                problems.append(
+                    f"{name}: observed_in is {observed_in!r}, which is not one of the "
+                    f"patches this tool reads ({', '.join(PREF_PATCHES)})"
+                )
+
+    for name in sorted(committed_names - set(declared)):
+        problems.append(
+            f"{name}: registered by the committed patches with no entry in "
+            f"{PREF_DISPOSITIONS}. Every Astro-owned preference carries a disposition; "
+            f"add one rather than letting it into the fixtures undeclared."
+        )
+
+    if problems:
+        raise SystemExit(
+            f"ERROR the preference dispositions do not join against the committed "
+            f"registry:\n" + "\n".join(f"      - {problem}" for problem in problems)
+        )
+    return declared
+
+
+def local_only_prefs(declared: dict[str, dict]) -> list[dict]:
+    """The declared candidate preferences, sorted, for the generated documents.
+
+    Rendered from the COMMITTED disposition file, never from the working tree.
+    A document that listed whatever preferences happen to be uncommitted on this
+    machine would regenerate differently on every checkout, which is the exact
+    failure `committed_state` exists to prevent.
+    """
+    return [
+        {
+            "name": name,
+            # One issue owns the decision; `also_owned_by` names any other issue
+            # whose scope the preference falls inside, because "which issue do I
+            # raise this on" is the question a reader actually has.
+            "decided_by": [entry["owner_issue"], *entry.get("also_owned_by", [])],
+            "observed_in": entry["observed_in"],
+            "purpose": entry["purpose"],
+        }
+        for name, entry in sorted(declared.items())
+        if entry["status"] == "observed-local-only"
+    ]
+
+
+def report_undeclared_worktree_prefs(committed_names: set[str], declared: dict[str, dict]) -> None:
+    """Preferences this working tree registers that are neither committed nor declared.
+
+    A working-tree observation, printed to stderr and reaching no committed
+    artefact — the same terms as every other working-tree read in this tool. Not
+    fatal: uncommitted work in progress is legitimate, and a generator that
+    refused to run while somebody was editing a patch would just get bypassed.
+    Silent on a clean checkout, where there is nothing to report.
+    """
+    undeclared: list[tuple[str, str]] = []
+    for source in PREF_PATCHES:
+        for name in worktree_pref_names(source):
+            if name not in committed_names and name not in declared:
+                undeclared.append((name, source))
+    if not undeclared:
+        return
+    print(
+        f"WORKING-TREE PREFERENCES not in {committed_state.REVISION} and not declared in\n"
+        f"          {PREF_DISPOSITIONS} ({len(undeclared)}). They are NOT in the fixtures,\n"
+        f"          and a clean checkout does not have them. Declare them as\n"
+        f"          observed-local-only if they are candidate work worth recording:",
+        file=sys.stderr,
+    )
+    for name, source in undeclared:
+        print(f"            {name}  ({source})", file=sys.stderr)
 
 
 def worktree_pref_names(source: str) -> list[str]:
@@ -261,65 +588,7 @@ def worktree_pref_names(source: str) -> list[str]:
     return names
 
 
-def pref_source_report(by_source: dict[str, list[str]], committed_names: set[str]) -> str:
-    """Everything needed to act on the shortfall, per patch, with the conclusion stated.
-
-    Counts alone are not actionable: "10, expected 15" reads like a broken
-    regex. Naming each patch, both of its counts and the preferences that exist
-    on only one side turns it into a finding somebody can decide about.
-    """
-    lines = [
-        "",
-        "      Preferences registered, per patch:",
-        "",
-        "        %-46s %9s  %12s" % ("patch", "committed", "working tree"),
-    ]
-    worktree_only: list[str] = []
-    for source in PREF_PATCHES:
-        on_disk = worktree_pref_names(source)
-        lines.append(
-            "        %-46s %9d  %12d" % (source, len(by_source.get(source, [])), len(on_disk))
-        )
-        worktree_only += [
-            name
-            for name in on_disk
-            if name not in committed_names and name not in worktree_only
-        ]
-    lines.append(
-        "        %-46s %9d  %12d"
-        % ("total", len(committed_names), len(committed_names) + len(worktree_only))
-    )
-
-    if not worktree_only:
-        lines += [
-            "",
-            "      The working tree registers no preferences beyond the committed ones,",
-            "      so the shortfall is in the registry itself rather than in uncommitted",
-            "      work: either the registration idiom changed, or preferences were",
-            "      removed.",
-        ]
-        return "\n".join(lines)
-
-    lines += [
-        "",
-        f"      Registered in the working-tree copies but not at "
-        f"{committed_state.REVISION} ({len(worktree_only)}):",
-        "",
-    ]
-    lines += [f"        {name}" for name in worktree_only]
-    lines += [
-        "",
-        "      Conclusion: the committed patch stack does not register these",
-        f"      preferences, and the fixtures committed under {FIXTURE_DIR_REL}/",
-        "      contain them — so a clean checkout cannot reproduce those fixtures.",
-        "",
-        "      Do not lower MIN_REGISTERED_PREFS to clear this. The shortfall is the",
-        "      finding; the threshold is what surfaced it.",
-    ]
-    return "\n".join(lines)
-
-
-def parse_settings_surface() -> dict[str, list[dict]]:
+def parse_settings_surface() -> tuple[dict[str, list[dict]], int]:
     """The settings page's pref map: which pref each control reads and writes.
 
     These paths are recorded by NAME only. Their types belong to Chromium, and
@@ -330,7 +599,7 @@ def parse_settings_surface() -> dict[str, list[dict]]:
     """
     text = read_text(SETTINGS_HANDLER)
     surface: dict[str, list[dict]] = {}
-    total = 0
+    detected = 0
     for array, service in (
         ("kProfilePrefMappings", "profile"),
         ("kLocalStatePrefMappings", "local_state"),
@@ -341,26 +610,35 @@ def parse_settings_surface() -> dict[str, list[dict]]:
         end = text.find("\n};", start)
         if end < 0:
             raise SystemExit(f"ERROR {array}[] is not terminated in {Path(SETTINGS_HANDLER).name}")
+        # The slice, not the whole file: a mapping-shaped brace pair elsewhere in
+        # the handler is not a mapping, and the loose recogniser would count it.
+        table = text[start:end]
+        detected += assert_parse_is_lossless(
+            f"{array} entry",
+            f"{SETTINGS_HANDLER} ({array})",
+            table,
+            MAPPING_SITE_RE,
+            list(MAPPING_RE.finditer(table)),
+        )
         entries = [
             {"settings_id": settings_id, "pref_path": pref_path, "service": service}
-            for settings_id, pref_path in MAPPING_RE.findall(text[start:end])
+            for settings_id, pref_path in MAPPING_RE.findall(table)
         ]
         surface[service] = sorted(entries, key=lambda entry: entry["settings_id"])
-        total += len(entries)
 
-    if total < MIN_SETTINGS_MAPPINGS:
-        raise SystemExit(
-            f"ERROR parsed only {total} settings pref mappings, expected at least "
-            f"{MIN_SETTINGS_MAPPINGS}; the mapping-table parse is broken"
-        )
-    return surface
+    return surface, detected
 
 
-def parse_webui_hosts() -> list[dict]:
+def parse_webui_hosts() -> tuple[list[dict], int]:
     """The internal hosts, read from the WebUI controllers that define them."""
     hosts: list[dict] = []
+    detected = 0
     for header in committed_state.list_files(WEBUI_DIR, (".h",)):
-        for symbol, host in HOST_RE.findall(committed_state.read_text(header)):
+        text = committed_state.read_text(header)
+        detected += assert_parse_is_lossless(
+            "WebUI host constant", header, text, HOST_SITE_RE, list(HOST_RE.finditer(text))
+        )
+        for symbol, host in HOST_RE.findall(text):
             hosts.append(
                 {
                     "host": host,
@@ -368,25 +646,28 @@ def parse_webui_hosts() -> list[dict]:
                     "defined_in": header,
                 }
             )
-    if len(hosts) < MIN_WEBUI_HOSTS:
-        raise SystemExit(
-            f"ERROR parsed only {len(hosts)} WebUI hosts from {WEBUI_DIR}, expected at "
-            f"least {MIN_WEBUI_HOSTS}; the host-constant parse is broken"
-        )
-    return sorted(hosts, key=lambda entry: entry["host"])
+    return sorted(hosts, key=lambda entry: entry["host"]), detected
 
 
-def parse_filter_catalog() -> list[dict]:
+def parse_filter_catalog() -> tuple[list[dict], int]:
+    text = read_text(FILTER_CATALOG)
+    # The highest-value of the four pairings. CATALOG_RE is DOTALL, so an entry
+    # missing `.default_enabled` does not fail to match — the `.*?` runs on into
+    # the NEXT entry, reporting one list where there are two and adopting the
+    # wrong enabled flag. That is invisible to any count taken from CATALOG_RE
+    # alone; pairing against `.id = "` sites reports it as a merge and names it.
+    detected = assert_parse_is_lossless(
+        "filter list entry",
+        FILTER_CATALOG,
+        text,
+        CATALOG_SITE_RE,
+        list(CATALOG_RE.finditer(text)),
+    )
     lists = [
         {"id": match.group("id"), "default_enabled": match.group("enabled") == "true"}
-        for match in CATALOG_RE.finditer(read_text(FILTER_CATALOG))
+        for match in CATALOG_RE.finditer(text)
     ]
-    if len(lists) < MIN_FILTER_LISTS:
-        raise SystemExit(
-            f"ERROR parsed only {len(lists)} filter lists from {Path(FILTER_CATALOG).name}, "
-            f"expected at least {MIN_FILTER_LISTS}; the catalog parse is broken"
-        )
-    return lists
+    return lists, detected
 
 
 def parse_adblock_layout() -> dict:
@@ -526,6 +807,21 @@ def synthetic_value(pref: dict, profile: str) -> object:
         f"know how to synthesise. Add it to synthetic_value() rather than letting the "
         f"pref fall out of the fixture."
     )
+
+
+def has_nested(root: dict, path: str) -> bool:
+    """Whether `a.b.c` resolves in the document, the way PrefService addresses it.
+
+    Used to count what actually REACHED a fixture. A flat `{"oxy.adblock.enabled":
+    true}` key would satisfy a naive `path in document` test and be invisible to
+    the browser, so the lookup walks the same nesting `set_nested` writes.
+    """
+    node: object = root
+    for part in path.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return False
+        node = node[part]
+    return True
 
 
 def set_nested(root: dict, path: str, value: object) -> None:
@@ -835,7 +1131,9 @@ def build_token_placeholder(kind: str, filename: str) -> str:
     )
 
 
-def build_readme(entries: list[dict], prefs: list[dict], version: str) -> str:
+def build_readme(
+    entries: list[dict], prefs: list[dict], candidates: list[dict], version: str
+) -> str:
     generated = [entry for entry in entries if entry["provenance"] == "generated"]
     deferred = [entry for entry in entries if entry["provenance"] == "requires-browser-capture"]
     lines = [
@@ -898,6 +1196,35 @@ def build_readme(entries: list[dict], prefs: list[dict], version: str) -> str:
         "`--verify` fails if a deferred file exists without that metadata, which is",
         "what stops a hand-filled database from passing as a capture.",
         "",
+        "## Astro preferences deliberately NOT in this baseline",
+        "",
+        f"{len(candidates)} Astro-owned preference(s) are registered only in a",
+        "working-tree copy of a patch, never at `HEAD`. They are **candidate future",
+        "preferences**, not part of the legacy baseline, and they are excluded from",
+        "these fixtures on purpose: the baseline is what a clean checkout can",
+        "reproduce, and a fixture carrying a preference the committed patch stack",
+        "does not register fails `--verify` for everybody except the machine that",
+        "produced it.",
+        "",
+        "The list is declared in",
+        f"[`{PREF_DISPOSITIONS}`](../../../{PREF_DISPOSITIONS}) and joined against the",
+        "committed registry in both directions, so the day one of them is committed",
+        "this generator fails until the entry is reclassified — which is what keeps",
+        "the record below from quietly becoming untrue.",
+        "",
+        "| Preference | Decided by | Observed in |",
+        "|---|---|---|",
+    ]
+    for candidate in candidates:
+        issues = ", ".join(
+            f"[#{issue}](https://github.com/OxyHQ/Astro/issues/{issue})"
+            for issue in candidate["decided_by"]
+        )
+        lines.append(
+            f"| `{candidate['name']}` | {issues} | `{candidate['observed_in']}` |"
+        )
+    lines += [
+        "",
         "## Contents",
         "",
         "| Path | Provenance | Covers |",
@@ -926,13 +1253,57 @@ def as_json(document: object) -> bytes:
 
 def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
     """Every fixture entry, the bytes of the generated ones, and the metadata."""
-    prefs = parse_registered_prefs()
-    surface = parse_settings_surface()
-    hosts = parse_webui_hosts()
-    catalog = parse_filter_catalog()
+    prefs, prefs_detected = parse_registered_prefs()
+    surface, mappings_detected = parse_settings_surface()
+    hosts, hosts_detected = parse_webui_hosts()
+    catalog, catalog_detected = parse_filter_catalog()
     adblock = parse_adblock_layout()
     tokens = parse_token_store()
     version = chromium_version()
+
+    dispositions = load_pref_dispositions(
+        read_text(PREF_DISPOSITIONS), {pref["name"] for pref in prefs}
+    )
+    candidates = local_only_prefs(dispositions)
+    report_undeclared_worktree_prefs({pref["name"] for pref in prefs}, dispositions)
+
+    # The one floor that survives, and the only one that encodes no expectation
+    # about the product: ZERO. Ten preferences is correct if the repository
+    # declares ten; none is never correct, because the three counts agree at zero
+    # and a fixture describing nothing makes every migration test over it pass
+    # without checking anything. Anything above zero is a product decision this
+    # tool has no business asserting.
+    for label, parsed, where in (
+        ("preference registrations", len(prefs), " and ".join(PREF_PATCHES)),
+        ("settings pref mappings", mappings_detected, SETTINGS_HANDLER),
+        ("WebUI host constants", len(hosts), WEBUI_DIR),
+        ("filter list entries", len(catalog), FILTER_CATALOG),
+    ):
+        if parsed == 0:
+            raise SystemExit(
+                f"ERROR no {label} found in {where}.\n"
+                f"      The parse and the loose scan agree — at zero — so the identity\n"
+                f"      they enforce is satisfied and says nothing. Either the source\n"
+                f"      moved, or the declaration idiom changed entirely."
+            )
+
+    # `represented`, the third count, for the two surfaces that do not pass
+    # through a per-profile document. Both are looking for a COLLAPSE: two
+    # declarations normalising to one key, which no upstream count can see.
+    assert_represented(
+        "settings pref mappings",
+        mappings_detected,
+        len({entry["settings_id"] for entry in surface["profile"] + surface["local_state"]}),
+        "Two controls share a settings_id, so the frontend cannot tell which pref "
+        "a change is meant to write.",
+    )
+    assert_represented(
+        "WebUI host constants",
+        len(hosts),
+        len({entry["host"] for entry in hosts}),
+        "Two controllers claim the same host, so one of them is unreachable and its "
+        "URLs are missing from the corpus.",
+    )
 
     # The per-profile value tables are keyed by profile name. Adding a profile
     # without extending them would otherwise surface as a KeyError traceback
@@ -998,6 +1369,17 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
     for profile in PROFILES:
         preferences = build_preferences(profile, prefs, version)
         bookmarks = build_bookmarks(profile)
+        # Every parsed preference must reach EVERY profile. Checking only the
+        # first would miss the case this fixture set exists to catch: a value
+        # carried for one profile and dropped for the rest.
+        assert_represented(
+            f"Astro-owned preferences (profile {profile!r})",
+            len(prefs),
+            sum(1 for pref in prefs if has_nested(preferences, pref["name"])),
+            f"A registered preference did not reach user-data/{profile}/Preferences. "
+            f"Most likely a dotted path collided with a parent key, or two "
+            f"registrations normalised to the same nested key.",
+        )
         generated(
             f"user-data/{profile}/Preferences",
             as_json(preferences),
@@ -1019,6 +1401,11 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
             ["src/chrome/browser/oxy/webui"],
         )
 
+        # Counted through `content`, not by counting loop iterations: two catalog
+        # entries sharing an id would write the same path twice, and only the
+        # number of DISTINCT files actually produced shows that one was lost.
+        files_before = len(content)
+        enabled = 0
         for entry in catalog:
             if not entry["default_enabled"]:
                 continue
@@ -1029,6 +1416,16 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
                 ["adblock filter lists"],
                 [FILTER_CATALOG],
             )
+            enabled += 1
+        assert_represented(
+            f"filter list entries (profile {profile!r})",
+            len(catalog),
+            (len(content) - files_before) + (len(catalog) - enabled),
+            f"Every default-enabled list must produce exactly one file under "
+            f"user-data/{profile}/{adblock['data_dir']}/"
+            f"{adblock['filter_lists_subdir']}/, and every disabled one must produce "
+            f"none. Two entries sharing an id collapse into a single file.",
+        )
 
     # --- user-data-dir wide, generated --------------------------------------
     generated(
@@ -1112,10 +1509,31 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
                     {"name": pref["name"], "kind": pref["kind"], "registered_in": pref["source"]}
                     for pref in prefs
                 ],
+                # Sits beside `astro_owned` because that is where the question
+                # gets asked: a reader who expects a preference in the registry
+                # and does not find it needs the answer here, not in a commit
+                # message. Declared in the committed disposition file, so this
+                # list is a function of HEAD like everything else — it does not
+                # change from checkout to checkout with whoever's work is in
+                # progress.
+                "astro_owned_observed_local_only": {
+                    "note": (
+                        "Astro-owned preferences registered ONLY in a working-tree "
+                        "copy of a patch, never at HEAD. They are deliberately NOT in "
+                        "these fixtures: the baseline is what a clean checkout can "
+                        "reproduce, and a fixture carrying a preference the committed "
+                        "patch stack does not register cannot be regenerated by "
+                        "anyone else. Recorded as candidate future preferences; the "
+                        "issue named on each decides whether it ships, under what "
+                        "name and with what default."
+                    ),
+                    "declared_in": PREF_DISPOSITIONS,
+                    "prefs": candidates,
+                },
             }
         ),
-        ["settings-page pref surface"],
-        [SETTINGS_HANDLER],
+        ["settings-page pref surface", "Astro-owned prefs excluded from the baseline"],
+        [SETTINGS_HANDLER, PREF_DISPOSITIONS],
     )
 
     generated(
@@ -1249,9 +1667,35 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
         }
     )
     entries.sort(key=lambda entry: entry["path"])
-    content["README.md"] = build_readme(entries, prefs, version).encode("utf-8")
+    content["README.md"] = build_readme(entries, prefs, candidates, version).encode("utf-8")
 
-    return entries, content, {"registered_pref_count": len(prefs), "chromium_version": version}
+    # The three counts, per surface, recorded rather than asserted-and-forgotten.
+    # `parsed` and `represented` are recomputed here from the finished artefacts
+    # so the manifest states what was actually produced; the identity between
+    # them was enforced above, at the point each one could still be explained.
+    invariant = {
+        "preference registrations": (prefs_detected, len(prefs)),
+        "settings pref mappings": (
+            mappings_detected,
+            len(surface["profile"]) + len(surface["local_state"]),
+        ),
+        "WebUI host constants": (hosts_detected, len(hosts)),
+        "filter list entries": (catalog_detected, len(catalog)),
+    }
+
+    return (
+        entries,
+        content,
+        {
+            "registered_pref_count": len(prefs),
+            "chromium_version": version,
+            "parse_invariant": {
+                name: {"detected": detected, "parsed": parsed}
+                for name, (detected, parsed) in invariant.items()
+            },
+            "observed_local_only_pref_count": len(candidates),
+        },
+    )
 
 
 def build_manifest(entries: list[dict], meta: dict) -> bytes:
@@ -1264,6 +1708,23 @@ def build_manifest(entries: list[dict], meta: dict) -> bytes:
             "revision_authority": "browser.lock.json",
             "profiles": list(PROFILES),
             "registered_pref_count": meta["registered_pref_count"],
+            "observed_local_only_pref_count": meta["observed_local_only_pref_count"],
+            # Recorded, not thresholded. What each declaration surface parses to
+            # is a product decision that moves; that the parse loses nothing is
+            # the property this tool enforces, and putting the numbers in a
+            # committed artefact makes them move visibly in a diff instead of
+            # living in a constant somebody has to maintain.
+            "parse_invariant": {
+                "note": (
+                    "'detected' comes from a deliberately loose recogniser and "
+                    "'parsed' from the strict parser, measured by different rules so "
+                    "they can disagree; generation fails unless they pair one-to-one "
+                    "and unless the same number reaches the generated fixtures. There "
+                    "is no minimum: the only floor is zero, which would satisfy the "
+                    "identity while describing nothing."
+                ),
+                "surfaces": meta["parse_invariant"],
+            },
             "capture_metadata_suffix": CAPTURE_SUFFIX,
             "capture_metadata_fields": list(CAPTURE_FIELDS),
             "counts": {

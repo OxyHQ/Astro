@@ -401,7 +401,7 @@ assert_no_patch_artifacts() {
     local status_output
     status_output="$(git -C "$CHROMIUM_SRC" status --porcelain --untracked-files=all)"
     artifacts="$(printf '%s\n' "$status_output" | sed -n 's/^?? //p' \
-        | grep -E '\.(rej|orig|porig)$' | head -50)" || true   # astro-allow: grep finding nothing is the normal case
+        | grep -E '\.(rej|orig|porig)$' | head -50)" || true   # astro-allow:suppressed-failure grep finding nothing is the normal case
 
     if [ -n "$artifacts" ]; then
         astro::die_with_hint \

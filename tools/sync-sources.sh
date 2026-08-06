@@ -169,7 +169,7 @@ assert_checkout_is_clean_enough() {
     # `find … | head` raises under pipefail once head has what it needs.
     local artifacts
     artifacts="$(git -C "$dir" status --porcelain --untracked-files=all \
-        | sed -n 's/^?? //p' | grep -E '\.(rej|orig|porig)$' | head -5)" || true   # astro-allow: grep finding nothing is the normal case
+        | sed -n 's/^?? //p' | grep -E '\.(rej|orig|porig)$' | head -5)" || true   # astro-allow:suppressed-failure grep finding nothing is the normal case
     if [ -n "$artifacts" ]; then
         problems="$problems
   leftover patch artifacts: $(printf '%s' "$artifacts" | tr '\n' ' ')"
@@ -384,7 +384,7 @@ sync_repository() {
     # compare against and nothing to keep clean — go straight to fetch and
     # checkout below.
     local head="" head_status=0
-    head="$(git -C "$dir" rev-parse HEAD 2>/dev/null)" || head_status=$?   # astro-allow: an empty repository legitimately has no HEAD
+    head="$(git -C "$dir" rev-parse HEAD 2>/dev/null)" || head_status=$?   # astro-allow:suppressed-stderr an empty repository legitimately has no HEAD
     if [ "$head_status" -ne 0 ]; then
         head=""
     fi
