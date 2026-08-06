@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-ASTRO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ASTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export ASTRO_ROOT
+# shellcheck source=tools/lib/astro-common.sh
+source "$ASTRO_ROOT/tools/lib/astro-common.sh"
 UNGOOGLED_DIR="$ASTRO_ROOT/.ungoogled-chromium"
 PATCHES_DIR="$ASTRO_ROOT/patches/ungoogled"
 
@@ -49,13 +50,14 @@ echo ">>> Copying patches..."
 rm -rf "$PATCHES_DIR/core" "$PATCHES_DIR/extra"
 mkdir -p "$PATCHES_DIR/core" "$PATCHES_DIR/extra"
 
-if [ -d "patches/core" ]; then
-    cp -r patches/core/* "$PATCHES_DIR/core/" 2>/dev/null || true
-fi
+# These copies are load-bearing: the patch stack Astro applies IS this
+# content. A failure here previously left an empty or partial patch directory
+# and the script still reported a successful sync.
+astro::require_dir "patches/core" "ungoogled core patches"
+cp -r patches/core/. "$PATCHES_DIR/core/"
 
-if [ -d "patches/extra" ]; then
-    cp -r patches/extra/* "$PATCHES_DIR/extra/" 2>/dev/null || true
-fi
+astro::require_dir "patches/extra" "ungoogled extra patches"
+cp -r patches/extra/. "$PATCHES_DIR/extra/"
 
 # Also copy domain substitution and pruning configs
 if [ -f "domain_regex.list" ]; then
@@ -68,8 +70,12 @@ if [ -f "pruning.list" ]; then
     cp pruning.list "$PATCHES_DIR/"
 fi
 
-CORE_COUNT=$(find "$PATCHES_DIR/core" -name "*.patch" 2>/dev/null | wc -l)
-EXTRA_COUNT=$(find "$PATCHES_DIR/extra" -name "*.patch" 2>/dev/null | wc -l)
+CORE_COUNT="$(find "$PATCHES_DIR/core" -name "*.patch" | wc -l | tr -d '[:space:]')"
+EXTRA_COUNT="$(find "$PATCHES_DIR/extra" -name "*.patch" | wc -l | tr -d '[:space:]')"
+
+if [ "$CORE_COUNT" -eq 0 ]; then
+    astro::die "Sync produced no core patches; the patch stack would be empty."
+fi
 
 echo ""
 echo "=== Sync complete ==="

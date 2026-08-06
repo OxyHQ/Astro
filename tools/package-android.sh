@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-ASTRO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ASTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export ASTRO_ROOT
+# shellcheck source=tools/lib/astro-common.sh
+source "$ASTRO_ROOT/tools/lib/astro-common.sh"
 BUILD_DIR="${1:-$ASTRO_ROOT/chromium/src/out/Release}"
 RELEASE_DIR="$ASTRO_ROOT/releases"
-VERSION="${ASTRO_VERSION:-$(cat "$ASTRO_ROOT/VERSION" 2>/dev/null || echo "0.1.0")}"
+astro::require_file "$ASTRO_ROOT/VERSION" "VERSION file"
+VERSION="${ASTRO_VERSION:-$(cat "$ASTRO_ROOT/VERSION")}"
 
 echo "=== Packaging Astro $VERSION for Android arm64 ==="
 
@@ -26,7 +28,7 @@ if [ -z "$APK" ]; then
     echo "Expected ChromePublic.apk in $BUILD_DIR/apks/"
     echo ""
     echo "Available files:"
-    find "$BUILD_DIR" -name "*.apk" 2>/dev/null | head -10 || echo "  (none)"
+    find "$BUILD_DIR" -name "*.apk" | head -10
     exit 1
 fi
 

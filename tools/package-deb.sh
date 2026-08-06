@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-ASTRO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ASTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export ASTRO_ROOT
+# shellcheck source=tools/lib/astro-common.sh
+source "$ASTRO_ROOT/tools/lib/astro-common.sh"
 BUILD_DIR="${1:-$ASTRO_ROOT/chromium/src/out/Release}"
 RELEASE_DIR="$ASTRO_ROOT/releases"
-VERSION="${ASTRO_VERSION:-$(cat "$ASTRO_ROOT/VERSION" 2>/dev/null || echo "0.1.0")}"
+astro::require_file "$ASTRO_ROOT/VERSION" "VERSION file"
+VERSION="${ASTRO_VERSION:-$(cat "$ASTRO_ROOT/VERSION")}"
 ARCH="amd64"
 PKG_NAME="astro-browser"
 
@@ -92,18 +94,19 @@ chmod 755 "$DEB_ROOT/DEBIAN/postrm"
 echo ">>> Copying browser files..."
 
 # Core binary and helpers
-cp "$BUILD_DIR/chrome" "$INSTALL_PREFIX/"
-cp "$BUILD_DIR/chrome_sandbox" "$INSTALL_PREFIX/" 2>/dev/null || true
-cp "$BUILD_DIR/chrome_crashpad_handler" "$INSTALL_PREFIX/" 2>/dev/null || true
+astro::copy_required "$BUILD_DIR/chrome"         "$INSTALL_PREFIX/" "browser binary"
+astro::copy_required "$BUILD_DIR/chrome_sandbox" "$INSTALL_PREFIX/" "SUID sandbox binary"
+astro::copy_required "$BUILD_DIR/chrome_crashpad_handler" "$INSTALL_PREFIX/" "crash handler"
 
-# Shared libraries
-cp "$BUILD_DIR"/*.so "$INSTALL_PREFIX/" 2>/dev/null || true
+# Shared libraries: a component build produces these, a static release build
+# does not, so an empty match set is a legitimate configuration difference.
+astro::copy_glob "component-build-libraries" "$BUILD_DIR" '*.so' "$INSTALL_PREFIX/"
 
 # Data files
-cp "$BUILD_DIR"/*.pak "$INSTALL_PREFIX/" 2>/dev/null || true
-cp "$BUILD_DIR"/*.dat "$INSTALL_PREFIX/" 2>/dev/null || true
-cp "$BUILD_DIR"/*.bin "$INSTALL_PREFIX/" 2>/dev/null || true
-cp "$BUILD_DIR/icudtl.dat" "$INSTALL_PREFIX/" 2>/dev/null || true
+astro::copy_glob "v8-snapshot-blobs" "$BUILD_DIR" '*.bin' "$INSTALL_PREFIX/"
+astro::copy_glob "resource-packs"    "$BUILD_DIR" '*.pak' "$INSTALL_PREFIX/"
+astro::copy_glob "data-files"        "$BUILD_DIR" '*.dat' "$INSTALL_PREFIX/"
+astro::copy_required "$BUILD_DIR/icudtl.dat" "$INSTALL_PREFIX/" "ICU data"
 
 # Locales
 if [ -d "$BUILD_DIR/locales" ]; then
@@ -130,9 +133,35 @@ for page in ntp alia settings whats-new error; do
     fi
 done
 
-# --- Launcher script ---
-cp "$ASTRO_ROOT/tools/astro-launch.sh" "$INSTALL_PREFIX/" 2>/dev/null || true
-chmod +x "$INSTALL_PREFIX/astro-launch.sh" 2>/dev/null || true
+# --- Launcher script (system-installed version, uses /opt/astro paths) ---
+cat > "$INSTALL_PREFIX/astro-launch.sh" << 'LAUNCH_EOF'
+#!/usr/bin/env bash
+INSTALL_DIR="/opt/astro"
+DATA_DIR="$HOME/.config/astro"
+PORT=19845
+
+# Kill any existing WebUI server on this port
+fuser -k $PORT/tcp 2>/dev/null
+sleep 0.2
+
+# Start local server for WebUI pages
+if [ -d "$INSTALL_DIR/resources" ]; then
+    python3 -m http.server $PORT -d "$INSTALL_DIR/resources" --bind 127.0.0.1 &>/dev/null &
+    SERVER_PID=$!
+    sleep 0.3
+fi
+
+NTP="http://127.0.0.1:$PORT/astro-ntp/index.html"
+
+if [ $# -eq 0 ]; then
+    "$INSTALL_DIR/chrome" --no-sandbox --user-data-dir="$DATA_DIR" "$NTP"
+else
+    "$INSTALL_DIR/chrome" --no-sandbox --user-data-dir="$DATA_DIR" "$@"
+fi
+
+kill $SERVER_PID 2>/dev/null || true
+LAUNCH_EOF
+chmod 755 "$INSTALL_PREFIX/astro-launch.sh"
 
 # --- Symlink in /usr/bin ---
 cat > "$DEB_ROOT/usr/bin/astro" << 'LAUNCHER'

@@ -18,13 +18,23 @@ Everything else is stock Chromium, fetched fresh from upstream with `tools/fetch
 
 ## Patch model
 
-Two patch sets are applied in order by `tools/apply-patches.sh`:
+Two patch sets are applied by `tools/apply-patches.sh`, each in the order
+declared by its own `series` file:
 
 ```
 patches/
-  ungoogled/   112 patches inherited from ungoogled-chromium
-  astro/        56 patches for Oxy integrations + branding + scheme
+  ungoogled/   112 patches inherited from ungoogled-chromium (+ series)
+  astro/        56 patches for Oxy integrations + branding + scheme (+ series)
 ```
+
+The series file is the single source of order. It must agree with the directory
+in both directions: a patch on disk that no series declares fails the run, as
+does a series entry with no file behind it. Order is a reviewed decision, not a
+property of `find | sort`.
+
+Patches apply **exactly or not at all** — no fuzz, no three-way merge. Both
+fallbacks yield a tree that is not the reviewed patch. Every run writes
+`build/reports/patch-report.json`, on the failure path as well as on success.
 
 Ungoogled patches handle the heavy lifting of removing Google services (sync, hangouts, mDNS, remoting, reporting, field trials, safe browsing pings, hard-coded API keys). Astro patches add what Oxy needs on top.
 
@@ -85,6 +95,40 @@ src/chrome/browser/oxy/
 ```
 
 Naming is consistent: `oxy_*` for ecosystem-wide services (auth, Alia, cookies) and `astro_*` for browser-specific UI (WebUI controllers, ad blocker integration).
+
+### How the overlay reaches the Chromium tree
+
+`tools/sync-overlay.sh` copies it, and only to destinations declared in
+`tools/overlay.allowlist`. Anything else is refused before a byte is written.
+
+```
+dir       chrome/browser/oxy                          # Astro owns it entirely
+file      chrome/app/vector_icons/alia_spark.icon     # new file, Chromium-owned dir
+overwrite chrome/browser/ui/webui/chrome_web_ui_configs.cc  owner=… issue=…
+```
+
+The script never deletes, verifies the destination is a real Chromium checkout
+first, refuses to clobber an upstream-tracked file that is not declared as an
+`overwrite`, and records everything it wrote in
+`build/reports/overlay-manifest.json`.
+
+<Warning>
+**The overlay is copied *after* patches are applied, so an `overwrite` of a file
+a patch also modifies silently reverts that patch.** One such collision is known:
+a whole-file copy of `chrome/browser/ui/webui/chrome_web_ui_configs.cc` reverts
+four patches, including `054-adblock-webui-register.patch`, so
+`AstroAdBlockUIConfig` is never registered in the resulting build.
+
+That copy is currently untracked working-tree content rather than committed
+repository state, so a fresh clone does not carry it. The allowlist declares it
+regardless, with `conflicts-with=`, so any checkout that does have the file
+behaves identically and says so loudly — and so a future committed copy is
+covered the moment it lands. Any *new* collision of this shape fails the sync
+outright.
+
+Replacing the whole-file copy with a minimal integration hook is tracked by
+[issue #7](https://github.com/OxyHQ/Astro/issues/7).
+</Warning>
 
 ## Mojo IPC pipeline (settings page)
 

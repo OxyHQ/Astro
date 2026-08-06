@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-ASTRO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ASTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export ASTRO_ROOT
+# shellcheck source=tools/lib/astro-common.sh
+source "$ASTRO_ROOT/tools/lib/astro-common.sh"
 BUILD_DIR="${1:-$ASTRO_ROOT/chromium/src/out/Release}"
 RELEASE_DIR="$ASTRO_ROOT/releases"
-VERSION="${ASTRO_VERSION:-$(cat "$ASTRO_ROOT/VERSION" 2>/dev/null || echo "0.1.0")}"
+astro::require_file "$ASTRO_ROOT/VERSION" "VERSION file"
+VERSION="${ASTRO_VERSION:-$(cat "$ASTRO_ROOT/VERSION")}"
 ARCH="${ASTRO_ARCH:-x64}"
 
 echo "=== Packaging Astro $VERSION for Windows $ARCH ==="
@@ -33,29 +35,46 @@ if [ -f "$BUILD_DIR/chrome.exe" ]; then
     echo ">>> Collecting files for portable zip..."
 
     # Core binary
-    cp "$BUILD_DIR/chrome.exe" "$STAGING/astro/"
-    cp "$BUILD_DIR/chrome_proxy.exe" "$STAGING/astro/" 2>/dev/null || true
-    cp "$BUILD_DIR/chrome_pwa_launcher.exe" "$STAGING/astro/" 2>/dev/null || true
-    cp "$BUILD_DIR/chrome_elf.dll" "$STAGING/astro/" 2>/dev/null || true
-    cp "$BUILD_DIR/elevation_service.exe" "$STAGING/astro/" 2>/dev/null || true
-    cp "$BUILD_DIR/notification_helper.exe" "$STAGING/astro/" 2>/dev/null || true
-    cp "$BUILD_DIR/chrome_crashpad_handler.exe" "$STAGING/astro/" 2>/dev/null || true
+    astro::copy_required "$BUILD_DIR/chrome.exe"     "$STAGING/astro/" "browser binary"
+    astro::copy_required "$BUILD_DIR/chrome_elf.dll" "$STAGING/astro/" "chrome_elf loader"
+    astro::copy_required "$BUILD_DIR/chrome_crashpad_handler.exe" \
+        "$STAGING/astro/" "crash handler"
+    # These three are produced only by some configurations; their absence is a
+    # build-config difference, not a broken package.
+    astro::copy_optional "chrome-proxy"        "$BUILD_DIR/chrome_proxy.exe"        "$STAGING/astro/"
+    astro::copy_optional "pwa-launcher"        "$BUILD_DIR/chrome_pwa_launcher.exe" "$STAGING/astro/"
+    astro::copy_optional "elevation-service"   "$BUILD_DIR/elevation_service.exe"   "$STAGING/astro/"
+    astro::copy_optional "notification-helper" "$BUILD_DIR/notification_helper.exe" "$STAGING/astro/"
 
-    # DLLs
-    cp "$BUILD_DIR"/*.dll "$STAGING/astro/" 2>/dev/null || true
+    # DLLs (skip empty stubs from cross-compilation)
+    for dll in "$BUILD_DIR"/*.dll; do
+        [ -f "$dll" ] || continue
+        size="$(astro::file_size "$dll")"
+        if [ "$size" -gt 100 ]; then
+            cp "$dll" "$STAGING/astro/"
+        fi
+    done
 
     # Data files
-    cp "$BUILD_DIR"/*.pak "$STAGING/astro/" 2>/dev/null || true
-    cp "$BUILD_DIR"/*.dat "$STAGING/astro/" 2>/dev/null || true
-    cp "$BUILD_DIR"/*.bin "$STAGING/astro/" 2>/dev/null || true
-    cp "$BUILD_DIR/icudtl.dat" "$STAGING/astro/" 2>/dev/null || true
+    astro::copy_glob "v8-snapshot-blobs" "$BUILD_DIR" '*.bin' "$STAGING/astro/"
+    astro::copy_glob "resource-packs"    "$BUILD_DIR" '*.pak' "$STAGING/astro/"
+    astro::copy_glob "data-files"        "$BUILD_DIR" '*.dat' "$STAGING/astro/"
+    astro::copy_required "$BUILD_DIR/icudtl.dat" "$STAGING/astro/" "ICU data"
 
     # Locales
-    [ -d "$BUILD_DIR/locales" ] && cp -r "$BUILD_DIR/locales" "$STAGING/astro/"
+    if [ -d "$BUILD_DIR/locales" ]; then
+        cp -r "$BUILD_DIR/locales" "$STAGING/astro/"
+    else
+        astro::warn "optional:locales" "no locales/ directory in $BUILD_DIR"
+    fi
 
     # Resources
-    [ -d "$BUILD_DIR/resources" ] && cp -r "$BUILD_DIR/resources" "$STAGING/astro/"
-    [ -d "$BUILD_DIR/MEIPreload" ] && cp -r "$BUILD_DIR/MEIPreload" "$STAGING/astro/"
+    if [ -d "$BUILD_DIR/resources" ]; then
+        cp -r "$BUILD_DIR/resources" "$STAGING/astro/"
+    fi
+    if [ -d "$BUILD_DIR/MEIPreload" ]; then
+        cp -r "$BUILD_DIR/MEIPreload" "$STAGING/astro/"
+    fi
 
     # WebUI pages
     for page in ntp alia settings whats-new error; do

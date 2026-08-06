@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2026 Oxy. All rights reserved.
 #
 # Vendors the adblock-rust crate and its dependencies into the Chromium
@@ -27,7 +27,7 @@ echo "=== Astro: Vendoring adblock-rust ==="
 # Step 1: Add adblock-rust to the Cargo.toml for third-party crates.
 CARGO_TOML="${CHROMIUM_SRC}/third_party/rust/chromium_crates_io/Cargo.toml"
 
-if grep -q "adblock" "${CARGO_TOML}" 2>/dev/null; then
+if [ -f "${CARGO_TOML}" ] && grep -q "adblock" "${CARGO_TOML}"; then
     echo "adblock-rust already present in Cargo.toml"
 else
     echo "Adding adblock-rust to ${CARGO_TOML}..."

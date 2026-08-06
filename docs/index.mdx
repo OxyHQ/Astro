@@ -102,11 +102,11 @@ tools/fetch-chromium.sh
 # 2. Sync ungoogled-chromium patches for the current Chromium version
 tools/sync-ungoogled.sh
 
-# 3. Apply all 168 patches (ungoogled + Astro) and run pruning + domain substitution
+# 3. Prune binaries, then apply all 168 patches in declared series order
 tools/apply-patches.sh
 
-# 4. Copy the Astro source overlay into the Chromium tree
-rsync -av src/ chromium/src/
+# 4. Copy the Astro source overlay into the Chromium tree (allowlisted, never deletes)
+tools/sync-overlay.sh
 
 # 5. Build (uses all CPU cores; 1-3 hours)
 tools/build.sh
