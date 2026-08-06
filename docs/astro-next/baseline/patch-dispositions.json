@@ -26,6 +26,35 @@
     "did not author is volume without added confidence; #8 owns curating them.",
     "A per-patch entry always wins over its group."
   ],
+  "_removed_empty_patches": {
+    "007-oxy-auth-build-hook.patch": {
+      "owner_issue": 7,
+      "was_bytes_at_264d449": 9580
+    },
+    "035-auth-https-callback.patch": {
+      "owner_issue": 16,
+      "was_bytes": 0
+    },
+    "note": [
+      "Two files in patches/astro/ were 0 bytes and were removed from the stack:",
+      "an empty file is not a patch, and git apply rejects it outright.",
+      "",
+      "007-oxy-auth-build-hook.patch added \"//chrome/browser/oxy\" to",
+      "chrome/browser/BUILD.gn. It was 9580 bytes at 264d449 and 0 bytes from",
+      "9cc1043 onward. The previous patch runner counted its failure and carried",
+      "on, so nothing surfaced it.",
+      "",
+      "MEASURED CONSEQUENCE on a real, fully patched checkout at the locked",
+      "commit: zero references to browser/oxy in any BUILD.gn or .gni. Nothing in",
+      "the committed pipeline compiles the Astro overlay.",
+      "",
+      "035-auth-https-callback.patch was 0 bytes throughout its recorded history.",
+      "",
+      "Restoring 007 is a product change and is NOT done here: the overlay's own",
+      "BUILD.gn is under active uncommitted development, so where the target",
+      "should be declared is #7's decision, not a baseline's."
+    ]
+  },
   "groups": {
     "core/bromite": {
       "disposition": "investigate",
@@ -124,13 +153,6 @@
       "effect": "security/privacy",
       "purpose": "Adds an Astro token to the User-Agent string.",
       "replacement_issue": 20
-    },
-    "007-oxy-auth-build-hook.patch": {
-      "build_only": true,
-      "disposition": "replace",
-      "effect": "build-only",
-      "purpose": "Adds the Oxy overlay to the chrome build target.",
-      "replacement_issue": 7
     },
     "008-os-crypt-visibility.patch": {
       "build_only": true,
@@ -294,12 +316,6 @@
       "effect": "user-visible",
       "purpose": "Same substitution in the profiles UI.",
       "replacement_issue": 15
-    },
-    "035-auth-https-callback.patch": {
-      "disposition": "replace",
-      "effect": "security/privacy",
-      "purpose": "Accepts the https auth callback used by Oxy sign-in.",
-      "replacement_issue": 16
     },
     "036-navigator-auth-intercept.patch": {
       "disposition": "replace",

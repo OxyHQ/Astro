@@ -102,6 +102,42 @@ What it guarantees:
 - **DEPS-resolved revisions are recorded** to `build/reports/deps-revinfo.json`.
 - **A second invocation does no work beyond verification**, and says so.
 
+### Bounding the first fetch
+
+**A failed fetch is not resumable.** Git streams a fetch into a temporary pack
+and discards it when the transfer fails, so every attempt genuinely starts over.
+Measured here: five consecutive failed attempts left `.git` at 120 KB. On a link
+that dropped four times inside the first 220 MB, what made the bootstrap complete
+was bounding what has to arrive in one go — not retrying harder.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `ASTRO_FETCH_DEPTH` | `1` | Fetch the locked commit without its history — one commit's tree instead of tens of gigabytes |
+| `ASTRO_FETCH_FILTER` | `blob:none` | Partial clone: file contents arrive as small on-demand batches during checkout, each failing and retrying independently |
+| `ASTRO_FETCH_ATTEMPTS` | `5` | Bounded, announced retries; the final failure is fatal, not swallowed |
+
+Depth and filter apply only to the **first network fetch into a still-empty
+repository, and only for an `http(s)` origin**. A local `file://` fixture has no
+history worth truncating, and shallow-copying one silently loses the older
+commits a test needs to move between. Deepening an existing checkout is a
+separate operation and is never done implicitly.
+
+Both costs are real, and are stated at the setting rather than discovered later:
+
+- A depth-limited checkout has **no local ancestry**. The commit checked out is
+  still exactly the one the lock names, so nothing about reproducibility changes.
+  `ASTRO_FETCH_DEPTH=` (empty) fetches the full history, which
+  `git fetch --unshallow` can also add later.
+- A blobless checkout **needs network access during the build** to fetch contents
+  it has not seen. `ASTRO_FETCH_FILTER=` (empty) makes the local copy complete.
+
+<Note>
+**Measured on the first real bootstrap.** With the defaults above the checkout
+completed at 6.6 GB with HEAD at `ae03f7fb2cf1215853896d6a4c15fdceee2badb7` — the
+commit `browser.lock.json` names — and
+`tools/sync-sources.sh --verify-only --no-deps` exits 0 against it.
+</Note>
+
 ### What it refuses
 
 `--verify-only` is what CI runs before every build, and it fails on:
@@ -111,7 +147,7 @@ What it guarantees:
 | Wrong commit | The stale-runner case: a cached checkout compiling an undeclared commit |
 | On a branch | Right commit, but able to move afterwards |
 | Uncommitted changes | The build would include work nobody declared |
-| Leftover `.rej` / `.orig` | A partial patch application survived |
+| Untracked `.rej` / `.orig` | A partial patch application survived. Only *untracked* ones count: Chromium ships 181 tracked `.orig` files. See [Recovery](/recovery) |
 | Linked worktrees | Two jobs mutating one shared checkout |
 | `.gclient` ≠ template | Configured differently from what the repository says |
 

@@ -16,12 +16,16 @@
 #   3. Whether anything moved since a previously recorded snapshot (--baseline).
 #      The same Chromium commit with different DEPS revisions is the drift worth
 #      catching: no check that only compares the Chromium commit can see it.
-#   4. Which dependencies are pinned to a tag, branch or other moving ref rather
-#      than to a commit SHA. Each one is a hole in the lock's guarantee, so they
-#      are counted and named rather than left implicit.
+#   4. Which dependencies are pinned to something that can MOVE. This is a
+#      classification, not a hex-digit test, because most of Chromium's non-git
+#      pins are content-addressed and therefore stronger than a commit SHA, not
+#      weaker (see classify() below). Calling all 75 of them holes, as an
+#      earlier version of this file did against the real 234-entry record, is
+#      the cry-wolf failure: a report nobody believes is a report nobody reads.
 #
 # It never invents a verdict. With no revinfo file on disk it refuses and says
-# how to produce one.
+# how to produce one, and it does not claim to have verified the solution
+# revision when the record does not carry one.
 #
 # Usage:
 #   tools/verify-deps.sh [options]
@@ -39,6 +43,7 @@ REVINFO_FILE="$ASTRO_REPORT_DIR/deps-revinfo.json"
 BASELINE_FILE=""
 RECORD_FILE=""
 FAIL_ON_DRIFT=0
+FAIL_ON_MOVING_REF=0
 
 # The gclient solution holding Chromium. Fixed rather than configurable because
 # tools/gclient.template names it, and a mismatch between the two would mean
@@ -59,6 +64,11 @@ Usage: tools/verify-deps.sh [options]
                      reported.
   --fail-on-drift    Exit non-zero when the baseline diff is non-empty. CI uses
                      this; a human reading the report does not have to.
+  --fail-on-moving-ref
+                     Exit non-zero when any dependency is pinned to a ref or tag
+                     that can be moved. Off by default: upstream Chromium ships
+                     a handful of these and Astro cannot fix them today, so
+                     failing on them by default would fail every correct build.
   --dry-run          Print the plan; write nothing.
   -h, --help
 EOF
@@ -71,6 +81,7 @@ while [ $# -gt 0 ]; do
         --record)         shift; RECORD_FILE="${1:?--record needs a file}" ;;
         --baseline)       shift; BASELINE_FILE="${1:?--baseline needs a file}" ;;
         --fail-on-drift)  FAIL_ON_DRIFT=1 ;;
+        --fail-on-moving-ref) FAIL_ON_MOVING_REF=1 ;;
         --dry-run)        ASTRO_DRY_RUN=1 ;;
         -h|--help)        usage; exit 0 ;;
         *)                usage; astro::die "Unknown argument: $1" ;;
@@ -135,16 +146,17 @@ fi
 analysis_status=0
 python3 - \
     "$REVINFO_FILE" "$LOCK_FILE" "$CHROMIUM_COMMIT" "$SOLUTION" \
-    "$RECORD_ARG" "$BASELINE_FILE" "$FAIL_ON_DRIFT" <<'PY' || analysis_status=$?
+    "$RECORD_ARG" "$BASELINE_FILE" "$FAIL_ON_DRIFT" \
+    "$FAIL_ON_MOVING_REF" <<'PY' || analysis_status=$?
+import collections
 import json
 import os
 import re
 import sys
 
 (revinfo_path, lock_path, lock_commit, solution, record_path, baseline_path,
- fail_on_drift) = sys.argv[1:8]
+ fail_on_drift, fail_on_moving_ref) = sys.argv[1:9]
 
-SHA = re.compile(r"^[0-9a-f]{40}$")
 NO_REVISION = "<no revision recorded>"
 
 
@@ -273,6 +285,69 @@ def read_snapshot(path):
     return entries
 
 
+# --- How a dependency is pinned ---------------------------------------------
+#
+# These patterns are derived from a real 234-entry record of a fully synced
+# Chromium checkout, not from what a pin "looks like". Counting anything that is
+# not a 40-character hex string as unpinned called 75 of those 234 holes in the
+# lock, when the true number is 10.
+
+COMMIT_PINNED = "commit-pinned"
+CONTENT_ADDRESSED = "content-addressed"
+MOVING_REF = "moving-ref"
+UNCLASSIFIED = "unclassified"
+
+SHA40 = re.compile(r"^[0-9a-f]{40}$")
+
+# A CIPD package pinned by `git_revision:<sha>` IS commit-pinned; the prefix is
+# CIPD tag syntax, not a weaker pin. Six of the real record's entries — gn,
+# siso, three luci-go tools and resultdb — are this shape.
+GIT_REVISION = re.compile(r"^git_revision:[0-9a-f]{40}$")
+
+# A CIPD instance id: base64url of the package content's hash plus a trailing
+# byte naming the hash algorithm, which is why it ends in 'C'. This is a
+# content address — strictly stronger than a git SHA, since it names the built
+# artifact rather than the source it was built from. All ten in the real record
+# are exactly 44 characters.
+CIPD_INSTANCE = re.compile(r"^[A-Za-z0-9_-]{43}C$")
+
+# A full git (40) or SHA-256 (64) digest inside a GCS object name. Bounded on
+# both sides so an abbreviated hash embedded in a longer token — the `g5bd8dadb`
+# in a clang tarball name — does not read as a content address.
+EMBEDDED_DIGEST = re.compile(
+    r"(?<![0-9a-fA-F])(?:[0-9a-f]{40}|[0-9a-f]{64})(?![0-9a-fA-F])"
+)
+
+
+def classify(url, revision):
+    """How strongly this dependency is pinned.
+
+    One question decides it: can this resolve to different bytes on a later
+    sync, with nothing in this repository changing?
+
+      commit-pinned      no — a commit SHA, however it is spelled
+      content-addressed  no — the name IS the content's hash, so a different
+                         object is a different name
+      moving-ref         YES — a CIPD ref or tag (version:2, latest) or a git
+                         ref (refs/heads/main, refs/tags/x), resolved at sync
+                         time. Only this is a finding.
+      unclassified       unknown — this record does not say. Not folded into
+                         either answer: guessing in either direction is how a
+                         check stops being believed.
+    """
+    if not revision:
+        # A GCS object is pinned by its name, and Chromium names most of them
+        # after the object's own digest.
+        if url.startswith("gs://") and EMBEDDED_DIGEST.search(url):
+            return CONTENT_ADDRESSED
+        return UNCLASSIFIED
+    if SHA40.match(revision) or GIT_REVISION.match(revision):
+        return COMMIT_PINNED
+    if CIPD_INSTANCE.match(revision):
+        return CONTENT_ADDRESSED
+    return MOVING_REF
+
+
 current = normalise(read_json(revinfo_path, "revinfo record"), revinfo_path)
 
 # --- Evidence is written before any verdict, so a failing run still leaves a
@@ -287,31 +362,53 @@ if record_path:
 
 # --- Summary ----------------------------------------------------------------
 
-not_sha = sorted(
-    (dependency, revision)
-    for dependency, (_url, revision) in current.items()
-    if not SHA.match(revision)
-)
-sha_pinned = len(current) - len(not_sha)
+# The solution is excluded from the pin classification and reported on its own:
+# it is not pinned by DEPS at all, and counting it as unpinned would put a
+# permanent false finding in every report.
+kinds = {
+    dependency: classify(url, revision)
+    for dependency, (url, revision) in current.items()
+    if dependency != solution
+}
+counts = collections.Counter(kinds.values())
+
+moving = sorted(d for d, kind in kinds.items() if kind == MOVING_REF)
+unclassified = sorted(d for d, kind in kinds.items() if kind == UNCLASSIFIED)
 
 print("=== DEPS verification ===")
 print(f"  revinfo:                 {revinfo_path}")
 print(f"  lock:                    {lock_path}")
 print(f"  solution:                {solution}")
 print(f"  dependencies:            {len(current)}")
-print(f"  pinned to a commit SHA:  {sha_pinned}")
-print(f"  pinned to a moving ref:  {len(not_sha)}")
+print(f"  solution entry:          {1 if solution in current else 0}")
+print(f"  commit-pinned:           {counts[COMMIT_PINNED]}")
+print(f"  content-addressed:       {counts[CONTENT_ADDRESSED]}")
+print(f"  moving-ref:              {counts[MOVING_REF]}")
+print(f"  unclassified:            {counts[UNCLASSIFIED]}")
 if record_path:
     print(f"  snapshot recorded:       {record_path}")
 
-if not_sha:
-    print(f"--- not pinned to a commit SHA ({len(not_sha)}) ---")
-    for dependency, revision in not_sha:
-        print(f"  NON-SHA  {dependency}  {revision or NO_REVISION}")
-    print("  A dependency resolved to a tag, branch or other moving ref is a hole in")
-    print("  the lock's guarantee: the same Chromium commit can resolve it to")
-    print("  different sources on a later sync, with nothing in this repository")
-    print("  changing. Listed so the hole is visible rather than implicit.")
+if moving:
+    print(f"--- pinned to a moving ref ({len(moving)}) ---")
+    for dependency in moving:
+        _url, revision = current[dependency]
+        print(f"  MOVING-REF  {dependency}  {revision}")
+    print("  A ref or tag is resolved at sync time, so the same Chromium commit can")
+    print("  resolve these to different bytes on a later sync with nothing in this")
+    print("  repository changing. This is the hole in the lock's guarantee.")
+    print("  A commit SHA, a CIPD instance id and a digest-named GCS object cannot")
+    print("  move, and are deliberately not listed here.")
+
+if unclassified:
+    print(f"--- not classifiable from this record ({len(unclassified)}) ---")
+    for dependency in unclassified:
+        url, revision = current[dependency]
+        print(f"  UNKNOWN-PIN  {dependency}  {revision or NO_REVISION}  {url}")
+    print("  These carry no revision in this record and no digest in their name, so")
+    print("  the record does not say how they are pinned. A checksum a DEPS entry")
+    print("  may declare for such an object is not written into revinfo, so it")
+    print("  cannot be read here. Reported rather than assumed either way, and NOT")
+    print("  counted as a moving ref.")
 
 # --- Drift against a previously recorded snapshot ---------------------------
 
@@ -378,20 +475,45 @@ if solution not in current:
 
 resolved_url, resolved = current[solution]
 
-if resolved != lock_commit:
+if not resolved:
+    # tools/gclient.template sets managed: False precisely so gclient does not
+    # select the solution's revision, so a null rev here is the designed state
+    # and not a fault. Saying so is not the same as verifying it: the check that
+    # does verify it lives in tools/sync-sources.sh, and this says where.
+    print(f"  DEFERRED  '{solution}' carries no revision in this record.")
+    print("            tools/gclient.template sets managed: False, so gclient does not")
+    print("            select the solution's revision — tools/sync-sources.sh does, and")
+    print("            it compares `git rev-parse HEAD` against the lock after the sync.")
+    print(f"            Locked commit:  {lock_commit}")
+    print("            Re-check the checkout itself with:")
+    print("              tools/sync-sources.sh --verify-only")
+    print("            This record does not establish the solution revision, and this")
+    print("            command does not claim it does.")
+    print(
+        f"  CONCLUSION  {len(kinds)} dependencies classified against "
+        f"{lock_path}; the solution revision is NOT established here."
+    )
+elif resolved != lock_commit:
     die(
         "the Chromium solution does not match the lock.",
         f"  solution:           {solution}  ({resolved_url})",
         f"  browser.lock.json:  {lock_commit}",
-        f"  gclient revinfo:    {resolved or NO_REVISION}",
+        f"  gclient revinfo:    {resolved}",
         "",
         "The tree that was synced is not the tree this repository declares it "
         "builds. Anything produced from it is unattributable.",
         "Run tools/sync-sources.sh to bring the checkout to the locked commit, "
         "or change the lock deliberately if the new revision is intended.",
     )
-
-print(f"  VERIFIED  {solution} resolves to {resolved}, the commit browser.lock.json records")
+else:
+    print(
+        f"  VERIFIED  {solution} resolves to {resolved}, the commit "
+        f"browser.lock.json records"
+    )
+    print(
+        f"  CONCLUSION  {len(kinds)} dependencies classified; the solution "
+        f"matches {lock_path}."
+    )
 
 if drift and fail_on_drift == "1":
     die(
@@ -400,6 +522,16 @@ if drift and fail_on_drift == "1":
         "The differences are listed above. They are not automatically wrong — "
         "they are a change to the build's inputs that nobody has approved yet.",
         "Re-record the baseline once the change is deliberate.",
+    )
+
+if moving and fail_on_moving_ref == "1":
+    die(
+        f"--fail-on-moving-ref: {len(moving)} dependency(ies) pinned to a ref "
+        "or tag that can be moved.",
+        "They are listed above. Each can resolve to different bytes on a later "
+        "sync with nothing in this repository changing.",
+        "Content-addressed and commit-pinned dependencies are not counted here: "
+        "this failure names only what can actually move.",
     )
 PY
 
@@ -411,4 +543,8 @@ if [ "$analysis_status" -ne 0 ]; then
         "corresponds to browser.lock.json."
 fi
 
-astro::info "DEPS revisions verified against $LOCK_FILE"
+# Deliberately not "verified": what this record establishes is printed above as
+# a CONCLUSION line, and it differs depending on whether the record carries a
+# solution revision at all. A blanket "verified" here would overwrite that
+# distinction with the reassuring reading.
+astro::info "DEPS record checked: $REVINFO_FILE"

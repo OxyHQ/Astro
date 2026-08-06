@@ -28,7 +28,10 @@ if [ -z "$APK" ]; then
     echo "Expected ChromePublic.apk in $BUILD_DIR/apks/"
     echo ""
     echo "Available files:"
-    find "$BUILD_DIR" -name "*.apk" | head -10
+    # No `| head`: piping find into head sends it SIGPIPE once head is
+    # satisfied, which pipefail turns into exit 141. An out/Release apks
+    # directory holds a handful of files, so the slice bought nothing.
+    find "$BUILD_DIR" -name "*.apk"
     exit 1
 fi
 

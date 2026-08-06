@@ -58,15 +58,40 @@ jq -r '.patches[-1].files[]' build/reports/patch-report.json
 
 ## 2. Check for partial-application artifacts
 
-A `.rej` or `.orig` file means a patch was applied partially. The runner refuses
-to continue when it finds any:
+An **untracked** `.rej` or `.orig` file means a patch was applied partially. Ask
+git, not the filesystem:
 
 ```bash
-find chromium/src \( -name '*.rej' -o -name '*.orig' \) -print
+git -C chromium/src status --porcelain --untracked-files=all \
+  | sed -n 's/^?? //p' | grep -E '\.(rej|orig|porig)$'
 ```
+
+<Warning>
+**Do not hunt for these with `find`.** Chromium ships 181 *tracked* `.orig`
+files — `cargo vendor` writes a `Cargo.toml.orig` beside every vendored Rust
+crate — so `find chromium/src -name '*.orig'` reports a perfectly healthy
+upstream checkout as full of leftover artifacts, and the obvious reflex,
+deleting them, removes files the build needs.
+
+Measured on the real tree: 181 tracked `.orig`, 0 tracked `.rej`, and 0
+untracked of either on a pristine checkout. Tracked or untracked is therefore
+an exact discriminator, which is why both runner checks use it.
+</Warning>
 
 Read the `.rej` before deleting it — it is the exact hunk that failed, and it is
 usually the fastest way to understand why.
+
+Two separate checks report artifacts, and which one stopped you says *when* the
+artifact appeared:
+
+| Check | Runs | What it tells you |
+|---|---|---|
+| Pristine-tree guard | Before a run acts on the checkout | The artifact was already there — a previous run left it, and this run has changed nothing yet |
+| Post-application scan | After the patch series is applied | The artifact appeared during this run — a patch in this series applied partially |
+
+The guard fires from `tools/sync-sources.sh` and from `tools/apply-patches.sh`
+before it touches a file; the scan fires from `tools/apply-patches.sh` once the
+series is through.
 
 ## 3. Return the checkout to the pinned revision
 
@@ -209,6 +234,7 @@ Otherwise stop overwriting the file. See `tools/overlay.allowlist`.
 | `tools/build.sh` | Yes — via `sync-overlay.sh`, plus writes `out/` |
 | `tools/install-local.sh` | Yes — recompiles, and writes `out/` |
 | `tools/sync-ungoogled.sh` | No — writes only `patches/ungoogled/` |
+| `tools/verify-deps.sh` | No — reads `build/reports/deps-revinfo.json` and the lock |
 | `tools/setup-win-sdk.sh` | Writes `build/win_toolchain.json` only |
 | `tools/package-*.sh` | No — read the build output, write `releases/` |
 | `tools/tests/run.sh` | No — drives synthetic fixtures in a temp directory |

@@ -317,13 +317,19 @@ sync_repository() {
         # about what the directory is or what to do with it — and the obvious
         # reflex, deleting it, can destroy work nobody has copied anywhere.
         if [ -d "$dir" ] && [ -n "$(ls -A "$dir")" ]; then
-            local backup
+            local backup listing
+            # Captured whole, then sliced with sed. Piping find into head sends
+            # SIGPIPE up the pipeline once head has its ten lines, which
+            # pipefail turns into exit 141 — the same hazard that killed
+            # --verify-only against a real checkout. `sed -n '1,10p'` without
+            # `q` reads to EOF, so nothing upstream is ever signalled.
+            listing="$(find "$dir" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)"
             backup="${dir%/}.pre-sync.$(git -C "$ASTRO_ROOT" rev-parse --short HEAD)"
             astro::die_with_hint \
                 "$name cannot be created at $dir: the directory already exists, is not a git checkout, and is not empty." \
                 "" \
                 "Contents:" \
-                "$(find "$dir" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort | head -10 | sed 's/^/  /')" \
+                "$(printf '%s\n' "$listing" | sed -n '1,10s/^/  /p')" \
                 "" \
                 "Nothing is deleted automatically. This is the shape a half-populated" \
                 "Astro tree takes — for example a chromium/src holding only the copied" \

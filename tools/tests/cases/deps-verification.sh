@@ -63,13 +63,82 @@ document = {
     "src/third_party/moving": "https://example.invalid/moving.git@refs/heads/main",
     "src": f"https://chromium.googlesource.com/chromium/src.git@{src_revision}",
     "src/third_party/tagged": "https://example.invalid/tagged.git@refs/tags/v1.2.3",
-    # An entry carrying no revision at all must be counted as unpinned, not
-    # silently dropped.
+    # No revision and no digest in the name: the record does not say how this is
+    # pinned, which is neither a pass nor a finding.
     "src/third_party/norevision": "https://example.invalid/norevision.git",
     # The nested-object shape, which some gclient versions emit.
     "src/third_party/nested": {
         "url": "https://example.invalid/nested.git",
         "rev": nested_revision,
+    },
+}
+
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(document, handle, indent=2)
+    handle.write("\n")
+PY
+}
+
+# The four pin shapes a REAL `gclient revinfo` carries, transcribed from
+# build/reports/deps-revinfo.json (234 entries, Chromium fully synced). Three of
+# the four are not 40-hex and are nonetheless immutable — classifying on "is it
+# a SHA" called 75 of those 234 holes in the lock when the true number is 10.
+#
+# `managed: False` in tools/gclient.template means gclient does not select the
+# solution's revision, so the real record's `src` entry carries rev: null. That
+# is the designed state, and it must not read as a failure OR as a pass.
+write_real_shapes() {
+    local path="$1" solution_revision="$2" updater_revision="$3"
+    python3 - "$path" "$solution_revision" "$updater_revision" <<'PY'
+import json, sys
+
+path, solution_revision, updater_revision = sys.argv[1:4]
+
+document = {
+    # The solution. `null` when gclient did not select it; a string when it did.
+    "src": {
+        "url": "https://chromium.googlesource.com/chromium/src.git",
+        "rev": None if solution_revision == "null" else solution_revision,
+    },
+    # A plain git dependency: 159 of the real record's entries are this.
+    "src/net/third_party/quiche/src": {
+        "url": "https://quiche.googlesource.com/quiche.git",
+        "rev": "24430cb4103438f3cd1680f8f89d7c9e4288d5ca",
+    },
+    # A CIPD package pinned by a commit SHA wearing a tag prefix. Commit-pinned,
+    # not a moving ref.
+    "src/tools/luci-go:infra/tools/luci/cas/${platform}": {
+        "url": "https://chrome-infra-packages.appspot.com/infra/tools/luci/cas/${platform}",
+        "rev": "git_revision:072101cbfec3372b812ff510df8547d7b4187bea",
+    },
+    # A CIPD instance id: base64url content hash, ending in the algorithm byte.
+    # Stronger than a git SHA — it names the built artifact.
+    "src/third_party/updater/chrome_linux64_sans_iid/cipd:chromium/third_party/updater/chrome_linux64": {
+        "url": "https://chrome-infra-packages.appspot.com/chromium/third_party/updater/chrome_linux64",
+        "rev": updater_revision,
+    },
+    # A GCS object named after its own SHA-256. No revision field at all.
+    "src/third_party/test_fonts/test_fonts:a28b222b79851716f8358d2800157d9ffe117b3545031ae51f69b7e1e1b9a969": {
+        "url": "gs://chromium-fonts/a28b222b79851716f8358d2800157d9ffe117b3545031ae51f69b7e1e1b9a969",
+        "rev": None,
+    },
+    # A GCS object whose name embeds a 40-char git hash among other tokens.
+    "src/third_party/rust-toolchain": {
+        "url": "gs://chromium-browser-clang/Linux_x64/rust-toolchain-7d8ebe3128fc87f3da1ad64240e63ccf07b8f0bd-3-llvmorg-23-init-2224-g5bd8dadb.tar.xz",
+        "rev": None,
+    },
+    # A GCS object whose name carries only an ABBREVIATED hash (g5bd8dadb) and a
+    # build number. The record does not establish how it is pinned, and an
+    # 8-character hash must not be mistaken for a content address.
+    "src/third_party/llvm-build/Release+Asserts:Linux_x64/clang-llvmorg-23-init-2224-g5bd8dadb-3.tar.xz": {
+        "url": "gs://chromium-browser-clang/Linux_x64/clang-llvmorg-23-init-2224-g5bd8dadb-3.tar.xz",
+        "rev": None,
+    },
+    # A CIPD tag. THIS is the real hole: a tag is resolved at sync time and can
+    # be repointed at a different package instance.
+    "src/third_party/updater/chrome_linux64/cipd:chromium/third_party/updater/chrome_linux64": {
+        "url": "https://chrome-infra-packages.appspot.com/chromium/third_party/updater/chrome_linux64",
+        "rev": "version:2",
     },
 }
 
@@ -191,19 +260,138 @@ assert "src" in paths, paths
 assert any(line.endswith("@" + locked) for line in lines), lines
 PY
 
-# --- Non-SHA pins are counted and named --------------------------------------
+# --- Moving refs are the finding; other pins are not -------------------------
 
 verify --revinfo "$matching"
 harness::assert_status 0 "summary run"
-harness::assert_output_contains "not pinned to a commit SHA (3)" "counts the moving pins"
+harness::assert_output_contains "pinned to a moving ref (2)" "counts only what can move"
 harness::assert_output_contains "src/third_party/moving" "names the branch-pinned dependency"
 harness::assert_output_contains "refs/heads/main" "prints the branch it is pinned to"
 harness::assert_output_contains "src/third_party/tagged" "names the tag-pinned dependency"
 harness::assert_output_contains "refs/tags/v1.2.3" "prints the tag it is pinned to"
-harness::assert_output_contains "src/third_party/norevision" "names the entry with no revision"
-# The nested-object form must normalise into a real SHA pin rather than being
+# The nested-object form must normalise into a real commit pin rather than being
 # counted as a hole or dropped.
-harness::assert_output_contains "pinned to a commit SHA:  3" "counts the SHA pins, nested form included"
+harness::assert_output_contains "commit-pinned:           2" "counts commit pins, nested form included"
+# No revision and no digest: the record does not say, and saying so is neither a
+# pass nor a finding.
+harness::assert_output_contains "not classifiable from this record (1)" "counts what it cannot classify"
+harness::assert_output_contains "src/third_party/norevision" "names the entry with no revision"
+
+# --- The four pin shapes a real record actually carries ----------------------
+#
+# Three of the four are not 40-hex and are immutable anyway. Only the CIPD tag
+# may be reported, or this tool reports 75 findings against a correct checkout
+# and gets ignored within a week.
+
+real="$tmp/real-shapes.json"
+write_real_shapes "$real" "null" "ytJ0UbU9gMLUMLRQlmqQpGpOy1dYswI3rOJ0ILnIFbUC"
+
+verify --revinfo "$real"
+harness::assert_status 0 "a record in the shape a real gclient sync produces"
+
+harness::assert_output_contains "commit-pinned:           2" "counts both spellings of a commit pin"
+harness::assert_output_contains "content-addressed:       3" "counts CIPD instance ids and digest-named GCS objects"
+harness::assert_output_contains "moving-ref:              1" "counts only the CIPD tag"
+harness::assert_output_contains "unclassified:            1" "counts the object it cannot classify"
+
+# A commit SHA wearing a CIPD tag prefix is a commit pin, not a moving ref.
+harness::assert_output_lacks "git_revision:072101cbfec3372b812ff510df8547d7b4187bea" \
+    "git_revision: is a commit pin and must not be reported as a hole"
+# A CIPD instance id is a content address — stronger than a git SHA.
+harness::assert_output_lacks "ytJ0UbU9gMLUMLRQlmqQpGpOy1dYswI3rOJ0ILnIFbUC" \
+    "a CIPD instance id must not be reported as a hole"
+# A GCS object named after its own digest cannot be repointed.
+harness::assert_output_lacks "gs://chromium-fonts" \
+    "a digest-named GCS object must not be reported as a hole"
+
+# The one real hole is named, with the tag it is pinned to.
+harness::assert_output_contains "pinned to a moving ref (1)" "reports exactly one hole"
+harness::assert_output_contains "MOVING-REF" "reports it as a structured finding"
+harness::assert_output_contains "version:2" "prints the tag that can move"
+
+# An 8-character hash inside a build-numbered tarball name is not a content
+# address, and must not be counted as one.
+harness::assert_output_contains "clang-llvmorg-23-init-2224-g5bd8dadb-3.tar.xz" \
+    "names the object whose pin the record does not establish"
+
+# --- A solution with no revision is the designed state, not a fault ----------
+#
+# tools/gclient.template sets managed: False, so gclient does not select the
+# solution's revision — tools/sync-sources.sh does, and verifies HEAD against
+# the lock afterwards. Failing here would mean this tool can never pass on a
+# correct checkout; claiming a verification would be worse.
+
+harness::assert_output_contains "DEFERRED" "says the solution revision was not established here"
+harness::assert_output_contains "managed: False" "names why the record carries no solution revision"
+harness::assert_output_contains "tools/sync-sources.sh --verify-only" "points at the check that does establish it"
+harness::assert_output_contains "$LOCKED_SHA" "still prints the commit the lock records"
+harness::assert_output_lacks "VERIFIED" "a deferred check must never read as a verified one"
+
+# The solution being ABSENT is still a failure: "no entry" and "an entry with no
+# revision" are different facts and only one of them is designed.
+python3 - "$tmp/no-solution-real.json" <<'PY'
+import json, sys
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump({"src/net/third_party/quiche/src": {
+        "url": "https://quiche.googlesource.com/quiche.git", "rev": "a" * 40}},
+        handle, indent=2)
+PY
+verify --revinfo "$tmp/no-solution-real.json"
+harness::assert_nonzero_status "a record with no src entry at all"
+harness::assert_output_contains "solution is absent" "reason for the refusal"
+
+# --- The mismatch check is not weakened by any of the above ------------------
+
+write_real_shapes "$tmp/real-mismatch.json" "$OTHER_SHA" "ytJ0UbU9gMLUMLRQlmqQpGpOy1dYswI3rOJ0ILnIFbUC"
+verify --revinfo "$tmp/real-mismatch.json"
+harness::assert_nonzero_status "a recorded solution revision that disagrees with the lock"
+harness::assert_output_contains "does not match the lock" "reason for the refusal"
+harness::assert_output_contains "$LOCKED_SHA" "prints the commit the lock records"
+harness::assert_output_contains "$OTHER_SHA" "prints the commit the record carries"
+
+write_real_shapes "$tmp/real-match.json" "$LOCKED_SHA" "ytJ0UbU9gMLUMLRQlmqQpGpOy1dYswI3rOJ0ILnIFbUC"
+verify --revinfo "$tmp/real-match.json"
+harness::assert_status 0 "a recorded solution revision that agrees with the lock"
+harness::assert_output_contains "VERIFIED" "a recorded, matching revision IS verified here"
+
+# --- Only moving refs may gate ------------------------------------------------
+
+# A record whose only non-SHA pins are content-addressed must pass the gate.
+python3 - "$tmp/content-only.json" "$LOCKED_SHA" <<'PY'
+import json, sys
+
+path, solution_revision = sys.argv[1:3]
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump({
+        "src": {"url": "https://chromium.googlesource.com/chromium/src.git",
+                "rev": solution_revision},
+        "src/third_party/updater/chrome_linux64_sans_iid/cipd:chromium/third_party/updater/chrome_linux64": {
+            "url": "https://chrome-infra-packages.appspot.com/chromium/third_party/updater/chrome_linux64",
+            "rev": "ytJ0UbU9gMLUMLRQlmqQpGpOy1dYswI3rOJ0ILnIFbUC"},
+        "src/third_party/test_fonts/test_fonts:a28b222b79851716f8358d2800157d9ffe117b3545031ae51f69b7e1e1b9a969": {
+            "url": "gs://chromium-fonts/a28b222b79851716f8358d2800157d9ffe117b3545031ae51f69b7e1e1b9a969",
+            "rev": None},
+        "src/tools/luci-go:infra/tools/luci/cas/${platform}": {
+            "url": "https://chrome-infra-packages.appspot.com/infra/tools/luci/cas/${platform}",
+            "rev": "git_revision:072101cbfec3372b812ff510df8547d7b4187bea"},
+    }, handle, indent=2)
+PY
+
+verify --revinfo "$tmp/content-only.json" --fail-on-moving-ref
+harness::assert_status 0 "--fail-on-moving-ref over content-addressed and commit pins only"
+harness::assert_output_contains "moving-ref:              0" "counts no holes"
+harness::assert_output_lacks "MOVING-REF" "nothing may be reported as a moving ref"
+
+# ...and the same gate must fire on a version:N tag.
+verify --revinfo "$real" --fail-on-moving-ref
+harness::assert_nonzero_status "--fail-on-moving-ref over a record containing a CIPD tag"
+harness::assert_output_contains "--fail-on-moving-ref" "reason for the refusal"
+harness::assert_output_contains "version:2" "names the tag that can move"
+
+# Off by default: upstream Chromium ships these and Astro cannot fix them, so a
+# default failure would fail every correct build.
+verify --revinfo "$real"
+harness::assert_status 0 "a moving ref alone does not fail the run by default"
 
 # --- Drift against a baseline ------------------------------------------------
 #
