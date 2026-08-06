@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Files this repository has deliberately decided NOT to track must stay
+# untracked, and the decision has to be enforced by something other than
+# whoever runs `git add` next.
+#
+# This gate exists because the decision was already violated. PR #31 states
+# plainly:
+#
+#     `tools/setup-win-sdk.sh` is deliberately not committed. It is an
+#     untracked developer WIP file.
+#
+# It was nonetheless committed — swept into 0837c13 by a `git add` broad enough
+# to catch a file nothing in that commit's message mentions, alongside six
+# changes that are each described in detail. The commit that absorbed it was
+# reverted by rewriting the branch; nothing prevented a repeat.
+#
+# The epic's rule is "preserve developer local work by default". A working-tree
+# file somebody else is mid-way through is exactly that, and committing it takes
+# the decision to publish unfinished work out of its author's hands.
+
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/harness.sh"
+harness::setup
+
+# Each entry: a path, and the reason it stays out of the repository.
+UNTRACKED_BY_DECISION=(
+    "tools/setup-win-sdk.sh|developer WIP; recorded as deliberately not committed in PR #31"
+)
+
+for entry in "${UNTRACKED_BY_DECISION[@]}"; do
+    path="${entry%%|*}"
+    reason="${entry#*|}"
+
+    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+    if git -C "$ASTRO_ROOT" ls-files --error-unmatch "$path" >/dev/null 2>&1; then
+        harness::fail "$path is tracked, and it must not be: $reason
+
+      Remove it from the index without touching the file on disk:
+          git rm --cached $path
+
+      If it genuinely belongs in the repository now, that is a decision for its
+      author to make and record — not something a broad \`git add\` should
+      settle. Delete the entry from UNTRACKED_BY_DECISION in the same change
+      that commits it, so this gate never disagrees with the repository."
+    fi
+done
+
+# The gate must be able to fail. Without this it would also pass on a typo in
+# the path, a broken `ls-files` invocation, or an empty list -- and a check that
+# cannot distinguish success from failure certifies nothing.
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if [ "${#UNTRACKED_BY_DECISION[@]}" -eq 0 ]; then
+    harness::fail "the list is empty; this gate would pass unconditionally"
+fi
+
+# A path that IS tracked must be detected, proving the detector fires at all.
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if ! git -C "$ASTRO_ROOT" ls-files --error-unmatch tools/build.sh >/dev/null 2>&1; then
+    harness::fail "the tracked-file probe failed on tools/build.sh; ls-files is not working here"
+fi
+
+# And the reason has to survive: if PR #31's statement stops being findable, a
+# later reader cannot tell a deliberate exclusion from an oversight. The file
+# is referenced by the build documentation, so its absence from the repository
+# is a live inconsistency somebody must resolve deliberately.
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if ! grep -rq 'setup-win-sdk' "$ASTRO_ROOT/docs" "$ASTRO_ROOT/README.md" 2>/dev/null; then
+    harness::fail "no documentation references setup-win-sdk.sh any more;
+      either the tool is gone for good and this entry should go with it, or a
+      documentation change dropped the only record of what it is for."
+fi
+
+harness::pass
