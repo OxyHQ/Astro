@@ -143,8 +143,17 @@ assert_checkout_is_clean_enough() {
   $count uncommitted change(s) or untracked file(s)"
     fi
 
+    # Only UNTRACKED .rej/.orig files are patch artifacts. Chromium itself ships
+    # 181 tracked `.orig` files — cargo writes `Cargo.toml.orig` for every
+    # vendored Rust crate — so a `find`-based check reports a pristine upstream
+    # checkout as full of leftover artifacts. Measured on the real tree: 181
+    # tracked `.orig`, 0 tracked `.rej`, 0 untracked of either.
+    #
+    # Asking git also avoids walking 400,000 files, and avoids the SIGPIPE that
+    # `find … | head` raises under pipefail once head has what it needs.
     local artifacts
-    artifacts="$(find "$dir" -maxdepth 6 \( -name '*.rej' -o -name '*.orig' \) -print | head -5)"
+    artifacts="$(git -C "$dir" status --porcelain --untracked-files=all \
+        | sed -n 's/^?? //p' | grep -E '\.(rej|orig|porig)$' | head -5)" || true   # astro-allow: grep finding nothing is the normal case
     if [ -n "$artifacts" ]; then
         problems="$problems
   leftover patch artifacts: $(printf '%s' "$artifacts" | tr '\n' ' ')"
@@ -205,29 +214,88 @@ report_head_state() {
 # failure is fatal, so this is a retry, not a suppressed error.
 ASTRO_FETCH_ATTEMPTS="${ASTRO_FETCH_ATTEMPTS:-5}"
 
+# Depth of the initial fetch. Chromium's full history is tens of gigabytes over
+# a single connection, and a transient TLS reset loses ALL of it — git streams a
+# fetch into a temporary pack and discards it on failure, so a retry genuinely
+# starts over. Measured here: five consecutive attempts left .git at 120 KB.
+#
+# Fetching the locked ref at depth 1 transfers one commit's tree instead of the
+# whole history, which is a few gigabytes rather than tens, and is what makes
+# the difference between a bootstrap that completes and one that cannot. The
+# commit checked out is still exactly the one the lock names, so nothing about
+# reproducibility changes; only the local ancestry is absent.
+#
+# Set ASTRO_FETCH_DEPTH= (empty) for full history, which `git fetch --unshallow`
+# can also add later.
+ASTRO_FETCH_DEPTH="${ASTRO_FETCH_DEPTH-1}"
+
+# Partial-clone filter for the initial network fetch. `blob:none` transfers the
+# commit and its trees but no file contents, turning one multi-gigabyte transfer
+# that must survive intact into a small one plus many small on-demand batches
+# during checkout — each of which fails and retries independently.
+#
+# On a link that dropped four times inside the first 220 MB, that is the
+# difference between a bootstrap that completes and one that cannot. The commit
+# is still exactly the one the lock names.
+#
+# The cost is real and worth stating: a blobless checkout needs network access
+# during the build to fetch contents it has not seen. Set ASTRO_FETCH_FILTER=
+# (empty) for a complete local copy.
+ASTRO_FETCH_FILTER="${ASTRO_FETCH_FILTER-blob:none}"
+
 fetch_with_retry() {
     local dir="$1" ref="$2" name="$3"
     local attempt=1 status=0
+    local -a depth_args=()
+
+    # Depth applies only to a NETWORK fetch into a still-empty repository.
+    #
+    # It exists to bound a transfer that can fail halfway, so it is meaningless
+    # for a file:// origin — and actively wrong there: a local fixture has no
+    # history worth truncating, and a shallow copy of one silently loses the
+    # older commits a test needs to move between. Deepening an existing
+    # checkout is a different operation and is never done implicitly.
+    local origin_url
+    origin_url="$(git -C "$dir" remote get-url origin)"
+    if [ -n "$ASTRO_FETCH_DEPTH" ] \
+       && [ -z "$(git -C "$dir" rev-list -n1 --all)" ] \
+       && case "$origin_url" in http://*|https://*) true ;; *) false ;; esac
+    then
+        depth_args=(--depth "$ASTRO_FETCH_DEPTH")
+        astro::info "  $name: initial fetch limited to depth $ASTRO_FETCH_DEPTH"
+        if [ -n "$ASTRO_FETCH_FILTER" ]; then
+            depth_args+=(--filter="$ASTRO_FETCH_FILTER")
+            astro::info "  $name: partial clone filter $ASTRO_FETCH_FILTER (contents fetched on demand)"
+        fi
+    fi
 
     while [ "$attempt" -le "$ASTRO_FETCH_ATTEMPTS" ]; do
         astro::info "  $name: fetching (attempt $attempt/$ASTRO_FETCH_ATTEMPTS)"
         status=0
         if [ -n "$ref" ]; then
-            git -C "$dir" fetch --tags origin "+$ref:refs/astro-locked/$name" || status=$?
+            git -C "$dir" fetch "${depth_args[@]+"${depth_args[@]}"}" \
+                origin "+$ref:refs/astro-locked/$name" || status=$?
         else
-            git -C "$dir" fetch --tags origin || status=$?
+            git -C "$dir" fetch "${depth_args[@]+"${depth_args[@]}"}" --tags origin || status=$?
         fi
         if [ "$status" -eq 0 ]; then
             return 0
         fi
-        astro::warn "retry:fetch" "$name fetch failed (exit $status); objects already downloaded are kept"
+        # Deliberately NOT claiming the partial transfer was kept: git discards
+        # the temporary pack when a fetch fails, so each attempt starts over.
+        astro::warn "retry:fetch" "$name fetch failed (exit $status); retrying from the start"
         attempt=$((attempt + 1))
     done
 
     astro::die_with_hint \
         "$name: fetch failed $ASTRO_FETCH_ATTEMPTS time(s)." \
-        "Objects already downloaded are kept, so re-running continues rather than" \
-        "starting over. Raise ASTRO_FETCH_ATTEMPTS if the network is unreliable."
+        "" \
+        "A failed git fetch discards its partial transfer, so every attempt starts" \
+        "over — this is not a resumable operation." \
+        "" \
+        "If the connection is unreliable, reduce what has to arrive in one go:" \
+        "  ASTRO_FETCH_DEPTH=1   fetch only the locked commit (the default)" \
+        "  ASTRO_FETCH_ATTEMPTS  raise the retry count"
 }
 
 # Ensures <dir> is a git checkout of <url> sitting detached at <commit>.

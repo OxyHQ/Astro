@@ -70,18 +70,49 @@ mkdir -p "$patches_c"
 harness::write_patch "$patches_c/001-a.patch" "net/net_util.cc" "alpha" "bravo"
 printf '001-a.patch\n' > "$patches_c/series"
 
-# An artifact left behind by an earlier, partially applied run.
+# An artifact left behind by an earlier, partially applied run. It is left
+# UNTRACKED on purpose: that is what a real .rej is, and it is the property the
+# check keys on. Chromium itself tracks 181 `.orig` files — cargo writes
+# `Cargo.toml.orig` for every vendored Rust crate — so a check that flagged
+# tracked artifacts would condemn a pristine upstream checkout.
 printf '***rejected hunk***\n' > "$src_c/net/net_util.cc.rej"
-git -C "$src_c" add -A
-git -C "$src_c" commit --quiet -m "leftover artifact"
 
+# An artifact present BEFORE the run is caught by the pristine-tree guard,
+# because an untracked file is exactly what that guard exists to notice.
 harness::run env ASTRO_CHROMIUM_SRC="$src_c" ASTRO_PATCH_REPORT="$tmp/c.json" \
     "$ASTRO_ROOT/tools/apply-patches.sh" astro --dest "$src_c" --astro-patches "$patches_c"
 
 harness::assert_nonzero_status "checkout containing a .rej artifact"
-harness::assert_output_contains "Patch artifacts found" "refusal reason"
+harness::assert_output_contains "must be pristine" "the pristine guard fires first"
+harness::assert_output_contains "net_util.cc.rej" "names the artifact"
+
+# The post-application artifact scan covers the other case: an artifact that
+# appears DURING the run. Bypassing the pristine guard with the developer
+# override is what lets execution reach it, so this asserts the second check
+# independently rather than assuming the first one covers both.
+harness::run env ASTRO_CHROMIUM_SRC="$src_c" ASTRO_PATCH_REPORT="$tmp/c2.json" \
+    ASTRO_ALLOW_DIRTY_CHROMIUM=1 \
+    "$ASTRO_ROOT/tools/apply-patches.sh" astro --dest "$src_c" --astro-patches "$patches_c"
+
+harness::assert_nonzero_status "artifact still present after application"
+harness::assert_output_contains "Patch artifacts found" "post-application refusal reason"
 harness::assert_output_contains "net_util.cc.rej" "names the artifact"
 harness::assert_output_contains "applied partially" "explains the consequence"
+
+# A TRACKED .orig must NOT be treated as an artifact: Chromium ships 181 of
+# them. Without this, a pristine upstream checkout is condemned on sight.
+src_c2="$tmp/src-c2"
+make_base "$src_c2"
+mkdir -p "$src_c2/third_party/vendored"
+printf '[package]\n' > "$src_c2/third_party/vendored/Cargo.toml.orig"
+git -C "$src_c2" add -A
+git -C "$src_c2" commit --quiet -m "upstream ships a tracked .orig"
+
+harness::run env ASTRO_CHROMIUM_SRC="$src_c2" ASTRO_PATCH_REPORT="$tmp/c3.json" \
+    "$ASTRO_ROOT/tools/apply-patches.sh" astro --dest "$src_c2" --astro-patches "$patches_c"
+
+harness::assert_status 0 "a tracked upstream .orig is not a patch artifact"
+harness::assert_output_contains "none found" "the artifact scan came back clean"
 
 # --------------------------------------------------------------------------
 # After application, every changed path must be one the run recorded
