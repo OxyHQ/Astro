@@ -31,6 +31,44 @@ if [ "${scanned:-0}" -lt 15 ]; then
     harness::fail "scan covered only ${scanned:-0} files; expected the whole tools/ tree"
 fi
 
+# --- The COMMITTED tree is clean too ----------------------------------------
+#
+# The scan above reads the working tree. CI reads what is committed, and the
+# two differ whenever anyone has uncommitted work — which is most of the time.
+# This gap is not hypothetical: a local run of this suite passed while CI
+# failed, because a script's committed version still carried three suppressions
+# that an uncommitted local rewrite happened to remove.
+#
+# Scanning committed content here makes a green local run mean what it looks
+# like it means.
+
+committed="$tmp/committed"
+mkdir -p "$committed"
+
+tracked=0
+while IFS= read -r tracked_path; do
+    [ -n "$tracked_path" ] || continue
+    mkdir -p "$committed/$(dirname "$tracked_path")"
+    git -C "$ASTRO_ROOT" show "HEAD:$tracked_path" > "$committed/$tracked_path"
+    tracked=$((tracked + 1))
+    # A git pathspec's `*` matches `/` too, so 'tools/*.sh' would sweep in
+    # tools/tests/**; the production scripts are tools/*.sh and tools/lib/*.sh
+    # only. The test suite is scanned separately and deliberately differently:
+    # patch-rejects-fuzz-and-3way.sh runs the banned constructs itself, to
+    # prove they would have applied the patch before asserting the runner
+    # refuses.
+done < <(git -C "$ASTRO_ROOT" ls-files 'tools/*.sh' \
+             | grep -E '^tools/(lib/)?[^/]+\.sh$')
+
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if [ "$tracked" -lt 15 ]; then
+    harness::fail "only $tracked tracked scripts found; the git listing is broken"
+fi
+
+# shellcheck disable=SC2046  # deliberate word splitting over the file list
+harness::run python3 "$SCANNER" $(find "$committed" -name '*.sh' | sort)
+harness::assert_status 0 "scan of the COMMITTED tools/*.sh"
+
 # --- An empty invocation must not read as a pass -----------------------------
 
 harness::run python3 "$SCANNER"
