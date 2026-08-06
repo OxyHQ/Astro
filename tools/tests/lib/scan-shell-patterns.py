@@ -79,6 +79,13 @@ SOURCE_RULES: list[tuple[str, re.Pattern[str], str]] = [
 # it happens to hold.
 WORKFLOW_RULES: list[tuple[str, re.Pattern[str], str]] = [
     (
+        "mutable-action-tag",
+        re.compile(r"uses:\s*[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+@(?![0-9a-f]{40}\b)\S+"),
+        "a GitHub Action referenced by tag or branch instead of a full commit "
+        "SHA lets upstream tag movement or a supply-chain compromise change what "
+        "CI executes with no diff in this repository",
+    ),
+    (
         "cache-as-source-of-truth",
         re.compile(r"-d\s+[\"']?[^\"'\s]*\.git[\"']?\s*\]"),
         "a CI job deciding whether to synchronise by testing for an existing "

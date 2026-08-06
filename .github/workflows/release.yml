@@ -44,6 +44,12 @@ permissions:
 # declaration of what gets compiled; an env var that could disagree with it is
 # exactly the ambiguity ASTRO-NEXT-002 (#5) removes.
 
+# Every job passes its gclient target_os explicitly to tools/sync-sources.sh.
+# Leaving it implicit meant each job synced with the default (linux) and the
+# Windows, macOS and Android jobs depended on however that runner's checkout
+# had last been configured — the same "the runner decides" defect the source
+# lock exists to remove, one level down in the dependency graph.
+
 # One shared checkout per runner must not be mutated by two jobs at once.
 concurrency:
   group: astro-sources-${{ github.workflow }}-${{ github.ref }}
@@ -59,7 +65,7 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Checkout Astro
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -71,7 +77,7 @@ jobs:
           fi
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
       # A cache is an object/download cache, never source-of-truth state.
       # The previous version skipped synchronisation whenever
@@ -79,13 +85,13 @@ jobs:
       # Chromium compiled whatever commit it happened to hold, forever,
       # with nothing validating it.
       - name: Sync sources to the locked revisions
-        run: tools/sync-sources.sh
+        run: tools/sync-sources.sh --targets "linux"
 
       # Fails the job if anything on disk disagrees with browser.lock.json.
       # Separate from the sync above so a sync that silently did nothing
       # still cannot produce a build.
       - name: Verify source revisions against the lock
-        run: tools/sync-sources.sh --verify-only
+        run: tools/sync-sources.sh --verify-only --targets "linux"
 
       - name: Sync ungoogled patches
         run: tools/sync-ungoogled.sh
@@ -124,7 +130,7 @@ jobs:
           ASTRO_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: astro-linux-x64
           path: |
@@ -143,7 +149,7 @@ jobs:
       DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
     steps:
       - name: Checkout Astro
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -156,7 +162,7 @@ jobs:
           fi
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
       # A cache is an object/download cache, never source-of-truth state.
       # The previous version skipped synchronisation whenever
@@ -165,14 +171,14 @@ jobs:
       # with nothing validating it.
       - name: Sync sources to the locked revisions
         shell: bash
-        run: tools/sync-sources.sh
+        run: tools/sync-sources.sh --targets "win"
 
       # Fails the job if anything on disk disagrees with browser.lock.json.
       # Separate from the sync above so a sync that silently did nothing
       # still cannot produce a build.
       - name: Verify source revisions against the lock
         shell: bash
-        run: tools/sync-sources.sh --verify-only
+        run: tools/sync-sources.sh --verify-only --targets "win"
 
       - name: Sync ungoogled patches
         shell: bash
@@ -222,7 +228,7 @@ jobs:
           ASTRO_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: astro-windows-x64
           path: releases/astro-*-windows-x64*
@@ -239,7 +245,7 @@ jobs:
       DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
     steps:
       - name: Checkout Astro
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -252,7 +258,7 @@ jobs:
           fi
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
       # A cache is an object/download cache, never source-of-truth state.
       # The previous version skipped synchronisation whenever
@@ -261,14 +267,14 @@ jobs:
       # with nothing validating it.
       - name: Sync sources to the locked revisions
         shell: bash
-        run: tools/sync-sources.sh
+        run: tools/sync-sources.sh --targets "win"
 
       # Fails the job if anything on disk disagrees with browser.lock.json.
       # Separate from the sync above so a sync that silently did nothing
       # still cannot produce a build.
       - name: Verify source revisions against the lock
         shell: bash
-        run: tools/sync-sources.sh --verify-only
+        run: tools/sync-sources.sh --verify-only --targets "win"
 
       - name: Sync ungoogled patches
         shell: bash
@@ -319,7 +325,7 @@ jobs:
           tools/package-windows.sh
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: astro-windows-arm64
           path: releases/astro-*-windows-arm64*
@@ -334,7 +340,7 @@ jobs:
     timeout-minutes: 480
     steps:
       - name: Checkout Astro
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -346,7 +352,7 @@ jobs:
           fi
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
       # A cache is an object/download cache, never source-of-truth state.
       # The previous version skipped synchronisation whenever
@@ -354,13 +360,13 @@ jobs:
       # Chromium compiled whatever commit it happened to hold, forever,
       # with nothing validating it.
       - name: Sync sources to the locked revisions
-        run: tools/sync-sources.sh
+        run: tools/sync-sources.sh --targets "mac"
 
       # Fails the job if anything on disk disagrees with browser.lock.json.
       # Separate from the sync above so a sync that silently did nothing
       # still cannot produce a build.
       - name: Verify source revisions against the lock
-        run: tools/sync-sources.sh --verify-only
+        run: tools/sync-sources.sh --verify-only --targets "mac"
 
       - name: Sync ungoogled patches
         run: tools/sync-ungoogled.sh
@@ -399,7 +405,7 @@ jobs:
           MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: astro-macos-arm64
           path: releases/astro-*-macos-arm64.dmg
@@ -414,7 +420,7 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Checkout Astro
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -426,7 +432,7 @@ jobs:
           fi
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
       # A cache is an object/download cache, never source-of-truth state.
       # The previous version skipped synchronisation whenever
@@ -434,13 +440,13 @@ jobs:
       # Chromium compiled whatever commit it happened to hold, forever,
       # with nothing validating it.
       - name: Sync sources to the locked revisions
-        run: tools/sync-sources.sh
+        run: tools/sync-sources.sh --targets "android"
 
       # Fails the job if anything on disk disagrees with browser.lock.json.
       # Separate from the sync above so a sync that silently did nothing
       # still cannot produce a build.
       - name: Verify source revisions against the lock
-        run: tools/sync-sources.sh --verify-only
+        run: tools/sync-sources.sh --verify-only --targets "android"
 
       - name: Install Android dependencies
         run: |
@@ -483,7 +489,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: astro-android-arm64
           path: releases/astro-*-android-arm64.apk
@@ -498,7 +504,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (for VERSION file)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -510,7 +516,7 @@ jobs:
           fi
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifacts/
 
@@ -518,7 +524,7 @@ jobs:
         run: find artifacts/ -type f | sort
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Astro v${{ steps.version.outputs.version }}

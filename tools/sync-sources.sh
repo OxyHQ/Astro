@@ -200,6 +200,36 @@ report_head_state() {
     fi
 }
 
+# Astro's fetches are large enough that a transient network failure is a normal
+# event rather than an exceptional one. Each attempt is announced and the final
+# failure is fatal, so this is a retry, not a suppressed error.
+ASTRO_FETCH_ATTEMPTS="${ASTRO_FETCH_ATTEMPTS:-5}"
+
+fetch_with_retry() {
+    local dir="$1" ref="$2" name="$3"
+    local attempt=1 status=0
+
+    while [ "$attempt" -le "$ASTRO_FETCH_ATTEMPTS" ]; do
+        astro::info "  $name: fetching (attempt $attempt/$ASTRO_FETCH_ATTEMPTS)"
+        status=0
+        if [ -n "$ref" ]; then
+            git -C "$dir" fetch --tags origin "+$ref:refs/astro-locked/$name" || status=$?
+        else
+            git -C "$dir" fetch --tags origin || status=$?
+        fi
+        if [ "$status" -eq 0 ]; then
+            return 0
+        fi
+        astro::warn "retry:fetch" "$name fetch failed (exit $status); objects already downloaded are kept"
+        attempt=$((attempt + 1))
+    done
+
+    astro::die_with_hint \
+        "$name: fetch failed $ASTRO_FETCH_ATTEMPTS time(s)." \
+        "Objects already downloaded are kept, so re-running continues rather than" \
+        "starting over. Raise ASTRO_FETCH_ATTEMPTS if the network is unreliable."
+}
+
 # Ensures <dir> is a git checkout of <url> sitting detached at <commit>.
 sync_repository() {
     local dir="$1" url="$2" commit="$3" ref="$4" name="$5"
@@ -211,19 +241,65 @@ sync_repository() {
                 "--verify-only never creates a checkout." \
                 "Run tools/sync-sources.sh without --verify-only to bootstrap it."
         fi
+        # A directory that exists, is not a checkout, and is not empty is the
+        # shape this repository was actually found in: chromium/src held only
+        # the copied overlay (4.2 MB of chrome/) with no upstream tree and no
+        # .git of its own. `git clone` into it fails with "destination path
+        # already exists and is not an empty directory", which says nothing
+        # about what the directory is or what to do with it — and the obvious
+        # reflex, deleting it, can destroy work nobody has copied anywhere.
+        if [ -d "$dir" ] && [ -n "$(ls -A "$dir")" ]; then
+            local backup
+            backup="${dir%/}.pre-sync.$(git -C "$ASTRO_ROOT" rev-parse --short HEAD)"
+            astro::die_with_hint \
+                "$name cannot be created at $dir: the directory already exists, is not a git checkout, and is not empty." \
+                "" \
+                "Contents:" \
+                "$(find "$dir" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort | head -10 | sed 's/^/  /')" \
+                "" \
+                "Nothing is deleted automatically. This is the shape a half-populated" \
+                "Astro tree takes — for example a chromium/src holding only the copied" \
+                "overlay — and it may be the only copy of something." \
+                "" \
+                "Move it aside, then re-run:" \
+                "  mv $dir \\" \
+                "     $backup" \
+                "  tools/sync-sources.sh" \
+                "" \
+                "Once the sync succeeds and you have confirmed nothing was lost:" \
+                "  rm -rf $backup"
+        fi
+
         if astro::dry_run; then
             astro::plan "clone $url -> $dir"
             astro::plan "checkout --detach $commit in $dir"
             return 0
         fi
-        astro::info "  $name: cloning $url"
-        git clone --quiet "$url" "$dir"
+        # `git clone` cannot resume. A Chromium clone moves tens of gigabytes
+        # over a single connection, and one transient TLS reset — observed here
+        # as "GnuTLS recv error (-110)" partway through — throws all of it away.
+        # init + fetch is resumable: a retry continues against the objects
+        # already in the local repository.
+        astro::info "  $name: creating $dir"
+        mkdir -p "$dir"
+        git -C "$dir" init --quiet
+        git -C "$dir" remote add origin "$url"
     fi
 
-    local head
-    head="$(git -C "$dir" rev-parse HEAD)"
+    if [ ! -d "$dir/.git" ]; then
+        astro::die "$dir is not a git repository after initialisation"
+    fi
 
-    if [ "$head" = "$commit" ]; then
+    # A freshly initialised repository has no HEAD yet, so there is nothing to
+    # compare against and nothing to keep clean — go straight to fetch and
+    # checkout below.
+    local head="" head_status=0
+    head="$(git -C "$dir" rev-parse HEAD 2>/dev/null)" || head_status=$?   # astro-allow: an empty repository legitimately has no HEAD
+    if [ "$head_status" -ne 0 ]; then
+        head=""
+    fi
+
+    if [ -n "$head" ] && [ "$head" = "$commit" ]; then
         # Right commit is not enough. A fresh clone lands on a BRANCH at the
         # same commit, and a branch can be advanced afterwards — by a stray
         # `git pull`, by another job, by gclient — with nothing noticing that
@@ -260,15 +336,17 @@ sync_repository() {
     if [ "$VERIFY_ONLY" = "1" ]; then
         astro::die_with_hint \
             "$name is at the wrong commit." \
-            "  on disk: $head" \
+            "  on disk: ${head:-<empty repository>}" \
             "  locked:  $commit" \
             "" \
             "This is the check a stale self-hosted runner must not pass. Run" \
             "tools/sync-sources.sh (without --verify-only) to correct it."
     fi
 
-    assert_checkout_is_clean_enough "$dir" "$name"
-    report_head_state "$dir" "$name"
+    if [ -n "$head" ]; then
+        assert_checkout_is_clean_enough "$dir" "$name"
+        report_head_state "$dir" "$name"
+    fi
 
     if astro::dry_run; then
         astro::plan "fetch $ref from $url in $dir"
@@ -278,12 +356,7 @@ sync_repository() {
 
     # Fetch WITHOUT changing what is checked out. `git fetch` updates remote
     # refs only; the working tree moves in the explicit checkout below.
-    astro::info "  $name: fetching"
-    if [ -n "$ref" ]; then
-        git -C "$dir" fetch --quiet --tags origin "+$ref:refs/astro-locked/$name"
-    else
-        git -C "$dir" fetch --quiet --tags origin
-    fi
+    fetch_with_retry "$dir" "$ref" "$name"
 
     # --verify --quiet suppresses only git's own "not a valid object" note,
     # natively, rather than redirecting stderr and hiding real failures too.
