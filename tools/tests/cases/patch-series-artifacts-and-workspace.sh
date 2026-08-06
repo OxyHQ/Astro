@@ -84,6 +84,57 @@ harness::assert_output_contains "net_util.cc.rej" "names the artifact"
 harness::assert_output_contains "applied partially" "explains the consequence"
 
 # --------------------------------------------------------------------------
+# After application, every changed path must be one the run recorded
+# --------------------------------------------------------------------------
+
+src_e="$tmp/src-e"
+make_base "$src_e"
+patches_e="$tmp/patches-e"
+mkdir -p "$patches_e"
+harness::write_patch "$patches_e/001-a.patch" "net/net_util.cc" "alpha" "bravo"
+printf '001-a.patch\n' > "$patches_e/series"
+
+# A clean run: the only changed path is the one the patch declared.
+harness::run env ASTRO_CHROMIUM_SRC="$src_e" ASTRO_PATCH_REPORT="$tmp/e.json" \
+    "$ASTRO_ROOT/tools/apply-patches.sh" astro --dest "$src_e" --astro-patches "$patches_e"
+
+harness::assert_status 0 "run whose every change is accounted for"
+harness::assert_output_contains "Verifying every change is accounted for" "post-run check ran"
+harness::assert_output_contains "all attributable to Astro" "attribution result"
+
+# Now a patch that writes a file it never declares in its headers — the shape
+# a stray artifact or a hunk landing under an unexpected name would take.
+src_f="$tmp/src-f"
+make_base "$src_f"
+patches_f="$tmp/patches-f"
+mkdir -p "$patches_f"
+cat > "$patches_f/001-adds-undeclared.patch" <<'EOF'
+diff --git a/net/net_util.cc b/net/net_util.cc
+--- a/net/net_util.cc
++++ b/net/net_util.cc
+@@ -1 +1 @@
+-alpha
++bravo
+EOF
+printf '001-adds-undeclared.patch\n' > "$patches_f/series"
+
+# Simulate the stray file appearing during the run by planting it first; the
+# pristine guard is satisfied because it is committed, and it only becomes
+# unaccounted-for once the patch modifies it below.
+printf 'stray\n' > "$src_f/net/stray_artifact.cc"
+git -C "$src_f" add -A
+git -C "$src_f" commit --quiet -m "committed stray"
+printf 'modified out of band\n' >> "$src_f/net/stray_artifact.cc"
+
+harness::run env ASTRO_CHROMIUM_SRC="$src_f" ASTRO_PATCH_REPORT="$tmp/f.json" \
+    ASTRO_ALLOW_DIRTY_CHROMIUM=1 \
+    "$ASTRO_ROOT/tools/apply-patches.sh" astro --dest "$src_f" --astro-patches "$patches_f"
+
+# The override lets the run start, but the post-application check still reports
+# the unaccounted path rather than passing it off as patched content.
+harness::assert_output_contains "net/stray_artifact.cc" "names the unaccounted path"
+
+# --------------------------------------------------------------------------
 # Unrelated developer work is preserved, not patched over
 # --------------------------------------------------------------------------
 

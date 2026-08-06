@@ -444,6 +444,16 @@ esac
 write_report "succeeded"
 
 if ! astro::dry_run; then
+    # Every path the checkout now shows as changed must be one this run
+    # recorded: a file a patch declared, a file pruning removed, or an
+    # allowlisted overlay destination. Anything else is an unexpected
+    # modification or untracked file the patch stack did not account for —
+    # a stray artifact, a half-applied hunk written under a new name, or
+    # someone else's work — and is not something to compile.
+    astro::info ">>> Verifying every change is accounted for..."
+    astro::require_attributable_chromium \
+        "$CHROMIUM_SRC" "$ASTRO_ROOT/tools/overlay.allowlist" "$REPORT_PATH"
+
     astro::summarize_chromium_tree "$CHROMIUM_SRC"
 fi
 
