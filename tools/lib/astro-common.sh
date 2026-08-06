@@ -484,9 +484,16 @@ except FileNotFoundError:
 
 recorded = set()
 
+# "pruned" and "substituted" are as much a record of what Astro did to the tree
+# as "files" is. Binary pruning DELETES tracked files, which git reports as
+# modifications, so leaving those keys out made every pruned file unattributable
+# and the post-application check fail on a tree the pipeline itself produced.
+RECORDED_KEYS = ("path", "paths", "files", "pruned", "substituted")
+
+
 def collect(node):
     if isinstance(node, dict):
-        for key in ("path", "paths", "files"):
+        for key in RECORDED_KEYS:
             value = node.get(key)
             if isinstance(value, str):
                 recorded.add(value)
