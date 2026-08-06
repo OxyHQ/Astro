@@ -56,6 +56,40 @@ for member in "${OPTIONAL_MEMBERS[@]}"; do
     fi
 done
 
+# An artifact named after the product must contain the product. This script
+# produced `astro-0.1.0-linux-x64.tar.gz` from a binary with no Oxy Identity, no
+# Alia, no ad blocker and none of the five WebUI controllers, and reported
+# success — the only hint was one optional-member warning about
+# `adblock_resources/`, which is a warning by design. The archive then sat in
+# releases/ beside genuine ones, distinguishable only by reading it.
+#
+# The check reports `unmeasurable` separately from `absent`: a wrong path or an
+# unreadable binary must not produce the same verdict as the real defect.
+astro::info ">>> Verifying the Astro overlay is in the binary..."
+overlay_status=0
+python3 "$ASTRO_ROOT/tools/lib/overlay_in_binary.py" \
+    --binary "$BUILD_DIR/chrome" || overlay_status=$?
+
+case "$overlay_status" in
+    0) ;;
+    2) astro::die "Cannot determine whether the overlay is present; refusing to package." ;;
+    *)
+        if [ "${ASTRO_ALLOW_OVERLAYLESS_PACKAGE:-0}" != "1" ]; then
+            astro::die_with_hint \
+                "Refusing to package a build with no Astro overlay as an Astro release." \
+                "This is a pipeline-validation build: Chromium plus the legacy patch" \
+                "base. Naming it astro-$VERSION would misrepresent it." \
+                "" \
+                "To package it deliberately as a validation artifact:" \
+                "    ASTRO_ALLOW_OVERLAYLESS_PACKAGE=1 $0 $BUILD_DIR" \
+                "The archive is then named so its nature cannot be mistaken."
+        fi
+        astro::warn "override:overlayless-package" \
+            "packaging a build with no Astro overlay; renaming the archive accordingly"
+        ARCHIVE_NAME="pipeline-validation-${VERSION}-linux-x64-NO-ASTRO-OVERLAY.tar.gz"
+        ;;
+esac
+
 # A release artifact must carry the exact source revisions, GN args and
 # toolchain identity it was produced from (ASTRO-NEXT-002, #5).
 astro::copy_required "$ASTRO_ROOT/build/reports/provenance.json" \

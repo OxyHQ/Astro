@@ -347,3 +347,87 @@ same-configuration pristine run to difference against.
 it — so this is recorded as an observation with its attribution limits stated,
 not as a pass or a failure. Curating it belongs with the rest of the aggregate
 ungoogled work in [#8](https://github.com/OxyHQ/Astro/issues/8).
+
+---
+
+## 9. The first real compile failed on uncommitted overlay content
+
+At 54,872 of 72,184 steps:
+
+```
+In file included from ../../chrome/browser/ui/webui/chrome_web_ui_configs.cc:4:
+../../chrome/browser/oxy/webui/astro_settings_ui.h:10:10: fatal error:
+    'chrome/browser/oxy/webui/astro_settings.mojom.h' file not found
+```
+
+This is declared defect 2 from `AGENTS.md` reaching a compiler for the first
+time, and the chain is entirely mechanical:
+
+1. `src/chrome/browser/ui/webui/chrome_web_ui_configs.cc` is a whole-file overlay
+   copy — **untracked**, working-tree only. Measured: byte-identical (`md5
+   2de90060…`) to the copy `sync-overlay.sh` had placed in the Chromium tree, and
+   `git ls-files --error-unmatch` reports it is not known to git.
+2. It `#include`s five Astro headers, pulling the overlay into a Chromium
+   translation unit.
+3. One of them needs the generated `astro_settings.mojom.h`, which nothing
+   generates — because the overlay is not in the build graph (finding 1).
+
+So the committed state alone does not produce this failure; one uncommitted file
+does. That is the third instance in a single session of working-tree state being
+mistaken for repository state, after the five phantom GN findings and the
+`safe_browsing_mode` near-miss in finding 2.
+
+The tree was returned to what the **committed** stack produces for that one file
+— upstream plus `disable-ai.patch` and `first-run-page.patch`, zero Astro
+includes. `054` and `055` do not apply (finding 3), which is consistent. The
+untracked overlay copy in the Astro repository was not touched.
+
+**Still open:** `sync-overlay.sh` copies uncommitted overlay files into the
+Chromium tree and says nothing about it, so any build made through
+`tools/build.sh` silently incorporates working-tree content. That is the same
+gap `gn_args_drift.py` closed for GN args, one level down.
+
+---
+
+## 10. The build completes, and the packager named it Astro
+
+The resumed build reported `Success` and produced a 465,137,912-byte ELF. It
+launches against a temporary profile and renders.
+
+**It contains no Astro overlay**, and the evidence is stated with its controls
+because "we found nothing" is only meaningful if the search works:
+
+| Probe | Astro | Control (same probe, Chromium subject) |
+|---|---|---|
+| `nm -C` overlay symbols | 0 | `ChromeContentBrowserClient` × 495 |
+| Binary strings `astro-ntp` / `astro-error` / `chrome://alia` | 0 | `chrome://version` × 1, `chrome://settings` × 27 |
+
+`chrome --version` reports `Chromium 146.0.7680.177`.
+
+Two probes were discarded rather than reported, because each would have produced
+a confident wrong answer:
+
+- A `grep -icE 'OxyAuth'` over `nm` output returned **22 matches** that were all
+  `ProxyAuth` — `ProxyAuth` contains the substring `oxyAuth`, and the search was
+  case-insensitive. Printing the matched lines instead of the count is what
+  caught it.
+- A headless `--dump-dom` probe of `chrome://astro-ntp` reported the host as
+  absent — and reported `chrome://version` as absent too, which is false in every
+  Chromium ever built. Runtime WebUI origins are therefore **not-captured** here,
+  not "confirmed absent"; capturing them needs a browser this harness cannot
+  currently drive.
+
+`tools/package-release.sh` then packaged that binary as
+**`astro-0.1.0-linux-x64.tar.gz`**, reported success, and left it in `releases/`
+beside genuine artifacts. Its only hint was one optional-member warning about
+`adblock_resources/` — a warning by design, since the ad blocker's filter lists
+are declared optional.
+
+An artifact named after the product but not containing it is the most misleading
+thing this pipeline can emit. `tools/lib/overlay_in_binary.py` now decides the
+question before the archive is written, and the packager refuses by default.
+`ASTRO_ALLOW_OVERLAYLESS_PACKAGE=1` produces the archive deliberately, renamed
+`pipeline-validation-<version>-linux-x64-NO-ASTRO-OVERLAY.tar.gz`. The detector
+reports `unmeasurable` separately from `absent`, so a wrong path cannot
+impersonate the real defect, and the packager treats `unmeasurable` as a refusal
+rather than as permission.
