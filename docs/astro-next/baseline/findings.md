@@ -394,6 +394,15 @@ gap `gn_args_drift.py` closed for GN args, one level down.
 The resumed build reported `Success` and produced a 465,137,912-byte ELF. It
 launches against a temporary profile and renders.
 
+> **This artifact is a `pipeline-validation build: Chromium + legacy base,
+> Astro overlay absent`.** That is its full and only description. It is
+> admissible evidence for #4 and #5 on everything strictly about the pipeline —
+> bootstrap, DEPS, patch application, `gn gen`, compile, fail-closed behaviour,
+> the tree summary, provenance and packaging validation. It is **not** admissible
+> for any criterion requiring a working Astro: nothing about `astro://`, Oxy
+> Identity, Alia, the ad blocker, the New Tab Page or any WebUI page may be
+> marked satisfied on the strength of it.
+
 **It contains no Astro overlay**, and the evidence is stated with its controls
 because "we found nothing" is only meaningful if the search works:
 

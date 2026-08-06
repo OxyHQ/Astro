@@ -17,7 +17,7 @@ All of it is fail-closed. Shared behaviour — strict mode, an `ERR` trap that n
 - A 64-bit Linux machine (Ubuntu 22.04+ recommended) for Linux/Android/Windows-via-cross builds, or macOS for native macOS builds.
 - Bun 1.0+ for the WebUI workspaces.
 - Standard Chromium build deps: `git`, `python3`, `pkg-config`, `lsb-release`, `curl`, plus the toolchain installed by Chromium's `install-build-deps.sh` (invoked indirectly by `gclient sync`).
-- For Windows cross-compile from Linux: an unpacked Windows 10 SDK in `win-sdk/` (helpers in `tools/setup-win-sdk.sh`).
+- For Windows cross-compile from Linux: an unpacked Windows 10 SDK in `win-sdk/`. **No committed script provisions it.** Earlier revisions of this page pointed at `tools/setup-win-sdk.sh`; that file is not part of the repository — PR #31 records it as untracked developer work that was deliberately left out. Provisioning `win-sdk/` is manual until a reviewed script is added under its own issue.
 - For Android: Android SDK / NDK pulled in automatically by `gclient`.
 
 ## One-time setup
@@ -228,12 +228,15 @@ Or, during active development, run `bun run dev` instead — the C++ WebUI contr
 
 ## Cross-compilation
 
-The shipped CI builds for every platform from a single Linux machine using `tools/fetch-cross-deps.sh` (sysroots) and `tools/setup-win-sdk.sh` (hermetic Windows SDK). The flow:
+The shipped CI builds for every platform from a single Linux machine using
+`tools/fetch-cross-deps.sh` (sysroots). The hermetic Windows SDK has **no
+committed provisioning script** — see the prerequisite note above — so a Windows
+cross-build needs `win-sdk/` populated by hand first. The flow:
 
 ```sh
 # One-time
 tools/fetch-cross-deps.sh
-tools/setup-win-sdk.sh             # Only if cross-building Windows from Linux
+# Windows cross-builds additionally need win-sdk/ populated manually.
 
 # Per build
 tools/sync-sources.sh --targets "linux win android"

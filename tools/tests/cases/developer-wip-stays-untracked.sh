@@ -58,15 +58,29 @@ if ! git -C "$ASTRO_ROOT" ls-files --error-unmatch tools/build.sh >/dev/null 2>&
     harness::fail "the tracked-file probe failed on tools/build.sh; ls-files is not working here"
 fi
 
-# And the reason has to survive: if PR #31's statement stops being findable, a
-# later reader cannot tell a deliberate exclusion from an oversight. The file
-# is referenced by the build documentation, so its absence from the repository
-# is a live inconsistency somebody must resolve deliberately.
+# The documentation must RECORD the absence, not promise the tool.
+#
+# It used to promise it in four places — a prerequisite line, a cross-compile
+# flow, and a row in two tool tables — which is how a script nobody had
+# committed came to look like part of the build. Mentioning the name is not
+# enough to pass: a future edit that re-promises it would satisfy a bare
+# name grep, so the assertion is on the statement of absence.
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-if ! grep -rq 'setup-win-sdk' "$ASTRO_ROOT/docs" "$ASTRO_ROOT/README.md" 2>/dev/null; then
-    harness::fail "no documentation references setup-win-sdk.sh any more;
-      either the tool is gone for good and this entry should go with it, or a
-      documentation change dropped the only record of what it is for."
+if ! grep -rqF 'No committed script provisions it' "$ASTRO_ROOT/docs"; then
+    harness::fail "the documentation no longer records that setup-win-sdk.sh is absent.
+      Either it was committed under its own issue — in which case remove this
+      entry in the same change — or a documentation edit went back to promising
+      a script the repository does not contain."
+fi
+
+# And it must not be promised as a runnable step anywhere.
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+# grep exits 0 only when it finds something, which is exactly the failure
+# condition — so the status IS the assertion, with no suppression needed.
+if promises="$(grep -rn '^[[:space:]]*tools/setup-win-sdk\.sh' \
+        "$ASTRO_ROOT/docs" "$ASTRO_ROOT/README.md")"; then
+    harness::fail "documentation presents setup-win-sdk.sh as a command to run:
+$promises"
 fi
 
 harness::pass

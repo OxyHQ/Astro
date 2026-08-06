@@ -142,7 +142,6 @@ Scripts marked **mutates** write into the Chromium checkout. Each of those verif
 | `tools/vendor-adblock-rust.sh` | **mutates** | vendor the Rust adblock dependencies |
 | `tools/fetch-cross-deps.sh` | **mutates** | sysroots; discards local modifications |
 | `tools/update-chromium.sh VER` | **mutates** | rebase onto a new Chromium version |
-| `tools/setup-win-sdk.sh` | no | hermetic Windows SDK |
 | `tools/astro-launch.sh` | no | launch a local build |
 | `tools/package-release.sh` | no | package for distribution |
 | `tools/package-{linux,deb,android,macos,windows}.sh` | no | per platform packaging |
