@@ -1,0 +1,213 @@
+{
+  "$schema": "./product.schema.json",
+  "manifest_version": 1,
+
+  "product": {
+    "short_name": "Astro",
+    "full_name": "Astro",
+    "installer_short_name": "Astro Installer",
+    "installer_full_name": "Astro Installer",
+    "copyright": "Copyright @LASTCHANGE_YEAR@ Oxy. All rights reserved."
+  },
+
+  "company": {
+    "short_name": "Oxy",
+    "full_name": "Oxy"
+  },
+
+  "urls": {
+    "company": "https://oxy.so",
+    "product": "https://oxy.so/astro",
+    "support": "https://oxy.so/astro/support",
+    "privacy": "https://oxy.so/astro/privacy",
+    "bug_tracker": "https://github.com/OxyHQ/Astro/issues"
+  },
+
+  "schemes": {
+    "trusted": "astro",
+    "untrusted": "astro-untrusted"
+  },
+
+  "version": {
+    "four_part_source": "chromium",
+    "release": 1
+  },
+
+  "user_agent": {
+    "expose_product_token": false,
+    "expose_brand_in_client_hints": false,
+    "decision_record": "docs/astro-next/architecture/product-manifest.md#user-agent-policy"
+  },
+
+  "channels": {
+    "stable": {
+      "display_suffix": "",
+      "is_release": true
+    },
+    "beta": {
+      "display_suffix": " Beta",
+      "is_release": true
+    }
+  },
+
+  "platforms": {
+    "linux": {
+      "package": "astro-browser",
+      "program_name": "astro",
+      "command_name": "astro",
+      "install_dir": "/opt/oxy/astro",
+      "desktop_id": "so.oxy.Astro",
+      "menu_name": "Astro",
+      "short_description": "Privacy-focused web browser by Oxy",
+      "full_description": "Astro is a Chromium-based browser that removes Google services and replaces them with privacy-respecting Oxy alternatives.",
+      "maintainer_name": "Oxy",
+      "maintainer_email": "hello@oxy.so",
+      "developer_name": "Oxy",
+      "project_license": "BSD-3-Clause AND LGPL-2.1-or-later AND Apache-2.0 AND MIT AND ISC",
+      "enrollment_dir": "/etc/astro/policies/enrollment",
+      "mime_types": [
+        "text/html",
+        "text/xml",
+        "application/xhtml+xml",
+        "x-scheme-handler/http",
+        "x-scheme-handler/https",
+        "x-scheme-handler/astro"
+      ]
+    },
+
+    "windows": {
+      "executable": "astro.exe",
+      "internal_name": "astro_exe",
+      "product_path_name": "Astro",
+      "company_path_name": "",
+      "safe_browsing_name": "astro",
+      "channels": {
+        "stable": {
+          "install_switch": "",
+          "install_suffix": "",
+          "logo_suffix": "",
+          "base_app_name": "Astro",
+          "base_app_id": "Astro",
+          "browser_prog_id_prefix": "AstroHTM",
+          "browser_prog_id_description": "Astro HTML Document",
+          "pdf_prog_id_prefix": "AstroPDF",
+          "pdf_prog_id_description": "Astro PDF Document",
+          "direct_launch_url_scheme": "astro",
+          "app_guid": "",
+          "active_setup_guid": {
+            "declared": false,
+            "reason": "Not minted. Astro has never shipped a Windows installer that registers Active Setup; reusing Chromium's would make an Astro install and a Chromium install fight over one registration. Mint one GUID per channel and record it here before the first Windows release.",
+            "issue": 9
+          },
+          "legacy_command_execute_clsid": {
+            "declared": false,
+            "reason": "Not minted. Same collision reasoning as active_setup_guid.",
+            "issue": 9
+          },
+          "toast_activator_clsid": {
+            "declared": false,
+            "reason": "Not minted. Notification activation is routed by CLSID; sharing Chromium's sends Astro's toasts to whichever registration won.",
+            "issue": 9
+          },
+          "elevator_clsid": {
+            "declared": false,
+            "reason": "Not minted. The elevation service runs with high privilege and is reached by CLSID, so a shared identifier is a privilege-boundary problem, not only a branding one.",
+            "issue": 9
+          },
+          "elevator_iid": {
+            "declared": false,
+            "reason": "Not minted. Must be minted together with elevator_clsid and its TypeLib.",
+            "issue": 9
+          },
+          "tracing_service_clsid": {
+            "declared": false,
+            "reason": "Not minted.",
+            "issue": 9
+          },
+          "tracing_service_iid": {
+            "declared": false,
+            "reason": "Not minted.",
+            "issue": 9
+          },
+          "sandbox_sid_prefix": {
+            "declared": false,
+            "reason": "Not minted. Sharing Chromium's AppContainer SID prefix means sharing AppContainer profiles with every other fork that also left it unchanged. Mint by the documented procedure and record the value; it must never be regenerated.",
+            "issue": 9
+          },
+          "supports_system_level": true,
+          "supports_set_as_default_browser": true
+        },
+        "beta": {
+          "install_switch": "astro-beta",
+          "install_suffix": " Beta",
+          "logo_suffix": "Beta",
+          "base_app_name": "Astro Beta",
+          "base_app_id": "Astro.Beta",
+          "browser_prog_id_prefix": "AstroBHTM",
+          "browser_prog_id_description": "Astro Beta HTML Document",
+          "pdf_prog_id_prefix": "AstroBPDF",
+          "pdf_prog_id_description": "Astro Beta PDF Document",
+          "direct_launch_url_scheme": "astro",
+          "app_guid": "",
+          "active_setup_guid": {
+            "declared": false,
+            "reason": "Not minted. Must differ from every other channel's.",
+            "issue": 9
+          },
+          "legacy_command_execute_clsid": {
+            "declared": false,
+            "reason": "Not minted. Must differ from every other channel's.",
+            "issue": 9
+          },
+          "toast_activator_clsid": {
+            "declared": false,
+            "reason": "Not minted. Must differ from every other channel's.",
+            "issue": 9
+          },
+          "elevator_clsid": {
+            "declared": false,
+            "reason": "Not minted. Must differ from every other channel's.",
+            "issue": 9
+          },
+          "elevator_iid": {
+            "declared": false,
+            "reason": "Not minted. Must differ from every other channel's.",
+            "issue": 9
+          },
+          "tracing_service_clsid": {
+            "declared": false,
+            "reason": "Not minted. Must differ from every other channel's.",
+            "issue": 9
+          },
+          "tracing_service_iid": {
+            "declared": false,
+            "reason": "Not minted. Must differ from every other channel's.",
+            "issue": 9
+          },
+          "sandbox_sid_prefix": {
+            "declared": false,
+            "reason": "Not minted. Must differ from every other channel's.",
+            "issue": 9
+          },
+          "supports_system_level": true,
+          "supports_set_as_default_browser": true
+        }
+      }
+    },
+
+    "macos": {
+      "bundle_id": "so.oxy.Astro",
+      "creator_code": "OxAs",
+      "team_id": {
+        "declared": false,
+        "reason": "No Apple Developer Team ID is recorded. Code signing and notarisation cannot succeed without it, so no macOS release channel may exist until it is declared. Upstream leaves MAC_TEAM_ID empty, which is correct for an unsigned developer build and wrong for a shipped one.",
+        "issue": 9
+      }
+    },
+
+    "android": {
+      "application_id": "so.oxy.astro",
+      "app_label": "Astro"
+    }
+  }
+}

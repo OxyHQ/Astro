@@ -1,0 +1,513 @@
+<!-- Hand-maintained. This is a design, not a measurement, so it is not
+     generated. Every claim it makes about how Chromium behaves is cited to a
+     file and line in the locked checkout, and every claim it makes about what
+     Astro ships today is cited to a member of a real artifact in releases/. -->
+
+# The Astro product manifest
+
+Issue [#9](https://github.com/OxyHQ/Astro/issues/9) (ASTRO-NEXT-006), under epic
+[#3](https://github.com/OxyHQ/Astro/issues/3). Depends on
+[#7](https://github.com/OxyHQ/Astro/issues/7).
+
+One validated file declares every value that makes a build call itself Astro.
+Everything else is **generated** from it. No script rewrites Chromium source in
+place, no packager holds its own copy of a product name, and no constant is
+spelled twice.
+
+## Status
+
+**Design only. Nothing generates anything yet, and that is deliberate.**
+
+The manifest's canonical home is `//astro/app/`, which does not exist until #7
+lands. Until then the reviewable contract lives here:
+
+| File | What it is |
+|---|---|
+| [`product.schema.json`](product.schema.json) | The schema. Complete and enforceable today. |
+| [`product.example.json`](product.example.json) | A valid instance carrying the names chosen below. |
+| this document | The design, the decisions and their reasons. |
+
+When #7 lands these two files **move** to `//astro/app/product.schema.json` and
+`//astro/app/product.json`. They are moved, never copied: a second copy of the
+schema is the same defect as a second copy of a product name.
+
+Nothing in the repository reads them yet. Do not read their presence as "Astro
+branding is generated now" — [`tools/apply-branding.sh`](../../../tools/apply-branding.sh)
+is still the only branding path, and §"Retiring the old branding path" says
+what has to be true before it can be deleted.
+
+## Measured facts this design is answering
+
+Every row was measured on a real shipped artifact or on the locked Chromium
+checkout `ae03f7fb2cf1215853896d6a4c15fdceee2badb7` (146.0.7680.177), not
+inferred.
+
+| # | Fact | Evidence |
+|---|---|---|
+| 1 | The Windows executable a person launches is **`chrome.exe`** | `astro/chrome.exe`, 2,575,872 bytes, in `releases/astro-0.1.0-windows-arm64-portable.zip` |
+| 2 | The installer's payload installs the same name | `Chrome-bin/chrome.exe` inside `chrome.7z`, extracted from `releases/astro-0.1.0-windows-arm64-installer.exe` |
+| 3 | PE product metadata **is** already Astro | that `chrome.exe`'s version resource: `ProductName=Astro`, `FileDescription=Astro`, `CompanyName=Oxy`, `LegalCopyright=Copyright 2026 Oxy. All rights reserved.` |
+| 4 | …but its filename identity is not | same resource: `OriginalFilename=chrome.exe`, `InternalName=chrome_exe`, supplied by `chrome/app/chrome_exe.ver:1-2`, which BRANDING does not feed |
+| 5 | Windows OS-facing identity is entirely Chromium's | `astro/chrome_elf.dll` from the same archive contains `ChromiumHTM` ×1, `ChromiumPDF` ×1, `Chromium` ×2 — the compiled `install_static` constants that decide the ProgIDs, the AppUserModelID, the install and user-data path component and the uninstall registry key |
+| 6 | The Linux binary is `chrome`, in `/opt/astro` | `./opt/astro/chrome` in `releases/astro-browser_0.1.0_amd64.deb`; `branding/astro.conf` declares `INSTALL_DIR="/opt/oxy/astro"`, so the config and the artifact disagree |
+| 7 | The Linux desktop entry declares a window class the browser never reports | shipped `astro-browser.desktop` says `StartupWMClass=astro-browser`; `chrome/common/channel_info_posix.cc:151` returns `chromium-browser.desktop`, and `chrome/browser/shell_integration_linux.cc:485-499` derives `WM_CLASS` from that |
+| 8 | The deb's maintainer address disagrees with the config | deb control `Maintainer: Oxy <hello@oxy.so>`; `branding/astro.conf` `MAINTAINER_EMAIL="team@oxy.so"` |
+| 9 | **11 of 18** keys in `branding/astro.conf` are read by nothing | counted in `tools/apply-branding.sh`, the file's own declared consumer, over both `$KEY` and `${KEY` forms; a nonexistent key reads 0 as a control |
+| 10 | 3 of the 7 files `apply-branding.sh` rewrites do not exist in Chromium 146 | `chrome/installer/linux/common/installer.include`, `chrome/installer/linux/debian/build.sh`, `chrome/installer/linux/rpm/build.sh` |
+| 11 | The blanket `.grd` replacement would silently drop 430 strings' translations | `chrome/app/chromium_strings.grd` holds **430 translateable** messages containing "Chromium" (and 33 non-translateable); GRIT keys `.xtb` entries by a fingerprint of the message text (`tools/grit/grit/extern/tclib.py:33-43`, reached from `tools/grit/grit/tclib.py:145-152`), and the file references **80** `.xtb` locale files |
+
+Read together: **the product name is already generated correctly through
+Chromium's own BRANDING mechanism, and everything the operating system
+actually registers is still Chromium's.** That is the gap this manifest closes,
+and it is a narrower gap than "branding is unfinished" suggests.
+
+## Format and location
+
+JSON, validated by a JSON Schema, sitting beside a from-scratch validator —
+the same shape as `browser.lock.json` + `browser.lock.schema.json` +
+`tools/lib/lock.py`. The issue's sketch was TOML; JSON is chosen because the
+repository already has exactly one schema-validation idiom and a second parser
+plus a second validation path is a worse cost than the syntax difference.
+
+The consistency is real, not aspirational: **`product.schema.json` validates
+under `tools/lib/lock.py`'s validator today, unmodified.** It uses only the
+keywords that validator implements, so the contract is enforced from the day it
+lands rather than from the day somebody writes a second validator. That
+validator treats an unimplemented keyword as a hard error rather than skipping
+it (`tools/lib/lock.py:80-92`) — a skipped constraint is an unenforced one —
+so the schema cannot quietly grow a rule nothing checks.
+
+```
+//astro/app/
+├── product.json            the manifest            (moves here from docs/ at #7)
+├── product.schema.json     the contract            (moves here from docs/ at #7)
+└── generated/              every output below; never hand-edited
+```
+
+`tools/lib/product.py` is the reader and validator, modelled on `lock.py`:
+
+```
+product.py --validate [MANIFEST]        schema + structural rules
+product.py --check-release CHANNEL      additionally: release-safety rules
+product.py --get PATH                   one value, e.g. platforms.windows.executable
+product.py --generate OUTDIR            write every generated file
+product.py --generate OUTDIR --check    regenerate into a temp dir and diff
+```
+
+The `--validate` / `--check-release` split mirrors `lock.py`'s
+`--validate` / `--check-remote`: the manifest at rest is allowed to record that
+an identifier has not been minted; a *release build* is not allowed to proceed
+on one.
+
+## Shape
+
+Nine top-level blocks. The full field list, with a description of every field
+and the upstream mechanism it feeds, is in
+[`product.schema.json`](product.schema.json); this is the map.
+
+| Block | Holds | Principal consumers |
+|---|---|---|
+| `manifest_version` | format version | every generator refuses an unknown one |
+| `product` | short/full/installer names, copyright | the generated `BRANDING` |
+| `company` | short/full company names | the generated `BRANDING`, Windows PE `CompanyName` |
+| `urls` | product identity URLs | about/version surfaces, package metadata |
+| `schemes` | `astro` and `astro-untrusted` | `//astro/common/url_constants` for [#11](https://github.com/OxyHQ/Astro/issues/11) |
+| `version` | how Astro's version relates to Chromium's | artifact names, package release, version surface |
+| `user_agent` | the UA decision, as asserted constants | the UA tests; nothing else |
+| `channels` | which channels exist and how they are named | every per-platform channel block |
+| `platforms` | per-OS public identity, `linux`/`windows`/`macos`/`android` | the generated per-platform inputs below |
+
+### The rule that keeps it small
+
+**Nothing derivable is declared.** If Chromium already computes a value from
+another declared value, the manifest does not carry it; the generator emits it
+and the schema rejects it as an undeclared field.
+
+Worked examples, each a field somebody would reasonably have added:
+
+| Not in the manifest | Because upstream derives it |
+|---|---|
+| macOS `.app` name, main executable name | `chrome/BUILD.gn:502` — `output_name = chrome_product_full_name` |
+| macOS Helper and Framework bundle names | `chrome/BUILD.gn:451-452` — `chrome_product_full_name + " Helper"` / `" Framework"` |
+| Windows uninstall registry key | `chrome/install_static/install_util.cc:336-344` — `Software\Microsoft\Windows\CurrentVersion\Uninstall\` + company + product + suffix |
+| Windows user-data directory | `install_util.cc:512-523` + `chrome/install_static/user_data_dir.cc:102` — company/product path + `User Data` |
+| Windows policy registry key | `install_util.cc:526-527` — `SOFTWARE\Policies\` + product path |
+| Linux `.desktop` basename, AppStream filename, `/usr/bin` symlink | `chrome/installer/linux/common/installer.py:407, 782, 794` — all `PACKAGE`-derived |
+| Linux per-channel package, install dir, menu name, RDN | `installer.py:405-414` — channel suffixes appended by upstream |
+| Android per-channel application id | `chrome/android/chrome_public_apk_tmpl.gni:26-31` — `+= "." + android_channel` |
+
+This is what "add a source scan that reports duplicated generated values" in
+the issue is really asking for, and the schema's `additionalProperties: false`
+does most of it before a scan is needed.
+
+## Public names, per platform
+
+The policy fixed on the issue: **user-facing and OS-facing identity is Astro;
+internal components keep their upstream names.** `chrome.dll`, `chrome_elf.dll`,
+`chrome_crashpad_handler`, `chrome_proxy.exe` and the `.pak` filenames stay as
+they are. They are build and runtime contracts, renaming them enlarges the
+downstream delta for no functional gain, and **branding is not incomplete
+because they keep Chromium names**. Rename an internal component only for a
+functional reason, and record it.
+
+### Windows: `astro.exe`, lowercase
+
+`platforms.windows.executable = "astro.exe"`.
+
+Lowercase, for four reasons in descending weight:
+
+1. **It matches the command name on every other platform.** Linux ships
+   `astro`, and a person, a script, a WebDriver `binary` path and a CI step
+   should not have to know which platform capitalises it.
+2. **Every shipping Windows browser is lowercase** — `chrome.exe`,
+   `msedge.exe`, `firefox.exe`, `brave.exe`, `opera.exe`. A capitalised
+   executable reads as a mistake, and process-name tooling (`taskkill /IM …`,
+   EDR allowlists, enterprise deployment docs) is written lowercase by habit.
+3. **The capitalised identity is already carried elsewhere, correctly.** The
+   Start-menu shortcut, the default-browser chooser entry and the install path
+   all come from `product_path_name`/`base_app_name`, which are `Astro`. Windows
+   never shows a person the raw filename unless they go looking.
+4. Upstream's own `ORIGINAL_FILENAME` is lowercase (`chrome/app/chrome_exe.ver:2`),
+   so the generated `.ver` stays shaped like the file it replaces.
+
+Renaming the Windows executable touches four places, all generated:
+
+| What | Upstream today | Why it must move together |
+|---|---|---|
+| build output name | `chrome/BUILD.gn:151-155` (`_chrome_output_name`) | the produced file |
+| import-reordering action | `chrome/BUILD.gn:83-90`, hardcoded `initialexe/chrome.exe` | it reads and rewrites the exe by name; miss it and the build breaks or silently ships the un-reordered binary |
+| PE filename identity | `chrome/app/chrome_exe.ver:1-2` → `chrome/app/chrome_version.rc.version:32,34` | otherwise `OriginalFilename` keeps saying `chrome.exe`, which is measured fact #4 today |
+| installer's idea of the exe | `chrome/installer/util/util_constants.cc:179` (`kChromeExe`) | shortcuts, uninstall command and repair paths are built from it |
+
+`kChromeDll` (`util_constants.cc:178`) is deliberately **not** in that list.
+
+### Linux: package `astro-browser`, command `astro`, `/opt/oxy/astro`
+
+| Field | Value | Reason |
+|---|---|---|
+| `package` | `astro-browser` | what the deb already ships; also fixes the `.desktop` basename, AppStream filename and `/usr/bin` symlink, which `installer.py` derives from it |
+| `program_name` | `astro` | the binary inside the install dir — this is the name a process list shows, and today it is `chrome` |
+| `command_name` | `astro` | `/usr/bin/astro`, which the deb already provides as a shim |
+| `install_dir` | `/opt/oxy/astro` | vendor-scoped, matching upstream's `/opt/chromium.org/chromium` and `/opt/google/chrome`. `astro.conf` already declares this; the shipped `/opt/astro` is the drift (fact #6) |
+| `desktop_id` | `so.oxy.Astro` | already used by the shipped AppStream metainfo |
+
+Two consequences worth stating because they are not obvious:
+
+- **`StartupWMClass` cannot be declared, it must be made true.**
+  `chrome/common/channel_info_posix.cc:151` hardcodes `chromium-browser.desktop`
+  under Chromium branding, and `WM_CLASS` is derived from it
+  (`chrome/browser/shell_integration_linux.cc:485-499`). The generated downstream
+  constant must become `<package>.desktop`; declaring the class in the desktop
+  file, as the shipped one does, changes nothing (fact #7).
+- **The channel suffixes are upstream's, not ours.** `installer.py:405-414`
+  already appends `-<channel>` to package and install dir, ` (<channel>)` to the
+  menu name and `.<channel>` to the RDN. The manifest declares stable's values
+  only; declaring per-channel Linux names would create a second, divergent rule.
+
+### macOS: `Astro.app`, executable `Astro`
+
+Nothing to choose and nothing to declare: `chrome/BUILD.gn:502` makes the bundle
+`Astro.app` with main executable `Astro` straight from `product.full_name`, and
+`chrome/BUILD.gn:451-452` makes the helpers `Astro Helper*.app` and the framework
+`Astro Framework.framework`. The capital `A` is correct here and is not an
+inconsistency with `astro.exe`: it is `CFBundleExecutable`, which must equal the
+bundle name, not a command a person types.
+
+The manifest carries only what upstream cannot derive: `bundle_id`,
+`creator_code`, `team_id`. **`team_id` is undeclared today** and modelled as such
+— code signing and notarisation cannot succeed without it, so no macOS release
+channel may exist until it is minted.
+
+### Android: `so.oxy.astro`, label `Astro`
+
+`chrome/android/chrome_public_apk_tmpl.gni:22-32` puts
+`chrome_public_manifest_package` in `declare_args()`, so the application id is a
+GN argument and needs no source change; the same block appends the channel
+suffix, so per-channel ids are derived, not declared. The launcher label
+replaces the Chromium string at
+`chrome/android/java/res_chromium_base/values/channel_constants.xml:10` through
+an Astro-owned resource, not an edit to that file.
+
+One constraint from outside this repository: Astro must **not** declare
+`android:sharedUserId="so.oxy.shared"`. Oxy's React Native apps share a keychain
+through that UID; a browser joining it would put every site credential inside the
+same sandbox as the identity vault. The application id `so.oxy.astro` sits in the
+same namespace and is fine — the shared UID is a separate declaration, and the
+generated manifest must never emit it.
+
+## Installation and update identifiers
+
+| Platform | Identifier | Source |
+|---|---|---|
+| Windows | install path, user-data dir, uninstall key, policy key | all derived from `product_path_name` + `company_path_name` + `install_suffix` |
+| Windows | AppUserModelID, ProgIDs, default-browser registration | `base_app_id`, `browser_prog_id_prefix`, `pdf_prog_id_prefix`, per channel |
+| Windows | Active Setup GUID, command-execute CLSID, toast activator CLSID, elevator CLSID/IID, tracing CLSID/IID, AppContainer SID prefix | declared per channel, **minted once, never regenerated** |
+| Linux | package, install dir, `/usr/bin` symlink, desktop id | `package`, `install_dir`, `command_name`, `desktop_id` |
+| macOS | bundle id, team id | `bundle_id`, `team_id` |
+| Android | application id | `application_id` |
+
+Three rules govern the identifier set:
+
+1. **A GUID is declared, never generated.** A build-time-generated GUID differs
+   on every build and orphans every registration it ever wrote. The schema
+   therefore models each one as an object with `declared: true/false`, exactly
+   like `browser.lock.schema.json`'s `thirdPartyEntry` — an unminted identifier
+   is *declared and greppable* rather than absent and invisible.
+2. **Every one of them must differ from Chromium's**, and from every other
+   channel's. Chromium's values are literal constants in
+   `chrome/install_static/chromium_install_modes.h:57-106`; two forks that both
+   kept them fight over one registration, one toast route and one AppContainer
+   profile. Cross-checking this is a validator rule, listed below.
+3. **`app_guid` is a plain string, and empty is a decision.** Upstream Chromium's
+   is the empty string, meaning no update-service integration
+   (`chromium_install_modes.h:46-47`). Modelling it as an identifier would force
+   an "undeclared" state onto a value that is legitimately empty, and the release
+   check would then refuse a correct manifest.
+
+Astro has minted **none** of the Windows identifiers. `--check-release windows`
+therefore fails today, naming all sixteen (eight per channel × two channels) —
+which is the accurate state of the world, stated loudly.
+
+## Icon and resource generation
+
+Canonical source: `branding/astro-logo.svg` (plus the coloured variant). Every
+raster is generated; none is committed as a hand-exported one-off.
+
+| Platform | Required outputs | Required by |
+|---|---|---|
+| Linux | `product_logo_{16,24,32,48,64,128,256}.png` | `chrome/installer/linux/BUILD.gn:293-303` names this exact set |
+| Windows | `win/tiles/Logo.png`, `win/tiles/SmallLogo.png`, the app `.ico` | `chrome/BUILD.gn:1470-1471` |
+| macOS | `mac/app.icns`, `mac/Assets.car` | `chrome/BUILD.gn:626-631` |
+| Android | mipmap set, adaptive foreground/background/monochrome | already in `branding/android/res/` |
+
+Validation on every generated raster — dimensions, alpha channel present, colour
+profile, and for `.icns`/`.ico` that the container holds every declared size.
+A silently-wrong icon is the branding defect nobody notices until a release
+screenshot.
+
+These are wired through GN by pointing **`branding_path_component`** at an
+Astro theme directory rather than by copying files after a sync. See the
+integration note below for why that one is not free.
+
+## Version and channel model
+
+**One version string reaches binaries, installers, update manifests, crash
+symbols and artifact filenames.** Today there are two: the shipped archive is
+named `astro-0.1.0-…` while the PE inside reports `146.0.7680.177`. That
+disagreement is the defect.
+
+**Decision: the four-part version is Chromium's, unmodified.**
+`chrome/VERSION` stays upstream's, and `chrome/version.gni:25` — a plain
+assignment, not a `declare_args()` — keeps reading it. Astro's own respin
+counter is `version.release`, and it is **metadata, not an ordering key**.
+
+Why this way:
+
+- A user, a security scanner and `astro://version` all read the same number
+  that upstream's advisories cite. "Is this build ≥ 146.0.7680.177?" stays
+  answerable.
+- Reduced-UA and UA-CH version semantics stay upstream-compatible for free.
+- Crash symbols keep matching upstream's version-keyed layout.
+
+What it costs, stated rather than hidden:
+
+> An Astro-only respin of the same Chromium version **cannot be delivered by a
+> version-comparing updater on Windows or macOS.** The four parts are identical,
+> so nothing orders the new build after the old one.
+
+Linux is unaffected: `installer.py:295, 399, 404` already carry a
+`package_release` field and build `versionfull` as `<version>-<release>`, which
+is exactly the slot `version.release` fills, and both dpkg and rpm order on it.
+
+Two exits, either of which is a deliberate decision recorded in the manifest
+rather than a silent divergence: wait for the next Chromium stable, or give
+Astro ownership of the PATCH component and accept that the number no longer
+matches upstream's advisories. The default is the first.
+
+Channels are `stable`, `beta`, `dev`, `canary`; only channels that actually
+ship may appear in the manifest. An identifier declared for a channel nobody
+builds is an invented fact, and its GUIDs would be reserved against nothing.
+
+## User-Agent policy
+
+**Astro exposes no product token, in the UA string or in User-Agent Client
+Hints. This is not a default that happens to hold — it is asserted.**
+
+The measured mechanism:
+
+- The UA string's product token is Chromium's `Chrome/<version>`. Astro adds
+  nothing to it.
+- `components/embedder_support/user_agent_utils.cc:166-168` adds
+  `version_info::GetProductName()` to the `Sec-CH-UA` brand list **only** under
+  `#if !BUILDFLAG(CHROMIUM_BRANDING)`. `build/BUILD.gn:26,31` sets
+  `CHROMIUM_BRANDING=true` whenever `is_chrome_branded` is false, which is
+  Astro's configuration. So the brand list is the greased entry plus
+  `{"Chromium", version}` and nothing else.
+
+The manifest carries `expose_product_token: false` and
+`expose_brand_in_client_hints: false` as `const false`, for a reason that only
+becomes visible once you follow the wiring:
+
+> `version_info::GetProductName()` **is** `PRODUCT_FULLNAME` from BRANDING —
+> `base/version_info/BUILD.gn:39-46` generates it from `branding_file_path`, and
+> `base/version_info/version_info_values.h.version:8` defines
+> `PRODUCT_NAME "@PRODUCT_FULLNAME@"`. Renaming the product is therefore one
+> `is_chrome_branded` flip away from changing a fingerprinting surface, as a
+> side effect of *branding*.
+
+The fields exist so a test can assert the negative and so that flip cannot
+happen unnoticed. No manifest field can turn a token on; changing the policy
+means editing the schema, which is a review.
+
+## String resources and localization
+
+**No global replacement inside Chromium resource files**, and the reason is
+sharper than style.
+
+GRIT keys `.xtb` translation entries by a fingerprint of the *message text*
+(`tools/grit/grit/extern/tclib.py:33-43`, via `tools/grit/grit/tclib.py:145-152`).
+`chrome/app/chromium_strings.grd` contains **430 translateable messages** whose
+text mentions Chromium, and references **80** `.xtb` locale files. A blanket
+`sed s/Chromium/Astro/g` changes all 430 message texts, changes all 430 ids, and
+every translation keyed to an old id stops matching — so those strings fall back
+to English in all 80 locales, with no error from any tool.
+
+The 33 messages marked `translateable="false"` — `IDS_PRODUCT_NAME` at
+`chromium_strings.grd:296` among them — carry no translations and are safe.
+That distinction is the whole design:
+
+- Astro owns a small GRD/GRDP that **overrides** the product-identity messages,
+  with stable ids and proper placeholders.
+- Messages Astro has not deliberately replaced keep upstream's text and keep
+  their translations.
+- The generated inputs come from the manifest; the resource file is not
+  hand-edited per release.
+- A test asserts placeholder compatibility between each overridden message and
+  the upstream message it replaces.
+
+## How the values reach Chromium
+
+Three mechanisms, in strict order of preference. The ratio matters: most of
+this is a GN argument, not a patch.
+
+**1. GN argument — no source change at all.**
+
+| Value | Argument | Declared at |
+|---|---|---|
+| the whole BRANDING file | `branding_file_path` | `build/config/chrome_build.gni:100-103` |
+| the branded theme directory | `branding_path_component` | `build/config/chrome_build.gni:79-98` |
+| Android application id | `chrome_public_manifest_package` | `chrome/android/chrome_public_apk_tmpl.gni:22-32` |
+
+`branding_file_path` alone carries `PRODUCT_FULLNAME`, `PRODUCT_SHORTNAME`,
+`COMPANY_FULLNAME`, `COMPANY_SHORTNAME`, `COPYRIGHT`, `MAC_BUNDLE_ID`,
+`MAC_CREATOR_CODE`, `MAC_TEAM_ID` and both installer names into
+`build/util/branding.gni:17-45` and `base/version_info/BUILD.gn:39-46` — i.e.
+the macOS bundle/helper/framework names, the Windows PE product fields, and
+`version_info::GetProductName()`. Point it at `//astro/app/generated/BRANDING`
+and that entire surface is Astro's with zero downstream delta.
+
+**2. Added files on the downstream branch — no upstream file modified.**
+`branding_path_component` builds paths of the form
+`//chrome/app/theme/$branding_path_component/…`, so the theme assets must live
+under `chrome/app/theme/`. Adding `chrome/app/theme/astro/` is a pure addition:
+no upstream file is edited, and an upstream rename shows up as a missing input
+rather than a merge conflict. The same applies to the Astro-owned string GRDP.
+
+**3. A minimal downstream edit — only where upstream hardcodes a name.**
+Four places, and they are exactly the ones §"Windows: `astro.exe`" lists, plus
+`chrome/common/channel_info_posix.cc:151` for the Linux desktop name. Each edit
+substitutes a generated constant for a literal; none adds logic. Every one of
+them is listed here so the count is reviewable and cannot grow quietly.
+
+## Rules the schema cannot express
+
+The validator owns these. **A rule that is in neither the schema nor this list
+is not enforced** — this list is the contract for `tools/lib/product.py`.
+
+Structural (`--validate`):
+
+1. An identifier with `declared: true` must carry a non-empty `value`; with
+   `declared: false` it must carry a `reason`. *(Confirmed necessary: this is
+   the one mutation of eleven that the schema alone does not catch — see below.)*
+2. Every channel named under `platforms.<os>.channels` must exist in top-level
+   `channels`, and vice versa. A one-sided join is how a channel acquires
+   identifiers nobody ships.
+3. Only `channels.stable` may have an empty `display_suffix`, and only
+   `platforms.windows.channels.stable` an empty `install_suffix` — two channels
+   installing to the same path is a silent overwrite.
+4. Every declared Windows identifier value must be unique across all channels,
+   and must differ from the Chromium constants in
+   `chrome/install_static/chromium_install_modes.h:57-106`.
+5. `platforms.windows.internal_name` must be `executable` with `.exe` replaced
+   by `_exe`, so the PE fields cannot disagree with the filename.
+6. `version.release` must be an integer ≥ 1.
+7. `platforms.linux.mime_types` must be non-empty, contain no duplicates, and
+   include `x-scheme-handler/http` and `x-scheme-handler/https` — a browser that
+   does not claim those cannot be made the default.
+8. `schemes.trusted` and `schemes.untrusted` must differ, and neither may be a
+   scheme the network stack already owns (`http`, `https`, `file`, `ftp`, `ws`,
+   `wss`, `data`, `blob`, `about`, `chrome`, `chrome-extension`, `javascript`).
+
+Release safety (`--check-release CHANNEL`, additionally):
+
+9. No identifier reachable from that channel may be `declared: false`.
+10. No URL anywhere in the manifest may resolve to `localhost`, `127.0.0.0/8`,
+    `::1`, a `.local` or `.internal` host, or use a scheme other than `https`.
+11. `platforms.macos.team_id` must be declared before a macOS release channel
+    may build.
+12. The channel must have `is_release: true`.
+
+The eleven-mutation exercise behind rule 1 is worth keeping: each mutation was
+applied to the example manifest and re-validated with `tools/lib/lock.py`'s
+validator. Ten were caught and named — a copyright missing `@LASTCHANGE_YEAR@`,
+a capitalised `Astro.exe`, a `http://localhost` product URL, an undeclared extra
+field, `expose_product_token: true`, a bumped `manifest_version`, a removed
+`bundle_id`, a `nightly` channel, a space inside `base_app_id`, and a schema
+using an unimplemented keyword. The eleventh — `declared: true` with no `value`
+— was not, which is why it heads the validator's list rather than being assumed.
+
+## Retiring the old branding path
+
+`tools/apply-branding.sh` and `branding/astro.conf` are removed from the Astro
+Next build once the generator exists. They cannot simply be deleted today: they
+are the only thing that puts `Astro` into the PE product fields, and measured
+fact #3 says that part currently works.
+
+What has to be true first:
+
+- [ ] `//astro/app/generated/BRANDING` is produced from the manifest and
+      `branding_file_path` points at it. This alone replaces everything
+      `apply-branding.sh` achieves that is not broken.
+- [ ] The Astro-owned string resource replaces the `.grd` `sed`.
+- [ ] The Linux `.info` file is generated, replacing the three `sed` targets
+      that no longer exist (fact #10).
+- [ ] `tools/package-*.sh` read identity from the manifest instead of holding
+      literals (`PKG_NAME="astro-browser"`, `/opt/astro`, `hello@oxy.so`).
+- [ ] A presubmit fails when any generated output is stale.
+
+Only then are `apply-branding.sh` and `astro.conf` deleted, together. Deleting
+the conf while the script survives, or vice versa, leaves a half-configured
+build that still looks configured — which is what facts #6, #8 and #9 already
+are.
+
+## What is blocked, and on what
+
+| Deliverable | Blocked on | Why |
+|---|---|---|
+| Manifest + schema + this design | — | done; reviewable now |
+| `tools/lib/product.py` validator | — | reads a file and applies rules; needs no Chromium |
+| Generated `BRANDING`, `product_config.gni`, C++ constants | [#7](https://github.com/OxyHQ/Astro/issues/7) | they are emitted into `//astro/app/generated/`, and `//astro` does not exist |
+| Astro theme directory + icon generation wired through GN | [#7](https://github.com/OxyHQ/Astro/issues/7) | needs the downstream branch to add `chrome/app/theme/astro/` |
+| Astro-owned string GRD/GRDP | [#7](https://github.com/OxyHQ/Astro/issues/7) | must be reachable from a GN target in the downstream tree |
+| Generated `//astro/common/url_constants` for the schemes | [#7](https://github.com/OxyHQ/Astro/issues/7) | the file lives in `//astro` |
+| Scheme *behaviour* — privileges, CORS, CSP, WebUI bindings | [#11](https://github.com/OxyHQ/Astro/issues/11) | this issue generates the names; #11 owns what they mean |
+| `astro://version` acceptance test | [#7](https://github.com/OxyHQ/Astro/issues/7) + [#11](https://github.com/OxyHQ/Astro/issues/11) | needs a build containing the overlay *and* a registered scheme; baseline finding 1 says no such build exists yet |
+| Windows executable rename | [#7](https://github.com/OxyHQ/Astro/issues/7) | three of its four edits are downstream source changes |
+| Minting the Windows GUIDs and the macOS Team ID | — | not blocked; blocks the first Windows and macOS releases |
+| Retiring `apply-branding.sh` | all of the above | see the checklist |
+
+**Do not implement anything in the #7 rows before #7 lands.** Generating into a
+`//astro` that does not exist means generating into the Astro repository's own
+`src/` overlay, which is the copy-into-Chromium path Astro Next exists to
+remove — and baseline finding 9 records what happens when overlay content
+reaches a compiler by a route nobody declared.
