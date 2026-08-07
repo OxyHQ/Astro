@@ -1,0 +1,61 @@
+{
+  "roots": {
+    "bookmark_bar": {
+      "children": [
+        {
+          "date_added": "13350096000000000",
+          "date_last_used": "13350268800000000",
+          "guid": "00000000-0000-4000-8000-0000000010a1",
+          "id": "10",
+          "name": "Example site",
+          "type": "url",
+          "url": "https://example.com/"
+        }
+      ],
+      "date_added": "13350096000000000",
+      "date_modified": "13350182400000000",
+      "guid": "00000000-0000-4000-8000-000000000001",
+      "id": "1",
+      "name": "Bookmarks bar",
+      "type": "folder"
+    },
+    "other": {
+      "children": [
+        {
+          "date_added": "13350096000000000",
+          "date_last_used": "0",
+          "guid": "00000000-0000-4000-8000-0000000020a1",
+          "id": "20",
+          "name": "Astro what's new",
+          "type": "url",
+          "url": "astro://whats-new/"
+        },
+        {
+          "date_added": "13350096000000000",
+          "date_last_used": "0",
+          "guid": "00000000-0000-4000-8000-0000000020a2",
+          "id": "21",
+          "name": "New tab (alias host)",
+          "type": "url",
+          "url": "chrome://newtab/"
+        }
+      ],
+      "date_added": "13350096000000000",
+      "date_modified": "13350182400000000",
+      "guid": "00000000-0000-4000-8000-000000000002",
+      "id": "2",
+      "name": "Other bookmarks",
+      "type": "folder"
+    },
+    "synced": {
+      "children": [],
+      "date_added": "13350096000000000",
+      "date_modified": "0",
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "id": "3",
+      "name": "Mobile bookmarks",
+      "type": "folder"
+    }
+  },
+  "version": 1
+}

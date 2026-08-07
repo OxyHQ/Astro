@@ -5,21 +5,24 @@ Astro is a Chromium fork that removes all Google services and replaces them with
 ## Build Commands
 
 ```bash
-tools/fetch-chromium.sh          # Fetch Chromium source (~55 GB, first time only)
-tools/sync-ungoogled.sh          # Get matching ungoogled-chromium patches
+tools/sync-sources.sh            # Check out every source at its locked commit
+tools/sync-ungoogled.sh          # Stage patches from the locked ungoogled checkout
 tools/apply-patches.sh           # Apply all patches (ungoogled + Astro)
 tools/sync-overlay.sh            # Copy Astro overlay into the Chromium tree
 tools/build.sh                   # Release build (uses all CPU cores)
 tools/build.sh Debug             # Debug build
 tools/install-local.sh           # Install to system
 tools/package-release.sh         # Package for distribution
-tools/update-chromium.sh VER     # Update to a new Chromium version
+tools/update-chromium.sh VER     # Propose a Chromium revision update
 tools/apply-branding.sh          # Apply branding from branding/astro.conf
 tools/vendor-adblock-rust.sh     # Vendor Rust adblock engine dependencies
+tools/generate-provenance.sh     # Record what a build was made from
+tools/baseline/generate-all.sh   # Regenerate the Astro Next baseline documents
 tools/tests/run.sh               # Build-safety suite (no Chromium checkout needed)
 ```
 
-`--dry-run` works on `apply-patches.sh`, `sync-overlay.sh` and `build.sh`: it
+`--dry-run` works on `sync-sources.sh`, `apply-patches.sh`, `sync-overlay.sh`
+and `build.sh`: it
 validates every required input and prints every planned operation without
 touching a file.
 
@@ -40,6 +43,38 @@ signal to stop and report it on the issue.
   step. A genuinely optional step is declared with `astro::optional <reason>`,
   which prints a structured `WARN [optional:<reason>]` and continues, so
   `grep -rn astro::optional tools/` is the complete list of tolerated failures.
+- **Never pipe `find` into `head`.** Once `head` has its N lines it closes the
+  pipe, `find` takes SIGPIPE, and `set -o pipefail` surfaces exit 141 — killing
+  the run with a stack trace instead of a verdict. It never fired on the
+  synthetic fixtures because `find` always finished first; it fires reliably
+  against a real checkout's 400,000 files. Bound the producer instead, or ask
+  git, which is usually both exact and cheaper. No scanner rule catches this
+  shape, which is why it is written down here.
+- **Only *untracked* `.rej` / `.orig` files are patch artifacts.** Chromium
+  ships 181 tracked `.orig` files — `cargo vendor` writes a `Cargo.toml.orig`
+  for every vendored Rust crate — so a `find`-based artifact check condemns a
+  pristine upstream checkout on sight. Measured on the real tree: 181 tracked
+  `.orig`, 0 tracked `.rej`, 0 untracked of either. Both checks ask git for
+  untracked files only: the pristine-tree guard before a run, the
+  post-application scan after the series is applied.
+- **Before blaming a patch for a `gn` failure, prove the GN args are the
+  committed ones.** The build reads its args from a file in the working tree, so
+  a one-character local edit is indistinguishable from the repository's own
+  configuration. Measured: an uncommitted `safe_browsing_mode = 1` in
+  `gn_args/linux.gn` produced `ERROR at //chrome/browser/safe_browsing/BUILD.gn:114:5:
+  Undefined identifier`, which was very nearly published as a composition defect
+  in two upstream ungoogled patches — with a temporary Astro-owned correction
+  written to repair a defect that does not exist. The committed value is `0`, and
+  at `0` the same tree generates 29,803 targets. `tools/build.sh` now reports
+  every key that differs from `HEAD` before configuring; read that block before
+  attributing a configuration failure to anything in `patches/`.
+- **A `gn gen` that fails writes no build graph, and `gn check` against no build
+  graph reports `0 errors`.** That reads exactly like "clean". Any check whose
+  pass and whose *nothing-was-measured* look identical needs a vacuity floor —
+  here, the target count `gn gen` prints. Related: the committed GN args and the
+  patch stack are coupled, so there is no same-configuration unpatched baseline
+  to difference against (the pristine tree fails at
+  `components/optimization_guide/core/inference/BUILD.gn:8:1: Assertion failed`).
 - **Never write into `chromium/src` without resolving it first** through
   `astro::resolve_chromium_src`. It requires the path to be a git work tree
   *whose top level is the path itself* — a `chromium/src` holding only the
@@ -54,6 +89,38 @@ signal to stop and report it on the issue.
 - Shared helpers live in `tools/lib/astro-common.sh`; every script sources it
   rather than re-implementing strict mode, logging or the guards.
 - Run `tools/tests/run.sh` before touching anything under `tools/`.
+
+**Source revisions are declared, never discovered.** `browser.lock.json` holds
+the full commit SHA of Chromium, depot_tools and the ungoogled patch set.
+
+- **Never `git pull` a build dependency**, and never let an env var or a CLI
+  flag select a version. `tools/update-chromium.sh` resolves a version to one
+  commit and updates the lock; the lock diff is the review.
+- **Never fall back to a similar version.** No exact tag means the command
+  fails. The old `git tag -l "$MAJOR.*" | tail -1` → `master` chain exited zero
+  while silently targeting a different browser.
+- **Never decide in CI whether to synchronise.** A job runs
+  `tools/sync-sources.sh` unconditionally, then `--verify-only`. Testing for an
+  existing `.git` treats a cache as source-of-truth state and is rejected by
+  the pattern scanner, which reads the workflow files too.
+- **Checkouts are detached at the locked commit.** A branch at the right commit
+  can be advanced afterwards; that is how a pinned build stops being pinned.
+- `ASTRO_ALLOW_DIRTY_CHROMIUM=1` has no effect under `--verify-only`. A gate an
+  env var can wave through is not a gate.
+- Provenance is generated from the trees on disk, never from the lock — the
+  disagreement between them is the fact worth recording.
+
+**The baseline is generated, not hand-maintained.** `docs/astro-next/baseline/`
+is produced by `tools/baseline/*` and CI runs `generate-all.sh --check`, so a
+document that stops matching the repository fails the build. Never hand-edit a
+file whose header says it is generated — the next check reverts the edit with
+no explanation. Dispositions in `patch-dispositions.json` are the one
+hand-maintained input, and the join against the two patch series is strict in
+both directions.
+
+Anything the baseline could not measure says `not-captured` and names the
+command that will capture it. Do not fill one in from reasoning: the whole
+point is that later issues can tell a measurement from an expectation.
 
 **Known defects, declared rather than hidden.** Do not "fix" these silently, and
 do not let a build imply they are resolved:

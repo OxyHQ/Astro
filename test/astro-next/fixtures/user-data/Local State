@@ -1,0 +1,34 @@
+{
+  "astro": {
+    "baseline_chromium_version": "146.0.7680.177"
+  },
+  "profile": {
+    "info_cache": {
+      "Default": {
+        "active_time": 0,
+        "background_apps": false,
+        "is_ephemeral": false,
+        "name": "Astro Fixture",
+        "shortcut_name": ""
+      },
+      "Profile 1": {
+        "active_time": 0,
+        "background_apps": false,
+        "is_ephemeral": false,
+        "name": "Astro Fixture Two",
+        "shortcut_name": ""
+      }
+    },
+    "last_used": "Default",
+    "profile_counts_reported": "13350182400000000",
+    "profiles_order": [
+      "Default",
+      "Profile 1"
+    ]
+  },
+  "user_experience_metrics": {
+    "stability": {
+      "exited_cleanly": true
+    }
+  }
+}

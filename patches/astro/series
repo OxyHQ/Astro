@@ -14,7 +14,6 @@
 004-default-search-duckduckgo.patch
 005-branding-components-strings.patch
 006-user-agent-astro.patch
-007-oxy-auth-build-hook.patch
 008-os-crypt-visibility.patch
 009-branding-settings-strings.patch
 010-oxy-theme-color.patch
@@ -42,7 +41,6 @@
 032-linux-desktop-name.patch
 033-shared-settings-google-to-oxy.patch
 034-profiles-google-to-oxy.patch
-035-auth-https-callback.patch
 036-navigator-auth-intercept.patch
 037-builtin-provider-astro-scheme.patch
 038-dino-game-astro-scheme.patch

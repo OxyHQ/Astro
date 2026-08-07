@@ -1,0 +1,84 @@
+# Astro by Oxy - Linux ITERATION build (NOT a release configuration)
+#
+# For everything that is not a release or a package test: compiling a patch
+# change, checking that #7's build hook links, rebuilding after a rebase.
+#
+# `gn_args/linux.gn` is the release configuration and stays that way. It sets
+# is_official_build = true and use_thin_lto = true, which is why a build from
+# scratch there costs hours: ThinLTO defers optimisation to one enormous link,
+# and a static (non-component) link of `chrome` cannot be parallelised away.
+# Measured on a 32-core machine: 72,184 object files at ~895/min, then the LTO
+# link. Nothing about that is a tooling problem — the CPU is saturated the whole
+# time — it is the price of the configuration, and it is worth paying only when
+# the artefact being produced is the release artefact.
+#
+# This file pays none of it:
+#
+#   is_official_build = false    no whole-program optimisation
+#   use_thin_lto      = false    the link stops being the long pole
+#   is_component_build = true    chrome links against shared libraries, so a
+#                                one-file change relinks in seconds
+#   cc_wrapper = "ccache"        a rebuild after a patch change, a rebase or a
+#                                branch switch hits the cache instead of
+#                                recompiling 72,184 objects
+#
+# A binary built from this file is for development only. It is NOT what
+# tools/package-release.sh should ever see, and any measurement about release
+# size, startup cost or optimisation made against it is meaningless.
+#
+# Usage:
+#   tools/build.sh Release linux --gn-args gn_args/linux_dev.gn
+#
+# tools/build.sh reports every key that differs from the committed release args
+# before configuring, so a build made this way announces itself.
+
+# Branding — identical to release, so the product behaves the same.
+google_chrome_branding = false
+chrome_pgo_phase = 0
+
+# De-Google flags — identical to release. Diverging here would make the
+# iteration build test something other than the product.
+clang_use_chrome_plugins = false
+disable_fieldtrial_testing_config = true
+enable_hangout_services_extension = false
+enable_mdns = false
+enable_remoting = false
+enable_reporting = false
+enable_service_discovery = false
+enable_supervised_users = true
+enable_widevine = true
+exclude_unwind_tables = true
+safe_browsing_mode = 0
+treat_warnings_as_errors = false
+use_official_google_api_keys = false
+use_unofficial_version_number = false
+google_api_key = ""
+google_default_client_id = ""
+google_default_client_secret = ""
+
+# The speed. This is the entire difference from gn_args/linux.gn.
+is_official_build = false
+use_thin_lto = false
+is_component_build = true
+cc_wrapper = "ccache"
+
+is_debug = false
+symbol_level = 0
+blink_symbol_level = 0
+enable_iterator_debugging = false
+use_lld = true
+
+# Proprietary codecs (media playback)
+proprietary_codecs = true
+ffmpeg_branding = "Chrome"
+
+# System libraries (use bundled versions for build reliability)
+use_system_harfbuzz = false
+use_system_freetype = false
+use_gnome_keyring = false
+use_sysroot = true
+
+# Target
+target_os = "linux"
+target_cpu = "x64"
+build_with_tflite_lib = false
