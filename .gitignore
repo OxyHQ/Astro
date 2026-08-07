@@ -25,3 +25,11 @@ Thumbs.db
 *.swp
 *.swo
 ~/.config/
+
+# Python bytecode. A tracked .pyc is rewritten by every suite run, so the
+# working tree is never clean — which collides head-on with the --verify-only
+# and attributable-tree gates. Worse, the filename encodes the interpreter
+# version, so a different Python leaves the tracked file STALE rather than
+# rewriting it: it rots silently instead of showing up as a diff.
+__pycache__/
+*.pyc
