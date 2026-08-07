@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/OxyHQ/Astro/docs/astro-next/policy/feature-manifest.schema.json",
+  "title": "Astro Next feature manifest",
+  "description": [
+    "Every Chromium or Astro capability Astro must take a decision about, with that decision.",
+    "",
+    "Validated by tools/policy/manifest.py, which implements this schema directly rather than",
+    "importing a validator library: a generator that cannot run until somebody installs a package",
+    "is a generator that stops being run. The tool asserts it supports every keyword this file",
+    "uses, so an unsupported keyword fails loudly instead of becoming decorative.",
+    "",
+    "TWO STATE FIELDS, AND THE DISTINCTION IS THE POINT.",
+    "`observed_state` is what the CURRENT legacy build does, evidence-backed and citable.",
+    "`state` is the Astro Next DECISION. They are separate fields so that 'an inherited patch",
+    "disables this' can never be silently promoted into 'we decided to disable this'. A downstream",
+    "issue reading one entry can tell what it inherits from what has been chosen."
+  ],
+  "type": "object",
+  "required": ["version", "states", "features"],
+  "properties": {
+    "version": { "type": "integer" },
+    "states": {
+      "type": "object",
+      "description": "The state vocabulary, defined in this file so a reader never has to guess.",
+      "required": [
+        "KEEP",
+        "REPLACE",
+        "DISABLE_BUILD",
+        "DISABLE_RUNTIME",
+        "DORMANT",
+        "INVESTIGATE"
+      ]
+    },
+    "features": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/feature" }
+    }
+  },
+  "$defs": {
+    "state": {
+      "type": "string",
+      "enum": [
+        "KEEP",
+        "REPLACE",
+        "DISABLE_BUILD",
+        "DISABLE_RUNTIME",
+        "DORMANT",
+        "INVESTIGATE"
+      ]
+    },
+    "observed_state": {
+      "type": "string",
+      "description": [
+        "What the current legacy build does. `NOT_BUILT` is its own value and not a synonym for",
+        "DORMANT: baseline finding 1 measured that nothing links the Astro overlay into the build",
+        "graph, so every overlay capability is absent from today's binary through a build defect",
+        "(#7) rather than through anybody's decision. Recording that as DORMANT would invent a",
+        "decision nobody took."
+      ],
+      "enum": [
+        "PRESENT",
+        "REMOVED_BY_PATCH",
+        "DISABLED_BY_PATCH",
+        "UNREACHABLE",
+        "NOT_BUILT",
+        "NOT_MEASURED"
+      ]
+    },
+    "feature": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "area",
+        "observed_state",
+        "observed_evidence",
+        "state",
+        "rationale",
+        "owner_issue",
+        "upstream_component",
+        "user_surface",
+        "network",
+        "persistence",
+        "incognito",
+        "build_flags",
+        "tests"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "Stable, unique, kebab-case. Code and presubmits reference this."
+        },
+        "title": { "type": "string" },
+        "area": {
+          "type": "string",
+          "enum": [
+            "core-browser",
+            "google-provider",
+            "astro-product",
+            "inherited-privacy-patch"
+          ]
+        },
+        "observed_state": { "$ref": "#/$defs/observed_state" },
+        "observed_evidence": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": [
+            "file:line, a patch name, or a named baseline finding. Required with no exception:",
+            "an observed state with no evidence is an assertion, and this document exists to stop",
+            "assertions being cited as measurements."
+          ]
+        },
+        "state": { "$ref": "#/$defs/state" },
+        "rationale": { "type": "string" },
+        "owner_issue": { "type": "integer" },
+        "routed_to_issue": {
+          "type": "integer",
+          "description": [
+            "Set when the decision is not this manifest's to take. Security-relevant capabilities",
+            "-- Safe Browsing, certificate verification, sandboxing, update integrity -- belong to",
+            "#20; they are listed here so the matrix is complete and routed so nobody reads the",
+            "listing as a decision."
+          ]
+        },
+        "upstream_component": { "type": "string" },
+        "replacement_component": { "type": "string" },
+        "user_surface": { "type": "string" },
+        "network": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": [
+            "Endpoint ids from the endpoint manifest, or the single literal `none`. Joined",
+            "strictly in both directions: an unknown id fails, and an endpoint whose",
+            "owning_feature is not declared here fails."
+          ]
+        },
+        "persistence": { "type": "string" },
+        "incognito": {
+          "type": "string",
+          "enum": ["disabled", "same-as-normal", "isolated", "not-applicable", "undecided"]
+        },
+        "build_flags": { "type": "array", "items": { "type": "string" } },
+        "tests": { "type": "array", "items": { "type": "string" } },
+        "investigate": {
+          "type": "object",
+          "required": ["question", "answered_by"],
+          "description": [
+            "Required whenever state is INVESTIGATE. `question` is the specific thing that is not",
+            "known; `answered_by` is the command, experiment or document that settles it. An",
+            "INVESTIGATE with no way to leave it is a permanent unknown wearing a temporary label."
+          ],
+          "properties": {
+            "question": { "type": "string" },
+            "answered_by": { "type": "string" }
+          }
+        },
+        "blocks": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "description": "Issues that cannot be designed correctly until this entry has a state."
+        },
+        "blocks_reason": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

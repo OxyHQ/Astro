@@ -1,0 +1,2460 @@
+{
+  "_comment": [
+    "Astro Next feature manifest \u2014 issue #10.",
+    "",
+    "Every capability Astro must take a decision about, with the decision, the evidence for",
+    "what the current build does, and the owner.",
+    "",
+    "TWO STATE FIELDS. `observed_state` is what the CURRENT legacy build does and is",
+    "evidence-backed. `state` is the Astro Next DECISION. They are separate so that 'an",
+    "inherited patch disables this' is never silently promoted into 'we decided to disable",
+    "this' \u2014 most of the entries below inherit a behaviour nobody chose.",
+    "",
+    "`observed_state: NOT_BUILT` is not a synonym for DORMANT. Baseline finding 1 measured",
+    "that nothing links the Astro overlay into the build graph, so every Astro capability is",
+    "absent from today's binary through a build defect owned by #7. The validator rejects",
+    "DORMANT on a NOT_BUILT entry for exactly that reason.",
+    "",
+    "Validated and rendered by tools/policy/manifest.py. Schema:",
+    "feature-manifest.schema.json. State vocabulary: README.md."
+  ],
+  "version": 1,
+  "states": {
+    "KEEP": "Ship the capability with upstream Chromium's implementation and provider.",
+    "REPLACE": "The capability survives; the implementation or the provider does not. Names a replacement.",
+    "DISABLE_BUILD": "The code is absent from the binary, through stable build configuration. Falsifiable by a symbol or string scan.",
+    "DISABLE_RUNTIME": "The code IS in the binary and is deliberately never registered or reached. Asserts presence AND unreachability. Still a live endpoint for threat-model purposes.",
+    "DORMANT": "Present, unreachable as a consequence of the surrounding arrangement rather than of a decision. Must name the mechanism and carry an expiry.",
+    "INVESTIGATE": "No decision. Requires a specific question and the thing that answers it. Not permitted at release cutover."
+  },
+  "features": [
+    {
+      "id": "accessibility",
+      "title": "Accessibility",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//ui/accessibility",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "adblock-engine",
+      "title": "Ad and tracker blocking engine",
+      "area": "astro-product",
+      "observed_state": "NOT_BUILT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/adblock/ \u2014 engine, service, tab helper, throttle, Rust FFI",
+        "patches/astro/045 (throttle), 052 (tab helper) and 053 (toolbar button) are all structurally malformed and do not apply (baseline finding 3)",
+        "Baseline finding 1: the overlay is not in the build graph"
+      ],
+      "state": "REPLACE",
+      "rationale": "The capability is core to the product and survives. The integration does not: the engine is reached from a URL loader throttle through a Rust FFI boundary, and #18 requires sequence-safe matching against validated immutable snapshots.",
+      "owner_issue": 18,
+      "upstream_component": "//chrome/browser/oxy/adblock",
+      "user_surface": "toolbar shield button and bubble",
+      "network": [
+        "none"
+      ],
+      "persistence": "oxy.adblock.* prefs; filter-list files on disk",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "#18: negative and fuzz coverage on the FFI boundary and the filter parser"
+      ],
+      "replacement_component": "//astro/browser/adblock (issue #18)"
+    },
+    {
+      "id": "adblock-list-updates",
+      "title": "Ad-blocker filter-list updates",
+      "area": "astro-product",
+      "observed_state": "NOT_BUILT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc names eleven list URLs across three third-party hosts",
+        "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_updater.cc",
+        "Baseline finding 1"
+      ],
+      "state": "REPLACE",
+      "rationale": "Lists are fetched over plain HTTPS from third parties with no signature and no integrity check, and a filter list is code that decides which requests a browser makes. #19 requires signed, integrity-checked, atomic and recoverable updates.",
+      "owner_issue": 19,
+      "upstream_component": "//chrome/browser/oxy/adblock",
+      "user_surface": "adblock settings, per-list toggles",
+      "network": [
+        "adblock-list-abp-downloads",
+        "adblock-list-easylist",
+        "adblock-list-yoyo"
+      ],
+      "persistence": "downloaded list files and their metadata",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#19: signature verification, atomic swap, rollback on a corrupt download"
+      ],
+      "replacement_component": "//astro/browser/adblock/updater (issue #19)"
+    },
+    {
+      "id": "alia",
+      "title": "Alia AI panel",
+      "area": "astro-product",
+      "observed_state": "NOT_BUILT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/webui/astro_alia_ui.cc",
+        "src/chrome/browser/oxy/oxy_alia_side_panel.cc",
+        "patches/astro/047-051 register the side-panel entry, action and icon",
+        "Baseline finding 1: nothing in the committed patch stack links src/chrome/browser/oxy into the build graph, so no Astro WebUI controller is compiled into any binary built from committed source."
+      ],
+      "state": "REPLACE",
+      "rationale": "Served today from `chrome://alia` by a controller that reads its assets from disk beside the executable. The epic requires privileged resources be packaged through GN/GRIT with strict CSP and Trusted Types, and requires there be no canonical chrome://astro-* product URLs. REPLACE covers both moves.",
+      "owner_issue": 17,
+      "upstream_component": "//chrome/browser/oxy/webui",
+      "user_surface": "chrome://alia",
+      "network": [
+        "alia-api"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "#14's CSP and Trusted Types assertions; #12's process-lock assertions"
+      ],
+      "replacement_component": "//astro/browser/ui/webui (issue #14)",
+      "blocks": [
+        11
+      ],
+      "blocks_reason": "#11 must enumerate which internal pages exist and which are trusted (astro://) versus isolated (astro-untrusted://). That list is this set, so the trust model cannot be written without it."
+    },
+    {
+      "id": "astro-adblock-webui",
+      "title": "Ad blocker's WebUI page",
+      "area": "astro-product",
+      "observed_state": "UNREACHABLE",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/adblock/webui/astro_adblock_ui.cc is committed",
+        "patches/astro/054-adblock-webui-register.patch is structurally malformed and does not apply (baseline finding 3), AND a whole-file overlay copy of chrome_web_ui_configs.cc reverts it \u2014 declared defect 2 in AGENTS.md, reaching a compiler for the first time in baseline finding 9"
+      ],
+      "state": "REPLACE",
+      "rationale": "The page exists and is registered by nothing. This is the clearest DORMANT-shaped capability in the repository \u2014 and it is not DORMANT, because two known defects cause it rather than a design. Recording it as dormant would hide #7's work.",
+      "owner_issue": 18,
+      "upstream_component": "//chrome/browser/oxy/adblock/webui",
+      "user_surface": "none today",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "replacement_component": "//astro/browser/ui/webui (issues #14, #18)",
+      "blocks": [
+        11
+      ],
+      "blocks_reason": "One more internal page the scheme's host list must account for."
+    },
+    {
+      "id": "astro-crash-reporting",
+      "title": "Astro crash reporting",
+      "area": "astro-product",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/ungoogled-chromium/disable-crash-reporter.patch"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Crash reporting is off. Whether Astro wants its own is undecided; if it does, it is a new endpoint carrying process memory, which is the most sensitive payload in the manifest.",
+      "owner_issue": 25,
+      "upstream_component": "//components/crash",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Does Astro collect crash reports? If yes: opt-in or opt-out, what is redacted, and where does it go?",
+        "answered_by": "A product decision on this issue, then an endpoint entry and a contract in #28 before any code exists."
+      }
+    },
+    {
+      "id": "astro-error-page",
+      "title": "Astro error page",
+      "area": "astro-product",
+      "observed_state": "NOT_BUILT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/webui/astro_error_ui.cc",
+        "Baseline finding 1: nothing in the committed patch stack links src/chrome/browser/oxy into the build graph, so no Astro WebUI controller is compiled into any binary built from committed source."
+      ],
+      "state": "REPLACE",
+      "rationale": "Served today from `chrome://astro-error` by a controller that reads its assets from disk beside the executable. The epic requires privileged resources be packaged through GN/GRIT with strict CSP and Trusted Types, and requires there be no canonical chrome://astro-* product URLs. REPLACE covers both moves.",
+      "owner_issue": 14,
+      "upstream_component": "//chrome/browser/oxy/webui",
+      "user_surface": "chrome://astro-error",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "#14's CSP and Trusted Types assertions; #12's process-lock assertions"
+      ],
+      "replacement_component": "//astro/browser/ui/webui (issue #14)",
+      "blocks": [
+        11
+      ],
+      "blocks_reason": "#11 must enumerate which internal pages exist and which are trusted (astro://) versus isolated (astro-untrusted://). That list is this set, so the trust model cannot be written without it."
+    },
+    {
+      "id": "astro-internal-schemes",
+      "title": "First-class astro:// and astro-untrusted:// schemes",
+      "area": "astro-product",
+      "observed_state": "PRESENT",
+      "observed_evidence": [
+        "patches/astro/011-astro-url-scheme-alias.patch \u2014 described in docs/astro-next/baseline/patch-inventory.md as 'a cosmetic alias, not a real scheme'",
+        "Twelve further patches (021-030, 037, 040-043) carry the alias through the omnibox, URL fixer, session restore, navigation controller and web-app code",
+        "Four of them do not apply at the locked revision: 023, 027 (baseline finding 3)"
+      ],
+      "state": "REPLACE",
+      "rationale": "Today astro:// is a display alias rewritten to chrome:// at navigation time. The epic requires a real URL, origin, SiteURL, NavigationEntry and process-lock scheme, plus a separate astro-untrusted:// for isolated content. That is a clean cut: the alias goes entirely, and #13 migrates persisted legacy URLs.",
+      "owner_issue": 11,
+      "upstream_component": "//content/public/common/url_constants.h and 13 patched Chromium files",
+      "user_surface": "omnibox display, copied URLs, session restore, bookmarks",
+      "network": [
+        "none"
+      ],
+      "persistence": "astro:// URLs already written into history, bookmarks and session files",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#12's origin, SiteInstance and process-lock assertions"
+      ],
+      "replacement_component": "//astro (issue #7)",
+      "blocks": [
+        12,
+        13
+      ],
+      "blocks_reason": "Everything downstream of the scheme depends on this decision being taken first, which is why the epic orders #11 \u2192 #12 \u2192 #13."
+    },
+    {
+      "id": "astro-metrics",
+      "title": "Astro opt-in metrics",
+      "area": "astro-product",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No committed Astro source or patch implements metrics collection"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "There is no Astro telemetry today. Recording that as a decision matters: the manifest's job is to make adding one a reviewed change rather than an unnoticed one.",
+      "owner_issue": 10,
+      "upstream_component": "none",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Does Astro collect any usage data? The default answer is no, and the value of writing it down is that the next person to want some has to change this file.",
+        "answered_by": "A product decision on this issue."
+      }
+    },
+    {
+      "id": "astro-newtab",
+      "title": "Astro New Tab Page",
+      "area": "astro-product",
+      "observed_state": "NOT_BUILT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/webui/astro_ntp_ui.cc",
+        "patches/astro/055-ntp-webui-register.patch and 056-ntp-redirect-to-astro.patch are both structurally malformed and do not apply (baseline finding 3)",
+        "Baseline finding 1: nothing in the committed patch stack links src/chrome/browser/oxy into the build graph, so no Astro WebUI controller is compiled into any binary built from committed source."
+      ],
+      "state": "REPLACE",
+      "rationale": "Served today from `chrome://astro-ntp` by a controller that reads its assets from disk beside the executable. The epic requires privileged resources be packaged through GN/GRIT with strict CSP and Trusted Types, and requires there be no canonical chrome://astro-* product URLs. REPLACE covers both moves.",
+      "owner_issue": 22,
+      "upstream_component": "//chrome/browser/oxy/webui",
+      "user_surface": "chrome://astro-ntp",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "#14's CSP and Trusted Types assertions; #12's process-lock assertions"
+      ],
+      "replacement_component": "//astro/browser/ui/webui (issue #14)",
+      "blocks": [
+        11
+      ],
+      "blocks_reason": "#11 must enumerate which internal pages exist and which are trusted (astro://) versus isolated (astro-untrusted://). That list is this set, so the trust model cannot be written without it."
+    },
+    {
+      "id": "astro-settings",
+      "title": "Astro settings surface",
+      "area": "astro-product",
+      "observed_state": "NOT_BUILT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/webui/astro_settings_ui.cc and astro_settings_handler.cc",
+        "The epic requires Astro reuse Chromium Settings rather than duplicate a generic preference editor, which is what the current Mojo handler is",
+        "Baseline finding 1: nothing in the committed patch stack links src/chrome/browser/oxy into the build graph, so no Astro WebUI controller is compiled into any binary built from committed source."
+      ],
+      "state": "REPLACE",
+      "rationale": "Served today from `chrome://settings` by a controller that reads its assets from disk beside the executable. The epic requires privileged resources be packaged through GN/GRIT with strict CSP and Trusted Types, and requires there be no canonical chrome://astro-* product URLs. REPLACE covers both moves.",
+      "owner_issue": 15,
+      "upstream_component": "//chrome/browser/oxy/webui",
+      "user_surface": "chrome://settings",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "#14's CSP and Trusted Types assertions; #12's process-lock assertions"
+      ],
+      "replacement_component": "//astro/browser/ui/webui (issue #14)",
+      "blocks": [
+        11
+      ],
+      "blocks_reason": "#11 must enumerate which internal pages exist and which are trusted (astro://) versus isolated (astro-untrusted://). That list is this set, so the trust model cannot be written without it."
+    },
+    {
+      "id": "astro-updates",
+      "title": "Astro browser updates",
+      "area": "astro-product",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/extra/iridium-browser/updater-disable-auto-update.patch"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Astro has no update path. An un-updatable browser accumulates every Chromium CVE published after its build date, so this is a security decision before it is a product one.",
+      "owner_issue": 25,
+      "upstream_component": "//chrome/updater",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "How does Astro update, over which endpoint, with which signing and rollback story?",
+        "answered_by": "#20 for update integrity and trust roots; #25 for packaging, transport and staged rollout."
+      },
+      "blocks": [
+        20,
+        25
+      ]
+    },
+    {
+      "id": "astro-whats-new",
+      "title": "What's New page",
+      "area": "astro-product",
+      "observed_state": "NOT_BUILT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/webui/astro_whats_new_ui.cc",
+        "Baseline finding 1: nothing in the committed patch stack links src/chrome/browser/oxy into the build graph, so no Astro WebUI controller is compiled into any binary built from committed source."
+      ],
+      "state": "REPLACE",
+      "rationale": "Served today from `chrome://whats-new` by a controller that reads its assets from disk beside the executable. The epic requires privileged resources be packaged through GN/GRIT with strict CSP and Trusted Types, and requires there be no canonical chrome://astro-* product URLs. REPLACE covers both moves.",
+      "owner_issue": 14,
+      "upstream_component": "//chrome/browser/oxy/webui",
+      "user_surface": "chrome://whats-new",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "#14's CSP and Trusted Types assertions; #12's process-lock assertions"
+      ],
+      "replacement_component": "//astro/browser/ui/webui (issue #14)",
+      "blocks": [
+        11
+      ],
+      "blocks_reason": "#11 must enumerate which internal pages exist and which are trusted (astro://) versus isolated (astro-untrusted://). That list is this set, so the trust model cannot be written without it."
+    },
+    {
+      "id": "autofill",
+      "title": "Autofill addresses and payments",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//components/autofill",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "beforeunload-disabled",
+      "title": "Disabled beforeunload dialogs",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Listed in the epic's inherited-patch review set"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Suppressing beforeunload removes a nuisance and also removes 'you have unsaved changes'.",
+      "owner_issue": 8,
+      "upstream_component": "//third_party/blink",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Suppressing beforeunload removes a nuisance and also removes 'you have unsaved changes'. Nothing in the committed repository records why it was taken.",
+        "answered_by": "#8's curation of the aggregate inherited behaviour, with #20 for the security-relevant half."
+      }
+    },
+    {
+      "id": "bookmarks",
+      "title": "Bookmarks",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//components/bookmarks",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "canvas-fingerprint-noise",
+      "title": "Canvas and text fingerprinting noise",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/extra/bromite/flag-fingerprinting-canvas-image-data-noise.patch",
+        "patches/ungoogled/extra/bromite/fingerprinting-flags-client-rects-and-measuretext.patch"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "An inherited anti-fingerprinting or header change. The epic requires ONE coherent documented policy rather than an accumulation of individually plausible patches, and several of these make Astro more distinguishable rather than less. Routed to #20, which owns that policy.",
+      "owner_issue": 10,
+      "upstream_component": "//third_party/blink",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Does this patch belong to Astro's fingerprinting policy, and does it measurably help? Several inherited patches change a signal in a way that is itself a signal.",
+        "answered_by": "#20's fingerprinting/header/WebRTC policy ADR."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "captive-portal-detection",
+      "title": "Captive portal and connectivity detection",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "gstatic.com/generate_204 is referenced by 4 files in chromium/src at the locked commit and by no Astro patch, so the baseline inventory cannot see it"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "A generate_204 probe is an unconditional request to a third party on every network change. It is also what stops a captive portal presenting as a certificate error.",
+      "owner_issue": 10,
+      "upstream_component": "//components/captive_portal",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Does Astro probe for a captive portal, and against which host?",
+        "answered_by": "A measured cold-start trace (tools/baseline/capture-network.sh), blocked until an Astro binary exists."
+      }
+    },
+    {
+      "id": "cast-media-router",
+      "title": "Cast and the Media Router",
+      "area": "google-provider",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No committed Astro patch and no inherited patch in the series inventory names it"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Cast discovery broadcasts on the local network and the Media Router has a Google-hosted component. Neither the capability nor its traffic has been established here.",
+      "owner_issue": 10,
+      "upstream_component": "//components/media_router",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Does Astro ship Cast? If it does, what local-network and remote traffic does it generate?",
+        "answered_by": "A measured idle trace plus a read of the media_router build flags."
+      }
+    },
+    {
+      "id": "certificate-transparency",
+      "title": "Certificate Transparency",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Listed in the epic's inherited-patch review set"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "CT enforcement depends on log lists delivered by the component updater, which is itself unresolved. Security-relevant capabilities are #20's decision. This entry exists so the matrix is complete and so the capability is routed rather than forgotten; it is deliberately not classified here.",
+      "owner_issue": 10,
+      "upstream_component": "//net/cert",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "CT enforcement depends on log lists delivered by the component updater, which is itself unresolved. What does Astro ship, with which provider and which trust root?",
+        "answered_by": "#20 (ASTRO-NEXT-017), which owns the coherent browser security baseline."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "chrome-sync",
+      "title": "Chrome Sync and its data types",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Removed by the inherited ungoogled core set (see patch-dispositions.json); components/sync/service/sync_prefs.cc is among the files it touches"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Google Sync is gone. Whether Astro ships its own sync is #23's decision and is a different capability \u2014 see `oxy-sync`. The epic is explicit that Sync must be either a real versioned secure protocol or explicitly disabled with no misleading UI and no network activity.",
+      "owner_issue": 23,
+      "upstream_component": "//components/sync",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert no sync UI is reachable and no sync endpoint is contacted"
+      ]
+    },
+    {
+      "id": "client-hints",
+      "title": "Client Hints",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Listed in the epic's inherited-patch review set"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "An inherited anti-fingerprinting or header change. The epic requires ONE coherent documented policy rather than an accumulation of individually plausible patches, and several of these make Astro more distinguishable rather than less. Routed to #20, which owns that policy.",
+      "owner_issue": 10,
+      "upstream_component": "//services/network",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Does this patch belong to Astro's fingerprinting policy, and does it measurably help? Several inherited patches change a signal in a way that is itself a signal.",
+        "answered_by": "#20's fingerprinting/header/WebRTC policy ADR."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "commerce-shopping",
+      "title": "Commerce and shopping features",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Removed by the inherited ungoogled core set"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Price tracking and shopping integrations are Google-backed product surfaces. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/commerce",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "component-updater",
+      "title": "Component updater",
+      "area": "core-browser",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "clients2.google.com, redirector.gvt1.com and tools.google.com are all trk-prefixed",
+        "update.googleapis.com is referenced by 2 files in chromium/src at the locked commit and by no Astro patch"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Components carry security-relevant data \u2014 CRLSets, certificate revocation, the Widevine and origin-trial configurations. A browser that cannot update them is not merely less convenient; it is a browser whose revocation data is frozen at build time.",
+      "owner_issue": 10,
+      "upstream_component": "//components/component_updater",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Which components must Astro keep updating, and over which endpoint? The epic forbids disabling a protection to remove a provider dependency, so this cannot be settled by deleting the updater.",
+        "answered_by": "#20's security baseline decides which components are mandatory; #25 owns the transport that delivers them."
+      },
+      "blocks": [
+        20,
+        25
+      ]
+    },
+    {
+      "id": "content-settings",
+      "title": "Permissions and content settings",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//components/content_settings",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "default-search-engine",
+      "title": "Search engine configuration",
+      "area": "core-browser",
+      "observed_state": "PRESENT",
+      "observed_evidence": [
+        "patches/astro/004-default-search-duckduckgo.patch, disposition `keep` in docs/astro-next/baseline/patch-dispositions.json",
+        "webui/ntp/src/main.ts offers Google, Bing, Brave Search and Startpage alongside the DuckDuckGo default"
+      ],
+      "state": "REPLACE",
+      "rationale": "DuckDuckGo replaces Google as the prepopulated default, and the prepopulated list is curated. The alternatives remain user-selectable, which is a different decision from the default and is why the endpoint entries for them are KEEP.",
+      "owner_issue": 10,
+      "upstream_component": "//components/search_engines",
+      "user_surface": "omnibox, settings, NTP search box",
+      "network": [
+        "search-bing",
+        "search-brave",
+        "search-duckduckgo",
+        "search-google",
+        "search-startpage"
+      ],
+      "persistence": "profile prefs: the selected TemplateURL",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "replacement_component": "patches/astro/004-default-search-duckduckgo.patch, to be re-expressed as owned data in //astro (issue #8)"
+    },
+    {
+      "id": "devtools",
+      "title": "DevTools",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//third_party/devtools-frontend",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "disabled-ui-entries",
+      "title": "Disabled UI and menu entries",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/extra/ungoogled-chromium/add-credits.patch and the extra/debian/disable group"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "An accumulation of removed menu items and UI entries. Each is small; together they are the difference between Astro and Chromium in a user's hands, and none is documented.",
+      "owner_issue": 8,
+      "upstream_component": "//chrome/browser/ui",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "An accumulation of removed menu items and UI entries. Each is small; together they are the difference between Astro and Chromium in a user's hands, and none is documented. Nothing in the committed repository records why it was taken.",
+        "answered_by": "#8's curation of the aggregate inherited behaviour, with #20 for the security-relevant half."
+      }
+    },
+    {
+      "id": "dns-over-https",
+      "title": "DNS over HTTPS",
+      "area": "core-browser",
+      "observed_state": "PRESENT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/webui/astro_settings_handler.cc:64-65 maps Astro settings ids to the real prefs dns_over_https.mode and dns_over_https.templates",
+        "webui/settings/src/sections.ts:188-192 offers Cloudflare (as the default value), Quad9 and NextDNS"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Astro exposes a DoH provider selector wired to real Chromium prefs. Whether DoH is ON by default decides between 'no default DNS provider' and 'every hostname the user resolves goes to one company'.",
+      "owner_issue": 10,
+      "upstream_component": "//net/dns",
+      "user_surface": "Astro settings, Privacy & Security",
+      "network": [
+        "none"
+      ],
+      "persistence": "profile prefs dns_over_https.mode / .templates",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Is DoH enabled by default, with which template? The settings UI defaults the template to Cloudflare; the mode's registered default is not established.",
+        "answered_by": "Read the registered default for dns_over_https.mode in a built profile, then decide within #20's transport baseline."
+      }
+    },
+    {
+      "id": "domain-reliability",
+      "title": "Domain reliability reporting",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/ungoogled-chromium/disable-domain-reliability.patch removes seven beacons*.gvt*.com hosts"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Upload of connection-failure reports to Google. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/domain_reliability",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "download-quarantine",
+      "title": "Platform download quarantine",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Listed in the epic's inherited-patch review set; no committed patch found that disables it"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Whether the platform quarantine flag (macOS Gatekeeper, Windows MOTW) is still applied. Security-relevant capabilities are #20's decision. This entry exists so the matrix is complete and so the capability is routed rather than forgotten; it is deliberately not classified here.",
+      "owner_issue": 10,
+      "upstream_component": "//components/download",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Whether the platform quarantine flag (macOS Gatekeeper, Windows MOTW) is still applied. What does Astro ship, with which provider and which trust root?",
+        "answered_by": "#20 (ASTRO-NEXT-017), which owns the coherent browser security baseline."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "download-reputation",
+      "title": "Download reputation and protection",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "chrome/browser/safe_browsing/download_protection/download_feedback.cc is trk-prefixed",
+        "The historic 007-oxy-auth-build-hook.patch also deleted download_danger_prompt \u2014 the dangerous-download UI \u2014 which is why baseline finding 1 refuses to restore it"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Dangerous-download warnings are the last line between a user and a malware executable. Security-relevant capabilities are #20's decision. This entry exists so the matrix is complete and so the capability is routed rather than forgotten; it is deliberately not classified here.",
+      "owner_issue": 10,
+      "upstream_component": "//chrome/browser/safe_browsing/download_protection",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Dangerous-download warnings are the last line between a user and a malware executable. What does Astro ship, with which provider and which trust root?",
+        "answered_by": "#20 (ASTRO-NEXT-017), which owns the coherent browser security baseline."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "downloads",
+      "title": "Downloads",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//components/download",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "ev-certificates",
+      "title": "EV certificate treatment",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/astro/044-disable-ev-certificate-metadata.patch, disposition `investigate` in docs/astro-next/baseline/patch-dispositions.json"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "An Astro patch disables the EV root metadata because the data is Google-hosted. Security-relevant capabilities are #20's decision. This entry exists so the matrix is complete and so the capability is routed rather than forgotten; it is deliberately not classified here.",
+      "owner_issue": 10,
+      "upstream_component": "//net/cert",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "An Astro patch disables the EV root metadata because the data is Google-hosted. What does Astro ship, with which provider and which trust root?",
+        "answered_by": "#20 (ASTRO-NEXT-017), which owns the coherent browser security baseline."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "extensions",
+      "title": "Extension support",
+      "area": "core-browser",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/inox-patchset/0005-disable-default-extensions.patch",
+        "patches/ungoogled/core/ungoogled-chromium/disable-webstore-urls.patch"
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires extension support survives. The delivery and update path is a separate decision and is routed to #20 \u2014 see `web-store-and-update-urls`.",
+      "owner_issue": 3,
+      "upstream_component": "//extensions",
+      "user_surface": "extensions UI",
+      "network": [
+        "none"
+      ],
+      "persistence": "profile extension state",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26: install, run and update an extension"
+      ]
+    },
+    {
+      "id": "fedcm",
+      "title": "FedCM",
+      "area": "google-provider",
+      "observed_state": "PRESENT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/oxy_cookie_signin_observer.cc:26-28 watches a cookie named `fedcm_session` set by auth.oxy.so"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Astro's sign-in detection depends on a FedCM-era session cookie. The Oxy platform's own instruction set records FedCM, the /auth/silent iframe, the /sso bounce and the fedcm_session cookie as deleted ecosystem-wide in the 2026-07 device-first migration. That is a declaration, not a measurement, and it decides whether this code can work at all.",
+      "owner_issue": 16,
+      "upstream_component": "//content/browser/webid",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Does auth.oxy.so still set a fedcm_session cookie? If it does not, Astro's cookie sign-in observer can never fire, and #16 is rebuilding on a protocol that no longer exists.",
+        "answered_by": "Sign in at auth.oxy.so and inspect the cookies set; confirm with the Oxy platform owner. #16 then rebuilds on Authorization Code + PKCE regardless."
+      },
+      "blocks": [
+        16
+      ]
+    },
+    {
+      "id": "first-run-page",
+      "title": "First-run experience",
+      "area": "astro-product",
+      "observed_state": "PRESENT",
+      "observed_evidence": [
+        "patches/ungoogled/extra/ungoogled-chromium/first-run-page.patch adds chrome://ungoogled-first-run AND opens it in a tab on first run (chrome/browser/chrome_browser_main.cc)"
+      ],
+      "state": "REPLACE",
+      "rationale": "Astro's first run opens a page branded for a different project. The page is local, so first run makes no network request \u2014 but it is an internal page in Astro's host list that nobody chose.",
+      "owner_issue": 24,
+      "upstream_component": "//chrome/browser/ui/webui/ungoogled_first_run.h",
+      "user_surface": "a tab on first launch",
+      "network": [
+        "first-run-chromium-source",
+        "first-run-wiki"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "replacement_component": "//astro first-run surface (issue #24)",
+      "blocks": [
+        11
+      ],
+      "blocks_reason": "It is an internal WebUI host, so it belongs in the scheme's page inventory."
+    },
+    {
+      "id": "gcm-push",
+      "title": "GCM and push messaging",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "android.clients.google.com is trk-prefixed by the inherited iridium patch"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Push messaging through Google's service is a persistent authenticated connection to a provider Astro does not use. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/gcm_driver",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "glic-ai",
+      "title": "Glic and other Google AI surfaces",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/extra/ungoogled-chromium/disable-ai.patch"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Astro's AI surface is Alia. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//chrome/browser/glic",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "google-account-gaia",
+      "title": "GAIA and Google account",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/ungoogled-chromium/disable-gaia.patch"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Astro's identity is Oxy Identity. Google account infrastructure is removed, not merely hidden. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/signin",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "google-calendar-drive-modules",
+      "title": "Google Calendar and Drive NTP modules",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Astro replaces the New Tab Page entirely (patches 016-019, 055-056)"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "The Astro NTP has no Google modules. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//chrome/browser/new_tab_page/modules",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "google-history-footprints",
+      "title": "Google history and Web & App Activity",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "history.google.com and footprints-pa.googleapis.com are trk-prefixed"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Server-side history requires a Google account, which Astro does not have. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/history",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "google-host-detection",
+      "title": "Google host detection",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/ungoogled-chromium/disable-google-host-detection.patch"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Special-casing Google properties in the browser is exactly the coupling Astro removes. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/google",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "google-search-default",
+      "title": "Google as the default search engine",
+      "area": "google-provider",
+      "observed_state": "REMOVED_BY_PATCH",
+      "observed_evidence": [
+        "patches/astro/004-default-search-duckduckgo.patch",
+        "patches/ungoogled/core/ungoogled-chromium/replace-google-search-engine-with-nosearch.patch"
+      ],
+      "state": "REPLACE",
+      "rationale": "DuckDuckGo is the default. Google survives only as a user-selectable engine in the Astro New Tab Page \u2014 the endpoint entry `search-google` is KEEP for that reason, and the two are not in conflict: the default is a decision, a user's choice is not.",
+      "owner_issue": 10,
+      "upstream_component": "//components/search_engines",
+      "user_surface": "omnibox, settings, NTP search box",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "replacement_component": "patches/astro/004-default-search-duckduckgo.patch"
+    },
+    {
+      "id": "google-static-assets",
+      "title": "Google static asset hosts",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "ssl.gstatic.com and www.gstatic.com are trk-prefixed by the inherited iridium patch"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Two hosts serving several unrelated upstream features \u2014 interstitial imagery, connectivity probes, translate assets. A host-level disposition is meaningless until the features behind them are enumerated.",
+      "owner_issue": 10,
+      "upstream_component": "several //components",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Which upstream capabilities fetch from gstatic, and which of them does Astro keep?",
+        "answered_by": "git grep -l 'gstatic.com' in chromium/src at the locked commit, grouped by owning component; then a decision per capability."
+      }
+    },
+    {
+      "id": "google-suggestions",
+      "title": "Search suggestions",
+      "area": "google-provider",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/webui/astro_settings_handler.cc:58-59 maps two Astro settings ids (`search-suggestions`, `search-autocomplete`) to the SAME pref, search.suggest_enabled"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Suggestions send every keystroke in the omnibox to the search provider. The provider follows the default engine, so this is DuckDuckGo rather than Google \u2014 but the endpoint is undeclared, and Astro's settings show two independent-looking switches that are one pref.",
+      "owner_issue": 10,
+      "upstream_component": "//components/omnibox/browser/search_suggestion_parser.cc",
+      "user_surface": "omnibox dropdown, Astro settings",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Is the suggestion endpoint on by default, and which host serves it? Two settings controls mapping to one pref is separately a defect worth fixing.",
+        "answered_by": "A measured omnibox trace; and read the prepopulated engine's suggest_url in components/search_engines/template_url_prepopulate_data.cc."
+      }
+    },
+    {
+      "id": "history",
+      "title": "Browsing history",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//components/history",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "history-expiration",
+      "title": "Local history expiration",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Listed in the epic's inherited-patch review set"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "An inherited change to how long local history is kept. It is user-visible data loss if it is shorter than upstream and the user does not know.",
+      "owner_issue": 8,
+      "upstream_component": "//components/history",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "An inherited change to how long local history is kept. It is user-visible data loss if it is shorter than upstream and the user does not know. Nothing in the committed repository records why it was taken.",
+        "answered_by": "#8's curation of the aggregate inherited behaviour, with #20 for the security-relevant half."
+      }
+    },
+    {
+      "id": "http-accept-headers",
+      "title": "HTTP Accept header changes",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Listed in the epic's inherited-patch review set"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "An inherited anti-fingerprinting or header change. The epic requires ONE coherent documented policy rather than an accumulation of individually plausible patches, and several of these make Astro more distinguishable rather than less. Routed to #20, which owns that policy.",
+      "owner_issue": 10,
+      "upstream_component": "//net/http",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Does this patch belong to Astro's fingerprinting policy, and does it measurably help? Several inherited patches change a signal in a way that is itself a signal.",
+        "answered_by": "#20's fingerprinting/header/WebRTC policy ADR."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "intranet-redirect-detector",
+      "title": "Intranet redirect detector",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/extra/ungoogled-chromium/disable-intranet-redirect-detector.patch"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Three random-hostname DNS lookups at startup, to detect ISP NXDOMAIN hijacking. Disabling it removes startup DNS noise; the cost is that a hijacking ISP makes single-word omnibox input navigate instead of search.",
+      "owner_issue": 8,
+      "upstream_component": "//chrome/browser/intranet_redirect_detector",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ]
+    },
+    {
+      "id": "ipv6-probing",
+      "title": "IPv6 probing option",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/extra/ungoogled-chromium/add-ipv6-probing-option.patch"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "An added flag controlling IPv6 connectivity probing.",
+      "owner_issue": 8,
+      "upstream_component": "//net",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "An added flag controlling IPv6 connectivity probing. Nothing in the committed repository records why it was taken.",
+        "answered_by": "#8's curation of the aggregate inherited behaviour, with #20 for the security-relevant half."
+      }
+    },
+    {
+      "id": "js-optimizer-unfamiliar-sites",
+      "title": "JavaScript optimizer on unfamiliar sites",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/ungoogled-chromium/move-js-optimizer-unfamiliar-sites.patch"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Changes when the JIT is enabled per site. This is a security-relevant tradeoff \u2014 the JIT is a large attack surface \u2014 and belongs with #20.",
+      "owner_issue": 8,
+      "upstream_component": "//chrome/browser/content_settings",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Changes when the JIT is enabled per site. This is a security-relevant tradeoff \u2014 the JIT is a large attack surface \u2014 and belongs with #20. Nothing in the committed repository records why it was taken.",
+        "answered_by": "#8's curation of the aggregate inherited behaviour, with #20 for the security-relevant half."
+      },
+      "routed_to_issue": 20
+    },
+    {
+      "id": "lens",
+      "title": "Google Lens",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Removed by the inherited ungoogled core set"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "A Google image-search integration. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//chrome/browser/lens",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "manifest-v2",
+      "title": "Manifest V2 extension support",
+      "area": "inherited-privacy-patch",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "Listed in the epic's inherited-patch review set; no committed patch found in the series inventory that restores MV2."
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Whether Astro keeps Manifest V2 alive after upstream removes it is a product and security tradeoff, not a privacy one: MV2 is what content-blocking extensions need, and it is also an unsandboxed remote-code path.",
+      "owner_issue": 10,
+      "upstream_component": "//extensions/common/manifest",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Does Astro extend Manifest V2 support beyond upstream's removal schedule? Astro ships its own network-level blocker (#18), which changes the argument.",
+        "answered_by": "A product decision on this issue, informed by #18's blocking coverage."
+      }
+    },
+    {
+      "id": "media-and-pip",
+      "title": "Media controls and Picture-in-Picture",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//content/browser/picture_in_picture",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "metrics-uma-ukm",
+      "title": "Metrics, UMA and UKM",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Removed by the inherited ungoogled core set; see patch-dispositions.json"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "No metrics are sent. If Astro ever wants telemetry it is a new, opt-in, declared endpoint \u2014 see `astro-metrics`. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/metrics",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "ntp-tiles",
+      "title": "New Tab Page tiles and quick links",
+      "area": "astro-product",
+      "observed_state": "PRESENT",
+      "observed_evidence": [
+        "patches/astro/019-ntp-default-sites.patch replaces all three prepopulated tile resources",
+        "The removed defaults included eight favicon CDN hosts the NTP fetched on render; the replacement set carries titles and URLs only, with no icon URLs",
+        "webui/ntp/src/main.ts carries a further default quick-link set"
+      ],
+      "state": "REPLACE",
+      "rationale": "Chromium's prepopulated tiles came with large_icon_url and favicon_url fields pointing at eight third-party CDNs, so opening a new tab fetched from them. Astro's replacement set has no icon URLs at all, which is the substantive privacy change hiding inside what looks like a cosmetic patch.",
+      "owner_issue": 22,
+      "upstream_component": "//components/ntp_tiles",
+      "user_surface": "New Tab Page tiles and quick links",
+      "network": [
+        "ntp-quicklink-hn",
+        "ntp-quicklink-mdn",
+        "ntp-quicklink-reddit",
+        "ntp-quicklink-stackoverflow",
+        "ntp-quicklink-wikipedia",
+        "ntp-quicklink-x",
+        "ntp-quicklink-youtube",
+        "ntp-tile-github",
+        "ntp-tile-reddit",
+        "ntp-tile-wikipedia"
+      ],
+      "persistence": "most-visited data in the profile",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "replacement_component": "//astro NTP data (issues #8, #22)"
+    },
+    {
+      "id": "omnibox",
+      "title": "Omnibox and autocomplete providers",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//components/omnibox",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "on-device-models",
+      "title": "On-device models and the optimization guide",
+      "area": "google-provider",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "optimizationguide-pa.googleapis.com is referenced by 1 file in chromium/src at the locked commit and by no Astro patch",
+        "gn_args: build_with_tflite_lib is false wherever it is set \u2014 docs/astro-next/baseline/platform-matrix.md"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "The optimization guide downloads models and configuration from a Google host. It is also load-bearing for several upstream features, so switching it off is not free.",
+      "owner_issue": 8,
+      "upstream_component": "//components/optimization_guide",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Which upstream capabilities break if the optimization guide is removed?",
+        "answered_by": "Enumerate the consumers in chromium/src at the locked commit, then decide with #8's curation of the aggregate ungoogled behaviour."
+      }
+    },
+    {
+      "id": "oxy-identity",
+      "title": "Oxy Identity",
+      "area": "astro-product",
+      "observed_state": "NOT_BUILT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/oxy_auth_service.{h,cc}, oxy_auth_callback_handler.cc, oxy_auth_navigation_throttle.cc, oxy_auth_token_store.cc, oxy_cookie_signin_observer.cc",
+        "In committed state nothing constructs OxyCookieSigninObserver: `git grep -l` at HEAD matches only its own two files. Its factory is untracked working-tree content.",
+        "patches/astro/035-auth-https-callback.patch is a 0-byte file; 036 and 039, which intercept the callback and register the throttle, do not apply (baseline finding 3)",
+        "Baseline finding 1: the overlay is not in the build graph"
+      ],
+      "state": "REPLACE",
+      "rationale": "Astro's account system. REPLACE and not KEEP for a reason that is not stylistic: oxy_auth_callback_handler.cc:31-32 reads `access_token` and `refresh_token` out of URL query parameters, which the epic forbids outright \u2014 such a URL reaches history, the omnibox, the referrer and anything the user copies. #16 rebuilds it on Authorization Code + PKCE with state and nonce.",
+      "owner_issue": 16,
+      "upstream_component": "//chrome/browser/oxy",
+      "user_surface": "profile menu, settings",
+      "network": [
+        "oxy-api",
+        "oxy-auth"
+      ],
+      "persistence": "oxy.access_token, oxy.refresh_token, oxy.session_id and four more profile prefs (oxy_auth_service.h:26-32)",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "#16: token never appears in a URL, history entry, referrer or copied string"
+      ],
+      "replacement_component": "//astro/browser/identity (issue #16)",
+      "blocks": [
+        11
+      ],
+      "blocks_reason": "The callback is astro://auth/callback (oxy_auth_service.h:22-23). Whether a remote origin may navigate to the trusted scheme is a scheme trust-model axiom, and the answer decides whether this flow can exist in its current shape at all. #11 must state it explicitly rather than leave it implied."
+    },
+    {
+      "id": "oxy-sync",
+      "title": "Oxy Sync",
+      "area": "astro-product",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No committed Astro source or patch implements a sync protocol"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "The epic is explicit: Sync is either a real versioned secure protocol or explicitly disabled with no misleading UI and no network activity. There is no third option, and shipping a settings toggle that does nothing is the failure mode it names.",
+      "owner_issue": 23,
+      "upstream_component": "none",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Does Astro ship sync? If not, every sync-shaped UI affordance must go with it.",
+        "answered_by": "#23 (ASTRO-NEXT-020), after #21 defines local and profile migration."
+      }
+    },
+    {
+      "id": "password-manager",
+      "title": "Password manager",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//components/password_manager",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "pdf-and-printing",
+      "title": "PDF viewer and printing",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//pdf, //printing",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "popup-to-tab",
+      "title": "Popup to tab conversion",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Listed in the epic's inherited-patch review set"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Converting popups to tabs changes web-platform behaviour that some sites depend on.",
+      "owner_issue": 8,
+      "upstream_component": "//chrome/browser/ui",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Converting popups to tabs changes web-platform behaviour that some sites depend on. Nothing in the committed repository records why it was taken.",
+        "answered_by": "#8's curation of the aggregate inherited behaviour, with #20 for the security-relevant half."
+      }
+    },
+    {
+      "id": "privacy-sandbox",
+      "title": "Privacy Sandbox components",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/astro/005-branding-components-strings.patch touches privacy_sandbox_strings.grd, so the component is present in the tree"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Topics, FLEDGE and attribution reporting are advertising infrastructure. Astro ships an ad blocker; shipping the advertising API alongside it is incoherent. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/privacy_sandbox",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "product-help-links",
+      "title": "Product help and documentation links",
+      "area": "astro-product",
+      "observed_state": "PRESENT",
+      "observed_evidence": [
+        "patches/astro/038-dino-game-astro-scheme.patch rewrites kRedirectLoopLearnMoreUrl to https://support.9oo91e.qjz9zk/chrome?p=rl_error in components/error_page/common/localized_error.cc \u2014 and that patch APPLIES",
+        "webui/settings/src/sections.ts:450 hard-codes https://astrobrowser.org"
+      ],
+      "state": "REPLACE",
+      "rationale": "Help destinations are product constants #9 generates from one source of truth. Today they are hard-coded in patch text and frontend source, and at least one shipped link points at a hostname that cannot resolve.",
+      "owner_issue": 9,
+      "upstream_component": "//chrome/app strings and //components/error_page",
+      "user_surface": "settings links, error pages, menus",
+      "network": [
+        "astro-website",
+        "help-developer-chrome",
+        "help-developers-google",
+        "help-google-support",
+        "help-redirect-loop-substituted",
+        "oxy-website"
+      ],
+      "persistence": "not-captured",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#9: assert every product URL comes from the generated constant set"
+      ],
+      "replacement_component": "generated product constants (issue #9)"
+    },
+    {
+      "id": "profile-avatar-download",
+      "title": "Profile avatar downloading",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "chrome/browser/profiles/profile_avatar_downloader.cc is trk-prefixed by the iridium patch"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Avatars come from Oxy Identity, not from a Google asset host. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//chrome/browser/profiles",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "profiles",
+      "title": "Profiles, guest and incognito",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//chrome/browser/profiles",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "protocol-handlers",
+      "title": "Protocol handlers",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//components/custom_handlers",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "referrer-policy",
+      "title": "Referrer policy modifications",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Listed in the epic's inherited-patch review set"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "An inherited anti-fingerprinting or header change. The epic requires ONE coherent documented policy rather than an accumulation of individually plausible patches, and several of these make Astro more distinguishable rather than less. Routed to #20, which owns that policy.",
+      "owner_issue": 10,
+      "upstream_component": "//net/url_request",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Does this patch belong to Astro's fingerprinting policy, and does it measurably help? Several inherited patches change a signal in a way that is itself a signal.",
+        "answered_by": "#20's fingerprinting/header/WebRTC policy ADR."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "remoting",
+      "title": "Chrome Remote Desktop",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "remotedesktop.google.com appears in an inherited patch's context"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "A Google-hosted service Astro does not offer. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//remoting",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "rlz",
+      "title": "RLZ promotional tracking",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/ungoogled-chromium/disable-untraceable-urls.patch replaces the RLZ financial server with about:blank"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Distribution-channel tracking with no analogue in Astro. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//rlz",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "safe-browsing",
+      "title": "Safe Browsing",
+      "area": "google-provider",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "gn_args: safe_browsing_mode = 0 on all six platform configurations (docs/astro-next/baseline/platform-matrix.md, and baseline finding 2, which established that the value is 0 committed and that a local edit to 1 was what broke gn gen)",
+        "sb-ssl.google.com, safebrowsing.google.com and transparencyreport.google.com are all trk-prefixed"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Astro currently ships with NO malicious-site protection. That is a property of the legacy baseline, not a decision anybody recorded. Security-relevant capabilities are #20's decision. This entry exists so the matrix is complete and so the capability is routed rather than forgotten; it is deliberately not classified here.",
+      "owner_issue": 10,
+      "upstream_component": "//components/safe_browsing",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Astro currently ships with NO malicious-site protection. That is a property of the legacy baseline, not a decision anybody recorded. What does Astro ship, with which provider and which trust root?",
+        "answered_by": "#20 (ASTRO-NEXT-017), which owns the coherent browser security baseline."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "safesearch",
+      "title": "SafeSearch enforcement",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "safesearch.googleapis.com is trk-prefixed"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "A Google-hosted policy control with no Astro equivalent. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/safe_search_api",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "session-restore",
+      "title": "Session restore",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//components/sessions",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "spellcheck",
+      "title": "Spell checking",
+      "area": "core-browser",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/iridium-browser/all-add-trk-prefixes-to-possibly-evil-connections.patch trk-prefixes the Hunspell dictionary download in chrome/browser/spellchecker/spellcheck_hunspell_dictionary.cc"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Local spell checking works; downloading a dictionary does not, because the download URL is trk-prefixed and trk: is unresolvable. A browser that cannot fetch a dictionary for the user's language silently has no spell checking in that language.",
+      "owner_issue": 10,
+      "upstream_component": "//components/spellcheck",
+      "user_surface": "context menu, settings",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "How does a user get a dictionary for their language? Bundle the common set, host them on an Astro endpoint, or keep the upstream download?",
+        "answered_by": "Decide here, then declare the endpoint if one is chosen."
+      }
+    },
+    {
+      "id": "supervised-users",
+      "title": "Supervised users",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "gn_args: enable_supervised_users is false on five of six platform configurations and true on linux \u2014 see docs/astro-next/baseline/platform-matrix.md"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Supervision is a Google-account feature. The platform disagreement is itself a defect: the same capability must not be present on one platform and absent on the others. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/supervised_user",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "tabs-and-windows",
+      "title": "Tabs, tab groups and windows",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//chrome/browser/ui/tabs",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "task-manager",
+      "title": "Task manager",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//chrome/browser/task_manager",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "tls-grease",
+      "title": "TLS GREASE",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Listed in the epic's inherited-patch review set"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Changing TLS handshake behaviour makes Astro fingerprintable in a new way while removing one form of ossification protection. Security-relevant capabilities are #20's decision. This entry exists so the matrix is complete and so the capability is routed rather than forgotten; it is deliberately not classified here.",
+      "owner_issue": 10,
+      "upstream_component": "//net/socket",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Changing TLS handshake behaviour makes Astro fingerprintable in a new way while removing one form of ossification protection. What does Astro ship, with which provider and which trust root?",
+        "answered_by": "#20 (ASTRO-NEXT-017), which owns the coherent browser security baseline."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "translation",
+      "title": "Page translation",
+      "area": "core-browser",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "translate.googleapis.com is trk-prefixed by the inherited iridium patch"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "The capability is real and the epic forbids removing it merely because its code mentions Google. Keeping it needs a provider; removing it needs the UI entry points to go too.",
+      "owner_issue": 10,
+      "upstream_component": "//components/translate",
+      "user_surface": "translate bubble, context menu",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "investigate": {
+        "question": "Does Astro ship page translation, and through which provider?",
+        "answered_by": "A product decision here, then a versioned contract in #28."
+      }
+    },
+    {
+      "id": "trk-scheme-blocking",
+      "title": "The trk: scheme and URL blocking",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/ungoogled-chromium/block-trk-and-subdomains.patch",
+        "patches/ungoogled/core/iridium-browser/all-add-trk-prefixes-to-possibly-evil-connections.patch"
+      ],
+      "state": "REPLACE",
+      "rationale": "The mechanism that makes 51 Google endpoint literals unreachable while leaving their calling code compiled and reachable. It is a net-layer backstop standing in for build configuration, and it is the reason so many hosts in the endpoint manifest are DISABLE_RUNTIME rather than DISABLE_BUILD. REPLACE: the property survives \u2014 Astro contacts none of those hosts \u2014 the mechanism does not, because #8 removes patch-based construction and a URL-rewriting backstop is not a build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/url_formatter",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ]
+    },
+    {
+      "id": "untraceable-urls",
+      "title": "Untraceable URL replacement",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/ungoogled-chromium/disable-untraceable-urls.patch"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "Replaces the RLZ financial server URL with about:blank. The feature it neuters is `rlz`, which is separately DISABLE_BUILD; this patch is the legacy mechanism.",
+      "owner_issue": 8,
+      "upstream_component": "//rlz",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ]
+    },
+    {
+      "id": "update-integrity",
+      "title": "Browser update integrity",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/extra/iridium-browser/updater-disable-auto-update.patch"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Astro currently has no working update path, and an un-updatable browser accumulates every Chromium CVE published after its build date. Security-relevant capabilities are #20's decision. This entry exists so the matrix is complete and so the capability is routed rather than forgotten; it is deliberately not classified here.",
+      "owner_issue": 10,
+      "upstream_component": "//chrome/updater",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Astro currently has no working update path, and an un-updatable browser accumulates every Chromium CVE published after its build date. What does Astro ship, with which provider and which trust root?",
+        "answered_by": "#20 (ASTRO-NEXT-017), which owns the coherent browser security baseline."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "variations-field-trials",
+      "title": "Variations and field trials",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "clientservices.googleapis.com is trk-prefixed",
+        "patches/ungoogled/core/ungoogled-chromium/remove-unused-preferences-fields.patch"
+      ],
+      "state": "DISABLE_BUILD",
+      "rationale": "A remote configuration channel that can change browser behaviour after shipping. Astro does not have one and should not acquire one silently. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "owner_issue": 8,
+      "upstream_component": "//components/variations",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "not-applicable",
+      "build_flags": [],
+      "tests": [
+        "#26: assert the symbols and endpoint literals are absent from the built binary, the same class of check tools/lib/overlay_in_binary.py performs"
+      ]
+    },
+    {
+      "id": "web-apps",
+      "title": "Web apps and PWAs",
+      "area": "core-browser",
+      "observed_state": "NOT_MEASURED",
+      "observed_evidence": [
+        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+      ],
+      "state": "KEEP",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "owner_issue": 3,
+      "upstream_component": "//chrome/browser/web_applications",
+      "user_surface": "upstream Chromium UI, unchanged",
+      "network": [
+        "none"
+      ],
+      "persistence": "upstream",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#26 regression matrix; docs/astro-next/baseline/feature-matrix.md"
+      ]
+    },
+    {
+      "id": "web-store-and-update-urls",
+      "title": "Web Store and extension update URLs",
+      "area": "google-provider",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/ungoogled-chromium/disable-webstore-urls.patch",
+        "chromewebstore.google.com and chromewebstore.googleapis.com are trk-prefixed"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "Extensions are KEEP. Where they come from and how they update is unresolved, and an extension that never updates is a security liability rather than a privacy win.",
+      "owner_issue": 10,
+      "upstream_component": "//chrome/browser/extensions",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "How do extensions install and update in Astro?",
+        "answered_by": "#20's update-integrity design."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "webgl-spoofing",
+      "title": "WebGL renderer spoofing",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "Listed in the epic's inherited-patch review set"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "An inherited anti-fingerprinting or header change. The epic requires ONE coherent documented policy rather than an accumulation of individually plausible patches, and several of these make Astro more distinguishable rather than less. Routed to #20, which owns that policy.",
+      "owner_issue": 10,
+      "upstream_component": "//gpu",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Does this patch belong to Astro's fingerprinting policy, and does it measurably help? Several inherited patches change a signal in a way that is itself a signal.",
+        "answered_by": "#20's fingerprinting/header/WebRTC policy ADR."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "webrtc-ip-handling",
+      "title": "WebRTC IP handling",
+      "area": "inherited-privacy-patch",
+      "observed_state": "DISABLED_BY_PATCH",
+      "observed_evidence": [
+        "patches/ungoogled/core/ungoogled-chromium/disable-webrtc-log-uploader.patch"
+      ],
+      "state": "INVESTIGATE",
+      "rationale": "An inherited anti-fingerprinting or header change. The epic requires ONE coherent documented policy rather than an accumulation of individually plausible patches, and several of these make Astro more distinguishable rather than less. Routed to #20, which owns that policy.",
+      "owner_issue": 10,
+      "upstream_component": "//third_party/webrtc",
+      "user_surface": "not-captured",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "routed_to_issue": 20,
+      "investigate": {
+        "question": "Does this patch belong to Astro's fingerprinting policy, and does it measurably help? Several inherited patches change a signal in a way that is itself a signal.",
+        "answered_by": "#20's fingerprinting/header/WebRTC policy ADR."
+      },
+      "blocks": [
+        20
+      ]
+    },
+    {
+      "id": "webui-csp-and-trusted-types",
+      "title": "WebUI CSP and Trusted Types",
+      "area": "astro-product",
+      "observed_state": "PRESENT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/webui/astro_ntp_ui.cc:104 and astro_alia_ui.cc:99 both call DisableTrustedTypesCSP()",
+        "astro_ntp_ui.cc:91 permits 'unsafe-inline' in script-src",
+        "docs/astro-next/baseline/security-baseline.md"
+      ],
+      "state": "REPLACE",
+      "rationale": "Trusted Types are disabled and script-src permits unsafe-inline, on privileged pages that hold the user's Oxy session. The epic forbids blanket Trusted Types disabling and permits unsafe-inline only under a narrowly documented temporary exception with an owner and a removal issue \u2014 neither of which exists.",
+      "owner_issue": 14,
+      "upstream_component": "//chrome/browser/oxy/webui",
+      "user_surface": "every Astro WebUI page",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#14: Trusted Types enforced; no unsafe-inline without a declared exception"
+      ],
+      "replacement_component": "GN/GRIT-packaged resources with strict CSP (issue #14)",
+      "blocks": [
+        11
+      ],
+      "blocks_reason": "What a trusted astro:// document may execute is part of the scheme's trust model, not a per-page choice. #11 has to fix the floor before #14 packages pages onto it."
+    },
+    {
+      "id": "webui-fonts",
+      "title": "WebUI typography",
+      "area": "astro-product",
+      "observed_state": "PRESENT",
+      "observed_evidence": [
+        "src/chrome/browser/oxy/webui/astro_ntp_ui.cc:94,97 widen style-src and font-src for fonts.googleapis.com and fonts.gstatic.com",
+        "webui/{ntp,settings,alia}/src/index.html each carry a preconnect and a stylesheet link",
+        "docs/astro-next/baseline/security-baseline.md records the per-WebUI directives"
+      ],
+      "state": "REPLACE",
+      "rationale": "The Inter typeface survives, packaged into browser resources. The remote provider does not. This is the most visible contradiction in the current product: a browser that exists to remove Google contacts Google on every new tab.",
+      "owner_issue": 14,
+      "upstream_component": "//chrome/browser/oxy/webui",
+      "user_surface": "every Astro WebUI page",
+      "network": [
+        "google-fonts-css",
+        "google-fonts-files"
+      ],
+      "persistence": "not-captured",
+      "incognito": "same-as-normal",
+      "build_flags": [],
+      "tests": [
+        "#14: assert no Astro WebUI response permits a remote style, script or font source"
+      ],
+      "replacement_component": "self-hosted WOFF2 in the packaged WebUI resources (issue #14)",
+      "blocks": [
+        11,
+        14
+      ],
+      "blocks_reason": "#11 sets the baseline CSP for the trusted scheme. A scheme designed around a font host it must reach has a materially weaker model than one that may not reach the network at all, and the epic forbids the former outright."
+    }
+  ]
+}

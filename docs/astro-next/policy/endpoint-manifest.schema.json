@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/OxyHQ/Astro/docs/astro-next/policy/endpoint-manifest.schema.json",
+  "title": "Astro Next network endpoint manifest",
+  "description": [
+    "Every host the product may contact, with its disposition.",
+    "",
+    "The host set is NOT typed by hand. tools/policy/endpoint_seed.py derives it by importing",
+    "tools/baseline/inventory_endpoints.py -- issue #6's generator, which CI already checks",
+    "against docs/astro-next/baseline/network-inventory.yaml -- and adds a scan of webui/, which",
+    "that generator does not read. tools/policy/manifest.py then joins this file against the seed",
+    "STRICTLY IN BOTH DIRECTIONS: a seeded host with no entry fails, and an entry naming a host",
+    "the seed does not produce fails unless it declares itself `declared` with a reason.",
+    "",
+    "So this file holds judgement only. It cannot silently fall behind the repository, because",
+    "the half that can be derived is derived on every run."
+  ],
+  "type": "object",
+  "required": ["version", "hosts"],
+  "properties": {
+    "version": { "type": "integer" },
+    "non_applying_patches": {
+      "type": "object",
+      "description": [
+        "DECLARED, not measured here. Baseline finding 3 records nine Astro patches that do not",
+        "apply to the locked Chromium revision, so a host their text ADDS is in no tree today.",
+        "Measuring it needs a Chromium checkout and a patch run; this module deliberately needs",
+        "neither. The validator checks only that each named patch still exists in the series, so a",
+        "rename fails loudly -- a patch whose apply status CHANGES will not, and that limit is",
+        "stated here rather than left for a reader to discover."
+      ]
+    },
+    "hosts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/endpoint" }
+    }
+  },
+  "$defs": {
+    "endpoint": {
+      "type": "object",
+      "required": [
+        "host",
+        "id",
+        "observed_state",
+        "state",
+        "rationale",
+        "owning_feature",
+        "owner_issue",
+        "reference_kind",
+        "contact",
+        "environment"
+      ],
+      "properties": {
+        "observed_state": {
+          "type": "string",
+          "description": [
+            "What the CURRENT build does about this host, separate from the decision, for the",
+            "same reason the feature manifest separates them: an inherited patch's effect must",
+            "never be readable as a decision somebody took.",
+            "",
+            "This axis is what makes DISABLE_BUILD and DISABLE_RUNTIME falsifiable rather than",
+            "rhetorical. `REMOVED_BY_PATCH` says the literal is absent from the tree, which a",
+            "string scan of the artefact can check. `RUNTIME_BLOCKED` says the literal is",
+            "PRESENT and the request is stopped elsewhere -- for the 20 hosts the inherited",
+            "iridium patch rewrites to `trk:`, the calling code is still compiled and still",
+            "reached, and only the net layer refuses. Those two look identical in a feature list",
+            "and are entirely different in a threat model.",
+            "",
+            "`NOT_BUILT` is neither: baseline finding 1 measured that nothing links the Astro",
+            "overlay into the build graph, so every Astro-owned endpoint is absent from today's",
+            "binary through a build defect owned by #7, not through any disposition."
+          ],
+          "enum": [
+            "PRESENT",
+            "REMOVED_BY_PATCH",
+            "RUNTIME_BLOCKED",
+            "UNREACHABLE",
+            "NOT_BUILT",
+            "NOT_AN_ENDPOINT",
+            "NOT_MEASURED"
+          ]
+        },
+        "host": {
+          "type": "string",
+          "description": "Exactly as the seed produces it. The join is on this string."
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "Stable endpoint id. Generated constants and tests reference this, never a raw URL."
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "KEEP",
+            "REPLACE",
+            "DISABLE_BUILD",
+            "DISABLE_RUNTIME",
+            "DORMANT",
+            "INVESTIGATE"
+          ]
+        },
+        "rationale": { "type": "string" },
+        "owning_feature": {
+          "type": "string",
+          "description": "A feature id from the feature manifest, or `none` for a reference that owns nothing."
+        },
+        "owner_issue": { "type": "integer" },
+        "routed_to_issue": { "type": "integer" },
+        "reference_kind": {
+          "type": "string",
+          "description": [
+            "WHY the host appears in committed text. The single most load-bearing field, because",
+            "the seed finds strings and only some strings are requests.",
+            "",
+            "request-literal    code builds a request from it",
+            "csp-allowlist      a Content-Security-Policy source expression; permits a request,",
+            "                   is not one, and may permit a host nothing calls",
+            "default-content    shipped default data a user may act on (an NTP tile, a DoH",
+            "                   template, a search engine choice) -- user-initiated, not automatic",
+            "help-link          a URL rendered as a clickable link in product UI",
+            "documentation      a comment, a translator note, a `<ex>` placeholder; never fetched",
+            "deleted-by-patch   present ONLY on removed lines: the patched tree does not contain it",
+            "blocklist-literal  named in order to be blocked, rewritten or prefixed",
+            "filename           a diff header, not a URL at all",
+            "not-a-host         a format string the URL scan matched (`%s%s`, `%s:%d`)"
+          ],
+          "enum": [
+            "request-literal",
+            "csp-allowlist",
+            "default-content",
+            "help-link",
+            "documentation",
+            "deleted-by-patch",
+            "blocklist-literal",
+            "filename",
+            "not-a-host"
+          ]
+        },
+        "contact": {
+          "type": "string",
+          "description": [
+            "Whether the product contacts this host, and on whose initiative. Orthogonal to",
+            "`state`: a DISABLE_RUNTIME endpoint is still `automatic` if the code that would call",
+            "it is compiled in, which is exactly why DISABLE_RUNTIME may not be asserted as",
+            "'cannot happen'."
+          ],
+          "enum": ["automatic", "user-initiated", "never", "unknown"]
+        },
+        "environment": {
+          "type": "string",
+          "enum": ["production", "staging", "local-test", "none"]
+        },
+        "scheme": { "type": "string", "enum": ["https", "http", "none"] },
+        "path_pattern": { "type": "string" },
+        "methods": { "type": "array", "items": { "type": "string" } },
+        "trigger": { "type": "string" },
+        "cadence": { "type": "string" },
+        "data_categories": { "type": "array", "items": { "type": "string" } },
+        "auth": {
+          "type": "string",
+          "enum": ["none", "bearer-token", "cookie", "device-secret", "unknown"]
+        },
+        "cookies": {
+          "type": "string",
+          "enum": ["none", "first-party", "third-party", "unknown"]
+        },
+        "response_purpose": { "type": "string" },
+        "user_control": { "type": "string" },
+        "incognito": {
+          "type": "string",
+          "enum": ["blocked", "same-as-normal", "isolated", "not-applicable", "undecided"]
+        },
+        "retry_backoff": { "type": "string" },
+        "traffic_annotation": { "type": "string" },
+        "privacy_doc": { "type": "string" },
+        "test_fixture": { "type": "string" },
+        "wildcard_justification": {
+          "type": "string",
+          "description": "Required for any host containing `*`. Wildcards are otherwise rejected."
+        },
+        "http_justification": {
+          "type": "string",
+          "description": "Required for scheme `http` on a production endpoint. Otherwise rejected."
+        },
+        "release_blocked": {
+          "type": "boolean",
+          "description": "Required true for any staging or local-test endpoint: a release build may not contain it."
+        },
+        "declared_reason": {
+          "type": "string",
+          "description": [
+            "Required for an entry the seed does not produce. Says why the host cannot be derived",
+            "from committed text -- typically an upstream Chromium endpoint no Astro patch",
+            "mentions, which the baseline inventory cannot see because it scans Astro's overlay",
+            "and patch text only."
+          ]
+        },
+        "investigate": {
+          "type": "object",
+          "required": ["question", "answered_by"],
+          "properties": {
+            "question": { "type": "string" },
+            "answered_by": { "type": "string" }
+          }
+        },
+        "blocks": { "type": "array", "items": { "type": "integer" } },
+        "blocks_reason": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}
