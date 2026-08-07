@@ -47,7 +47,7 @@ The ad blocker is a Rust engine compiled into the browser and wired into the net
 
 | Aspect | Astro |
 |---|---|
-| Base | Chromium 146.0.7680.177 |
+| Base | Chromium 146.0.7680.177, pinned by commit in [`browser.lock.json`](browser.lock.json) |
 | De-Google patches | 112, inherited from ungoogled-chromium |
 | Oxy patches | 56, in `patches/astro/001` through `056` |
 | URL scheme | `astro://`, aliased onto `chrome://` |
@@ -100,12 +100,14 @@ You need a 64 bit Linux machine for Linux, Android and cross compiled Windows bu
 A clean build is five commands:
 
 ```bash
-tools/fetch-chromium.sh        # 1. fetch Chromium source, about 55 GB
-tools/sync-ungoogled.sh        # 2. pull the matching ungoogled-chromium patches
+tools/sync-sources.sh          # 1. check out every source at its locked commit
+tools/sync-ungoogled.sh        # 2. stage the matching ungoogled-chromium patches
 tools/apply-patches.sh         # 3. prune binaries, apply 168 patches in declared order
 tools/sync-overlay.sh          # 4. copy the Astro overlay onto the tree
 tools/build.sh                 # 5. build with autoninja
 ```
+
+What gets compiled is declared in [`browser.lock.json`](browser.lock.json), by full commit SHA, for Chromium, depot_tools and the ungoogled patch set. Nothing asks a remote what "latest" means and nothing accepts whatever a cached runner happens to hold: the checkout is detached at the locked commit and verified before every build. `tools/build.sh` writes `build/reports/provenance.json` recording what the build was actually made from, and every release artifact ships it.
 
 Then `tools/install-local.sh` to install it and run `astro`.
 
@@ -127,8 +129,11 @@ Scripts marked **mutates** write into the Chromium checkout. Each of those verif
 
 | Script | Mutates `chromium/src` | What it does |
 |---|---|---|
-| `tools/fetch-chromium.sh` | **mutates** | fetch source; `CHROMIUM_VERSION=...` overrides the pin |
-| `tools/sync-ungoogled.sh` | no | sync patches for the pinned Chromium version |
+| `tools/sync-sources.sh` | **mutates** | check out every source at its locked commit |
+| `tools/fetch-chromium.sh` | **mutates** | deprecated wrapper; delegates to `sync-sources.sh` |
+| `tools/sync-ungoogled.sh` | no | stage patches from the locked ungoogled checkout |
+| `tools/generate-provenance.sh` | no | record what a build was made from |
+| `tools/lib/lock.py` | no | validate and read `browser.lock.json` |
 | `tools/apply-patches.sh` | **mutates** | pruning, then patches in declared series order |
 | `tools/sync-overlay.sh` | **mutates** | allowlisted overlay copy; never deletes |
 | `tools/build.sh` | **mutates** | `[Release\|Debug] [linux\|android\|macos\|windows]` |
@@ -137,7 +142,6 @@ Scripts marked **mutates** write into the Chromium checkout. Each of those verif
 | `tools/vendor-adblock-rust.sh` | **mutates** | vendor the Rust adblock dependencies |
 | `tools/fetch-cross-deps.sh` | **mutates** | sysroots; discards local modifications |
 | `tools/update-chromium.sh VER` | **mutates** | rebase onto a new Chromium version |
-| `tools/setup-win-sdk.sh` | no | hermetic Windows SDK |
 | `tools/astro-launch.sh` | no | launch a local build |
 | `tools/package-release.sh` | no | package for distribution |
 | `tools/package-{linux,deb,android,macos,windows}.sh` | no | per platform packaging |
@@ -156,7 +160,11 @@ GN args per platform live in [`gn_args/`](gn_args): `linux.gn`, `linux_debug.gn`
 tools/update-chromium.sh 147.0.XXXX.XX
 ```
 
-That fetches the new version, syncs the matching ungoogled patches, and replays the Astro patches in the order their `series` file declares. When one fails to apply, the run stops at that patch, exits non zero and names it — in the console and in `build/reports/patch-report.json` — so you resolve the conflict by hand rather than discovering it at link time. Nothing is applied fuzzily to paper over the drift. [`docs/recovery.mdx`](docs/recovery.mdx) covers the rest.
+That resolves the version to exactly one commit at the origin, checks the tag and commit agree, updates [`browser.lock.json`](browser.lock.json) and writes a change report. It is a proposal by default: an update changes what the whole project compiles, so it lands as a reviewable lock diff rather than as a side effect. Add `--apply` to sync straight away.
+
+A version with no exact tag fails. Nothing nearby is substituted — the previous implementation fell back to the newest tag sharing a major version, then to `master`, printing a warning and exiting zero, so a "successful" update could build against a patch set written for a different Chromium.
+
+Then `tools/apply-patches.sh` replays the Astro patches in the order their `series` file declares. When one fails to apply, the run stops at that patch, exits non zero and names it — in the console and in `build/reports/patch-report.json` — so you resolve the conflict by hand rather than discovering it at link time. Nothing is applied fuzzily to paper over the drift. [`docs/recovery.mdx`](docs/recovery.mdx) covers the rest.
 
 </details>
 
@@ -184,6 +192,8 @@ That rewrites the `.grd` resource strings and the `BRANDING` file Chromium's bui
 | [`docs/architecture.mdx`](docs/architecture.mdx) | The overlay, the patch system, Mojo |
 | [`docs/oxy-integration.mdx`](docs/oxy-integration.mdx) | Auth, Alia, and the Oxy services behind them |
 | [`docs/recovery.mdx`](docs/recovery.mdx) | Recovering from an interrupted or failed patch run |
+| [`docs/reproducibility.mdx`](docs/reproducibility.mdx) | The source lock, deterministic sync, and build provenance |
+| [`docs/astro-next/baseline/`](docs/astro-next/baseline) | The product, source, security and network baseline |
 
 ## License
 
