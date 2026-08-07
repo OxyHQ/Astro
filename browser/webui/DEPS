@@ -1,0 +1,40 @@
+# //astro/browser/webui — Astro's WebUI surfaces.
+#
+# Two deltas from the inherited rules, in the order checkdeps evaluates them.
+#
+# `-chrome` SUBTRACTS the one chrome/ grant the root //astro/DEPS makes
+# (`+chrome/browser/chrome_browser_main_extra_parts.h`, needed by
+# //astro/browser for the lifecycle hook and by nothing else). checkdeps
+# inherits include_rules down the tree, so without this line that grant reaches
+# here too. It is not needed here and it should not be available here: this
+# layer talks to content's public WebUI API, and a WebUI that starts reaching
+# into chrome/ is how a self-contained module stops being one.
+#
+# This subtraction works because of HOW checkdeps resolves rules, which is not
+# the longest-prefix match a reader might assume. Rules are prepended as they
+# are read (buildtools/checkdeps/rules.py:175, `rules_to_update.insert(0, ...)`)
+# and the FIRST rule whose directory covers the include wins
+# (:199-205), so the most recently added rule takes precedence — a child DEPS
+# beats its parent, and a later entry in one file beats an earlier one. Under a
+# longest-prefix rule the root's file-granular `+chrome/browser/...` would win
+# instead and this line would be a no-op that reads like a guard.
+#
+# `+ui/webui/untrusted_web_ui_controller.h` is file-granular on purpose. //astro
+# needs exactly one header out of //ui/webui — the untrusted controller base
+# class — and granting the directory would also grant mojo_web_ui_controller.h,
+# webui_allowlist.h and the rest, none of which anyone has decided Astro should
+# use.
+#
+# Caveat inherited from //astro/common/DEPS and worth repeating exactly once:
+# nothing in this repository runs checkdeps yet, so this file is a declared
+# rule and not an enforced one.
+
+include_rules = [
+  # Settings is REUSED rather than copied, so its header is needed. Granted
+  # file-granularly: this is a deliberate coupling to one upstream controller,
+  # not a licence for //astro to reach into chrome/ generally.
+  "+chrome/browser/ui/webui/settings/settings_ui.h",
+  "+chrome/common/webui_url_constants.h",
+  "-chrome",
+  "+ui/webui/untrusted_web_ui_controller.h",
+]

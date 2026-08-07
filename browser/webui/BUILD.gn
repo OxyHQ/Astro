@@ -1,0 +1,45 @@
+# Astro's WebUI surfaces.
+#
+# A target of its own rather than more sources in //astro/browser, because its
+# dependency set is genuinely different: this is the only part of //astro that
+# reaches //ui/webui, and the only part that touches content's WebUI API at
+# all. Keeping that in one target puts the reach in a build file where it is
+# reviewable, instead of in a source list where it is not.
+
+source_set("webui") {
+  sources = [
+    "astro_test_ui.cc",
+    "astro_test_ui.h",
+    "astro_web_ui_configs.cc",
+    "astro_web_ui_configs.h",
+  ]
+
+  deps = [
+    # Settings is reused, not copied: astro://settings/ instantiates
+    # settings::SettingsUI itself.
+    "//chrome/browser/ui",
+    "//astro/common:url_constants",
+    "//base",
+    "//content/public/browser",
+
+    # network::mojom::CSPDirectiveName, for the explicit CSP the untrusted page
+    # needs (see astro_test_ui.cc). This arrives transitively as a public_dep of
+    # //content/public/browser (content/public/browser/BUILD.gn:580), but is
+    # listed because this target includes the header directly and should not
+    # depend on someone else's public_deps staying that way.
+    "//services/network/public/mojom",
+
+    # ui::UntrustedWebUIController. Adds no bytes to the binary — //ui/webui is
+    # already linked into chrome by chrome/browser/ui/webui — but it is a new
+    # edge out of //astro, so it is deliberate rather than incidental. The
+    # alternative was re-implementing the base class's two methods inside
+    # //astro, which upstream itself does in one place
+    # (chrome/browser/ui/webui/top_chrome/untrusted_top_chrome_web_ui_controller.cc:10-30).
+    # That was rejected: a second definition of what "untrusted" means is a
+    # second thing to keep correct.
+    "//ui/webui",
+
+    # url::kStandardSchemeSeparator.
+    "//url",
+  ]
+}

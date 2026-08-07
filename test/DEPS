@@ -1,0 +1,27 @@
+# //astro/test — Astro's own test binaries.
+#
+# This directory is the ONE place in //astro that may reach test-only Chromium
+# API, and the grants below are deliberately test-only: `chrome/test/base`,
+# `content/public/test`, `net`'s test server. Nothing here is linked into the
+# browser, so the leaf-relationship rule the rest of //astro is built on
+# (//astro/DEPS) is not weakened by them — but they are still enumerated rather
+# than granted as `+chrome` and `+content`, so that a production include
+# arriving in a test file is visible as a DEPS change and not as nothing.
+#
+# The two file-granular chrome/test grants are the whole harness:
+# `platform_browser_test.h` is the PlatformBrowserTest alias
+# (InProcessBrowserTest off Android) and `chrome_test_utils.h` is how a test
+# reaches the active WebContents without pulling in chrome/browser/ui.
+#
+# Caveat inherited from //astro/common/DEPS and //astro/browser/webui/DEPS, and
+# true here too: nothing in this repository runs checkdeps yet, so this file is
+# a declared rule and not an enforced one.
+
+include_rules = [
+  "+chrome/test/base/chrome_test_utils.h",
+  "+chrome/test/base/platform_browser_test.h",
+  "+content/public/test",
+  "+net/dns/mock_host_resolver.h",
+  "+net/test/embedded_test_server",
+  "+testing/gtest",
+]

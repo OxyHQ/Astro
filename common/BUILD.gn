@@ -8,3 +8,16 @@ source_set("url_constants") {
   # content/public/common/BUILD.gn:224 despite there being no .cc beside it.
   sources = [ "url_constants.h" ]
 }
+
+source_set("astro_schemes") {
+  sources = [
+    "astro_schemes.cc",
+    "astro_schemes.h",
+  ]
+
+  public_deps = [ ":url_constants" ]
+
+  # content/public/common only. common/DEPS subtracts content/public/browser,
+  # so this layer cannot acquire a browser-side dependency by accident.
+  deps = [ "//content/public/common" ]
+}

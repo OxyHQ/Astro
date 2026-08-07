@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "astro/browser/webui/astro_web_ui_configs.h"
 #include "base/logging.h"
 #include "chrome/browser/chrome_browser_main_extra_parts.h"
 
@@ -12,23 +13,10 @@ namespace {
 
 // Astro's browser-process lifecycle hook.
 //
-// Deliberately empty at this stage. #7 exists to prove that a clean checkout
-// compiles and links //astro through the declared hook — not to add product
-// behaviour, which would make "does the integration work?" and "does the
-// feature work?" fail together and be diagnosed as one problem.
-//
-// WebUI registration will attach here rather than by overwriting
-// chrome/browser/ui/webui/chrome_web_ui_configs.cc. content::WebUIConfigMap is
-// a public runtime embedder API and says so
-// (content/public/browser/webui_config_map.h:29-32), and PostProfileInit runs
-// after RegisterChromeWebUIConfigs() (chrome/browser/chrome_browser_main.cc:1830).
-//
-// That applies to `chrome://` and `chrome-untrusted://` only. A real `astro://`
-// scheme is NOT reachable this way: WebUIConfigMap::AddWebUIConfig begins with
-// CHECK_EQ(config->scheme(), kChromeUIScheme)
-// (content/public/browser/webui_config_map.cc:73). Additional schemes need the
-// content-layer integration owned by #11/#12, and that separation is
-// deliberate — do not paper over it here.
+// Everything Astro attaches to Chromium's startup hangs off this object.
+// Growing Astro must never mean growing the Chromium delta, so a new surface
+// gets a new callback override here rather than a new call site in a
+// Chromium-owned file.
 class AstroBrowserMainExtraParts : public ChromeBrowserMainExtraParts {
  public:
   AstroBrowserMainExtraParts() = default;
@@ -38,17 +26,54 @@ class AstroBrowserMainExtraParts : public ChromeBrowserMainExtraParts {
   AstroBrowserMainExtraParts& operator=(const AstroBrowserMainExtraParts&) =
       delete;
 
-  // The ONLY behaviour #7 adds, and it exists to be measured rather than
-  // inferred. A symbol present in an object file proves the module compiled;
-  // it does not prove Chromium ever constructs the object or calls into it.
-  // Those are different claims, and only the second one means the integration
-  // works.
+  // Exists to be measured rather than inferred. A symbol present in an object
+  // file proves the module compiled; it does not prove Chromium ever
+  // constructs the object or calls into it. Those are different claims, and
+  // only the second one means the integration works.
   //
   // PostEarlyInitialization is the first parts callback that runs on every
   // platform, so its absence from a startup log is a real failure rather than
   // a platform quirk.
   void PostEarlyInitialization() override {
     LOG(INFO) << "astro: AstroBrowserMainExtraParts installed";
+  }
+
+  // Astro's WebUI registration point.
+  //
+  // WHY PreBrowserStart AND NOT SOMETHING EARLIER. Registration must land
+  // after Chromium has registered its own configs, because both populate the
+  // one process-wide content::WebUIConfigMap and it CHECKs on a duplicate
+  // origin. Measured against the locked Chromium revision, inside
+  // ChromeBrowserMainParts::PreMainMessageLoopRunImpl:
+  //
+  //   chrome/browser/chrome_browser_main.cc:1790  PreProfileInit()
+  //   chrome/browser/chrome_browser_main.cc:1833  RegisterChromeWebUIConfigs()
+  //   chrome/browser/chrome_browser_main.cc:1834  RegisterChromeUntrustedWebUIConfigs()
+  //   chrome/browser/chrome_browser_main.cc:1857  CallPostProfileInit(...)
+  //   chrome/browser/chrome_browser_main.cc:1950  PreBrowserStart()
+  //   chrome/browser/chrome_browser_main.cc:1978  browser_creator_->Start(...)
+  //
+  // so PreProfileInit is too early (the extra-parts fan-out for it is at
+  // :1440-1447, ahead of :1833) and PreBrowserStart is late enough. It is also
+  // before :1978, which is where the first tab is opened — nothing can
+  // navigate to astro://test/ before this has run.
+  //
+  // WHY NOT PostProfileInit, which is the other callback that runs after
+  // :1833. Because it runs ONCE PER PROFILE, not once: ProfileInitManager
+  // observes the ProfileManager and calls CallPostProfileInit for every
+  // existing and future profile (:656-699, dispatching at :1490-1506). The
+  // WebUIConfigMap is process-wide and CHECKs on a duplicate origin, so
+  // registering there would run fine on a single-profile start and crash the
+  // browser the moment a second profile is created. That is a bug that hides
+  // in exactly the configuration most people develop in.
+  //
+  // The `is_initial_profile` flag would paper over it. It should not be used
+  // to: this registration has nothing to do with profiles, and a
+  // profile-shaped callback guarded by "but only the first one" is a comment
+  // that will be deleted by someone who reads it as redundant.
+  void PreBrowserStart() override {
+    RegisterAstroWebUIConfigs();
+    RegisterAstroUntrustedWebUIConfigs();
   }
 };
 

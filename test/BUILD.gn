@@ -1,0 +1,79 @@
+# Astro's own test binaries.
+#
+# WHY A SEPARATE BINARY RATHER THAN A `source_set` LISTED IN
+# chrome/test/BUILD.gn's `browser_tests`. Both work, and Chromium's own
+# convention is the latter — a subdirectory declares
+# `source_set("browser_tests")` and chrome/test/BUILD.gn lists it, e.g.
+# "//chrome/browser/btm:browser_tests" at chrome/test/BUILD.gn:2500. That
+# convention costs one Chromium-owned line per module, forever. //astro is
+# built on the rule that adding an Astro surface costs zero Chromium-owned
+# lines, and a test is a surface like any other, so this repository carries its
+# own binary instead.
+#
+# Nothing in Chromium references this file. That is sufficient for it to be
+# BUILT: GN writes a ninja file for every target in every BUILD.gn it loads,
+# whether or not anything depends on it, and this file is loaded because
+# //astro/BUILD.gn's `group("tests")` names it. `//astro/BUILD.gn` is itself
+# loaded because chrome/browser/BUILD.gn:1737 depends on `//astro:browser`.
+# So `ninja -C out/<dir> astro/test:astro_browser_tests` resolves with no
+# Chromium-owned file naming the target.
+#
+# The shape below — `test()` with HAS_OUT_OF_PROC_TEST_RUNNER, deps on
+# //chrome/test:browser_tests_runner for main(), and //chrome/test:test_support
+# + :test_support_ui for the harness — is upstream's own template for a
+# second browser-test binary outside chrome/test: see
+# `test("xr_browser_tests_binary")` at chrome/test/BUILD.gn:12947 and
+# `source_set("xr_browser_tests_common")` at :12968.
+
+import("//build/config/ui.gni")
+import("//testing/test.gni")
+
+# Guarded, not conditionalised inside: on Android the harness is
+# `test_support_ui_android` and the base class is AndroidBrowserTest, and no
+# Astro build target is Android today. A guard that names the reason is
+# preferable to a target that fails to resolve on a platform nobody builds.
+if (!is_android) {
+  test("astro_browser_tests") {
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    use_xvfb = use_xvfb_in_this_config
+
+    sources = [ "astro_scheme_process_model_browsertest.cc" ]
+
+    deps = [
+      # kAstroTestHost, so the tests name the host Astro actually registers
+      # rather than a second copy of the string "test".
+      "//astro/browser/webui",
+
+      # kAstroUIScheme / kAstroUIUntrustedScheme, for the same reason.
+      "//astro/common:url_constants",
+      "//base",
+
+      # The .pak files and locale strings the browser needs to start at all.
+      # Mirrors browser_tests (chrome/test/BUILD.gn:2465-2467); without them the
+      # binary links and then fails at startup rather than at build time.
+      "//chrome:packed_resources",
+      "//chrome:resources",
+      "//chrome:strings",
+
+      # main(). chrome/test/base/browser_tests_main.cc.
+      "//chrome/test:browser_tests_runner",
+
+      # chrome_test_utils::GetActiveWebContents.
+      "//chrome/test:test_support",
+
+      # PlatformBrowserTest / InProcessBrowserTest.
+      "//chrome/test:test_support_ui",
+      "//content/public/browser",
+      "//content/public/common",
+
+      # content::CanCommitURLForTesting, IsolateAllSitesForTesting,
+      # NavigateToURL, ExecJs, TestNavigationObserver.
+      "//content/test:test_support",
+
+      # net::EmbeddedTestServer and the mock host resolver.
+      "//net:test_support",
+      "//testing/gtest",
+      "//url",
+    ]
+  }
+}

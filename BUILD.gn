@@ -12,11 +12,37 @@
 # in the build graph: nothing below references it, and nothing should.
 
 group("astro") {
-  deps = [ "//astro/browser" ]
+  deps = [
+    "//astro/browser",
+    "//astro/browser/webui",
+    "//astro/common:astro_schemes",
+  ]
 }
 
 # Everything Chromium links against arrives through this one target, so the
 # hook in chrome/browser/BUILD.gn never has to grow a second entry.
 group("browser") {
   public_deps = [ "//astro/browser:browser" ]
+}
+
+# Astro's test binaries.
+#
+# Deliberately NOT in `group("astro")` above: a test binary must not become a
+# dependency of the browser. This group exists for one narrower reason — GN
+# loads a BUILD.gn only when a label in it is referenced, and //astro/BUILD.gn
+# is the only file in this module that Chromium already causes to be loaded
+# (chrome/browser/BUILD.gn:1737 -> `//astro:browser`). Naming //astro/test here
+# is what makes `astro/test:astro_browser_tests` exist in the ninja graph, with
+# no Chromium-owned file naming it. See //astro/test/BUILD.gn.
+#
+# The Android guard is duplicated from //astro/test/BUILD.gn on purpose: GN
+# resolves a dep by label, so referencing a target that only exists under
+# `if (!is_android)` is a hard error on Android rather than a no-op. Astro has
+# an android.gn (gn_args/android.gn), so this is a configuration that gets
+# generated.
+if (!is_android) {
+  group("tests") {
+    testonly = true
+    deps = [ "//astro/test:astro_browser_tests" ]
+  }
 }
