@@ -159,7 +159,34 @@ async def measure(session: Session, url: str, marker: str) -> dict:
         ("document_url", "location.href"),
         ("document_origin", "window.origin"),
         ("title", "document.title"),
-        ("body_text", "document.body ? document.body.innerText : ''"),
+        # innerText STOPS at a shadow boundary. Every Chromium WebUI is built
+        # from web components, so reading it reports an empty page for one that
+        # is fully rendered -- measured: astro://settings/ read as empty while
+        # carrying 2,249 elements. This walks into shadow roots instead, and
+        # `rendered_elements` is the number that tells a real page from an error
+        # page (34 elements) without depending on any text at all.
+        ("body_text", """(() => {
+             let text = '';
+             const walk = (root) => {
+               for (const el of root.querySelectorAll('*'))
+                 if (el.shadowRoot) walk(el.shadowRoot);
+               const t = root.textContent || '';
+               if (t.trim()) text += t.trim() + ' ';
+             };
+             walk(document);
+             return text.slice(0, 4000);
+           })()"""),
+        ("rendered_elements", """(() => {
+             let n = 0;
+             const walk = (root) => {
+               for (const el of root.querySelectorAll('*')) {
+                 n++;
+                 if (el.shadowRoot) walk(el.shadowRoot);
+               }
+             };
+             walk(document);
+             return n;
+           })()"""),
     ):
         evaluated = await session.call(
             "Runtime.evaluate", {"expression": expression, "returnByValue": True}
@@ -280,6 +307,7 @@ def report(record: dict) -> None:
         "body_sha256",
         "marker_present",
         "committed_matches_requested",
+        "rendered_elements",
         "console_problem_count",
         "blocked_by_csp",
     ):
