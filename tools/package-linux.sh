@@ -25,10 +25,19 @@ if [ ! -f "$BUILD_DIR/chrome" ]; then
         "Run 'tools/build.sh Release linux' first."
 fi
 
+# An artifact named after the product must contain the product, and the verdict
+# is reached before anything is staged. The Linux payload is the ELF the build
+# produced, so it is scanned directly; verified in both directions against real
+# artifacts (see tools/package-release.sh for the two).
+astro::require_astro_overlay "linux x64" --binary "$BUILD_DIR/chrome"
+
 mkdir -p "$RELEASE_DIR"
 
 # Create tar.gz archive with all required files
 ARCHIVE_NAME="astro-${VERSION}-linux-x64.tar.gz"
+if [ "$ASTRO_OVERLAY_VERDICT" = "overlayless" ]; then
+    ARCHIVE_NAME="$(astro::overlayless_artifact_name "${VERSION}-linux-x64" ".tar.gz")"
+fi
 STAGING="$RELEASE_DIR/astro-staging"
 rm -rf "$STAGING"
 mkdir -p "$STAGING/astro"
@@ -76,6 +85,12 @@ for page in ntp alia settings whats-new error; do
         cp -r "$BUILD_DIR/astro-$page/"* "$STAGING/astro/resources/astro-$page/"
     fi
 done
+
+# Build provenance: a release artifact must carry the exact source revisions,
+# GN args and toolchain identity it was produced from (ASTRO-NEXT-002, #5), plus
+# the overlay verdict, so an unpacked artifact says what it is even once its
+# filename has been lost.
+astro::stage_provenance "$STAGING/astro/provenance.json"
 
 # Launcher script. The generated install.sh symlinks to it, so a package
 # without it installs a broken `astro` command.
