@@ -77,4 +77,3 @@ file      chrome/app/vector_icons/alia_spark.icon
 # with a minimal integration hook, which is #7's work. What it does is make
 # the collision declared, greppable and loud, and make any NEW collision of
 # this shape a hard build failure.
-overwrite chrome/browser/ui/webui/chrome_web_ui_configs.cc owner=oxy-browser issue=7 conflicts-with=054-adblock-webui-register.patch,055-ntp-webui-register.patch,disable-ai.patch,first-run-page.patch

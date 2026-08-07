@@ -74,9 +74,8 @@ apply_sed() {
         # this the dry run happily plans a substitution sed will refuse to
         # execute, and the first thing the operator learns is a failure
         # halfway through a real run.
-        if ! sed "$pattern" "$file" > /dev/null 2>&1; then
-            astro::die "invalid sed expression for $short_path: $pattern"
-        fi
+        sed_error="$(sed "$pattern" "$file" 2>&1 > /dev/null)" || \
+            astro::die "invalid sed expression for $short_path: $pattern${sed_error:+ ($sed_error)}"
         if [[ "$count" -gt 0 ]]; then
             echo "  [WOULD CHANGE] $short_path ($count occurrences of 'Chromium')"
         else
@@ -136,8 +135,24 @@ echo "=== Replacing 'Chromium' with '$BROWSER_NAME' in .grd resource files ==="
 # Two things must survive the rename, so the substitution sits inside two
 # negated address blocks. `/a/!/b/!s/...` is NOT valid sed -- a negated
 # address takes a block, not another address.
-SKIP_ATTRIBUTION='/Chromium Authors/!{/ChromiumOS/!'
-SKIP_ATTRIBUTION_END='}'
+# THREE things must survive the rename, and the third was found by a user
+# reading the About page, not by any check here:
+#
+#   Chromium Authors  — the copyright holder. Rewriting it ships a false
+#                       attribution on a codebase whose licence requires the
+#                       notice be retained.
+#   ChromiumOS        — a DIFFERENT product. A blanket rename invents "AstroOS".
+#   BEGIN_LINK_CHROMIUM — the LABEL of the link to chromium.org, which credits
+#                       the upstream project: "Astro is made possible by the
+#                       Chromium open source project". Renamed, the sentence
+#                       says Astro is made possible by Astro, and the credit
+#                       this fork owes upstream disappears while the link still
+#                       points at chromium.org.
+#
+# This script's own closing note has always claimed those links are preserved.
+# Until this guard existed, that claim was false.
+SKIP_ATTRIBUTION='/Chromium Authors/!{/ChromiumOS/!{/BEGIN_LINK_CHROMIUM/!'
+SKIP_ATTRIBUTION_END='}}'
 
 
 # The set of files is DISCOVERED, not listed.
@@ -165,7 +180,7 @@ while IFS= read -r f; do
     esac
     BRAND_FILES+=("$f")
 done < <(cd "$CHROMIUM_SRC" && grep -rlE "Chromium|$BROWSER_NAME" \
-             --include='*.grd' --include='*.grdp' chrome components ui 2>/dev/null | sort)
+             --include='*.grd' --include='*.grdp' chrome components ui | sort)
 
 # A discovery that matched nothing would rename nothing and print a clean
 # summary, which is exactly what a working run looks like.
