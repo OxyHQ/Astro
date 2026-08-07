@@ -1,0 +1,1343 @@
+{
+  "_comment": [
+    "Final retirement disposition for every patch in patches/astro/series, for issue #8.",
+    "Companion to patch-retirement.md, which carries the reasoning and the evidence.",
+    "Hand-maintained: a retirement decision is a judgement, not a property of a diff.",
+    "",
+    "Derived from COMMITTED state (git archive HEAD patches/astro). Two patch files",
+    "carry uncommitted edits (020, 046); the delta is recorded in patch-retirement.md",
+    "section 8 and changes no classification here.",
+    "",
+    "bucket:",
+    "  A-auto        no Chromium-owned change once //astro exists and is linked",
+    "  B-hook        behaviour survives behind a named minimal Chromium hook",
+    "  C-branding    product naming/identifiers/strings, owned by #9",
+    "  D-scheme      exists only because astro:// is not a real scheme (#11/#12/#13)",
+    "  E-policy      inherited or product behaviour needing a decision (#10, #20)",
+    "  O-obsolete    the surface stops being Astro's product surface; remove",
+    "  R-remove      must not survive in any form; no successor hook",
+    "  F-unclassified  stated as unclassified rather than guessed (hunk level only)",
+    "",
+    "A patch carries hunk_classifications when it does more than one thing. A patch",
+    "that is mostly branding with one security-relevant hunk is NOT filed as branding",
+    "at the hunk level."
+  ],
+  "issue": 8,
+  "epic": 3,
+  "source_of_truth": "patches/astro/series at HEAD",
+  "patch_count": 54,
+  "bucket_counts": {
+    "A-auto": 4,
+    "B-hook": 15,
+    "C-branding": 11,
+    "D-scheme": 15,
+    "E-policy": 4,
+    "O-obsolete": 3,
+    "R-remove": 2
+  },
+  "cluster_counts": {
+    "CL-1": 2,
+    "CL-10": 9,
+    "CL-11": 5,
+    "CL-12": 11,
+    "CL-13": 3,
+    "CL-2": 2,
+    "CL-3": 2,
+    "CL-4": 3,
+    "CL-5": 4,
+    "CL-6": 5,
+    "CL-7": 1,
+    "CL-8": 3,
+    "CL-9": 4
+  },
+  "clusters": {
+    "CL-1": {
+      "name": "Build & asset ownership",
+      "owner_issue": 7,
+      "patches": [
+        "008-os-crypt-visibility.patch",
+        "051-alia-vector-icon.patch"
+      ],
+      "wave": 2,
+      "preconditions": [
+        "//astro exists as a real GN target with its own BUILD.gn",
+        "//astro declares aggregate_vector_icons and owns alia_spark.icon",
+        "#16 has chosen OSCrypt sync vs async for the token store"
+      ]
+    },
+    "CL-2": {
+      "name": "Preference registration",
+      "owner_issue": 7,
+      "patches": [
+        "020-register-oxy-prefs.patch",
+        "046-adblock-prefs.patch"
+      ],
+      "wave": 3,
+      "preconditions": [
+        "astro::RegisterProfilePrefs and astro::RegisterLocalStatePrefs exist",
+        "#20 has ruled on the six inherited deletions carried by 020",
+        "#16 has confirmed oxy.access_token / oxy.refresh_token are not carried over",
+        "046 retires no earlier than 020"
+      ]
+    },
+    "CL-3": {
+      "name": "WebUI config registration",
+      "owner_issue": 7,
+      "patches": [
+        "054-adblock-webui-register.patch",
+        "055-ntp-webui-register.patch"
+      ],
+      "wave": 3,
+      "preconditions": [
+        "//astro's ChromeBrowserMainExtraParts registers its WebUI configs at PostProfileInit or PreBrowserStart",
+        "the untracked whole-file copy of chrome/browser/ui/webui/chrome_web_ui_configs.cc is deleted in the same change",
+        "055 retires no earlier than 054"
+      ],
+      "note": "needs no Chromium-owned edit: WebUIConfigMap's Add*WebUIConfig are public and RegisterChromeWebUIConfigs is only one caller"
+    },
+    "CL-4": {
+      "name": "Adblock browser integration",
+      "owner_issue": 18,
+      "patches": [
+        "045-adblock-throttle-register.patch",
+        "052-adblock-tab-helper-register.patch",
+        "053-adblock-toolbar-button.patch"
+      ],
+      "wave": 5,
+      "preconditions": [
+        "throttle, tab-helper and toolbar hooks exist",
+        "the undeclared ToolbarView adblock_button_ member is designed, not inherited"
+      ]
+    },
+    "CL-5": {
+      "name": "Alia integration",
+      "owner_issue": 17,
+      "patches": [
+        "047-alia-side-panel-entry-id.patch",
+        "048-alia-action-id.patch",
+        "049-alia-browser-action.patch",
+        "050-alia-side-panel-register.patch"
+      ],
+      "wave": 5,
+      "preconditions": [
+        "astro::RegisterSidePanelEntries exists",
+        "the two X-macro enum entries are accepted as the minimum Chromium delta"
+      ]
+    },
+    "CL-6": {
+      "name": "Identity",
+      "owner_issue": 16,
+      "patches": [
+        "011-astro-url-scheme-alias.patch",
+        "014-oxy-profile-menu-header.patch",
+        "015-oxy-profile-menu-impl.patch",
+        "036-navigator-auth-intercept.patch",
+        "039-auth-navigation-throttle-register.patch"
+      ],
+      "wave": 1,
+      "preconditions": [
+        "none — this cluster retires by deletion and is a PRECONDITION for linking //astro, not a consequence of it"
+      ]
+    },
+    "CL-7": {
+      "name": "Theme",
+      "owner_issue": 24,
+      "patches": [
+        "010-oxy-theme-color.patch"
+      ],
+      "wave": 5,
+      "preconditions": [
+        "astro::AddColorMixers exists",
+        "the inactive-tab-foreground change is a stated decision"
+      ]
+    },
+    "CL-8": {
+      "name": "Scheme trust core",
+      "owner_issue": 11,
+      "patches": [
+        "024-astro-scheme-constant.patch",
+        "025-astro-scheme-register.patch",
+        "030-protocol-handler-astro.patch"
+      ],
+      "wave": 4,
+      "preconditions": [
+        "the astro:// trust model is written down: which of standard/secure/CORS-enabled/savable it gets, and what astro-untrusted:// is"
+      ]
+    },
+    "CL-9": {
+      "name": "Scheme navigation & origin",
+      "owner_issue": 12,
+      "patches": [
+        "026-navigator-astro-rewrite.patch",
+        "028-security-display-astro.patch",
+        "041-navigation-controller-astro.patch",
+        "043-web-app-astro-scheme.patch"
+      ],
+      "wave": 4,
+      "preconditions": [
+        "CL-8 landed",
+        "origin / SiteInstance / process-lock assertions pass",
+        "036 already removed (it conflicts with 026)"
+      ]
+    },
+    "CL-10": {
+      "name": "Scheme display & persistence",
+      "owner_issue": 13,
+      "patches": [
+        "021-omnibox-display-astro.patch",
+        "022-autocomplete-astro-scheme.patch",
+        "023-url-fixer-astro-scheme.patch",
+        "027-scheme-classifier-astro.patch",
+        "029-copy-url-astro.patch",
+        "037-builtin-provider-astro-scheme.patch",
+        "038-dino-game-astro-scheme.patch",
+        "040-tab-hover-astro-scheme.patch",
+        "042-session-restore-astro.patch"
+      ],
+      "wave": 4,
+      "preconditions": [
+        "CL-9 landed",
+        "the ungoogled content captured in 023 and 027 is handed to #8's ungoogled curation rather than ported",
+        "the legacy-URL migration decision exists for sessions already on disk (042)"
+      ]
+    },
+    "CL-11": {
+      "name": "New Tab Page surface",
+      "owner_issue": 22,
+      "patches": [
+        "016-ntp-astro-logo.patch",
+        "017-ntp-logo-css.patch",
+        "018-ntp-logo-ts.patch",
+        "019-ntp-default-sites.patch",
+        "056-ntp-redirect-to-astro.patch"
+      ],
+      "wave": 5,
+      "preconditions": [
+        "astro://newtab is the product NTP",
+        "CL-3 landed",
+        "the shipped tile list is a stated product decision (#10)"
+      ]
+    },
+    "CL-12": {
+      "name": "Branding & product constants",
+      "owner_issue": 9,
+      "patches": [
+        "001-branding-strings.patch",
+        "002-branding-product-name.patch",
+        "003-branding-linux-package.patch",
+        "005-branding-components-strings.patch",
+        "009-branding-settings-strings.patch",
+        "012-settings-border-style.patch",
+        "013-settings-google-to-oxy.patch",
+        "031-linux-icon-name.patch",
+        "032-linux-desktop-name.patch",
+        "033-shared-settings-google-to-oxy.patch",
+        "034-profiles-google-to-oxy.patch"
+      ],
+      "wave": 0,
+      "preconditions": [
+        "one source of truth generates names, identifiers and strings",
+        "the privacy-disclosure strings are re-authored rather than substituted",
+        "the six deleted help links have a decision",
+        "the copyright/attribution replacement in 001 is confirmed acceptable"
+      ],
+      "note": "order-independent; the epic explicitly parallelises #8 and #9"
+    },
+    "CL-13": {
+      "name": "Inherited & product policy",
+      "owner_issue": 10,
+      "patches": [
+        "004-default-search-duckduckgo.patch",
+        "006-user-agent-astro.patch",
+        "044-disable-ev-certificate-metadata.patch"
+      ],
+      "wave": 6,
+      "preconditions": [
+        "the feature matrix and network manifest exist (#10)",
+        "the security baseline decision exists (#20)",
+        "044 retires together with extra/iridium-browser/Remove-EV-certificates.patch"
+      ]
+    }
+  },
+  "retirement_order": [
+    {
+      "wave": 0,
+      "clusters": [
+        "CL-12"
+      ],
+      "note": "order-independent, may run from the start in parallel with #7"
+    },
+    {
+      "wave": 1,
+      "clusters": [
+        "CL-6"
+      ],
+      "note": "HARD GATE. Linking //astro while 011/036/039 are still in the stack switches on a token-in-URL identity flow for the first time. Delete before, or in the same change as, the build hook."
+    },
+    {
+      "wave": 2,
+      "clusters": [
+        "CL-1"
+      ]
+    },
+    {
+      "wave": 3,
+      "clusters": [
+        "CL-2",
+        "CL-3"
+      ]
+    },
+    {
+      "wave": 4,
+      "clusters": [
+        "CL-8",
+        "CL-9",
+        "CL-10"
+      ],
+      "note": "strictly in this order (#11 -> #12 -> #13)"
+    },
+    {
+      "wave": 5,
+      "clusters": [
+        "CL-4",
+        "CL-5",
+        "CL-7",
+        "CL-11"
+      ]
+    },
+    {
+      "wave": 6,
+      "clusters": [
+        "CL-13"
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "015-oxy-profile-menu-impl.patch",
+      "to": "014-oxy-profile-menu-header.patch",
+      "kind": "requires",
+      "detail": "015 implements what 014 declares"
+    },
+    {
+      "from": "046-adblock-prefs.patch",
+      "to": "020-register-oxy-prefs.patch",
+      "kind": "requires",
+      "detail": "046's hunk context is 020's last added line"
+    },
+    {
+      "from": "055-ntp-webui-register.patch",
+      "to": "054-adblock-webui-register.patch",
+      "kind": "requires",
+      "detail": "055's hunk context contains 054's added line"
+    },
+    {
+      "from": "036-navigator-auth-intercept.patch",
+      "to": "026-navigator-astro-rewrite.patch",
+      "kind": "conflicts",
+      "detail": "same pre-image blob b5c2da1226eae, same insertion point; 036 contains 026 verbatim plus the auth interception"
+    },
+    {
+      "from": "044-disable-ev-certificate-metadata.patch",
+      "to": "patches/ungoogled/extra/iridium-browser/Remove-EV-certificates.patch",
+      "kind": "corrects",
+      "detail": "044 exists only to repair that patch's dummy EV root"
+    },
+    {
+      "from": "020-register-oxy-prefs.patch",
+      "to": "patches/ungoogled/core/ungoogled-chromium/{remove-unused-preferences-fields,fix-building-without-safebrowsing,disable-ai}.patch",
+      "kind": "duplicates-deletions",
+      "detail": "all 9 removed lines byte-identical"
+    },
+    {
+      "from": "015-oxy-profile-menu-impl.patch",
+      "to": "patches/ungoogled/core/ungoogled-chromium/remove-unused-preferences-fields.patch",
+      "kind": "duplicates-deletions",
+      "detail": "all four substantive removals byte-identical"
+    },
+    {
+      "from": "039-auth-navigation-throttle-register.patch",
+      "to": "patches/ungoogled/core/inox-patchset/0001-fix-building-without-safebrowsing.patch",
+      "kind": "duplicates-deletions",
+      "detail": "all four removed lines byte-identical"
+    },
+    {
+      "from": "023-url-fixer-astro-scheme.patch",
+      "to": "patches/ungoogled/{core/ungoogled-chromium/block-trk-and-subdomains,extra/ungoogled-chromium/add-flag-for-omnibox-autocomplete-filtering}.patch",
+      "kind": "contains-content",
+      "detail": "diffed from an already-patched tree"
+    },
+    {
+      "from": "027-scheme-classifier-astro.patch",
+      "to": "patches/ungoogled/core/ungoogled-chromium/block-trk-and-subdomains.patch",
+      "kind": "contains-content",
+      "detail": "url::kTraceScheme line"
+    },
+    {
+      "from": "054-adblock-webui-register.patch",
+      "to": "src/chrome/browser/ui/webui/chrome_web_ui_configs.cc (untracked overlay copy)",
+      "kind": "reverted-by",
+      "detail": "declared in tools/overlay.allowlist; the copy omits the adblock config"
+    },
+    {
+      "from": "055-ntp-webui-register.patch",
+      "to": "src/chrome/browser/ui/webui/chrome_web_ui_configs.cc (untracked overlay copy)",
+      "kind": "reverted-by",
+      "detail": "declared in tools/overlay.allowlist"
+    },
+    {
+      "from": "053-adblock-toolbar-button.patch",
+      "to": "chrome/browser/ui/views/toolbar/toolbar_view.h",
+      "kind": "missing-declaration",
+      "detail": "assigns to adblock_button_, which nothing declares"
+    }
+  ],
+  "security_review_queue": {
+    "_note": "Issue #20 owns these decisions and must not inherit any of them silently. 'inherited' means an ungoogled patch already makes the identical deletion; 'astro-originated' means no ungoogled patch does.",
+    "items": [
+      {
+        "id": "token-in-url",
+        "patches": [
+          "011-astro-url-scheme-alias.patch",
+          "015-oxy-profile-menu-impl.patch",
+          "036-navigator-auth-intercept.patch",
+          "039-auth-navigation-throttle-register.patch"
+        ],
+        "owner_issue": 16,
+        "origin": "astro-originated",
+        "detail": "access_token and refresh_token arrive in a URL query, are accepted from any navigation to the callback URL with no state/PKCE/origin check, and the JWT payload is base64-decoded without signature verification. Violates the epic's non-negotiable rule. Inert today only because the overlay is not in the build."
+      },
+      {
+        "id": "tokens-in-plaintext-prefs",
+        "patches": [
+          "020-register-oxy-prefs.patch"
+        ],
+        "owner_issue": 16,
+        "origin": "astro-originated",
+        "detail": "oxy.access_token and oxy.refresh_token registered as profile string prefs, i.e. plaintext JSON on disk."
+      },
+      {
+        "id": "safe-browsing-pref-registration-removed",
+        "patches": [
+          "020-register-oxy-prefs.patch"
+        ],
+        "owner_issue": 20,
+        "origin": "inherited",
+        "detail": "safe_browsing::RegisterLocalStatePrefs, safe_browsing::RegisterProfilePrefs, ntp::SafeBrowsingHandler::RegisterProfilePrefs. Dropping the ungoogled patch does NOT restore these."
+      },
+      {
+        "id": "screen-ai-pref-registration-removed",
+        "patches": [
+          "020-register-oxy-prefs.patch"
+        ],
+        "owner_issue": 20,
+        "origin": "inherited",
+        "detail": "screen_ai::RegisterLocalStatePrefs and its platform guard."
+      },
+      {
+        "id": "ssl-interstitial-reporting-removed",
+        "patches": [
+          "039-auth-navigation-throttle-register.patch"
+        ],
+        "owner_issue": 20,
+        "origin": "inherited",
+        "detail": "SSLErrorHandler::SetClientCallbackOnInterstitialsShown, the enterprise report of a shown SSL interstitial."
+      },
+      {
+        "id": "signin-ui-removed",
+        "patches": [
+          "015-oxy-profile-menu-impl.patch"
+        ],
+        "owner_issue": 20,
+        "origin": "inherited",
+        "detail": "Account settings button forced off; MaybeBuildGoogleServicesSettingsButton emptied."
+      },
+      {
+        "id": "ev-certificate-metadata-disabled",
+        "patches": [
+          "044-disable-ev-certificate-metadata.patch"
+        ],
+        "owner_issue": 20,
+        "origin": "astro-originated",
+        "detail": "PLATFORM_USES_CHROMIUM_EV_METADATA removed on every platform; RemoveEVCA return value flipped. The only Astro-originated security-relevant deletion in the stack."
+      },
+      {
+        "id": "scheme-trust-model-undecided",
+        "patches": [
+          "025-astro-scheme-register.patch",
+          "030-protocol-handler-astro.patch"
+        ],
+        "owner_issue": 11,
+        "origin": "astro-originated",
+        "detail": "astro:// registered standard + secure + CORS-enabled + savable with no recorded trust model."
+      },
+      {
+        "id": "fingerprinting-surface",
+        "patches": [
+          "006-user-agent-astro.patch"
+        ],
+        "owner_issue": 10,
+        "origin": "astro-originated",
+        "detail": "' Astro/<version>' appended to full and reduced User-Agent."
+      },
+      {
+        "id": "false-privacy-disclosure",
+        "patches": [
+          "013-settings-google-to-oxy.patch",
+          "033-shared-settings-google-to-oxy.patch"
+        ],
+        "owner_issue": 10,
+        "origin": "astro-originated",
+        "detail": "Settings text tells users data is sent to Oxy while the implementations still target Google endpoints or are disabled entirely."
+      }
+    ]
+  },
+  "unclassified": [
+    {
+      "item": "six deleted 'Learn more' link placeholders",
+      "patches": [
+        "009-branding-settings-strings.patch",
+        "013-settings-google-to-oxy.patch"
+      ],
+      "owner_issue": 10,
+      "unknown": "deliberate 'no Google help-centre links' policy, or collateral damage from hand-editing",
+      "settles_it": "whether the C++ callers still supply the $1/$2 substitution arguments for those six message ids, and whether grit accepts the mismatch; needs a build of the patched resource targets"
+    },
+    {
+      "item": "IDS_ABOUT_VERSION_COPYRIGHT replacement",
+      "patches": [
+        "001-branding-strings.patch"
+      ],
+      "owner_issue": 9,
+      "unknown": "whether replacing a copyright notice with 'Made with ❤️ in the 🌎 by Oxy.' satisfies the epic's licence and attribution requirement",
+      "settles_it": "a licensing answer, not a measurement"
+    },
+    {
+      "item": "settings help button disabled globally",
+      "patches": [
+        "012-settings-border-style.patch"
+      ],
+      "owner_issue": 10,
+      "unknown": "whether the policy is 'no help links at all' or 'Astro-hosted help links'",
+      "settles_it": "the same #10 decision as item 1; determines restore-upstream vs point-at-Oxy-docs"
+    }
+  ],
+  "patches": {
+    "001-branding-strings.patch": {
+      "bucket": "C-branding",
+      "owner_issue": 9,
+      "cluster": "CL-12",
+      "retires_by": "Regenerate product strings from the single branding source (#9).",
+      "chromium_hook": null,
+      "hunk_classifications": [
+        {
+          "hunk": "IDS_ABOUT_VERSION_COPYRIGHT",
+          "classification": "F-unclassified",
+          "owner_issue": 9,
+          "detail": "Replaces 'Copyright <ph name=\"YEAR\">{0,date,y}</ph> The Chromium Authors. All rights reserved.' with 'Made with ❤️ in the 🌎 by Oxy.' — removes an attribution notice and a format placeholder the caller supplies. Licensing question, not branding."
+        },
+        {
+          "hunk": "12 lines carrying domain-substituted text",
+          "classification": "E-policy",
+          "owner_issue": 8,
+          "detail": "Substituted fake domains written into otherwise-clean upstream strings."
+        }
+      ],
+      "security_flags": [],
+      "notes": "43 hunks, one file. Added and removed line counts equal; <message name=> id set identical both sides; every changed pair except those above is explained by the substitution map.",
+      "evidence": null
+    },
+    "002-branding-product-name.patch": {
+      "bucket": "C-branding",
+      "owner_issue": 9,
+      "cluster": "CL-12",
+      "retires_by": "Generated BRANDING from branding/astro.conf (#9).",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "003-branding-linux-package.patch": {
+      "bucket": "C-branding",
+      "owner_issue": 9,
+      "cluster": "CL-12",
+      "retires_by": "Generated package metadata (#9).",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "004-default-search-duckduckgo.patch": {
+      "bucket": "E-policy",
+      "owner_issue": 10,
+      "cluster": "CL-13",
+      "retires_by": "Retires when the search-default decision is recorded in the feature matrix.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "The only patch the baseline disposition marks 'keep'. Implementation seam: GetPrepopulatedFallbackSearch in components/search_engines/template_url_prepopulate_data.cc.",
+      "evidence": null
+    },
+    "005-branding-components-strings.patch": {
+      "bucket": "C-branding",
+      "owner_issue": 9,
+      "cluster": "CL-12",
+      "retires_by": "Regenerate //components strings (#9).",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Measured clean: 0 changed line pairs unexplained by the substitution map.",
+      "evidence": null
+    },
+    "006-user-agent-astro.patch": {
+      "bucket": "E-policy",
+      "owner_issue": 10,
+      "cluster": "CL-13",
+      "retires_by": "Retires when the UA decision is recorded (#10) with a fingerprinting review (#20).",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [
+        "fingerprinting-surface"
+      ],
+      "notes": "Appends ' Astro/<version>' to both the full and reduced User-Agent — a permanent, network-visible identifier on every request.",
+      "evidence": null
+    },
+    "008-os-crypt-visibility.patch": {
+      "bucket": "A-auto",
+      "owner_issue": 7,
+      "cluster": "CL-1",
+      "retires_by": "Disappears if the token store uses OSCrypt async; otherwise one allowlist line naming //astro.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Conditional on #16's storage decision.",
+      "evidence": "components/os_crypt/sync/BUILD.gn:12 carries a visibility allowlist; components/os_crypt/async/*/BUILD.gn imposes none on the browser target. The overlay currently includes components/os_crypt/sync/os_crypt.h."
+    },
+    "009-branding-settings-strings.patch": {
+      "bucket": "C-branding",
+      "owner_issue": 9,
+      "cluster": "CL-12",
+      "retires_by": "Regenerate settings strings (#9), settings surface owned by #15.",
+      "chromium_hook": null,
+      "hunk_classifications": [
+        {
+          "hunk": "3 hunks removing <ph name=\"BEGIN_LINK\" href=\"$1\"> help links",
+          "classification": "F-unclassified",
+          "owner_issue": 10,
+          "detail": "Memory saver, energy saver, preload pages. Message ids unchanged; C++ callers may still supply $1."
+        },
+        {
+          "hunk": "4 substituted-domain lines",
+          "classification": "E-policy",
+          "owner_issue": 8,
+          "detail": "Includes a live href to https://safebrowsing.9oo91e.qjz9zk/safebrowsing/report_error/ — a clickable link to a domain that does not resolve."
+        }
+      ],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "010-oxy-theme-color.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 24,
+      "cluster": "CL-7",
+      "retires_by": "Replaced by astro::AddColorMixers.",
+      "chromium_hook": "astro::AddColorMixers(...)",
+      "hunk_classifications": [
+        {
+          "hunk": "@@ -36,7 +36,7 @@",
+          "classification": "B-hook",
+          "owner_issue": 24,
+          "detail": "Frame/tab-background colour set to Oxy fuchsia."
+        },
+        {
+          "hunk": "@@ -50,6 +50,7 @@",
+          "classification": "B-hook",
+          "owner_issue": 24,
+          "detail": "Inactive-tab foreground now returns white instead of falling through to COLOR_TOOLBAR_TEXT's kGoogleGrey800 — a second decision inside a patch named for one."
+        }
+      ],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "011-astro-url-scheme-alias.patch": {
+      "bucket": "R-remove",
+      "owner_issue": 16,
+      "cluster": "CL-6",
+      "retires_by": "Deleted. Neither half has a successor.",
+      "chromium_hook": null,
+      "hunk_classifications": [
+        {
+          "hunk": "@@ -50,6 +56,38 @@ (auth callback)",
+          "classification": "R-remove",
+          "owner_issue": 16,
+          "detail": "Parses an auth callback inside HandleChromeAboutAndChromeSyncRewrite, writes identity prefs, stores access and refresh tokens, and LOG(INFO)s the username."
+        },
+        {
+          "hunk": "@@ -50,6 +56,38 @@ (astro:// rewrite)",
+          "classification": "R-remove",
+          "owner_issue": 11,
+          "detail": "The cosmetic chrome:// alias, explicitly rejected going forward."
+        }
+      ],
+      "security_flags": [
+        "token-in-url",
+        "cosmetic-scheme-alias-rejected"
+      ],
+      "notes": null,
+      "evidence": null
+    },
+    "012-settings-border-style.patch": {
+      "bucket": "C-branding",
+      "owner_issue": 15,
+      "cluster": "CL-12",
+      "retires_by": "Settings surface re-styled through #15, not by patching Chromium resources.",
+      "chromium_hook": null,
+      "hunk_classifications": [
+        {
+          "hunk": "@@ -31,7 +31,8 @@ / @@ -15,7 +15,8 @@",
+          "classification": "C-branding",
+          "owner_issue": 15,
+          "detail": "Card border/shadow styling."
+        },
+        {
+          "hunk": "@@ -94,7 +95,7 @@",
+          "classification": "E-policy",
+          "owner_issue": 10,
+          "detail": "if=\"[[learnMoreUrl]]\" -> if=\"[[false]]\": disables the settings subpage help button for every subpage. Behaviour, not styling."
+        }
+      ],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "013-settings-google-to-oxy.patch": {
+      "bucket": "C-branding",
+      "owner_issue": 9,
+      "cluster": "CL-12",
+      "retires_by": "Re-author settings strings (#9 + #15); do not carry the substitution forward.",
+      "chromium_hook": null,
+      "hunk_classifications": [
+        {
+          "hunk": "Safe Browsing / spell check / live caption / UKM disclosure strings",
+          "classification": "E-policy",
+          "owner_issue": 10,
+          "detail": "Google->Oxy substitution over user-facing privacy disclosures whose implementations are unchanged: 'Text you type in the browser is sent to Oxy', 'Oxy Safe Browsing', 'Real-time, AI-powered protection ... sent to Oxy'."
+        },
+        {
+          "hunk": "3 hunks removing <ph name=\"BEGIN_LINK\"> help links",
+          "classification": "F-unclassified",
+          "owner_issue": 10,
+          "detail": "keep-sites-active, inactive-tab indicator, performance alerts."
+        },
+        {
+          "hunk": "37 substituted-domain lines",
+          "classification": "E-policy",
+          "owner_issue": 8,
+          "detail": "Highest count in the stack."
+        }
+      ],
+      "security_flags": [
+        "false-privacy-disclosure"
+      ],
+      "notes": "66 hunks, one file.",
+      "evidence": null
+    },
+    "014-oxy-profile-menu-header.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 24,
+      "cluster": "CL-6",
+      "retires_by": "Replaced by astro::AppendProfileMenuItems.",
+      "chromium_hook": "astro::AppendProfileMenuItems(...)",
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Declares what 015 implements; 015 cannot apply or retire without it.",
+      "evidence": null
+    },
+    "015-oxy-profile-menu-impl.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 16,
+      "cluster": "CL-6",
+      "retires_by": "Deleted with CL-6; the menu seam is re-created by #24, not preserved.",
+      "chromium_hook": "astro::AppendProfileMenuItems(...) (seam only)",
+      "hunk_classifications": [
+        {
+          "hunk": "@@ -1249,6 +1234,58 @@",
+          "classification": "R-remove",
+          "owner_issue": 16,
+          "detail": "Builds .../login?client_id=astro-browser&redirect_uri=astro://auth/callback&response_type=token — an implicit-flow sign-in that returns tokens in a URL."
+        },
+        {
+          "hunk": "@@ -1017,9 +1021,7 @@",
+          "classification": "E-policy",
+          "owner_issue": 20,
+          "detail": "should_show_settings_button hard-coded false. Byte-identical to ungoogled remove-unused-preferences-fields.patch."
+        },
+        {
+          "hunk": "@@ -1041,25 +1043,6 @@",
+          "classification": "E-policy",
+          "owner_issue": 20,
+          "detail": "Empties MaybeBuildGoogleServicesSettingsButton(). Byte-identical to the same ungoogled patch."
+        }
+      ],
+      "security_flags": [
+        "token-in-url",
+        "re-carries-inherited-security-deletions"
+      ],
+      "notes": null,
+      "evidence": null
+    },
+    "016-ntp-astro-logo.patch": {
+      "bucket": "O-obsolete",
+      "owner_issue": 22,
+      "cluster": "CL-11",
+      "retires_by": "Removed: Chromium's NTP resources stop being Astro's NTP surface.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "017-ntp-logo-css.patch": {
+      "bucket": "O-obsolete",
+      "owner_issue": 22,
+      "cluster": "CL-11",
+      "retires_by": "Removed with the surface.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Also switches -webkit-mask-image to background-image, disabling the single-colour theming path.",
+      "evidence": null
+    },
+    "018-ntp-logo-ts.patch": {
+      "bucket": "O-obsolete",
+      "owner_issue": 22,
+      "cluster": "CL-11",
+      "retires_by": "Removed with the surface.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Comment-only; zero behaviour.",
+      "evidence": null
+    },
+    "019-ntp-default-sites.patch": {
+      "bucket": "E-policy",
+      "owner_issue": 10,
+      "cluster": "CL-11",
+      "retires_by": "Retires when the shipped tile list is a stated product decision.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Rewrites all three default_popular_sites*.json to DuckDuckGo / Wikipedia / GitHub / Reddit. Product endorsements, not de-Googling.",
+      "evidence": null
+    },
+    "020-register-oxy-prefs.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 7,
+      "cluster": "CL-2",
+      "retires_by": "Replaced by astro::RegisterProfilePrefs / astro::RegisterLocalStatePrefs.",
+      "chromium_hook": "astro::RegisterProfilePrefs(registry) + astro::RegisterLocalStatePrefs(registry)",
+      "hunk_classifications": [
+        {
+          "hunk": "@@ -1720,6 +1713,15 @@",
+          "classification": "B-hook",
+          "owner_issue": 16,
+          "detail": "Registers oxy.access_token and oxy.refresh_token as plaintext profile string prefs. Must not be carried into the hook."
+        },
+        {
+          "hunk": "@@ -164 / -176 / -269 / -1425 / -1784 / -1900",
+          "classification": "E-policy",
+          "owner_issue": 20,
+          "detail": "Removes safe_browsing::RegisterLocalStatePrefs, safe_browsing::RegisterProfilePrefs, ntp::SafeBrowsingHandler::RegisterProfilePrefs, screen_ai::RegisterLocalStatePrefs and three includes. MEASURED: all 9 removed lines are byte-identical to deletions ungoogled patches already make (remove-unused-preferences-fields, fix-building-without-safebrowsing, disable-ai). Astro originates none of them — but dropping the ungoogled patch does not restore the behaviour, because this patch removes the same lines independently."
+        }
+      ],
+      "security_flags": [
+        "tokens-in-plaintext-prefs",
+        "re-carries-inherited-security-deletions"
+      ],
+      "notes": null,
+      "evidence": "Deletion attribution: every '-' line matched against every '-' line under patches/ungoogled/."
+    },
+    "021-omnibox-display-astro.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 13,
+      "cluster": "CL-10",
+      "retires_by": "Retires with the real astro:// scheme; no per-site rewrite remains.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "LocationBarModelImpl::GetFormattedURL rewrites chrome:// to astro:// for display.",
+      "evidence": null
+    },
+    "022-autocomplete-astro-scheme.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 13,
+      "cluster": "CL-10",
+      "retires_by": "Retires with the real astro:// scheme; no per-site rewrite remains.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "GetEmbedderRepresentationOfAboutScheme returns \"astro\".",
+      "evidence": null
+    },
+    "023-url-fixer-astro-scheme.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 13,
+      "cluster": "CL-10",
+      "retires_by": "Retires with the real astro:// scheme.",
+      "chromium_hook": null,
+      "hunk_classifications": [
+        {
+          "hunk": "@@ -597,6 +600,10 @@",
+          "classification": "E-policy",
+          "owner_issue": 8,
+          "detail": "url::kTraceScheme rejection — content of ungoogled core/ungoogled-chromium/block-trk-and-subdomains.patch, not Astro's."
+        },
+        {
+          "hunk": "@@ -639,6 +649,8 @@",
+          "classification": "E-policy",
+          "owner_issue": 8,
+          "detail": "omnibox-autocomplete-filtering command-line switch — content of ungoogled extra/ungoogled-chromium/add-flag-for-omnibox-autocomplete-filtering.patch."
+        },
+        {
+          "hunk": "@@ -584,7 +587,7 @@",
+          "classification": "E-policy",
+          "owner_issue": 8,
+          "detail": "Substituted-domain comment (view-source:9oo91e.qjz9zk)."
+        }
+      ],
+      "security_flags": [],
+      "notes": "Diffed from an already-ungoogled tree, so it carries foreign content; one cause of its recorded context-drift failure.",
+      "evidence": null
+    },
+    "024-astro-scheme-constant.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 11,
+      "cluster": "CL-8",
+      "retires_by": "Retires with the real astro:// scheme; no per-site rewrite remains.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Adds content::kAstroUIScheme to content/public/common/url_constants.h.",
+      "evidence": null
+    },
+    "025-astro-scheme-register.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 11,
+      "cluster": "CL-8",
+      "retires_by": "Replaced by astro::AddAdditionalSchemes(schemes).",
+      "chromium_hook": "astro::AddAdditionalSchemes(schemes)",
+      "hunk_classifications": [
+        {
+          "hunk": "@@ -278,6 +278,12 @@",
+          "classification": "E-policy",
+          "owner_issue": 11,
+          "detail": "Pushes \"astro\" onto standard_schemes, secure_schemes, cors_enabled_schemes and savable_schemes at once, with no trust model recorded anywhere."
+        }
+      ],
+      "security_flags": [
+        "scheme-trust-model-undecided"
+      ],
+      "notes": "Also bucket D by subject; classified B because a hook survives.",
+      "evidence": null
+    },
+    "026-navigator-astro-rewrite.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 12,
+      "cluster": "CL-9",
+      "retires_by": "Retires with the real astro:// scheme; no per-site rewrite remains.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Rewrites astro:// to chrome:// in AdjustNavigateParamsForURL.",
+      "evidence": null
+    },
+    "027-scheme-classifier-astro.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 13,
+      "cluster": "CL-10",
+      "retires_by": "Retires with the real astro:// scheme.",
+      "chromium_hook": null,
+      "hunk_classifications": [
+        {
+          "hunk": "@@ -68,9 +68,13 @@ (url::kTraceScheme line)",
+          "classification": "E-policy",
+          "owner_issue": 8,
+          "detail": "Content of ungoogled block-trk-and-subdomains.patch, not Astro's."
+        }
+      ],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "028-security-display-astro.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 12,
+      "cluster": "CL-9",
+      "retires_by": "Retires with the real astro:// scheme; no per-site rewrite remains.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "FormatUrlForSecurityDisplay rewrites the scheme shown in security and permission surfaces.",
+      "evidence": null
+    },
+    "029-copy-url-astro.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 13,
+      "cluster": "CL-10",
+      "retires_by": "Retires with the real astro:// scheme; no per-site rewrite remains.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "AdjustTextForCopy rewrites the copied URL.",
+      "evidence": null
+    },
+    "030-protocol-handler-astro.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 11,
+      "cluster": "CL-8",
+      "retires_by": "Retires with the real astro:// scheme; no per-site rewrite remains.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Adds content::kAstroUIScheme to ProfileIOData::IsHandledProtocol.",
+      "evidence": null
+    },
+    "031-linux-icon-name.patch": {
+      "bucket": "C-branding",
+      "owner_issue": 9,
+      "cluster": "CL-12",
+      "retires_by": "Generated identifiers (#9).",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "032-linux-desktop-name.patch": {
+      "bucket": "C-branding",
+      "owner_issue": 9,
+      "cluster": "CL-12",
+      "retires_by": "Generated identifiers (#9).",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "033-shared-settings-google-to-oxy.patch": {
+      "bucket": "C-branding",
+      "owner_issue": 9,
+      "cluster": "CL-12",
+      "retires_by": "Re-author settings strings (#9 + #15).",
+      "chromium_hook": null,
+      "hunk_classifications": [
+        {
+          "hunk": "IDS_SETTINGS_ENABLE_URL_KEYED_ANONYMIZED_DATA_COLLECTION_DESC / IDS_SETTINGS_ENABLE_LOGGING_PREF_DESC / IDS_SETTINGS_ENCRYPT_*",
+          "classification": "E-policy",
+          "owner_issue": 10,
+          "detail": "'Sends URLs of pages you visit to Oxy', 'Automatically sends usage statistics and crash reports to Oxy', 'Encrypt synced passwords with your Oxy Account'. Crash reporting is disabled by the inherited disable-crash-reporter.patch, so the sentence describes a transmission that does not happen."
+        }
+      ],
+      "security_flags": [
+        "false-privacy-disclosure"
+      ],
+      "notes": null,
+      "evidence": null
+    },
+    "034-profiles-google-to-oxy.patch": {
+      "bucket": "C-branding",
+      "owner_issue": 9,
+      "cluster": "CL-12",
+      "retires_by": "Re-author profile strings (#9 + #15).",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "036-navigator-auth-intercept.patch": {
+      "bucket": "R-remove",
+      "owner_issue": 16,
+      "cluster": "CL-6",
+      "retires_by": "Deleted. No successor.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [
+        "token-in-url",
+        "conflicts-with-026"
+      ],
+      "notes": "Declares the same pre-image blob as 026 (b5c2da1226eae) and inserts at the same anchor, containing 026's rewrite verbatim plus the auth interception. The two cannot both apply.",
+      "evidence": null
+    },
+    "037-builtin-provider-astro-scheme.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 13,
+      "cluster": "CL-10",
+      "retires_by": "Retires with the real astro:// scheme; no per-site rewrite remains.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Builtin omnibox provider also accepts the chrome scheme because fixup converts astro:// to chrome:// internally.",
+      "evidence": null
+    },
+    "038-dino-game-astro-scheme.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 13,
+      "cluster": "CL-10",
+      "retires_by": "Retires with the real astro:// scheme.",
+      "chromium_hook": null,
+      "hunk_classifications": [
+        {
+          "hunk": "kRedirectLoopLearnMoreUrl",
+          "classification": "E-policy",
+          "owner_issue": 8,
+          "detail": "Substitutes the support URL to support.9oo91e.qjz9zk."
+        }
+      ],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "039-auth-navigation-throttle-register.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 16,
+      "cluster": "CL-6",
+      "retires_by": "Deleted with CL-6; a throttle hook is written only if the PKCE flow needs one.",
+      "chromium_hook": "astro::AppendNavigationThrottles(registry) — only if required",
+      "hunk_classifications": [
+        {
+          "hunk": "@@ -611,6 +608,9 @@",
+          "classification": "R-remove",
+          "owner_issue": 16,
+          "detail": "Registers OxyAuthNavigationThrottle, the third implementation of auth-callback interception."
+        },
+        {
+          "hunk": "@@ -418,10 +419,6 @@",
+          "classification": "E-policy",
+          "owner_issue": 20,
+          "detail": "Removes SSLErrorHandler::SetClientCallbackOnInterstitialsShown(base::BindRepeating(&MaybeTriggerSecurityInterstitialShownEvent)) — the enterprise report of a shown SSL interstitial. All four removed lines are byte-identical to inox 0001-fix-building-without-safebrowsing.patch."
+        }
+      ],
+      "security_flags": [
+        "token-in-url",
+        "re-carries-inherited-security-deletions"
+      ],
+      "notes": null,
+      "evidence": null
+    },
+    "040-tab-hover-astro-scheme.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 13,
+      "cluster": "CL-10",
+      "retires_by": "Retires with the real astro:// scheme; no per-site rewrite remains.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "String-replaces the tab hover card domain label.",
+      "evidence": null
+    },
+    "041-navigation-controller-astro.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 12,
+      "cluster": "CL-9",
+      "retires_by": "Retires with the real astro:// scheme.",
+      "chromium_hook": null,
+      "hunk_classifications": [
+        {
+          "hunk": "@@ -1841,7 +1852,7 @@ and @@ -4846,7 +4857,7 @@",
+          "classification": "E-policy",
+          "owner_issue": 8,
+          "detail": "Two substituted-domain comment-only hunks (ch40m1um.qjz9zk). Pure noise; revert to upstream."
+        }
+      ],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "042-session-restore-astro.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 13,
+      "cluster": "CL-10",
+      "retires_by": "Retires with the real astro:// scheme; no per-site rewrite remains.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "ContentSerializedNavigationDriver::Sanitize rewrites persisted virtual URLs — the legacy-URL-migration case.",
+      "evidence": null
+    },
+    "043-web-app-astro-scheme.patch": {
+      "bucket": "D-scheme",
+      "owner_issue": 12,
+      "cluster": "CL-9",
+      "retires_by": "Retires with the real astro:// scheme; no per-site rewrite remains.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "AppBrowserController::FormatUrlOrigin rewrites the displayed scheme.",
+      "evidence": null
+    },
+    "044-disable-ev-certificate-metadata.patch": {
+      "bucket": "E-policy",
+      "owner_issue": 20,
+      "cluster": "CL-13",
+      "retires_by": "Retires paired with extra/iridium-browser/Remove-EV-certificates.patch.",
+      "chromium_hook": null,
+      "hunk_classifications": [
+        {
+          "hunk": "@@ -16,12 +16,9 @@",
+          "classification": "E-policy",
+          "owner_issue": 20,
+          "detail": "Removes #define PLATFORM_USES_CHROMIUM_EV_METADATA so every platform takes the stub path."
+        },
+        {
+          "hunk": "@@ -123,24 +123,18 @@",
+          "classification": "E-policy",
+          "owner_issue": 20,
+          "detail": "EVRootCAMetadata::RemoveEVCA changes from return true to return false; four LOG(WARNING) lines dropped."
+        }
+      ],
+      "security_flags": [
+        "certificate-handling",
+        "astro-originated"
+      ],
+      "notes": "THE ONLY Astro-originated security-relevant deletion in the stack. Exists to correct the Iridium patch, whose dummy OID \"0\" fails ASN.1 decoding at startup; if #8 drops that patch, 044 has nothing to correct.",
+      "evidence": null
+    },
+    "045-adblock-throttle-register.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 18,
+      "cluster": "CL-4",
+      "retires_by": "Replaced by astro::AppendURLLoaderThrottles.",
+      "chromium_hook": "astro::AppendURLLoaderThrottles(...) at ChromeContentBrowserClient::CreateURLLoaderThrottles",
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": null,
+      "evidence": "Anchor verified at chromium/src/chrome/browser/chrome_content_browser_client.cc:5827."
+    },
+    "046-adblock-prefs.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 7,
+      "cluster": "CL-2",
+      "retires_by": "Replaced by astro::RegisterProfilePrefs.",
+      "chromium_hook": "astro::RegisterProfilePrefs(registry)",
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Hunk context is 020's last added line (oxy.token_expiry), so 046 cannot apply or retire before 020.",
+      "evidence": null
+    },
+    "047-alia-side-panel-entry-id.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 17,
+      "cluster": "CL-5",
+      "retires_by": "One entry in the SidePanelEntryId X-macro list.",
+      "chromium_hook": "X-macro entry in chrome/browser/ui/views/side_panel/side_panel_entry_id.h",
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Genuinely needs a Chromium edit: the enum is generated from a macro list in a Chromium header.",
+      "evidence": null
+    },
+    "048-alia-action-id.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 17,
+      "cluster": "CL-5",
+      "retires_by": "One entry in the chrome_action_id X-macro list.",
+      "chromium_hook": "X-macro entry in chrome/browser/ui/actions/chrome_action_id.h",
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Same shape as 047; the two together are the minimum Chromium delta for a side-panel entry.",
+      "evidence": null
+    },
+    "049-alia-browser-action.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 17,
+      "cluster": "CL-5",
+      "retires_by": "Replaced by astro::RegisterSidePanelEntries / browser-action hook.",
+      "chromium_hook": "astro::RegisterSidePanelEntries(...) (action item construction moves into //astro)",
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": null,
+      "evidence": null
+    },
+    "050-alia-side-panel-register.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 17,
+      "cluster": "CL-5",
+      "retires_by": "Replaced by astro::RegisterSidePanelEntries.",
+      "chromium_hook": "astro::RegisterSidePanelEntries(browser, window_registry) at SidePanelUtil::PopulateGlobalEntries",
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": null,
+      "evidence": "Anchor verified at chromium/src/chrome/browser/ui/views/side_panel/side_panel_util.cc:75."
+    },
+    "051-alia-vector-icon.patch": {
+      "bucket": "A-auto",
+      "owner_issue": 17,
+      "cluster": "CL-1",
+      "retires_by": "Disappears: //astro declares its own aggregate_vector_icons target and owns alia_spark.icon.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": null,
+      "evidence": "aggregate_vector_icons is a public template from //components/vector_icons/vector_icons.gni used by 12 BUILD.gn files in the locked tree. The patch exists only because src/chrome/app/vector_icons/alia_spark.icon was placed in a Chromium-owned directory, which tools/overlay.allowlist has to declare as an exception."
+    },
+    "052-adblock-tab-helper-register.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 18,
+      "cluster": "CL-4",
+      "retires_by": "Replaced by astro::AttachTabHelpers.",
+      "chromium_hook": "astro::AttachTabHelpers(web_contents) at TabHelpers::AttachTabHelpers",
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": null,
+      "evidence": "Anchor verified at chromium/src/chrome/browser/ui/tab_helpers.cc:306."
+    },
+    "053-adblock-toolbar-button.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 18,
+      "cluster": "CL-4",
+      "retires_by": "Replaced by an Astro toolbar hook.",
+      "chromium_hook": "astro::AppendToolbarButtons(...) at ToolbarView construction",
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "BROKEN AS COMMITTED: assigns to adblock_button_, a member no patch declares, upstream does not have, and tools/overlay.allowlist does not permit the overlay to supply. Treat as a statement of intent, not as working code to preserve.",
+      "evidence": "No patch touches toolbar_view.h; grep -n adblock on the locked tree's toolbar_view.h returns nothing."
+    },
+    "054-adblock-webui-register.patch": {
+      "bucket": "A-auto",
+      "owner_issue": 7,
+      "cluster": "CL-3",
+      "retires_by": "Disappears: //astro registers its own WebUI configs from its ChromeBrowserMainExtraParts. No Chromium-owned edit, and no astro::RegisterWebUIConfigs hook.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Declared collision: tools/overlay.allowlist records that the untracked whole-file copy of chrome_web_ui_configs.cc reverts it. The copy, not this patch, is the shipped registration path — and the copy omits the adblock config entirely. Both go together.",
+      "evidence": "content/public/browser/webui_config_map.h declares WebUIConfigMap::GetInstance(), AddWebUIConfig and AddUntrustedWebUIConfig public on a CONTENT_EXPORT class whose comment tells embedders to use them; RegisterChromeWebUIConfigs() has exactly two callers in the locked tree (chrome/browser/chrome_browser_main.cc:1830 and chrome/test/base/chrome_unit_test_suite.cc:205). Registering from PostProfileInit or PreBrowserStart runs after line 1830. Established for #7 in minimum-chromium-hooks.md section C1 and re-verified here."
+    },
+    "055-ntp-webui-register.patch": {
+      "bucket": "A-auto",
+      "owner_issue": 22,
+      "cluster": "CL-3",
+      "retires_by": "Disappears with 054; same mechanism.",
+      "chromium_hook": null,
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Its hunk context contains 054's added line, so 055 strictly depends on 054.",
+      "evidence": "Same as 054."
+    },
+    "056-ntp-redirect-to-astro.patch": {
+      "bucket": "B-hook",
+      "owner_issue": 22,
+      "cluster": "CL-11",
+      "retires_by": "Replaced by an Astro NTP URL hook.",
+      "chromium_hook": "astro::GetNewTabPageURL() consumed by chrome/browser/search/search.cc",
+      "hunk_classifications": [],
+      "security_flags": [],
+      "notes": "Two hunks: the local NTP URL, and IsInstantNTPURL recognition of the Astro host.",
+      "evidence": null
+    }
+  }
+}

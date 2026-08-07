@@ -1,0 +1,56 @@
+# astro-module.scope — which directories of this repository are `//astro`.
+#
+# The repository root IS the module: gclient places this repository at
+# `chromium/src/astro`, so `browser/` is `//astro/browser`. But the root also
+# still holds the pre-module tree (`src/`, `webui/`, `patches/`) that #8 is
+# retiring, and those files are NOT in the build graph — `BUILD.gn` says so
+# outright. Something has to answer "which of these directories is the module"
+# before `checkdeps` can be pointed at it, and inferring the answer from what
+# happens to be on disk is how a scan silently stops covering a layer.
+#
+# tools/check-module-layering.sh reads this file and runs Chromium's
+# `buildtools/checkdeps/checkdeps.py` over each declared layer.
+#
+# Format:  <kind> <top-level-directory> [key=value ...]
+#
+#   layer     Part of `//astro`. checkdeps scans it against the include_rules
+#             its DEPS chain declares, and EVERY source file git tracks under
+#             it must turn up in what checkdeps considered — a layer that goes
+#             unscanned is a failure, not a pass.
+#
+#   excluded  In the repository, not in the module. Requires owner= naming the
+#             issue that removes it, because this is a temporary arrangement:
+#             an excluded directory is source code nothing checks. When the
+#             directory goes, its line here must go with it — a declaration
+#             that no longer matches the tree fails the gate in both
+#             directions.
+#
+# Every OTHER top-level directory is checked to hold no C++, Java or proto
+# source at all. That is what makes the two lists below safe to be short: a new
+# directory carrying source is a failure until somebody declares which of the
+# two it is, so nothing new can arrive unscanned.
+#
+# Comments and blank lines are ignored. Entries name one top-level directory
+# each — no slashes, no "..".
+
+# --- The module ---------------------------------------------------------------
+
+# The bottom layer. Its DEPS subtracts `-chrome` and `-content/public/browser`,
+# so it is the layer a stray `#include "chrome/..."` has to fail in for the
+# layering to mean anything.
+layer    common
+
+# The one layer granted a `chrome/` header, and the reason the grant sits in
+# browser/DEPS rather than at the module root: checkdeps inherits downward, so
+# a root-level grant would hand the same permission to `common/` and to every
+# layer Astro has not written yet.
+layer    browser
+
+# --- In the repository, not in the module --------------------------------------
+
+# The pre-//astro overlay tree. It is copied into Chromium by
+# tools/sync-overlay.sh rather than compiled as part of `//astro`, and it does
+# not obey `//astro`'s include_rules: 39 of its files reach into `chrome/`,
+# which is exactly what the overlay exists to do and exactly what the module
+# forbids. Scanning it would report the old system as a defect in the new one.
+excluded src  owner=8
