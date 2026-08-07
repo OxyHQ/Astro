@@ -1,0 +1,22 @@
+# //astro — the Astro product module.
+#
+# This repository is checked out by DEPS at `src/astro` inside the Chromium
+# workspace, so ITS ROOT IS `//astro`. There is deliberately no `astro/`
+# subdirectory: that would make the label `//astro/astro/...`.
+#
+# The Chromium-owned delta that reaches this file is three files and six lines,
+# and it removes nothing. See docs/astro-next/architecture/minimum-chromium-hooks.md.
+#
+# The legacy tree (patches/, webui/, src/, and the old tooling) still lives in
+# this repository while #8 retires it. Being in the repository does not put it
+# in the build graph: nothing below references it, and nothing should.
+
+group("astro") {
+  deps = [ "//astro/browser" ]
+}
+
+# Everything Chromium links against arrives through this one target, so the
+# hook in chrome/browser/BUILD.gn never has to grow a second entry.
+group("browser") {
+  public_deps = [ "//astro/browser:browser" ]
+}

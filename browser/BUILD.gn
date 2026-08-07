@@ -1,0 +1,19 @@
+# The Astro browser-process module.
+#
+# `astro::AddExtraParts()` is the single entry point Chromium calls, mirroring
+# upstream's own `chrome::AddMetricsExtraParts()` in
+# chrome/browser/chrome_browser_main.cc:786. One call, one direction, no
+# Chromium behaviour removed.
+
+source_set("browser") {
+  sources = [
+    "astro_browser_main_extra_parts.cc",
+    "astro_browser_main_extra_parts.h",
+  ]
+
+  deps = [
+    "//base",  # logging, for the startup marker
+    "//content/public/browser",
+    "//content/public/common",
+  ]
+}
