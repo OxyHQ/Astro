@@ -6,17 +6,26 @@
 # all. Keeping that in one target puts the reach in a build file where it is
 # reviewable, instead of in a source list where it is not.
 
+_ntp_embedded = get_label_info("//astro/browser/resources/ntp:embedded_resources",
+                               "target_gen_dir") + "/astro_ntp_resources.cc"
+
 source_set("webui") {
   sources = [
+    "astro_ntp_resources.h",
+    "astro_ntp_ui.cc",
+    "astro_ntp_ui.h",
     "astro_settings_next_ui.cc",
     "astro_settings_next_ui.h",
     "astro_test_ui.cc",
     "astro_test_ui.h",
     "astro_web_ui_configs.cc",
     "astro_web_ui_configs.h",
+    _ntp_embedded,
   ]
 
   deps = [
+    # The new tab page's own bytes, compiled into the binary.
+    "//astro/browser/resources/ntp:embedded_resources",
     # The page's own bytes, packaged into the binary.
     # Settings is reused, not copied: astro://settings/ instantiates
     # settings::SettingsUI itself.

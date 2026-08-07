@@ -6,6 +6,7 @@
 
 #include "base/strings/strcat.h"
 
+#include "astro/browser/webui/astro_ntp_ui.h"
 #include "astro/browser/webui/astro_settings_next_ui.h"
 #include "astro/browser/webui/astro_test_ui.h"
 #include "astro/common/url_constants.h"
@@ -48,6 +49,19 @@ void RegisterAstroWebUIConfigs() {
 
   content::WebUIConfigMap::GetInstance().AddWebUIConfig(
       std::make_unique<AstroSettingsNextUIConfig>());
+
+  // The new tab page. Unlike settings, nothing upstream is preserved here:
+  // Chromium's is Google's, and what ungoogled leaves is a minimal stand-in.
+  const GURL ntp_url(base::StrCat(
+      {kAstroUIScheme, url::kStandardSchemeSeparator,
+       chrome::kChromeUINewTabPageHost}));
+  std::unique_ptr<content::WebUIConfig> replaced_ntp =
+      content::WebUIConfigMap::GetInstance().RemoveConfig(ntp_url);
+  CHECK(replaced_ntp) << "no config was registered for " << ntp_url
+                      << "; upstream's new tab page registration has moved";
+
+  content::WebUIConfigMap::GetInstance().AddWebUIConfig(
+      std::make_unique<AstroNtpUIConfig>());
 
   // Nothing else belongs here. Astro's internal scheme is composed at build
   // time from //astro/build/product.gni, so content::kChromeUIScheme already

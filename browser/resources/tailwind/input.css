@@ -1,0 +1,134 @@
+/* Astro's utility layer for Chromium's WebUI components.
+ *
+ * Emitted into a shared style module, so it reaches the shadow root of every
+ * component that includes it. A utility class in markup does nothing inside a
+ * shadow root unless the stylesheet is adopted there -- which is why this is a
+ * style module rather than a document-level stylesheet.
+ *
+ * The source scan reads Chromium's own settings resources, so only utilities
+ * actually used by a converted component are emitted. Nothing is safelisted:
+ * a class that stops being used stops being shipped, and the file cannot
+ * silently grow into a copy of all of Tailwind.
+ */
+@import "tailwindcss";
+
+@source "/home/nate/Oxy/Astro/chromium/src/chrome/browser/resources/settings";
+
+/* Chromium's tokens ARE the theme. Restyling a component means reaching for
+ * these, not for Tailwind's palette, so a component converted to utilities
+ * still follows the browser's colour scheme and Astro's accent. */
+/* Named tokens rather than arbitrary values in class names.
+ *
+ * A class like `pe-[var(--cr-section-padding)]` compiles to the CSS selector
+ * `.pe-\[var\(--cr-section-padding\)\]`, and Chromium wraps every WebUI
+ * stylesheet in a JavaScript template literal on its way into a style module.
+ * JavaScript consumes those backslashes, so the rule that reaches the page
+ * reads `.pe-[var(...)]` -- an invalid selector, silently dropped. Measured:
+ * the element matched the escaped selector, the text was present in the style
+ * tag, and the browser had parsed no such rule.
+ *
+ * Named tokens have no characters that need escaping, so they survive the
+ * wrapper. They also read better. */
+@theme {
+  --spacing-section: var(--cr-section-padding);
+  --spacing-section-y: var(--cr-section-vertical-margin);
+  --radius-card: var(--cr-card-border-radius);
+  --tracking-section: .25px;
+  --text-section-title: 108%;
+
+  --color-cr-primary: var(--cr-fallback-color-primary);
+  --color-cr-text: var(--cr-primary-text-color);
+  --color-cr-text-secondary: var(--cr-secondary-text-color);
+  --color-cr-surface: var(--cr-card-background-color);
+  --color-cr-divider: var(--cr-separator-color);
+}
+
+/* A plain shadow rule rather than Tailwind's shadow utility.
+ *
+ * `shadow-*` composes box-shadow from --tw-inset-shadow, --tw-ring-shadow and
+ * friends, which are registered with @property. Those registrations do not
+ * survive Chromium's CSS-to-JS style wrapper, so the composed value references
+ * undefined variables, the whole declaration is invalid, and the card renders
+ * with no shadow at all -- measured, as the last remaining difference from the
+ * original component.
+ *
+ * @utility emits one declaration with no moving parts. */
+@utility shadow-card {
+  box-shadow: var(--cr-card-shadow);
+}
+
+
+/* ── Astro's reusable component layer ──────────────────────────────────────
+ *
+ * These replace Chromium's cr-shared-style classes, which 90 settings
+ * components include today. Each is a real Tailwind utility -- composable,
+ * overridable by any utility placed after it -- rather than a fixed rule a
+ * component cannot adjust, which is what cr-row and friends are.
+ *
+ * They are defined with @utility rather than @layer components on purpose:
+ * @utility participates in Tailwind's own ordering, so `astro-row py-6` beats
+ * the row's own padding without an !important anywhere.
+ *
+ * Values come from Chromium's tokens where a component's geometry must keep
+ * matching the rest of the page, and from Bloom's where Astro's identity is
+ * the point. Which is which is stated per rule, because "why is this value
+ * this value" is the question that goes unanswered in a design system and then
+ * gets answered by guessing. */
+
+/* A settings row: the horizontal band a label and its control sit in. */
+@utility astro-row {
+  align-items: center;
+  border-top: var(--cr-separator-line);
+  display: flex;
+  min-height: var(--cr-section-min-height);
+  padding: 0 var(--cr-section-padding);
+}
+
+/* The same row without its divider, for the first in a group. */
+@utility astro-row-plain {
+  align-items: center;
+  display: flex;
+  min-height: var(--cr-section-min-height);
+  padding: 0 var(--cr-section-padding);
+}
+
+@utility astro-title {
+  color: var(--cr-title-text-color);
+  font-size: 107.6923%;
+  font-weight: 500;
+}
+
+@utility astro-secondary {
+  color: var(--cr-secondary-text-color);
+  font-weight: 400;
+}
+
+@utility astro-padded {
+  padding-block-end: var(--cr-section-vertical-padding);
+  padding-block-start: var(--cr-section-vertical-padding);
+}
+
+@utility astro-divider {
+  border-top: var(--cr-separator-line);
+}
+
+/* The page's centred column. */
+@utility astro-column {
+  box-sizing: border-box;
+  display: block;
+  height: inherit;
+  margin: 0 auto;
+  max-width: var(--cr-centered-card-max-width);
+  min-width: 550px;
+  position: relative;
+  width: calc(100% * var(--cr-centered-card-width-percentage));
+}
+
+/* A surface. Bloom's radius, so this is where a settings card stops looking
+ * like Chromium and starts looking like Oxy. */
+@utility astro-card {
+  background-color: var(--cr-card-background-color);
+  border-radius: var(--cr-card-border-radius);
+  box-shadow: var(--cr-card-shadow);
+  overflow: hidden;
+}

@@ -1,0 +1,12 @@
+{
+  "name": "astro-tailwind",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tailwindcss -i input.css -o astro_tailwind.css && /home/nate/Oxy/Astro/chromium/src/third_party/node/linux/node-linux-x64/bin/node /home/nate/Oxy/Astro/chromium/src/third_party/node/node_modules/stylelint/bin/stylelint.mjs --config /home/nate/Oxy/Astro/chromium/src/ui/webui/resources/tools/stylelint.config_base.mjs --fix astro_tailwind.css"
+  },
+  "devDependencies": {
+    "tailwindcss": "^4.2.2",
+    "@tailwindcss/cli": "^4.2.2"
+  }
+}

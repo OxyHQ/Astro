@@ -1,0 +1,31 @@
+# Copyright 2026 Oxy. Astro product module.
+
+# Astro's new tab page, compiled into the binary as data.
+#
+# Built by Vite from src/ (`bun run build`) and committed under dist/. Building
+# it from GN would be better and is not done yet: the RN web toolchain is not
+# among the ones this checkout vendors. Until it is, dist/ is a checked-in input
+# and a stale one is a defect nothing here catches.
+action("embedded_resources") {
+  script = "//astro/build/embed_resources.py"
+
+  sources = [
+    "dist/index.html",
+    "dist/ntp.css",
+    "dist/ntp.js",
+  ]
+  outputs = [ "$target_gen_dir/astro_ntp_resources.cc" ]
+
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--header",
+    "astro/browser/webui/astro_ntp_resources.h",
+    "--resource",
+    "kAstroNtpIndexHtml=" + rebase_path("dist/index.html", root_build_dir),
+    "--resource",
+    "kAstroNtpCss=" + rebase_path("dist/ntp.css", root_build_dir),
+    "--resource",
+    "kAstroNtpJs=" + rebase_path("dist/ntp.js", root_build_dir),
+  ]
+}

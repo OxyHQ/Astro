@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The Astro settings page's resources, packaged into the binary.
+
+  This is the piece //astro never had. Every Astro WebUI before this one served
+  its files by reading them from a directory beside the executable at runtime,
+  which meant the assets were in no .pak, carried none of Chromium's resource
+  guarantees, and rendered a blank page if the directory was not copied at
+  packaging time.
+
+  The file names here are fixed on purpose. Vite is configured to emit stable
+  names with no content hash, because grit packages a NAMED list and a hashed
+  filename would change on every build, leaving this manifest pointing at a file
+  that no longer exists.
+-->
+<grit latest_public_release="0" current_release="1">
+  <outputs>
+    <output filename="grit/astro_settings_resources.h" type="rc_header">
+      <emit emit_type='prepend'></emit>
+    </output>
+    <output filename="grit/astro_settings_resources_map.cc"
+            type="resource_file_map_source" />
+    <output filename="grit/astro_settings_resources_map.h"
+            type="resource_map_header" />
+    <output filename="astro_settings_resources.pak" type="data_package" />
+  </outputs>
+  <release seq="1">
+    <includes>
+      <include name="IDR_ASTRO_SETTINGS_INDEX_HTML"
+               file="dist/index.html" type="BINDATA" compress="gzip" />
+      <include name="IDR_ASTRO_SETTINGS_JS"
+               file="dist/settings.js" type="BINDATA" compress="gzip" />
+      <include name="IDR_ASTRO_SETTINGS_CSS"
+               file="dist/settings.css" type="BINDATA" compress="gzip" />
+    </includes>
+  </release>
+</grit>
