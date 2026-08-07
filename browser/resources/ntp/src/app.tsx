@@ -8,7 +8,7 @@ import {Button} from '@oxyhq/bloom';
 // a runtime crash that no build or type check reports.
 export function App() {
   return (
-    <BloomThemeProvider>
+    <BloomThemeProvider mode="system" colorPreset="oxy">
       <View className="flex-1 items-center justify-center gap-6 p-8">
         <Text className="text-3xl font-semibold">Astro</Text>
         <Text className="text-base opacity-60">

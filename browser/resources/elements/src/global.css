@@ -9,7 +9,19 @@
  * The page then looks almost right, which is the worst way for this to fail.
  */
 @import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/preflight.css" layer(base);
+/* NO preflight.
+ *
+ * Preflight is a global reset. The console imports it because it owns its whole
+ * page; this bundle is an ISLAND inside Chromium's settings, and its stylesheet
+ * has to live in the host document so react-native-web's runtime classes can
+ * reach the components. A reset in that document rewrites Chromium's own
+ * elements -- measured: every primary label on the settings page vanished while
+ * the secondary descriptions stayed, which is what a margin/display reset does
+ * to a Polymer template.
+ *
+ * The utilities and the theme are kept. Only the part that reaches outside the
+ * island is dropped.
+ */
 @import "tailwindcss/utilities.css";
 @import "nativewind/theme";
 
