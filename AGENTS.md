@@ -19,6 +19,7 @@ tools/vendor-adblock-rust.sh     # Vendor Rust adblock engine dependencies
 tools/generate-provenance.sh     # Record what a build was made from
 tools/baseline/generate-all.sh   # Regenerate the Astro Next baseline documents
 tools/tests/run.sh               # Build-safety suite (no Chromium checkout needed)
+tools/verify-clean-head.sh       # Run that suite against ONLY what HEAD tracks
 ```
 
 `--dry-run` works on `sync-sources.sh`, `apply-patches.sh`, `sync-overlay.sh`
@@ -89,6 +90,18 @@ signal to stop and report it on the issue.
 - Shared helpers live in `tools/lib/astro-common.sh`; every script sources it
   rather than re-implementing strict mode, logging or the guards.
 - Run `tools/tests/run.sh` before touching anything under `tools/`.
+- **A green suite run against a working tree says nothing about the commit.**
+  An untracked file on disk satisfies every test that needs it, so a coupled
+  unit committed by halves stays green locally and breaks a clean checkout.
+  Four times here already, in both directions — `tools/setup-win-sdk.sh` and
+  two `.pyc` files swept IN, `tools/verify-build-outcome.sh` and
+  `tools/policy/manifest.py` left OUT while the committed scripts requiring
+  them went in. `tools/verify-clean-head.sh` materialises the commit on its
+  own, runs the suite there, and fails when the verdicts differ from the
+  working tree's; the static converse — every path a committed script names is
+  tracked at that commit — is `tools/tests/cases/committed-inputs-are-tracked.sh`
+  and its `NOT_TRACKED` table is where a legitimately-absent path is declared.
+  Run the gate before pushing anything under `tools/`.
 
 **Source revisions are declared, never discovered.** `browser.lock.json` holds
 the full commit SHA of Chromium, depot_tools and the ungoogled patch set.
@@ -133,6 +146,49 @@ do not let a build imply they are resolved:
   is currently untracked working-tree content, not committed state; the
   collision is declared in `tools/overlay.allowlist` so any checkout carrying
   it behaves loudly. Owned by #7.
+- The entire Oxy overlay (`chrome/browser/oxy` — settings, adblock, NTP, Alia
+  panel) compiles to zero objects: no `BUILD.gn` outside `chrome/browser/oxy/`
+  itself declares a dependency on it. `astro://settings` is served by
+  upstream `settings::SettingsUIConfig`, not by any Astro-owned config — the
+  underlying reason `AstroAdBlockUIConfig` above is never registered. Owned
+  by #7.
+- Astro's own settings implementation is 2,347 lines across
+  `webui/settings/src` and maps 41 prefs; upstream's own settings surface is
+  301 `.ts` files and 58,568 lines. Astro's copy also serves its assets by
+  reading a directory next to the executable at runtime (`base::DIR_EXE` +
+  `resources/astro-settings`) rather than from a `.pak`, so it carries none
+  of Chromium's resource-bundling guarantees and renders blank, with no
+  error, if that directory is missing.
+
+## Branding
+
+`tools/apply-branding.sh` applies `branding/astro.conf` across the tree.
+Rules from real defects found in it, not hypotheticals:
+
+- **Discover the `.grd`/`.grdp` files to rename, never hand-list them.** A
+  hand-written list of 4 files left the rest untouched, so the browser said
+  "Astro" on `about:version` and "About Chromium" in its own settings menu —
+  the tree currently has 31 such files. Discovery excludes `*google_chrome*`
+  (inert when `google_chrome_branding = false`) and `ChromiumOS` (a
+  DIFFERENT product — renaming it invents "AstroOS").
+- **Never blanket-substitute `Chromium` → `Astro`.** That rewrites
+  `IDS_ABOUT_VERSION_COMPANY_NAME` ("The Chromium Authors") and
+  `IDS_ABOUT_VERSION_COPYRIGHT` — a false copyright attribution shipped to
+  every user, produced by a substitution that looks purely cosmetic, on a
+  codebase whose licence requires the notice be retained. Attribution
+  strings are excluded from the rename.
+- **A `--dry-run` must exercise the same substitution the real run does, not
+  just count matches.** The old dry run counted files and never executed the
+  `sed`, so it reported success for an expression `sed` then refused to run
+  for real.
+- **The in-UI logo is not `chrome/app/theme/chromium/`** — that directory is
+  the application/installer icon. The in-UI logo is a `chrome_scaled_image`
+  resolved from
+  `chrome/app/theme/default_{100,200}_percent/chromium/product_logo_32.png`;
+  a non-Google-branded build declares exactly one entry for it,
+  `IDR_PRODUCT_LOGO_32`, in `theme_resources.grd`. The scale directories are
+  a pixel-size contract — the 200% file must be 64px — and a wrong-size file
+  installs cleanly, renders wrong, and reports nothing.
 
 ## Key File Paths
 
@@ -257,6 +313,87 @@ The Mojo plumbing, pref watching, and live sync all happen automatically through
 
 The `astro://` URL scheme is aliased to `chrome://` via patch `011-astro-url-scheme-alias.patch`.
 
+## WebUI Scheme Composition
+
+Astro composes its internal WebUI scheme (`astro`) and its untrusted
+counterpart (`astro-untrusted`) at build time. This is NOT a one-place
+setting: the same fact is spelled independently in nine places across the
+build, and each was found by a separate, unrelated failure. Fixing some of
+the nine and not the rest leaves a browser that is broken in ways neither
+the build nor a test suite reports — the list below exists so the next
+rename of anything hits fewer of these blind.
+
+1. `content/public/common/url_constants.h` — the scheme all WebUIConfigs
+   (125 of them) register under, via `CONTENT_WEBUI_SCHEME_LITERAL`. One
+   missed constant in this file (`kChromeUIUntrustedResourcesURL`) made
+   `url::Origin::Create` return an OPAQUE origin, so
+   `WebUIDataSourceImpl::GetOrigin` CHECK-failed on the first navigation to
+   any WebUI page — the loader config for every page walks every registered
+   data source.
+2. `chrome/common/webui_url_constants.h` + `chrome/common/url_constants.h` —
+   189 internal URL literals, composed via `CHROME_UI_URL_PREFIX` /
+   `CHROME_UI_UNTRUSTED_URL_PREFIX` (and their UTF-16 `*16` forms).
+3. WebUI resource CONTENT, rewritten in `tools/grit/preprocess_if_expr.py`
+   via a `--webui-scheme FROM=TO` flag, wired from
+   `tools/grit/preprocess_if_expr.gni`. 407 preprocess actions carry it.
+4. TypeScript module resolution — `tools/typescript/path_mappings.py` (the
+   shared `//resources` keys) and `tools/typescript/ts_library.py`
+   (per-target keys). Without it: `TS2307: Cannot find module
+   'astro://resources/js/cr.js'`.
+5. The rollup bundler's own path validation —
+   `ui/webui/resources/tools/bundle_js.gni` normalises caller-supplied
+   `external_paths` and `excludes`; `ui/webui/resources/tools/bundle_js_excludes.gni`.
+   Symptom: `Invalid absolute path: astro://... is not in |excludes| or
+   |external_paths|`.
+6. `ui/webui/resources/tools/bundle_js.py` built the absolute host URL as
+   `'chrome://%s/' % host`, hard-coded. That is what emitted
+   `chrome://settings/strings.m.js` into a bundle whose page CSP then
+   refused to load it: no crash, no build failure, the page still rendered
+   — found only by reading a real browser console.
+7. The wrapper generators `tools/polymer/css_to_wrapper.py` /
+   `html_to_wrapper.py` run AFTER `preprocess_if_expr`, so their emitted
+   files are born with the scheme already spelled and nothing downstream
+   ever rewrites them.
+8. Extension API grant patterns in
+   `chrome/common/extensions/api/_api_features.json` and
+   `extensions/common/api/_api_features.json` — 211 `matches` patterns,
+   rewritten in `tools/json_schema_compiler/feature_compiler.py`. These
+   GRANT private APIs (`developerPrivate` → extensions, `settingsPrivate` →
+   settings, `bookmarkManagerPrivate` → bookmarks). Left unrewritten, the
+   bindings are never installed and the affected pages throw
+   `TypeError: Cannot read properties of undefined` on first use, while
+   otherwise looking correct.
+9. A handful of source files bypass preprocessing entirely: exactly one
+   `.ts` (`components/security_interstitials/content/resources/connection_help.ts`)
+   and seven `.js` under `components/security_interstitials/core/browser/resources/`
+   and `components/neterror/resources/`. Fixed by making their imports
+   SCHEME-RELATIVE (`//resources/js/util.js`) — Chromium's own supported
+   form, identical in behavior to an unmodified Chromium.
+
+Rules that follow:
+
+- Every one of the nine is applied ONLY when the scheme differs from
+  Chromium's default, so an unmodified configuration stays byte-identical.
+  Preserve that property in anything new touching this list.
+- Untrusted must be rewritten BEFORE trusted, everywhere (sort candidates by
+  descending source length). Reversed, an untrusted URL silently becomes a
+  trusted one — a security boundary crossed by an ordering mistake, not a
+  deliberate one.
+- Normalise at the ONE point the data passes through, never at the N
+  upstream call sites. 190 mapping entries across 116 `BUILD.gn` files were
+  normalised inside `ts_library.py` and `bundle_js.gni` rather than edited
+  directly, because those `BUILD.gn` files churn with every Chromium roll.
+- `WebUIConfigMap::AddWebUIConfigImpl` CHECKs for a duplicate origin. Once
+  `kChromeUIScheme` itself reads `astro`, any Astro-side config that
+  registers an upstream page under `astro://` a second time crashes at
+  startup — `AstroSettingsUIConfig` did this and was deleted. Only pages
+  Astro OWNS belong in `RegisterAstroWebUIConfigs()`.
+- `tools/policy/webui_scheme_literals.py`, gated by
+  `tools/tests/cases/webui-configs-use-the-scheme-constant.sh`, bans a
+  hard-coded scheme string in any WebUIConfig construction — it already
+  caught an ungoogled patch spelling `"chrome"` by hand. The other eight
+  layers above have no such gate yet.
+
 ## C++ Conventions
 
 - C++ code follows Chromium style guide (Google C++ style with Chromium extensions).
@@ -289,3 +426,27 @@ ninja -C out/Release chrome          # Recompiles only changed files
 tools/build.sh                       # Release
 tools/build.sh Debug                 # Debug
 ```
+
+## Verification
+
+- **`tools/cdp-navigate.py` is the only sanctioned way to measure
+  navigation.** Three different harnesses reported success while measuring
+  nothing: a `--headless --dump-dom` run that never navigated to the
+  requested URL at all; a run that hung and died at an outer timeout having
+  printed nothing, losing every result gathered before it; and a harness
+  that read CDP events and discarded them, so a page that loaded but logged
+  a refused resource measured as clean — DOM present, title correct, the
+  browser's own complaint went straight in the bin. `cdp-navigate.py`
+  collects `Log.entryAdded` and `Runtime.exceptionThrown`, prints per-URL as
+  it goes, and gives each CDP call its own timeout.
+- **A check that can never fail is not a check — prove the negative case
+  fires.** A first attempt to provoke a CSP violation used `<script src>`,
+  which Trusted Types blocks BEFORE the scheme check runs, so the detector
+  reported zero and looked broken rather than clean. `<link
+  rel=stylesheet>` reaches the CSP scheme check and is the working
+  provocation.
+- **A `.pak` stores each resource compressed, so grepping it for a string
+  returns zero even when the string is present.** Verify branding by reading
+  the live page in a running browser, or by probing for the asset's raw
+  bytes directly — PNGs are stored uncompressed inside a `.pak`, so a
+  mid-file byte slice does match.
