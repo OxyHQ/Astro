@@ -55,7 +55,7 @@ mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$APPS_DIR"
 astro::info "  Copying build output to $INSTALL_DIR..."
 # The destination is the install directory under $HOME, verified by
 # verify_install_dir above, and is never the Chromium source tree.
-# astro-allow: install destination under $HOME, verified before this line
+# astro-allow:rsync-delete install destination under $HOME, verified before this line
 rsync -a --delete "$BUILD_DIR/" "$INSTALL_DIR/"
 
 # --------------------------------------------------------------------------

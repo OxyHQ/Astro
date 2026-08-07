@@ -394,9 +394,14 @@ assert_no_patch_artifacts() {
 
     astro::info ">>> Checking for patch artifacts..."
     local artifacts
-    artifacts="$(find "$CHROMIUM_SRC" \
-        \( -name '*.rej' -o -name '*.orig' -o -name '*.porig' \) -print \
-        | head -50)"
+    # Only UNTRACKED artifacts count. Chromium ships 181 tracked `.orig` files
+    # (cargo writes `Cargo.toml.orig` for each vendored Rust crate), so a
+    # find-based check condemns a pristine upstream checkout. Asking git is both
+    # exact and far cheaper than walking 400,000 files.
+    local status_output
+    status_output="$(git -C "$CHROMIUM_SRC" status --porcelain --untracked-files=all)"
+    artifacts="$(printf '%s\n' "$status_output" | sed -n 's/^?? //p' \
+        | grep -E '\.(rej|orig|porig)$' | head -50)" || true   # astro-allow:suppressed-failure grep finding nothing is the normal case
 
     if [ -n "$artifacts" ]; then
         astro::die_with_hint \

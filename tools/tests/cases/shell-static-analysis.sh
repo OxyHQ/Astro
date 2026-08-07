@@ -56,15 +56,40 @@ EOF
 )"
 fi
 
+# ShellCheck 0.10.0 is a static Haskell binary and its runtime occasionally
+# dies on a signal — observed twice here as SIGABRT (134) and SIGSEGV (139),
+# roughly 2 in 40 invocations, only while the machine was under concurrent
+# load, and never reproducible in isolation (0 failures in 15 consecutive runs
+# of this case, and 0 in 24 direct invocations).
+#
+# A crashed linter is NOT a lint finding, and a gate that cannot tell the two
+# apart is the "check that cannot distinguish success from failure" trap: it
+# either reports phantom style errors or, worse, gets marked flaky and
+# disabled. So a signal-level exit is retried once and, if it recurs, reported
+# as a crash in its own words. A real lint failure is never retried.
+run_shellcheck() {
+    local what="$1"
+    shift
+
+    harness::run "$SHELLCHECK" -x --source-path=SCRIPTDIR --severity=style "$@"
+    if [ "$RUN_STATUS" -ge 128 ]; then
+        printf 'NOTE shellcheck died on signal (exit %s) during "%s"; retrying once\n' \
+            "$RUN_STATUS" "$what" >&2
+        harness::run "$SHELLCHECK" -x --source-path=SCRIPTDIR --severity=style "$@"
+        if [ "$RUN_STATUS" -ge 128 ]; then
+            harness::fail "$what: shellcheck itself crashed twice (exit $RUN_STATUS). This is a tool failure, not a lint finding."
+        fi
+    fi
+    harness::assert_status 0 "$what"
+}
+
 # --source-path=SCRIPTDIR lets it follow `source "$(dirname …)/lib/…"`.
 # --severity=style is the strictest setting, so nothing regresses silently.
-harness::run "$SHELLCHECK" -x --source-path=SCRIPTDIR --severity=style "${SCRIPTS[@]}"
-harness::assert_status 0 "shellcheck over tools/*.sh"
+run_shellcheck "shellcheck over tools/*.sh" "${SCRIPTS[@]}"
 
 mapfile -t TEST_SCRIPTS < <(
     find "$ASTRO_ROOT/tools/tests" -name '*.sh' -type f | sort
 )
-harness::run "$SHELLCHECK" -x --source-path=SCRIPTDIR --severity=style "${TEST_SCRIPTS[@]}"
-harness::assert_status 0 "shellcheck over the test suite itself"
+run_shellcheck "shellcheck over the test suite itself" "${TEST_SCRIPTS[@]}"
 
 harness::pass
