@@ -86,6 +86,24 @@ harness::run() {
     "$@" >"$RUN_STDOUT" 2>"$RUN_STDERR" || RUN_STATUS=$?
 }
 
+# harness::setup_run <command> [args...]
+#
+# Fixture preparation runs OUTSIDE harness::run, so a failure in it produces no
+# captured output and no status anyone looks at. Without this wrapper a case
+# whose fixture was never built goes on to assert a message against nothing and
+# fails somewhere else entirely, which is the wrong-reason failure the
+# required-failure tables exist to make impossible.
+harness::setup_run() {
+    local log="$HARNESS_TMPDIR/setup.log"
+    local status=0
+    "$@" >"$log" 2>&1 || status=$?
+    if [ "$status" -ne 0 ]; then
+        printf -- '--- setup output ---\n' >&2
+        cat "$log" >&2
+        harness::fail "fixture setup failed (exit $status): $*"
+    fi
+}
+
 harness::assert_status() {
     local expected="$1" what="$2"
     HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
@@ -169,6 +187,238 @@ harness::assert_tree_unchanged() {
 }
 
 # --------------------------------------------------------------------------
+# Required-failure tables
+#
+# A case proving "every required step that fails exits non-zero" enumerates its
+# failure modes as rows rather than as prose, so adding a guard is one line and
+# a guard that quietly stops failing cannot hide between cases.
+#
+# The mechanism lives here because more than one case owns rows — the build
+# pipeline's required inputs and the source-lock gates are separate layers of
+# the same property, and they ship on separate branches. Two copies of this
+# loop would drift, and a fix to one would silently miss the other; that is
+# precisely the failure mode the table exists to prevent, so it is not
+# reproduced per case. Each case still declares its OWN vacuity floor, by
+# passing its own minimum row count to harness::run_failure_table.
+# --------------------------------------------------------------------------
+
+declare -a HARNESS_CASE_DESC=() HARNESS_CASE_RUN=() HARNESS_CASE_NEEDLES=()
+
+# harness::register_failure <description> <runner-function> <expected-fragment>...
+#
+# At least one fragment is mandatory: a row that named no reason would assert
+# only that something went wrong, which is the assertion the table replaces.
+# Every row asserts WHY the command failed as well as that it did. A row
+# checking only "exit != 0" keeps passing once the script starts failing for an
+# unrelated reason — a fixture that was never built, a renamed flag, a typo in
+# an argument — and that is how a suite goes green while the guarantee
+# underneath it is gone.
+harness::register_failure() {
+    local description="$1" runner="$2"
+    shift 2
+    if [ "$#" -lt 1 ]; then
+        harness::fail "row '$description' declares no expected message fragment"
+    fi
+    HARNESS_CASE_DESC+=("$description")
+    HARNESS_CASE_RUN+=("$runner")
+    HARNESS_CASE_NEEDLES+=("$(printf '%s\n' "$@")")
+}
+
+# harness::run_failure_table <minimum rows>
+#
+# The floor comes first: a truncated table, a mis-registered row or a broken
+# loop would otherwise report a green case having asserted almost nothing.
+harness::run_failure_table() {
+    local minimum="$1"
+
+    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 2))
+    if [ "${#HARNESS_CASE_DESC[@]}" -lt "$minimum" ]; then
+        harness::fail "table has ${#HARNESS_CASE_DESC[@]} row(s), below the floor of $minimum"
+    fi
+    if [ "${#HARNESS_CASE_RUN[@]}" != "${#HARNESS_CASE_DESC[@]}" ] \
+       || [ "${#HARNESS_CASE_NEEDLES[@]}" != "${#HARNESS_CASE_DESC[@]}" ]; then
+        harness::fail "table arrays disagree: ${#HARNESS_CASE_DESC[@]} descriptions, ${#HARNESS_CASE_RUN[@]} runners, ${#HARNESS_CASE_NEEDLES[@]} needle sets"
+    fi
+
+    printf 'Required failure modes under test: %s\n' "${#HARNESS_CASE_DESC[@]}"
+
+    local index description needle
+    for index in "${!HARNESS_CASE_DESC[@]}"; do
+        description="${HARNESS_CASE_DESC[$index]}"
+        harness::run "${HARNESS_CASE_RUN[$index]}"
+        harness::assert_nonzero_status "$description"
+        while IFS= read -r needle; do
+            [ -n "$needle" ] || continue
+            harness::assert_output_contains "$needle" "$description"
+        done <<< "${HARNESS_CASE_NEEDLES[$index]}"
+    done
+}
+
+# --------------------------------------------------------------------------
+# Real-checkout shell hazards
+#
+# Two constructs a synthetic fixture never punishes and a 400,000-file Chromium
+# checkout punishes every time. The demonstrations that each hazard is REAL
+# live in the case that owns them; what lives here is the machinery for
+# scanning a list of scripts for them.
+#
+# The patterns are here because more than one case scans with them, over
+# different file lists that exist at different layers: the build pipeline's
+# scripts and the baseline harness's scripts ship on separate branches. Two
+# copies of a regex is how one gets tightened and the other does not. Each case
+# supplies its own file list and its own vacuity floor.
+# --------------------------------------------------------------------------
+
+# `find` must be a command word — the trailing whitespace requirement is what
+# keeps `security find-identity … | head -1` out, which is a different program
+# and not this hazard. `head` may sit anywhere downstream: an intermediate stage
+# such as `sort` takes the SIGPIPE instead of find, which changes which process
+# dies, not whether pipefail surfaces 141.
+#
+# Executable lines only. These scripts describe the hazard in prose — a script
+# the construct was removed from carries a comment quoting the very shape it no
+# longer runs — and a raw grep would flag its own documentation.
+HARNESS_FIND_INTO_HEAD='^([^#]*[^[:alnum:]_./-])?find[[:space:]][^#]*\|[^#]*[[:space:]]head([[:space:]]|$)'
+
+# An artifact hunt must ask git which files are untracked. A find-by-name walk
+# cannot tell upstream content from leftover state, and pays 400,000 stat calls
+# to get the wrong answer.
+HARNESS_FIND_ARTIFACT_HUNT='^([^#]*[^[:alnum:]_./-])?find[[:space:]][^#]*-name[^#]*(rej|orig)'
+
+# harness::assert_pattern_hits <pattern> <file> <expected count> <what>
+harness::assert_pattern_hits() {
+    local pattern="$1" file="$2" expected="$3" what="$4"
+    local hits status=0
+    hits="$(grep -cE "$pattern" "$file")" || status=$?
+    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+    if [ "$status" -gt 1 ]; then
+        harness::fail "$what: grep itself failed (exit $status)"
+    fi
+    if [ "$hits" != "$expected" ]; then
+        harness::fail "$what: expected $expected matching line(s), got $hits"
+    fi
+}
+
+# harness::assert_hazard_patterns_fire
+#
+# Mutation support for the two patterns: a regex that stopped matching would
+# report every list clean, which is indistinguishable from every list actually
+# being clean. Any case that scans with them must call this first, so a
+# tightened-into-uselessness regex fails in the case that relies on it rather
+# than only in the case that happens to own the probe.
+harness::assert_hazard_patterns_fire() {
+    local probe_dir="$HARNESS_TMPDIR/hazard-probes"
+    mkdir -p "$probe_dir"
+
+    cat > "$probe_dir/find-head-hazardous.sh" <<'PROBE'
+find "$BUILD_DIR" -name "*.apk" | head -10
+paths="$(find "$root" -type f | head -5)"
+find "$src" -type f | sort | head -1
+PROBE
+    harness::assert_pattern_hits "$HARNESS_FIND_INTO_HEAD" \
+        "$probe_dir/find-head-hazardous.sh" 3 \
+        "the find-into-head pattern must match every hazardous shape"
+
+    cat > "$probe_dir/find-head-benign.sh" <<'PROBE'
+# `find … | head` raises under pipefail once head has what it needs.
+IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | head -1)"
+BUILD_TOOLS="$(find "$sdk/build-tools" -maxdepth 1 -type d | sort -V | tail -1)"
+head -20 "$listing"
+PROBE
+    harness::assert_pattern_hits "$HARNESS_FIND_INTO_HEAD" \
+        "$probe_dir/find-head-benign.sh" 0 \
+        "the find-into-head pattern must ignore prose, a different program, and tail"
+
+    cat > "$probe_dir/artifact-hunt-hazardous.sh" <<'PROBE'
+find "$src" -name '*.rej' -print
+find "$CHROMIUM_SRC" \( -name "*.rej" -o -name "*.orig" \) -print
+PROBE
+    harness::assert_pattern_hits "$HARNESS_FIND_ARTIFACT_HUNT" \
+        "$probe_dir/artifact-hunt-hazardous.sh" 2 \
+        "the artifact-hunt pattern must match a find-by-name walk"
+
+    cat > "$probe_dir/artifact-hunt-benign.sh" <<'PROBE'
+# A find-based check condemns a pristine upstream checkout: 181 tracked .orig.
+git -C "$dir" status --porcelain --untracked-files=all | grep -E '\.(rej|orig)$'
+find "$BUILD_DIR" -name "*.apk" -print
+PROBE
+    harness::assert_pattern_hits "$HARNESS_FIND_ARTIFACT_HUNT" \
+        "$probe_dir/artifact-hunt-benign.sh" 0 \
+        "the artifact-hunt pattern must ignore prose, the git form, and unrelated find calls"
+}
+
+# harness::assert_no_lines_matching <pattern> <what> <file>...
+#
+# Reports every offending line in full. A truncated capture group reads the same
+# whether the rule caught something fatal or something harmless.
+harness::assert_no_lines_matching() {
+    local pattern="$1" what="$2"
+    shift 2
+    local hits status=0
+    hits="$(grep -nE "$pattern" "$@")" || status=$?
+    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+    if [ "$status" -gt 1 ]; then
+        harness::fail "$what: grep itself failed (exit $status)"
+    fi
+    if [ -n "$hits" ]; then
+        harness::fail "$what
+$hits"
+    fi
+}
+
+# harness::assert_script_list <minimum> <required basename>... -- <path>...
+#
+# The vacuity floor every hazard scan needs, in the one shape that survives a
+# list which legitimately changes size between layers. Three separate failures
+# are caught: an unexpanded glob (its own pattern is left in the array and is
+# not a file), a list that silently narrowed (the count floor), and a list that
+# is large but no longer contains the scripts the scan exists for (the
+# membership floor, which a count alone cannot see).
+harness::assert_script_list() {
+    local minimum="$1"
+    shift
+
+    local required=()
+    while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do
+        required+=("$1")
+        shift
+    done
+    if [ "${1:-}" != "--" ]; then
+        harness::fail "harness::assert_script_list called without a -- separator"
+    fi
+    shift
+
+    local path count=0
+    for path in "$@"; do
+        HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+        if [ ! -f "$path" ]; then
+            harness::fail "script list contains a non-file (an unexpanded glob?): $path"
+        fi
+        count=$((count + 1))
+    done
+
+    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+    if [ "$count" -lt "$minimum" ]; then
+        harness::fail "only $count script(s) matched, below the floor of $minimum; the globs are broken"
+    fi
+
+    local wanted found
+    for wanted in "${required[@]}"; do
+        found=0
+        for path in "$@"; do
+            if [ "$(basename "$path")" = "$wanted" ]; then
+                found=1
+                break
+            fi
+        done
+        HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+        if [ "$found" != "1" ]; then
+            harness::fail "the script list does not contain $wanted; it is not scanning what this case exists to scan"
+        fi
+    done
+}
+
+# --------------------------------------------------------------------------
 # Fixtures
 # --------------------------------------------------------------------------
 
@@ -222,6 +472,32 @@ overwrite chrome/browser/ui/webui/chrome_web_ui_configs.cc owner=test issue=4
 EOF
 }
 
+# harness::make_overlay_repo <repo dir> <allowlist path>
+#
+# A committed Astro-shaped repository whose overlay lives in a SUBDIRECTORY,
+# src/, exactly as it does in Astro — so the path-scoping the derive-from-HEAD
+# gate depends on is the scoping under test rather than something the fixture
+# flattened away.
+#
+# It also carries one file OUTSIDE the overlay, so a case can prove the gate is
+# scoped to the copied paths and not to the repository's cleanliness in
+# general, and an ignore rule, so a case can cover the one shape `git status`
+# can never see.
+#
+# Echoes the commit the overlay was committed at.
+harness::make_overlay_repo() {
+    local repo="$1" allowlist="$2"
+
+    mkdir -p "$repo"
+    git -C "$repo" init --quiet
+    harness::make_overlay_fixture "$repo/src" "$allowlist"
+    printf 'unrelated repository content\n' > "$repo/README.md"
+    printf '*.gen.cc\n' > "$repo/.gitignore"
+    git -C "$repo" add -A
+    git -C "$repo" commit --quiet -m "astro fixture: committed overlay"
+    git -C "$repo" rev-parse HEAD
+}
+
 # A patch series directory the patch runner can consume.
 harness::make_patch_fixture() {
     local dir="$1"
@@ -239,4 +515,178 @@ diff --git a/$target b/$target
 -$old
 +$new
 EOF
+}
+
+# Creates a miniature Astro repository for tools/build.sh to run against, so
+# the real webui/ and gn_args/ are never touched and no case can depend on
+# another's damage.
+#
+# Everything a `--dry-run` REQUIRES is here and nothing else. In particular the
+# source lock is not: the revision gate is a separate layer with its own
+# script, its own lock file and its own checkouts to inspect, and a case that
+# exercises it adds those on top of this fixture. Building them here would make
+# every build-input case depend on tooling it does not test.
+harness::make_build_root() {
+    local root="$1" chromium="$2"
+
+    harness::make_chromium_fixture "$chromium"
+    harness::setup_run git -C "$chromium" checkout --quiet --detach HEAD
+
+    mkdir -p "$root/tools/lib" "$root/gn_args" "$root/depot_tools" "$root/patches" \
+             "$root/src/chrome/browser/oxy/adblock/resources"
+    cp "$ASTRO_ROOT/tools/build.sh" "$ASTRO_ROOT/tools/sync-overlay.sh" \
+       "$ASTRO_ROOT/tools/overlay.allowlist" \
+       "$ASTRO_ROOT/tools/gn-check-baseline.json" "$root/tools/"
+    # The whole library, not a name list. A name list means every tool added to
+    # tools/lib/ silently breaks this fixture, and the build then fails for a
+    # reason that has nothing to do with what the test is asserting — which is
+    # exactly how gn_args_drift.py first surfaced here.
+    cp -R "$ASTRO_ROOT/tools/lib/." "$root/tools/lib/"
+
+    printf 'is_debug = false\n' > "$root/gn_args/linux.gn"
+    printf '! filter list\n' > "$root/src/chrome/browser/oxy/adblock/resources/easylist.txt"
+
+    local page
+    for page in ntp alia settings whats-new error; do
+        mkdir -p "$root/webui/$page/dist"
+        printf '<!doctype html><title>%s</title>\n' "$page" > "$root/webui/$page/dist/index.html"
+    done
+
+    # gn and autoninja must RESOLVE — build.sh requires them — but must never
+    # run during a dry run, so they announce themselves and fail loudly.
+    printf '#!/usr/bin/env bash\necho "gn was executed during a dry run" >&2\nexit 99\n' \
+        > "$root/depot_tools/gn"
+    cp "$root/depot_tools/gn" "$root/depot_tools/autoninja"
+    chmod +x "$root/depot_tools/gn" "$root/depot_tools/autoninja"
+}
+
+# --------------------------------------------------------------------------
+# Source-lock fixtures (ASTRO-NEXT-002)
+# --------------------------------------------------------------------------
+
+# Creates a source repository with three commits and a `main` branch, plus an
+# annotated tag on the second. Echoes the three commit SHAs, oldest first.
+#
+# The tag is ANNOTATED on purpose: `git ls-remote` reports an annotated tag as
+# the tag OBJECT, and only `refs/tags/X^{}` as the commit. Comparing against
+# the unpeeled value reports permanent bogus drift, which is a real trap this
+# repository hit against ungoogled-chromium's own tag.
+harness::make_source_repo() {
+    local dir="$1" name="${2:-fixture}" with_sentinels="${3:-no}"
+    mkdir -p "$dir"
+    git -C "$dir" init --quiet --initial-branch=main
+
+    # Chromium's sentinel files exist at every real commit, so a fixture
+    # standing in for Chromium must carry them from the first commit onward.
+    # Adding them only at the tip makes every earlier commit unrecognisable to
+    # astro::resolve_chromium_src, which then blocks the very correction the
+    # sync is supposed to perform.
+    if [ "$with_sentinels" = "sentinels" ]; then
+        mkdir -p "$dir/chrome" "$dir/base" "$dir/build/config"
+        printf 'buildconfig = "//build/config/BUILDCONFIG.gn"\n' > "$dir/.gn"
+        printf 'MAJOR=146\nMINOR=0\nBUILD=7680\nPATCH=177\n' > "$dir/chrome/VERSION"
+        printf 'group("base") {}\n' > "$dir/base/BUILD.gn"
+        printf '# BUILDCONFIG\n' > "$dir/build/config/BUILDCONFIG.gn"
+    fi
+
+    local shas=()
+    local index
+    for index in 1 2 3; do
+        printf '%s commit %s\n' "$name" "$index" > "$dir/content.txt"
+        git -C "$dir" add -A
+        git -C "$dir" commit --quiet -m "$name $index"
+        shas+=("$(git -C "$dir" rev-parse HEAD)")
+        if [ "$index" -eq 2 ]; then
+            git -C "$dir" tag -a "v$index" -m "annotated v$index"
+        fi
+    done
+    printf '%s\n' "${shas[@]}"
+}
+
+# harness::write_build_lock <build root> <chromium> <chromium commit>
+#
+# The lock a fixture Astro root is built against, naming that root's own
+# depot_tools and ungoogled checkouts.
+harness::write_build_lock() {
+    local root="$1" chromium="$2" chromium_commit="$3"
+    harness::write_lock "$root/browser.lock.json" \
+        "file://$chromium" "$chromium_commit" \
+        "file://$root/depot_tools" "$(git -C "$root/depot_tools" rev-parse HEAD)" \
+        "file://$root/.ungoogled-chromium" "$(git -C "$root/.ungoogled-chromium" rev-parse HEAD)"
+}
+
+# harness::make_locked_build_root <build root> <chromium>
+#
+# The lock layer on top of harness::make_build_root: the gate's own inputs —
+# the script that enforces it, the schema it is validated against, the
+# provenance writer a real build would run, and the depot_tools/ungoogled
+# checkouts --verify-only inspects — plus a lock naming each fixture's own
+# HEAD, so a case starts from a checkout that satisfies the gate and then
+# breaks exactly one thing.
+#
+# This belongs to the source-lock layer and must not be called from a case that
+# ships below it: the files it copies do not exist there. It lives here rather
+# than in one of the two cases that need it so a change lands in both.
+harness::make_locked_build_root() {
+    local root="$1" chromium="$2"
+
+    harness::make_build_root "$root" "$chromium"
+
+    cp "$ASTRO_ROOT/tools/sync-sources.sh" "$ASTRO_ROOT/tools/generate-provenance.sh" \
+       "$ASTRO_ROOT/tools/gclient.template" "$root/tools/"
+    cp "$ASTRO_ROOT/browser.lock.schema.json" "$root/"
+
+    # The lock gate inspects every locked source, so depot_tools and ungoogled
+    # have to be real checkouts sitting detached at the commits the lock names.
+    harness::setup_run git -C "$root/depot_tools" init --quiet --initial-branch=main
+    harness::setup_run git -C "$root/depot_tools" add -A
+    harness::setup_run git -C "$root/depot_tools" commit --quiet -m "depot_tools fixture"
+    harness::setup_run git -C "$root/depot_tools" checkout --quiet --detach HEAD
+
+    mkdir -p "$root/.ungoogled-chromium"
+    printf 'patches\n' > "$root/.ungoogled-chromium/README"
+    harness::setup_run git -C "$root/.ungoogled-chromium" init --quiet --initial-branch=main
+    harness::setup_run git -C "$root/.ungoogled-chromium" add -A
+    harness::setup_run git -C "$root/.ungoogled-chromium" commit --quiet -m "ungoogled fixture"
+    harness::setup_run git -C "$root/.ungoogled-chromium" checkout --quiet --detach HEAD
+
+    harness::write_build_lock "$root" "$chromium" "$(git -C "$chromium" rev-parse HEAD)"
+}
+
+# Writes a lock file pointing at local fixture repositories.
+harness::write_lock() {
+    local path="$1" chromium_url="$2" chromium_commit="$3" \
+          depot_url="$4" depot_commit="$5" \
+          ungoogled_url="$6" ungoogled_commit="$7" chromium_ref="${8:-}"
+
+    python3 - "$path" "$chromium_url" "$chromium_commit" "$depot_url" \
+                "$depot_commit" "$ungoogled_url" "$ungoogled_commit" \
+                "$chromium_ref" <<'PY'
+import json, sys
+
+(path, chromium_url, chromium_commit, depot_url, depot_commit,
+ ungoogled_url, ungoogled_commit, chromium_ref) = sys.argv[1:9]
+
+document = {
+    "lockfile_version": 1,
+    "chromium": {
+        "version": "146.0.7680.177",
+        "commit": chromium_commit,
+        "url": chromium_url,
+    },
+    "depot_tools": {"commit": depot_commit, "url": depot_url},
+    "ungoogled_chromium": {
+        "version": "146.0.7680.177-1",
+        "commit": ungoogled_commit,
+        "url": ungoogled_url,
+        "legacy": True,
+    },
+}
+if chromium_ref:
+    document["chromium"]["ref"] = chromium_ref
+
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(document, handle, indent=2)
+    handle.write("\n")
+PY
 }
