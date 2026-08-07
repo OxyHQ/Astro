@@ -8,7 +8,7 @@ Astro is a Chromium fork that removes all Google services and replaces them with
 tools/fetch-chromium.sh          # Fetch Chromium source (~55 GB, first time only)
 tools/sync-ungoogled.sh          # Get matching ungoogled-chromium patches
 tools/apply-patches.sh           # Apply all patches (ungoogled + Astro)
-rsync -av src/ chromium/src/     # Copy Astro overlay into Chromium source tree
+tools/sync-overlay.sh            # Copy Astro overlay into the Chromium tree
 tools/build.sh                   # Release build (uses all CPU cores)
 tools/build.sh Debug             # Debug build
 tools/install-local.sh           # Install to system
@@ -16,7 +16,56 @@ tools/package-release.sh         # Package for distribution
 tools/update-chromium.sh VER     # Update to a new Chromium version
 tools/apply-branding.sh          # Apply branding from branding/astro.conf
 tools/vendor-adblock-rust.sh     # Vendor Rust adblock engine dependencies
+tools/tests/run.sh               # Build-safety suite (no Chromium checkout needed)
 ```
+
+`--dry-run` works on `apply-patches.sh`, `sync-overlay.sh` and `build.sh`: it
+validates every required input and prints every planned operation without
+touching a file.
+
+## Build pipeline rules (non-negotiable)
+
+These are enforced by `tools/tests/run.sh` and the **Build safety** CI job, not
+just by convention. Do not work around them; if one blocks you, that is the
+signal to stop and report it on the issue.
+
+- **Never `rsync --delete` into the Chromium tree**, and never reintroduce a
+  delete path in `tools/sync-overlay.sh`. The old overlay copy removed every
+  upstream file the overlay did not provide, `gclient`-fetched `third_party`
+  trees included.
+- **Never apply a patch fuzzily (`patch -F*`) or through `git apply --3way`.**
+  Both produce a tree that is not the reviewed patch, and both did so silently.
+  A patch applies exactly or the run stops.
+- **Never swallow a failure.** No `|| true`, no `2>/dev/null` on a required
+  step. A genuinely optional step is declared with `astro::optional <reason>`,
+  which prints a structured `WARN [optional:<reason>]` and continues, so
+  `grep -rn astro::optional tools/` is the complete list of tolerated failures.
+- **Never write into `chromium/src` without resolving it first** through
+  `astro::resolve_chromium_src`. It requires the path to be a git work tree
+  *whose top level is the path itself* — a `chromium/src` holding only the
+  overlay resolves to the Astro repository, so an unguarded `git reset --hard`
+  aimed at "the Chromium checkout" destroys the developer's own work.
+- **Preserve developer work by default.** Mutating scripts refuse a checkout
+  carrying changes Astro did not write. `ASTRO_ALLOW_DIRTY_CHROMIUM=1` is a
+  developer-only override; CI asserts it is never set.
+- **Every overlay destination is declared** in `tools/overlay.allowlist`. An
+  undeclared path, or an undeclared overwrite of an upstream-tracked file,
+  fails the sync.
+- Shared helpers live in `tools/lib/astro-common.sh`; every script sources it
+  rather than re-implementing strict mode, logging or the guards.
+- Run `tools/tests/run.sh` before touching anything under `tools/`.
+
+**Known defects, declared rather than hidden.** Do not "fix" these silently, and
+do not let a build imply they are resolved:
+
+- Domain substitution has never run (Python regexes fed to `sed`, error
+  discarded). `apply-patches.sh` refuses; `--skip-domain-substitution`
+  reproduces what previous builds did. Owned by #8.
+- A whole-file overlay copy of `chrome/browser/ui/webui/chrome_web_ui_configs.cc`
+  reverts four patches, so `AstroAdBlockUIConfig` is never registered. The copy
+  is currently untracked working-tree content, not committed state; the
+  collision is declared in `tools/overlay.allowlist` so any checkout carrying
+  it behaves loudly. Owned by #7.
 
 ## Key File Paths
 
@@ -163,7 +212,7 @@ cd webui/error && bun run dev        # http://localhost:5177
 ### Chromium incremental build
 
 ```bash
-rsync -av src/ chromium/src/
+tools/sync-overlay.sh
 ninja -C out/Release chrome          # Recompiles only changed files
 ```
 

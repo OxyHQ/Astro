@@ -1,0 +1,242 @@
+---
+title: Recovery
+description: Recovering from an interrupted or failed legacy patch application.
+---
+
+# Recovery
+
+The legacy patch pipeline fails closed: the first patch that does not apply
+exactly stops the run and exits non-zero. That leaves the Chromium checkout
+partially patched, which is the correct place to stop — a tree that is neither
+upstream nor the reviewed patch set must not be compiled.
+
+This page covers getting back to a known state.
+
+<Warning>
+**Never run `git -C chromium/src reset --hard` or `git clean -fd` blind.**
+
+If `chromium/src` is not a real Chromium checkout — for example a directory
+holding only the copied overlay — `git` walks *up* to the enclosing repository,
+and both commands then operate on the Astro repository itself, destroying any
+uncommitted work in it.
+
+Every Astro script now refuses to touch a `chromium/src` whose git top level is
+not the directory itself. Do the same by hand:
+
+```bash
+git -C chromium/src rev-parse --show-toplevel
+# must print .../chromium/src, and nothing else
+```
+</Warning>
+
+## 1. Find the patch that stopped the run
+
+Every run writes a machine-readable report, on the failure path as well as on
+success:
+
+```bash
+jq '{outcome, applied_count, failed_count, domain_substitution}' \
+   build/reports/patch-report.json
+```
+
+The failing patch is the last entry, and it is the only one whose status is not
+`applied`:
+
+```bash
+jq -r '.patches[] | select(.status != "applied") | "\(.order) \(.name) \(.status)"' \
+   build/reports/patch-report.json
+```
+
+`order` is the patch's position in the declared series, so you also know exactly
+how much of the stack was applied: everything before it, and nothing after.
+
+To see which files it expected to modify:
+
+```bash
+jq -r '.patches[-1].files[]' build/reports/patch-report.json
+```
+
+## 2. Check for partial-application artifacts
+
+An **untracked** `.rej` or `.orig` file means a patch was applied partially. Ask
+git, not the filesystem:
+
+```bash
+git -C chromium/src status --porcelain --untracked-files=all \
+  | sed -n 's/^?? //p' | grep -E '\.(rej|orig|porig)$'
+```
+
+<Warning>
+**Do not hunt for these with `find`.** Chromium ships 181 *tracked* `.orig`
+files — `cargo vendor` writes a `Cargo.toml.orig` beside every vendored Rust
+crate — so `find chromium/src -name '*.orig'` reports a perfectly healthy
+upstream checkout as full of leftover artifacts, and the obvious reflex,
+deleting them, removes files the build needs.
+
+Measured on the real tree: 181 tracked `.orig`, 0 tracked `.rej`, and 0
+untracked of either on a pristine checkout. Tracked or untracked is therefore
+an exact discriminator, which is why both runner checks use it.
+</Warning>
+
+Read the `.rej` before deleting it — it is the exact hunk that failed, and it is
+usually the fastest way to understand why.
+
+Two separate checks report artifacts, and which one stopped you says *when* the
+artifact appeared:
+
+| Check | Runs | What it tells you |
+|---|---|---|
+| Pristine-tree guard | Before a run acts on the checkout | The artifact was already there — a previous run left it, and this run has changed nothing yet |
+| Post-application scan | After the patch series is applied | The artifact appeared during this run — a patch in this series applied partially |
+
+The guard fires from `tools/sync-sources.sh` and from `tools/apply-patches.sh`
+before it touches a file; the scan fires from `tools/apply-patches.sh` once the
+series is through.
+
+## 3. Return the checkout to the pinned revision
+
+Print the target revision *before* acting, so the log records what state you
+returned to:
+
+```bash
+# 1. Confirm the checkout is its own work tree (see the warning above).
+git -C chromium/src rev-parse --show-toplevel
+
+# 2. Print the revision you are returning to, and the one that is declared.
+git -C chromium/src log -1 --format='%H %d %s'
+python3 tools/lib/lock.py --get chromium.commit
+
+# 3. Review what will be discarded.
+git -C chromium/src status --short
+git -C chromium/src diff --stat
+
+# 4. Discard it.
+git -C chromium/src checkout -- .
+git -C chromium/src clean -fd
+```
+
+Step 3 is not optional. `clean -fd` removes untracked files, and a Chromium
+checkout accumulates plenty of them that are expensive to recreate.
+
+## 4. Re-apply
+
+```bash
+rm -f build/reports/patch-report.json
+tools/apply-patches.sh --skip-domain-substitution
+```
+
+The report is removed so the runner requires a pristine tree again rather than
+treating the previous run's recorded paths as attributable.
+
+## Resolving a patch that no longer applies
+
+After a Chromium version bump, patches drift. There is no fuzzy fallback and no
+three-way merge — deliberately, because both produce a tree that is not what the
+patch describes, and both did so silently in the previous implementation.
+
+Resolve it by hand:
+
+```bash
+# Apply what still applies and leave a .rej for the rest.
+cd chromium/src
+patch -p1 --forward < ../../patches/astro/0NN-name.patch
+
+# Fix the rejected hunks by hand, then regenerate the patch.
+git diff > ../../patches/astro/0NN-name.patch
+git checkout -- .
+cd ../..
+
+tools/apply-patches.sh astro
+```
+
+Regenerating the patch is the point: the patch file is the reviewed artifact, so
+the fix belongs in it rather than in a runner that quietly tolerates drift.
+
+## Common refusals, and what they mean
+
+### `is not its own git work tree`
+
+`chromium/src` exists but is not a Chromium checkout — most often an empty or
+partially populated directory inside the Astro repository. Create a real one at
+the locked revision:
+
+```bash
+tools/sync-sources.sh
+```
+
+### `is at the wrong commit`
+
+The checkout does not match `browser.lock.json`. This is the check a stale
+self-hosted runner must fail. `tools/sync-sources.sh` corrects it;
+`--verify-only` only reports it. See [Reproducibility](/reproducibility).
+
+### `has N local modification(s) and must be pristine`
+
+The checkout carries changes the pipeline did not make. Astro preserves
+developer work by default and will not patch over it.
+
+Inspect them, and either keep them somewhere safe or discard them per step 3.
+If they are deliberate and you want to proceed anyway:
+
+```bash
+ASTRO_ALLOW_DIRTY_CHROMIUM=1 tools/apply-patches.sh
+```
+
+That variable is developer-only. CI asserts it is never set.
+
+### `modified path(s) Astro did not write`
+
+Same situation, reached from a later stage: the pipeline compared the dirty
+paths against what it recorded in `build/reports/` and the overlay allowlist,
+and some paths were not accounted for. The message names them.
+
+### `Domain substitution is not implemented and cannot be applied`
+
+This is not a regression. `patches/ungoogled/domain_regex.list` holds Python
+regular expressions; the previous implementation passed them to `sed`, which
+rejected every one of them, and discarded the error. No Astro build has ever had
+domain substitution applied.
+
+To reproduce exactly what previous builds did, and record that fact in the
+report:
+
+```bash
+tools/apply-patches.sh --skip-domain-substitution
+```
+
+Implementing it properly is tracked by [issue #8](https://github.com/OxyHQ/Astro/issues/8).
+
+### `Overlay file … overwrites a destination that patches also modify`
+
+An overlay file would land on top of a file a patch also changes. Because the
+overlay is copied *after* patches are applied, the copy wins and the patch is
+silently reverted.
+
+Declare it on the allowlist entry if the collision is understood and owned:
+
+```
+overwrite path/to/file.cc owner=<team> issue=<number> conflicts-with=<patch>,<patch>
+```
+
+Otherwise stop overwriting the file. See `tools/overlay.allowlist`.
+
+## Which scripts mutate the Chromium checkout
+
+| Script | Mutates `chromium/src`? |
+|---|---|
+| `tools/sync-sources.sh` | Yes — creates it and detaches it at the locked commit |
+| `tools/fetch-chromium.sh` | Yes — deprecated wrapper; delegates to `sync-sources.sh` |
+| `tools/fetch-cross-deps.sh` | Yes — **discards local modifications**, syncs deps |
+| `tools/apply-patches.sh` | Yes — prunes files and applies patches |
+| `tools/sync-overlay.sh` | Yes — copies overlay files in; never deletes |
+| `tools/apply-branding.sh` | Yes — rewrites branding strings |
+| `tools/vendor-adblock-rust.sh` | Yes — vendors crates into `third_party/` |
+| `tools/build.sh` | Yes — via `sync-overlay.sh`, plus writes `out/` |
+| `tools/install-local.sh` | Yes — recompiles, and writes `out/` |
+| `tools/sync-ungoogled.sh` | No — writes only `patches/ungoogled/` |
+| `tools/verify-deps.sh` | No — reads `build/reports/deps-revinfo.json` and the lock |
+| `tools/package-*.sh` | No — read the build output, write `releases/` |
+| `tools/tests/run.sh` | No — drives synthetic fixtures in a temp directory |
+
+Every mutating script verifies the destination first and refuses to run against
+a checkout carrying unrelated local changes.

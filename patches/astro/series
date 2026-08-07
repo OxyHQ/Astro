@@ -1,0 +1,66 @@
+# series — the declared application order for the Astro patch set.
+#
+# tools/apply-patches.sh applies exactly these patches, in exactly this order.
+# It refuses to run if this file and patches/astro/ disagree in either
+# direction: a patch on disk missing from the series is as much a defect as a
+# series entry with no file behind it.
+#
+# The previous runner discovered patches with `find | sort`, so the order was
+# a property of the filesystem rather than a reviewed decision.
+
+001-branding-strings.patch
+002-branding-product-name.patch
+003-branding-linux-package.patch
+004-default-search-duckduckgo.patch
+005-branding-components-strings.patch
+006-user-agent-astro.patch
+007-oxy-auth-build-hook.patch
+008-os-crypt-visibility.patch
+009-branding-settings-strings.patch
+010-oxy-theme-color.patch
+011-astro-url-scheme-alias.patch
+012-settings-border-style.patch
+013-settings-google-to-oxy.patch
+014-oxy-profile-menu-header.patch
+015-oxy-profile-menu-impl.patch
+016-ntp-astro-logo.patch
+017-ntp-logo-css.patch
+018-ntp-logo-ts.patch
+019-ntp-default-sites.patch
+020-register-oxy-prefs.patch
+021-omnibox-display-astro.patch
+022-autocomplete-astro-scheme.patch
+023-url-fixer-astro-scheme.patch
+024-astro-scheme-constant.patch
+025-astro-scheme-register.patch
+026-navigator-astro-rewrite.patch
+027-scheme-classifier-astro.patch
+028-security-display-astro.patch
+029-copy-url-astro.patch
+030-protocol-handler-astro.patch
+031-linux-icon-name.patch
+032-linux-desktop-name.patch
+033-shared-settings-google-to-oxy.patch
+034-profiles-google-to-oxy.patch
+035-auth-https-callback.patch
+036-navigator-auth-intercept.patch
+037-builtin-provider-astro-scheme.patch
+038-dino-game-astro-scheme.patch
+039-auth-navigation-throttle-register.patch
+040-tab-hover-astro-scheme.patch
+041-navigation-controller-astro.patch
+042-session-restore-astro.patch
+043-web-app-astro-scheme.patch
+044-disable-ev-certificate-metadata.patch
+045-adblock-throttle-register.patch
+046-adblock-prefs.patch
+047-alia-side-panel-entry-id.patch
+048-alia-action-id.patch
+049-alia-browser-action.patch
+050-alia-side-panel-register.patch
+051-alia-vector-icon.patch
+052-adblock-tab-helper-register.patch
+053-adblock-toolbar-button.patch
+054-adblock-webui-register.patch
+055-ntp-webui-register.patch
+056-ntp-redirect-to-astro.patch

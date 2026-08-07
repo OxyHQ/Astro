@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-ASTRO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ASTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export ASTRO_ROOT
+# shellcheck source=tools/lib/astro-common.sh
+source "$ASTRO_ROOT/tools/lib/astro-common.sh"
 CHROMIUM_DIR="$ASTRO_ROOT/chromium"
 DEPOT_TOOLS_DIR="$ASTRO_ROOT/depot_tools"
 

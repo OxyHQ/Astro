@@ -8,7 +8,10 @@
 #   tools/apply-branding.sh          # from ~/Oxy/Astro/
 #   tools/apply-branding.sh --dry-run  # preview changes without writing
 
-set -euo pipefail
+ASTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export ASTRO_ROOT
+# shellcheck source=tools/lib/astro-common.sh
+source "$ASTRO_ROOT/tools/lib/astro-common.sh"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -31,7 +34,9 @@ fi
 # Source the config (only lines matching KEY="VALUE")
 while IFS='=' read -r key value; do
     # Skip comments and empty lines
-    [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+    if [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]]; then
+        continue
+    fi
     # Strip surrounding quotes from value
     value="${value%\"}"
     value="${value#\"}"
@@ -54,11 +59,17 @@ echo ""
 apply_sed() {
     local file="$1"
     local pattern="$2"
-    local short_path="${file#$CHROMIUM_SRC/}"
+    local short_path="${file#"$CHROMIUM_SRC"/}"
 
     if $DRY_RUN; then
         local count
-        count=$(grep -c "Chromium" "$file" 2>/dev/null || true)
+        # grep exits 1 when there are no matches, which is a normal outcome here;
+        # anything above that is a real failure and must not read as "zero".
+        grep_status=0
+        count="$(grep -c "Chromium" "$file")" || grep_status=$?
+        if [ "$grep_status" -gt 1 ]; then
+            astro::die "grep failed while scanning $file (exit $grep_status)"
+        fi
         if [[ "$count" -gt 0 ]]; then
             echo "  [WOULD CHANGE] $short_path ($count occurrences of 'Chromium')"
         else
