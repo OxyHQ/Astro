@@ -8,6 +8,8 @@
 
 source_set("webui") {
   sources = [
+    "astro_settings_next_ui.cc",
+    "astro_settings_next_ui.h",
     "astro_test_ui.cc",
     "astro_test_ui.h",
     "astro_web_ui_configs.cc",
@@ -15,9 +17,14 @@ source_set("webui") {
   ]
 
   deps = [
+    # The page's own bytes, packaged into the binary.
     # Settings is reused, not copied: astro://settings/ instantiates
     # settings::SettingsUI itself.
+    # Upstream's settings resources and its localized-strings provider, so
+    # this page IS that page rather than a second implementation of it.
     "//chrome/browser/ui",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/resources/settings:resources",
     "//astro/common:url_constants",
     "//base",
     "//content/public/browser",

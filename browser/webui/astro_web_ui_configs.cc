@@ -4,8 +4,15 @@
 
 #include <memory>
 
+#include "base/strings/strcat.h"
+
+#include "astro/browser/webui/astro_settings_next_ui.h"
 #include "astro/browser/webui/astro_test_ui.h"
+#include "astro/common/url_constants.h"
+#include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/webui_config_map.h"
+#include "url/gurl.h"
+#include "url/url_constants.h"
 
 namespace astro {
 
@@ -17,6 +24,30 @@ void RegisterAstroWebUIConfigs() {
   // anything that could swallow it.
   content::WebUIConfigMap::GetInstance().AddWebUIConfig(
       std::make_unique<AstroTestUIConfig>());
+
+  // Settings. Astro serves Chromium's own settings page from its own
+  // controller, so the page can be restyled in place while keeping every
+  // component, route and translation upstream ships.
+  //
+  // RemoveConfig first, because RegisterChromeWebUIConfigs() has already run by
+  // the time this hook is called and AddWebUIConfigImpl CHECK-fails on a second
+  // config for an origin that is already claimed. This is content's own public
+  // API for replacing a config -- no patch edits a Chromium file to make room.
+  const GURL settings_url(base::StrCat(
+      {kAstroUIScheme, url::kStandardSchemeSeparator,
+       chrome::kChromeUISettingsHost}));
+  // The return value says whether anything was there. Discarding it would let a
+  // future Chromium that registers settings differently silently leave this
+  // page unregistered, which looks identical to a browser without a settings
+  // page at all.
+  std::unique_ptr<content::WebUIConfig> replaced =
+      content::WebUIConfigMap::GetInstance().RemoveConfig(settings_url);
+  CHECK(replaced) << "no config was registered for " << settings_url
+                  << "; upstream's settings registration has moved, and "
+                     "replacing it must be re-checked rather than assumed";
+
+  content::WebUIConfigMap::GetInstance().AddWebUIConfig(
+      std::make_unique<AstroSettingsNextUIConfig>());
 
   // Nothing else belongs here. Astro's internal scheme is composed at build
   // time from //astro/build/product.gni, so content::kChromeUIScheme already
