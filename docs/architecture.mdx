@@ -12,7 +12,7 @@ Astro keeps a strict separation between upstream Chromium and Oxy code. There ar
 2. **`src/chrome/browser/oxy/`** — the entire C++ overlay (auth, cookie observer, Alia, ad blocker, WebUI controllers).
 3. **`webui/`** — the Vite + Tailwind frontends for each internal page.
 
-Everything else is stock Chromium, fetched fresh from upstream with `tools/fetch-chromium.sh`. This makes Chromium version bumps tractable — patches rebase cleanly because they are small and the overlay is self-contained.
+Everything else is stock Chromium, checked out at the exact commit `browser.lock.json` declares by `tools/sync-sources.sh`. This makes Chromium version bumps tractable — patches rebase cleanly because they are small and the overlay is self-contained — and makes each bump a reviewable lock diff. See [Reproducibility](/reproducibility).
 
 <Badge>Brave-style overlay</Badge> <Badge>Mojo IPC</Badge> <Badge>Rust adblock FFI</Badge>
 

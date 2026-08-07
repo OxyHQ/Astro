@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/OxyHQ/Astro/browser.lock.schema.json",
+  "title": "Astro browser source lock",
+  "description": "Declares the exact, immutable revision of every external source that can change browser output. A build reads this file; it never asks a remote what 'latest' means, and never accepts whatever a cached runner happens to hold.\n\nValidated by tools/lib/lock.py, which implements the subset of JSON Schema used here. The schema is the contract; the validator reads it rather than re-stating it, so the two cannot drift.",
+  "type": "object",
+  "required": ["lockfile_version", "chromium", "depot_tools"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Relative path to this schema, for editor tooling."
+    },
+
+    "lockfile_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Format version. Bump when the shape changes incompatibly, so an old tool refuses a new lock instead of misreading it."
+    },
+
+    "chromium": {
+      "type": "object",
+      "description": "The upstream Chromium source. `commit` is authoritative; `version` and `ref` are recorded for humans and for update tooling, and are never used to select what is checked out.",
+      "required": ["version", "commit", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Human-readable Chromium version, e.g. 146.0.7680.177."
+        },
+        "commit": { "$ref": "#/$defs/sha" },
+        "url": { "$ref": "#/$defs/url" },
+        "ref": {
+          "type": "string",
+          "pattern": "^refs/(tags|heads|branch-heads)/.+$",
+          "description": "The ref the commit was resolved FROM, recorded for provenance and for update tooling to re-verify the tag/commit relationship. A moved or retagged ref cannot change a build, because `commit` is what is checked out."
+        }
+      }
+    },
+
+    "depot_tools": {
+      "type": "object",
+      "description": "Pinned because depot_tools resolves every other revision: gclient, gn and autoninja all come from it, so an unconstrained `git pull` here silently changes what every other pin means.",
+      "required": ["commit", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "commit": { "$ref": "#/$defs/sha" },
+        "url": { "$ref": "#/$defs/url" },
+        "note": { "type": "string" }
+      }
+    },
+
+    "ungoogled_chromium": {
+      "type": "object",
+      "description": "Legacy input: the inherited patch stack. Present until the patch system is removed (issue #8), and marked as such so nothing reads its presence as permanent.",
+      "required": ["version", "commit", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "type": "string", "minLength": 1 },
+        "commit": { "$ref": "#/$defs/sha" },
+        "url": { "$ref": "#/$defs/url" },
+        "ref": {
+          "type": "string",
+          "pattern": "^refs/(tags|heads)/.+$",
+          "description": "The ref the commit was resolved FROM, re-verified by --check-remote."
+        },
+        "legacy": { "type": "boolean" },
+        "removal_issue": { "type": "integer" }
+      }
+    },
+
+    "third_party": {
+      "type": "object",
+      "description": "Every other external source that can change browser output. An entry that is NOT yet pinnable must say so explicitly with pinned:false and a reason, so a gap is declared and greppable rather than absent and invisible.",
+      "additionalProperties": false,
+      "propertyNames": { "pattern": "^[a-z0-9_]+$" },
+      "properties": {
+        "adblock_rust": { "$ref": "#/$defs/thirdPartyEntry" }
+      }
+    }
+  },
+
+  "$defs": {
+    "sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "A full 40-character lowercase git commit SHA. Abbreviated SHAs, branch names and tag names are rejected: all three can resolve to different commits over time, which is the entire failure this lock exists to prevent."
+    },
+    "url": {
+      "type": "string",
+      "pattern": "^(https|file)://[^\\s]+$",
+      "description": "The origin the commit came from. A SHA with no origin is not reproducible.\n\nfile:// is permitted for local mirrors and for the test fixtures, which need real git remotes without network access. The repository's own browser.lock.json must use https only, which tools/tests/cases/lock-schema-validation.sh asserts separately — the schema cannot express 'https here, file:// there' without making the fixtures untestable."
+    },
+    "thirdPartyEntry": {
+      "type": "object",
+      "required": ["pinned"],
+      "additionalProperties": false,
+      "properties": {
+        "pinned": { "type": "boolean" },
+        "commit": { "$ref": "#/$defs/sha" },
+        "version": { "type": "string", "minLength": 1 },
+        "url": { "$ref": "#/$defs/url" },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required when pinned is false: why this source cannot be pinned yet, and what would change that."
+        },
+        "issue": {
+          "type": "integer",
+          "description": "The issue that will pin it."
+        }
+      }
+    }
+  }
+}
