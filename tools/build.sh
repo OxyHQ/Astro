@@ -144,6 +144,12 @@ astro::require_file "$ASTRO_ROOT/tools/lib/gn_args_drift.py" "GN args drift repo
 astro::require_file "$ASTRO_ROOT/tools/lib/gn_check_baseline.py" "gn check ratchet"
 astro::require_file "$ASTRO_ROOT/tools/gn-check-baseline.json" "committed gn check baseline"
 
+# The build-outcome gate, required as an input for the same reason: without it
+# the compile's status is whatever the caller says it is, and the whole point of
+# this run is that the caller's word is not good enough.
+astro::require_file "$ASTRO_ROOT/tools/lib/build_outcome.py" "build outcome detector"
+astro::require_file "$ASTRO_ROOT/tools/verify-build-outcome.sh" "build outcome verifier"
+
 # WebUI bundles. The old script warned and carried on; a build produced that
 # way ships a page that renders nothing.
 astro::info ">>> Checking required WebUI bundles..."
@@ -217,13 +223,31 @@ python3 "$ASTRO_ROOT/tools/lib/gn_args_drift.py" \
     ${ASTRO_REQUIRE_COMMITTED_GN_ARGS:+--strict} \
     || astro::die "GN args are not the committed ones (ASTRO_REQUIRE_COMMITTED_GN_ARGS=1)"
 
+# Every build command runs from the Chromium checkout. Passed to
+# astro::run_build_step as the command word so the `cd` is inside the step being
+# measured — a `cd` outside it would leave the recorded command incomplete, and
+# the record is what a wrapper is later held to.
+run_in_chromium() {
+    ( cd "$CHROMIUM_SRC" && "$@" )
+}
+
+# Named from the variable rather than through astro::report_dir, which creates
+# the directory: these two lines are evaluated on the dry-run path as well, and
+# a dry run must change nothing.
+GN_GEN_LOG="$ASTRO_REPORT_DIR/gn-gen-$PLATFORM.log"
+BUILD_LOG="$ASTRO_REPORT_DIR/build-$PLATFORM.log"
+
 if astro::dry_run; then
-    astro::plan "gn gen $OUT_DIR --args=@$GN_ARGS_FILE"
+    astro::run_build_step "gn-gen" "$GN_GEN_LOG" -- \
+        run_in_chromium gn gen "$OUT_DIR" "--args=@$GN_ARGS_FILE"
     astro::plan "gn check $OUT_DIR"
-    astro::plan "autoninja -C $OUT_DIR ${BUILD_TARGETS[*]} -j $JOBS"
+    astro::run_build_step "compile" "$BUILD_LOG" -- \
+        run_in_chromium autoninja -C "$OUT_DIR" "${BUILD_TARGETS[@]}" -j "$JOBS"
+    astro::plan "verify the recorded build outcome"
 else
     astro::info ">>> Running gn gen ($GN_ARGS_FILE)..."
-    ( cd "$CHROMIUM_SRC" && gn gen "$OUT_DIR" --args="$(cat "$GN_ARGS_FILE")" )
+    astro::run_build_step "gn-gen" "$GN_GEN_LOG" -- \
+        run_in_chromium gn gen "$OUT_DIR" --args="$(cat "$GN_ARGS_FILE")"
 
     # `gn check` is advisory: Chromium's own build does not consume it, and the
     # inherited ungoogled stack rewrites 68 BUILD.gn/.gni files, so it reports
@@ -247,7 +271,15 @@ else
 
     astro::info ">>> Building ${BUILD_TARGETS[*]} for $PLATFORM..."
     astro::info "    first build takes hours; incremental builds are minutes"
-    ( cd "$CHROMIUM_SRC" && autoninja -C "$OUT_DIR" "${BUILD_TARGETS[@]}" -j "$JOBS" )
+    astro::run_build_step "compile" "$BUILD_LOG" -- \
+        run_in_chromium autoninja -C "$OUT_DIR" "${BUILD_TARGETS[@]}" -j "$JOBS"
+
+    # The same record, re-derived independently, before anything downstream
+    # treats this run as a success. It costs a second and it is the only step
+    # a wrapper cannot route around: it reads the compile's recorded status and
+    # the compile's own log, never this script's exit status and never the
+    # caller's.
+    "$ASTRO_ROOT/tools/verify-build-outcome.sh" --require-step compile
 fi
 
 # --------------------------------------------------------------------------

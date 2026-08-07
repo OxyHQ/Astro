@@ -73,16 +73,31 @@ astro::die() {
     exit 1
 }
 
-# Fatal, with a remediation hint printed underneath the message.
-astro::die_with_hint() {
-    local message="$1"
-    shift
+# Fatal, with a remediation hint printed underneath the message, and an
+# explicit exit status.
+#
+# The status is a parameter because a gate with THREE verdicts has to keep them
+# apart on the way out. Collapsing "measured, and it failed" into the same exit
+# code as "nothing on disk could decide it" throws away the distinction the
+# third verdict exists to carry, and a caller that wants to report WHY then
+# cannot. tools/check-merge-base.sh and tools/verify-build-outcome.sh both
+# depend on this.
+astro::die_with_status() {
+    local status="$1" message="$2"
+    shift 2
     astro::error "$message"
     local line
     for line in "$@"; do
         printf '      %s%s%s\n' "$ASTRO_C_DIM" "$line" "$ASTRO_C_OFF" >&2
     done
-    exit 1
+    exit "$status"
+}
+
+# Fatal, with a remediation hint printed underneath the message.
+astro::die_with_hint() {
+    local message="$1"
+    shift
+    astro::die_with_status 1 "$message" "$@"
 }
 
 # ERR trap body. Names the failing script, line, exit status and command, then
@@ -386,6 +401,185 @@ document["overlay_in_binary"] = record
 
 path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
 PY
+}
+
+# --------------------------------------------------------------------------
+# Build outcome: the status that decides must be the BUILD's
+#
+# A build was run through a wrapper. The wrapper exited 0. The build inside it
+# had failed, and said so in its own words:
+#
+#     1 error generated.
+#     17m46.20s Build Failure: 28148 done, 1 failed, 1787 remaining
+#     1 steps failed: exit=1
+#
+# A success was very nearly reported on that basis. Two things had to be true
+# at once for that to happen, and closing either alone is not enough:
+#
+#   * the status that reached the decision belonged to something downstream of
+#     the compile — a `tee`, a pipeline, a background runner, a notification —
+#     and every one of those has an exit status of its own;
+#   * no log was kept, so there was nothing to check the status against.
+#
+# astro::run_build_step closes both. It reads the command's OWN status out of
+# PIPESTATUS rather than the pipeline's, keeps the complete log, and hands both
+# to a detector that treats evidence of failure in the log as outranking any
+# claim of success in the status.
+#
+# It lives here rather than in build.sh because install-local.sh recompiles and
+# fetch-cross-deps.sh re-applies the patch series, and a second copy of this
+# logic is how one of them gets the fix and the others do not.
+# --------------------------------------------------------------------------
+
+# The record every recorded step appends to, re-derived later by
+# tools/verify-build-outcome.sh. Truncated by the first step of each PROCESS,
+# so a record can never mix a previous run's steps with this one's.
+ASTRO_BUILD_RECORD_STARTED=0
+
+# "succeeded", set by astro::require_build_outcome. Assigned on load so an
+# exported value inherited from a parent shell cannot stand in for a gate that
+# never ran — the same reason ASTRO_OVERLAY_VERDICT is reset above.
+export ASTRO_BUILD_VERDICT=""
+
+# astro::build_record_path — where the outcome record for this run lives.
+#
+# Deliberately does NOT create the directory: it is called on the dry-run path
+# too, and a dry run that creates a directory is not the inert dry run the epic
+# requires. The detector creates it when it actually writes.
+astro::build_record_path() {
+    printf '%s/build-outcome.json\n' "${ASTRO_REPORT_DIR:?ASTRO_REPORT_DIR must be set}"
+}
+
+# astro::require_build_outcome <label> <log path|""> <status|"unknown"> [command]
+#
+# The three-verdict gate. Exits non-zero on `failed` AND on `unmeasurable`,
+# because a build nobody could measure is not a build that passed.
+astro::require_build_outcome() {
+    local label="$1" log="$2" status="$3" command_text="${4:-}"
+
+    astro::require_cmd python3
+    local detector="${ASTRO_ROOT:?ASTRO_ROOT must be set}/tools/lib/build_outcome.py"
+    astro::require_file "$detector" "build outcome detector"
+
+    local record
+    record="$(astro::build_record_path)"
+
+    local -a arguments=(record --file "$record" --label "$label" --status "$status")
+    if [ -n "$log" ]; then
+        arguments+=(--log "$log")
+    fi
+    if [ -n "$command_text" ]; then
+        arguments+=(--command "$command_text")
+    fi
+    if [ "$ASTRO_BUILD_RECORD_STARTED" != "1" ]; then
+        arguments+=(--reset)
+        ASTRO_BUILD_RECORD_STARTED=1
+    fi
+
+    # The detector's status is captured rather than allowed to reach the ERR
+    # trap: 1 and 2 are ANSWERS, and a trap would collapse them into one
+    # anonymous failure.
+    local verdict_status=0
+    python3 "$detector" "${arguments[@]}" || verdict_status=$?
+
+    case "$verdict_status" in
+        0)
+            ASTRO_BUILD_VERDICT="succeeded"
+            return 0
+            ;;
+        1)
+            astro::die_with_hint \
+                "Build step '$label' FAILED. Refusing to continue or report success." \
+                "The verdict above comes from the step's own exit status and its own" \
+                "log. Whatever invoked this build may have exited 0; that is not the" \
+                "build's status and does not change this."
+            ;;
+        2)
+            astro::die_with_status 2 \
+                "Build step '$label' is UNMEASURABLE; refusing to report success." \
+                "No usable status and no usable log, so nothing on disk can decide" \
+                "whether it worked. An unmeasurable build is a failure: it must not" \
+                "become 'probably fine', and it must not become 'definitely broken'" \
+                "either, or a wrong log path and a real defect would look the same." \
+                "" \
+                "Log: ${log:-(none)}"
+            ;;
+        *)
+            # A crash is not a verdict. The detector exits 1 for "failed", which
+            # is also what an unhandled exception exits, and a signal-level death
+            # exits 128+n.
+            astro::die_with_status 2 \
+                "Build step '$label' is UNMEASURABLE; refusing to report success." \
+                "The detector exited $verdict_status, which is not one of its three" \
+                "verdicts (0 succeeded, 1 failed, 2 unmeasurable). It crashed rather" \
+                "than answered, and a crash must not be read as an answer."
+            ;;
+    esac
+}
+
+# astro::run_build_step <label> <log path> -- <command> [args...]
+#
+# Runs a build, compile, package or test command with its complete output kept
+# on disk, then decides the outcome from the COMMAND's status — never the
+# pipeline's, never the caller's.
+#
+# Why the `if`: the command is piped into `tee` so a multi-hour compile still
+# streams to the terminal, and under `set -o pipefail` a failing pipeline would
+# reach the ERR trap and exit before PIPESTATUS could be read. A pipeline used
+# as an `if` condition runs neither errexit nor the ERR trap, which is what
+# makes reading the real status possible at all. PIPESTATUS is captured in the
+# very next command in both branches because any other command clobbers it.
+#
+# If `tee` itself failed the log is truncated or absent, so it is NOT passed to
+# the detector: an unwritable log must make the step unmeasurable rather than
+# silently scan as clean.
+astro::run_build_step() {
+    local label="$1" log="$2"
+    shift 2
+    if [ "${1:-}" != "--" ]; then
+        astro::die "astro::run_build_step($label) called without a -- separator"
+    fi
+    shift
+    if [ "$#" -eq 0 ]; then
+        astro::die "astro::run_build_step($label) called with no command"
+    fi
+
+    local command_text="$*"
+
+    if astro::dry_run; then
+        astro::plan "$command_text"
+        astro::plan "record build outcome '$label' -> $(astro::build_record_path)"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$log")"
+
+    astro::info ">>> $label: $command_text"
+    astro::info "    log: $log"
+
+    local -a pipe_status=()
+    if "$@" 2>&1 | tee "$log"; then
+        pipe_status=("${PIPESTATUS[@]}")
+    else
+        pipe_status=("${PIPESTATUS[@]}")
+    fi
+
+    local command_status="${pipe_status[0]}"
+    local tee_status="${pipe_status[1]:-0}"
+    astro::info "    $label exited $command_status (tee exited $tee_status)"
+
+    local log_argument="$log"
+    if [ "$tee_status" != "0" ]; then
+        astro::warn "build-outcome:log-write-failed" \
+            "tee exited $tee_status writing $log; the log is truncated and cannot corroborate $label"
+        log_argument=""
+    elif [ ! -f "$log" ]; then
+        astro::warn "build-outcome:no-log" \
+            "$label wrote no log at $log; the step cannot be corroborated"
+        log_argument=""
+    fi
+
+    astro::require_build_outcome "$label" "$log_argument" "$command_status" "$command_text"
 }
 
 # --------------------------------------------------------------------------
@@ -757,7 +951,10 @@ astro::summarize_chromium_tree() {
 # Manifests and reports
 # --------------------------------------------------------------------------
 
-ASTRO_REPORT_DIR="${ASTRO_REPORT_DIR:-${ASTRO_ROOT:-.}/build/reports}"
+# Exported: tools/build.sh runs tools/verify-build-outcome.sh as a child, and a
+# child that computed a different report directory would re-derive a record
+# this run never wrote — reporting `unmeasurable` on a perfectly good build.
+export ASTRO_REPORT_DIR="${ASTRO_REPORT_DIR:-${ASTRO_ROOT:-.}/build/reports}"
 
 astro::report_dir() {
     mkdir -p "$ASTRO_REPORT_DIR"

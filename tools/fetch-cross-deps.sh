@@ -166,7 +166,27 @@ SDK_JSON
                 echo ">>> Attempting Windows SDK download..."
                 echo "  NOTE: This requires Google Cloud Storage access."
                 echo "  If it fails, use --sdk-zip to provide a pre-packaged SDK."
-                DEPOT_TOOLS_WIN_TOOLCHAIN=1 python3 build/vs_toolchain.py update --force 2>&1 | tail -10 || {
+                # The status read here is the FETCH's, captured directly, not a
+                # pipeline's: the previous form ended `| tail -10 || { ... }`,
+                # which took its verdict from `tail` (correct only because
+                # `set -o pipefail` happens to be on) and threw away all but the
+                # last ten lines of the one output whose whole purpose is to say
+                # what went wrong. The full log is kept instead.
+                #
+                # This step is genuinely allowed to fail — the SDK lives in a
+                # private Google bucket and external developers cannot reach it,
+                # which is what --sdk-zip exists for — so the tolerated failure
+                # is declared rather than swallowed. Everything at the call site
+                # below still runs on the failure path.
+                sdk_log="$ASTRO_REPORT_DIR/win-sdk-download.log"
+                mkdir -p "$(dirname "$sdk_log")"
+                sdk_status=0
+                DEPOT_TOOLS_WIN_TOOLCHAIN=1 python3 build/vs_toolchain.py update --force \
+                    > "$sdk_log" 2>&1 || sdk_status=$?
+                tail -20 "$sdk_log"
+                if [ "$sdk_status" -ne 0 ]; then
+                    astro::warn "optional:win-sdk-download" \
+                        "vs_toolchain.py update exited $sdk_status; full log at $sdk_log"
                     echo ""
                     echo "  FAILED: Cannot download Windows SDK (requires Google access)"
                     echo ""
@@ -176,7 +196,7 @@ SDK_JSON
                     echo "  Then copy the <hash>.zip here and run:"
                     echo "    tools/fetch-cross-deps.sh win --sdk-zip /path/to/<hash>.zip"
                     echo ""
-                }
+                fi
             fi
             ;;
         android)
@@ -208,7 +228,16 @@ if [ "$SKIP_PATCHES" = false ]; then
     echo ""
     echo ">>> Re-applying all patches..."
     cd "$ASTRO_ROOT"
-    tools/apply-patches.sh all 2>&1 | tail -10
+    # Was `tools/apply-patches.sh all 2>&1 | tail -10`, which is the shape this
+    # whole guard exists for. Two defects in one line: the status that reached
+    # the caller was the PIPELINE's — correct here only because `set -o
+    # pipefail` happens to be on, and silently wrong the moment this line is
+    # copied into a CI `run:` block, where GitHub's default shell is `bash -e`
+    # with no pipefail — and `tail -10` threw away the diagnosis, so whatever
+    # survived could not be checked against anything.
+    astro::run_build_step "apply-patches" \
+        "$ASTRO_REPORT_DIR/fetch-cross-deps-apply-patches.log" -- \
+        tools/apply-patches.sh all
 else
     echo ""
     echo ">>> Skipping patch re-application (--skip-patches)"

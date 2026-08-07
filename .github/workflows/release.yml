@@ -111,13 +111,23 @@ jobs:
               cd "webui/$page"
               bun install --frozen-lockfile
               bun run build
-              sed -i 's/ crossorigin//g' dist/index.html 2>/dev/null || true
+              sed -i 's/ crossorigin//g' dist/index.html
               cd ../..
             fi
           done
 
       - name: Build Astro (Linux)
         run: tools/build.sh Release linux
+
+      # The build's own status and the build's own log, re-derived. A job step
+      # is a wrapper like any other: it has an exit status of its own, and a
+      # `run:` block that pipes, backgrounds or notifies hands THAT status to
+      # GitHub rather than the compile's. This step reads neither — only the
+      # status recorded for the compile itself and the log that compile wrote.
+      # No record, no usable log, or a record disagreeing with its own log is
+      # `unmeasurable`, which fails.
+      - name: Verify the build outcome (Linux)
+        run: tools/verify-build-outcome.sh --require-step compile
 
       - name: Package tar.gz
         run: tools/package-linux.sh
@@ -208,6 +218,17 @@ jobs:
       - name: Build Astro (Windows x64)
         shell: bash
         run: tools/build.sh Release windows
+
+      # The build's own status and the build's own log, re-derived. A job step
+      # is a wrapper like any other: it has an exit status of its own, and a
+      # `run:` block that pipes, backgrounds or notifies hands THAT status to
+      # GitHub rather than the compile's. This step reads neither — only the
+      # status recorded for the compile itself and the log that compile wrote.
+      # No record, no usable log, or a record disagreeing with its own log is
+      # `unmeasurable`, which fails.
+      - name: Verify the build outcome (Windows x64)
+        shell: bash
+        run: tools/verify-build-outcome.sh --require-step compile
 
       - name: Sign (optional)
         if: env.WINDOWS_SIGN_CERT != ''
@@ -305,6 +326,17 @@ jobs:
         shell: bash
         run: tools/build.sh Release windows-arm64
 
+      # The build's own status and the build's own log, re-derived. A job step
+      # is a wrapper like any other: it has an exit status of its own, and a
+      # `run:` block that pipes, backgrounds or notifies hands THAT status to
+      # GitHub rather than the compile's. This step reads neither — only the
+      # status recorded for the compile itself and the log that compile wrote.
+      # No record, no usable log, or a record disagreeing with its own log is
+      # `unmeasurable`, which fails.
+      - name: Verify the build outcome (Windows ARM64)
+        shell: bash
+        run: tools/verify-build-outcome.sh --require-step compile
+
       - name: Sign (optional)
         if: env.WINDOWS_SIGN_CERT != ''
         shell: powershell
@@ -386,13 +418,23 @@ jobs:
               cd "webui/$page"
               bun install --frozen-lockfile
               bun run build
-              sed -i '' 's/ crossorigin//g' dist/index.html 2>/dev/null || true
+              sed -i '' 's/ crossorigin//g' dist/index.html
               cd ../..
             fi
           done
 
       - name: Build Astro (macOS)
         run: tools/build.sh Release macos
+
+      # The build's own status and the build's own log, re-derived. A job step
+      # is a wrapper like any other: it has an exit status of its own, and a
+      # `run:` block that pipes, backgrounds or notifies hands THAT status to
+      # GitHub rather than the compile's. This step reads neither — only the
+      # status recorded for the compile itself and the log that compile wrote.
+      # No record, no usable log, or a record disagreeing with its own log is
+      # `unmeasurable`, which fails.
+      - name: Verify the build outcome (macOS)
+        run: tools/verify-build-outcome.sh --require-step compile
 
       - name: Package and sign
         run: tools/package-macos.sh
@@ -471,13 +513,23 @@ jobs:
               cd "webui/$page"
               bun install --frozen-lockfile
               bun run build
-              sed -i 's/ crossorigin//g' dist/index.html 2>/dev/null || true
+              sed -i 's/ crossorigin//g' dist/index.html
               cd ../..
             fi
           done
 
       - name: Build Astro (Android)
         run: tools/build.sh Release android
+
+      # The build's own status and the build's own log, re-derived. A job step
+      # is a wrapper like any other: it has an exit status of its own, and a
+      # `run:` block that pipes, backgrounds or notifies hands THAT status to
+      # GitHub rather than the compile's. This step reads neither — only the
+      # status recorded for the compile itself and the log that compile wrote.
+      # No record, no usable log, or a record disagreeing with its own log is
+      # `unmeasurable`, which fails.
+      - name: Verify the build outcome (Android)
+        run: tools/verify-build-outcome.sh --require-step compile
 
       - name: Package and sign
         run: tools/package-android.sh

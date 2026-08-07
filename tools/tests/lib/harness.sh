@@ -534,9 +534,45 @@ harness::make_build_root() {
 
     mkdir -p "$root/tools/lib" "$root/gn_args" "$root/depot_tools" "$root/patches" \
              "$root/src/chrome/browser/oxy/adblock/resources"
-    cp "$ASTRO_ROOT/tools/build.sh" "$ASTRO_ROOT/tools/sync-overlay.sh" \
-       "$ASTRO_ROOT/tools/overlay.allowlist" \
-       "$ASTRO_ROOT/tools/gn-check-baseline.json" "$root/tools/"
+    # What build.sh runs rather than requires, so it cannot be derived below.
+    harness::setup_run cp "$ASTRO_ROOT/tools/build.sh" \
+       "$ASTRO_ROOT/tools/sync-overlay.sh" \
+       "$ASTRO_ROOT/tools/overlay.allowlist" "$root/tools/"
+
+    # Everything build.sh REQUIRES out of tools/, read from build.sh itself
+    # rather than listed here. A hand-maintained list breaks the moment build.sh
+    # requires one more input, and it breaks QUIETLY: this function runs under
+    # `set -Euo pipefail` with no -e, so a `cp` whose source does not exist
+    # prints to stderr and every case carries on and passes. Measured, not
+    # supposed — a fixture built where build.sh does not carry the outcome
+    # verifier printed `cp: cannot stat …/verify-build-outcome.sh` and all four
+    # build cases still exited 0.
+    #
+    # Deriving it keeps the fixture layer-following in both directions: a
+    # build.sh that never asks for a script does not drag that script in from a
+    # later layer, and a build.sh that does ask fails HERE, named, if it is
+    # missing. tools/lib/ requirements need no entry — the whole library is
+    # copied below.
+    local required required_count=0
+    while IFS= read -r required; do
+        [ -n "$required" ] || continue
+        harness::setup_run cp "$ASTRO_ROOT/tools/$required" "$root/tools/"
+        required_count=$((required_count + 1))
+    # The pattern deliberately does not name the variable build.sh expands: it
+    # matches any path ending in /tools/<file>, so it keeps working if that
+    # variable is ever renamed, and it carries no literal `$` for a linter to
+    # mistake for a failed expansion. The character class excludes `/`, which is
+    # what leaves tools/lib/ requirements to the whole-library copy below.
+    done < <(grep -oE 'astro::require_file "[^"]*/tools/[A-Za-z0-9_.-]+"' \
+                 "$ASTRO_ROOT/tools/build.sh" | sed 's|.*/tools/||; s|"$||' | sort -u)
+
+    # A derivation that matched nothing would build a fixture missing every
+    # required input, and each case would then fail on whichever input it was
+    # not testing. Every build.sh carries at least the gn check baseline.
+    if [ "$required_count" -eq 0 ]; then
+        harness::fail "no required tools/ inputs derived from build.sh; the fixture would be missing all of them"
+    fi
+
     # The whole library, not a name list. A name list means every tool added to
     # tools/lib/ silently breaks this fixture, and the build then fails for a
     # reason that has nothing to do with what the test is asserting — which is

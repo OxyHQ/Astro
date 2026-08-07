@@ -92,4 +92,45 @@ mapfile -t TEST_SCRIPTS < <(
 )
 run_shellcheck "shellcheck over the test suite itself" "${TEST_SCRIPTS[@]}"
 
+# --- every shellcheck-disable directive must be load-bearing -----------------
+#
+# This repository had ZERO shellcheck-disable directives until one became
+# unavoidable: a script registering an EXIT trap and ending in an explicit
+# `exit N` reports its whole handler as unreachable, because ShellCheck 0.10
+# treats the top-level exit as terminating and does not model the trap firing
+# after it.
+#
+# A suppression nobody has seen suppress anything is indistinguishable from a
+# decorative comment. Two of this repository's five `astro-allow:` markers were
+# exactly that for months (findings.md, finding 11), so every directive is
+# checked here by REMOVING it and requiring the warning to reappear.
+
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+disable_tmp="$(harness::tmpdir)/disables"
+mkdir -p "$disable_tmp"
+directives=0
+while IFS= read -r script; do
+    grep -q 'shellcheck disable=' "$script" || continue
+    directives=$((directives + 1))
+    stripped="$disable_tmp/$(basename "$script")"
+    grep -v 'shellcheck disable=' "$script" > "$stripped"
+    # awk rather than `grep -c`: grep exits 1 when the count is zero, and zero
+    # is a legitimate answer here, so `grep -c` would need a suppression to read
+    # its own output. awk always exits 0 and prints the count.
+    before="$("$SHELLCHECK" -x -S info "$script" | awk '/SC[0-9]/{n++} END{print n+0}')"
+    after="$("$SHELLCHECK" -x -S info "$stripped" | awk '/SC[0-9]/{n++} END{print n+0}')"
+    if [ "$after" -le "$before" ]; then
+        harness::fail "$script carries a shellcheck-disable that suppresses nothing:
+      with it    $before finding(s)
+      without it $after finding(s)
+      A directive that changes no outcome is a comment pretending to be a
+      decision. Remove it, or fix the code so it is needed."
+    fi
+done < <(find "$ASTRO_ROOT/tools" -maxdepth 2 -name '*.sh' -type f)
+
+# A vacuity floor pointing the other way: if the repository ever has no
+# directives at all, this block silently checks nothing, and that is fine — but
+# it must be VISIBLE rather than looking like a pass.
+printf "      shellcheck-disable directives checked: %s\n" "$directives" >&2
+
 harness::pass

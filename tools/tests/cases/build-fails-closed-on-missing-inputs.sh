@@ -144,6 +144,16 @@ gate_missing_case "$fake_root/tools/lib/gn_check_baseline.py" \
 gate_missing_case "$fake_root/tools/gn-check-baseline.json" \
     "missing committed gn check baseline" "committed gn check baseline"
 
+# The build-outcome gate, for the same reason and with a sharper edge. Without
+# it the compile's status is whatever the caller says it is — and the caller is
+# the thing under suspicion, since a wrapper exiting 0 around a failed build is
+# what this gate exists for. A build.sh that silently skipped it would report
+# success on exactly the evidence that was already shown to be worthless.
+gate_missing_case "$fake_root/tools/lib/build_outcome.py" \
+    "missing build outcome detector" "build outcome detector"
+gate_missing_case "$fake_root/tools/verify-build-outcome.sh" \
+    "missing build outcome verifier" "build outcome verifier"
+
 # Restoring them has to be verified, or every assertion after this point could
 # be passing for a reason that was introduced here rather than by the case.
 run_build

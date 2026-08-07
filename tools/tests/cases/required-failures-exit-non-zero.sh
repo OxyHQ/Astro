@@ -327,6 +327,33 @@ run_build_missing_adblock_resources() {
         "$build_adblock_root/tools/build.sh" Release linux --dry-run
 }
 
+# --- Missing build outcome gate ---------------------------------------------
+#
+# Without it the compile's status is whatever the caller reports, and the
+# caller is the thing under suspicion: a wrapper exiting 0 around a failed
+# build is the defect this gate exists for. A build.sh that skipped it would
+# report success on precisely the evidence already shown to be worthless.
+
+build_outcome_root="$tmp/build-outcome-root"
+build_outcome_chromium="$tmp/build-outcome-chromium"
+harness::make_build_root "$build_outcome_root" "$build_outcome_chromium"
+rm -f "$build_outcome_root/tools/lib/build_outcome.py"
+
+run_build_missing_outcome_detector() {
+    env ASTRO_CHROMIUM_SRC="$build_outcome_chromium" ASTRO_SKIP_LOCK_VERIFY=1 \
+        "$build_outcome_root/tools/build.sh" Release linux --dry-run
+}
+
+build_verifier_root="$tmp/build-verifier-root"
+build_verifier_chromium="$tmp/build-verifier-chromium"
+harness::make_build_root "$build_verifier_root" "$build_verifier_chromium"
+rm -f "$build_verifier_root/tools/verify-build-outcome.sh"
+
+run_build_missing_outcome_verifier() {
+    env ASTRO_CHROMIUM_SRC="$build_verifier_chromium" ASTRO_SKIP_LOCK_VERIFY=1 \
+        "$build_verifier_root/tools/build.sh" Release linux --dry-run
+}
+
 # ==========================================================================
 # THE TABLE
 #
@@ -384,6 +411,12 @@ harness::register_failure "build with missing ad blocker filter lists" \
     run_build_missing_adblock_resources \
     "ad blocker filter lists"
 
+harness::register_failure "build outcome detector is missing" \
+    run_build_missing_outcome_detector \
+    "Required build outcome detector not found" "build_outcome.py"
+harness::register_failure "build outcome verifier is missing" \
+    run_build_missing_outcome_verifier \
+    "Required build outcome verifier not found" "verify-build-outcome.sh"
 # ==========================================================================
 # Property 1: every required failure exits non-zero, and says why
 #
@@ -392,7 +425,7 @@ harness::register_failure "build with missing ad blocker filter lists" \
 # case having asserted almost nothing.
 # ==========================================================================
 
-harness::run_failure_table 15
+harness::run_failure_table 17
 
 # ==========================================================================
 # Property 2: the modified-tree summary is visible in the logs

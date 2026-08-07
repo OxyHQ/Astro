@@ -140,7 +140,17 @@ astro::resolve_chromium_src ""
 CHROMIUM_SRC="$ASTRO_RESOLVED_CHROMIUM_SRC"
 
 touch "$CHROMIUM_SRC/chrome/browser/resources/new_tab_page_third_party/new_tab_page_third_party.html"
-( cd "$CHROMIUM_SRC" && ninja -C out/Release chrome -j"$(nproc)" )
+
+# Recorded rather than run bare: this recompile decides whether the .pak files
+# copied below are the current ones, and the install prints "installed
+# successfully" a few lines later. A ninja that reported a step failure while
+# exiting 0 through anything wrapping this script would have produced exactly
+# that message over a stale installation.
+recompile_in_chromium() {
+    ( cd "$CHROMIUM_SRC" && "$@" )
+}
+astro::run_build_step "compile" "$ASTRO_REPORT_DIR/install-local-recompile.log" -- \
+    recompile_in_chromium ninja -C out/Release chrome -j"$(nproc)"
 
 astro::copy_glob "resource-packs" "$BUILD_DIR" '*.pak' "$INSTALL_DIR/"
 astro::copy_required "$BUILD_DIR/chrome" "$INSTALL_DIR/chrome" "browser binary"
