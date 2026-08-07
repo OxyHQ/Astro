@@ -1,0 +1,211 @@
+# upstream.allowlist — the complete, declared set of Chromium-owned files the
+# Astro downstream integration is permitted to modify, and the shape each
+# change is permitted to take.
+#
+# The companion of tools/overlay.allowlist, and deliberately the same shape, so
+# a reader who knows one knows the other. That file governs what Astro COPIES
+# into the Chromium tree; this one governs what Astro MODIFIES in files
+# Chromium already owns.
+#
+# tools/check-upstream-delta.sh measures the Chromium checkout against the
+# commit browser.lock.json pins, subtracts everything the declared legacy patch
+# series and the declared pruning list account for, and treats the remainder as
+# the //astro integration delta. It fails on:
+#
+#   * an integration delta in a Chromium-owned file with no entry here;
+#   * ANY line removed from a Chromium-owned file by the integration delta;
+#   * an entry whose integration additions exceed its declared max-added;
+#   * added lines that do not have the shape the entry declares;
+#   * an entry that no longer modifies anything (a stale declaration);
+#   * a `planned` entry whose file has started to change;
+#   * a measurement that covered nothing.
+#
+# Format:  <shape> <path> owner=<team> issue=<n> max-added=<n>
+#
+#   gn-append     A GN file that gains Astro-owned entries in existing lists.
+#                 No new target, no new source, no conditional on an Astro
+#                 value. Every added line must name the //astro module.
+#
+#   include-rule  A checkdeps DEPS file that gains "+astro" and nothing else.
+#                 include_rules only; no other key may change.
+#
+#   call-hook     A .cc/.h that gains #include lines for astro/ headers and
+#                 calls into the astro:: namespace. Every added line must name
+#                 the //astro module, and no line may be REMOVED.
+#
+#   embedder-hook A content/-layer file that gains a generic embedder
+#                 extension point, or whose hard-coded literal is replaced by
+#                 an embedder-supplied value. This is the ONLY shape whose
+#                 added lines are not required to name //astro, because the
+#                 whole point of the shape is that the upstream code stays
+#                 Astro-agnostic. It is therefore the weakest shape, bounded
+#                 by max-added and by the removal rule alone — never grant it
+#                 to a file that a call-hook would fit.
+#
+#   planned       A hook a later issue WILL need, declared here so its cap is
+#                 reviewed once rather than invented under pressure. It grants
+#                 NOTHING: a `planned` file that acquires an integration delta
+#                 FAILS, and the fix is to promote the entry to a live shape.
+#                 This is the difference between leaving room and granting
+#                 permission in advance — 008-os-crypt-visibility.patch is the
+#                 record of what granting in advance costs (findings §1).
+#
+# max-added bounds the added-line count. It is not a style rule: it is what
+# makes "a small call" checkable rather than aspirational. Every cap below is
+# derived from the DESIGNED shape in docs/astro-next/architecture/, with the
+# arithmetic shown, and is deliberately NOT fitted to what the tree currently
+# holds — a cap read off current reality ratifies drift instead of catching it.
+# Raising one is a reviewed change to this file, which is the point.
+#
+# Whitespace-only added and removed lines are measured and reported separately
+# and do not count against a cap or against the removal rule. A blank line can
+# neither express a hook nor strip a feature, and patch application legitimately
+# shifts them. The report prints the count so the exclusion is visible rather
+# than silent.
+#
+# There is deliberately NO shape that permits removing an upstream line, and no
+# attribute that can grant one. The single historic exception is on record:
+# 007-oxy-auth-build-hook.patch was 7 added lines against 36 REMOVED, and the
+# removals stripped Safe Browsing notification content detection, accessibility,
+# Screen AI, the preloading model, enterprise interstitials and the
+# dangerous-download UI — under a patch named "build hook". See
+# docs/astro-next/baseline/findings.md section 1. A removal is not a hook, and
+# this file cannot express one. If a removal is genuinely required, it is a
+# reviewed change to the gate, not an attribute somebody adds in a hurry.
+#
+# Comments and blank lines are ignored. Paths are relative to the Chromium
+# source root and must not contain "..".
+
+# --- #7: the minimum needed to build and reach //astro -----------------------
+
+# chrome/browser/BUILD.gn — the build-graph edge.
+#
+# Cap arithmetic (minimum-chromium-hooks.md §A1): the designed shape is one
+# `import()` of an Astro-owned .gni plus two list appends — `deps +=` and
+# `allow_circular_includes_from +=` — which is 3 lines. The tree currently
+# carries the pre-.gni variant: two `deps` labels plus one
+# `allow_circular_includes_from` label, also 3. §A1 measures that BOTH deps
+# labels are load-bearing (GN requires every allow_circular_includes_from entry
+# to also appear in deps, so the concrete `//astro/browser` is mandatory; the
+# roll-up `//astro:browser` is what causes astro/BUILD.gn to be parsed at all,
+# and dropping it fails SILENTLY). The cap is 4 rather than 3 so the `import()`
+# line can coexist with the concrete labels for the one revision that migrates
+# between the two forms. It is not 9, which is what the file's raw diff holds.
+gn-append     chrome/browser/BUILD.gn                       owner=oxy-browser issue=7  max-added=4
+
+# chrome/browser/DEPS — the checkdeps include rule.
+# Cap arithmetic (§A2): one `"+astro",` entry. Exactly one line, forever; a
+# second line here would mean a second module, which is a different review.
+include-rule  chrome/browser/DEPS                           owner=oxy-browser issue=7  max-added=1
+
+# chrome/browser/chrome_browser_main.cc — the product-initialization entry point.
+# Cap arithmetic (§A3, and its own delta table): one `#include` plus one
+# `AddParts` call = 2. §C1 establishes that WebUI config registration rides on
+# this same hook rather than costing a further Chromium-owned file, so this cap
+# does not need to grow when #14 lands.
+call-hook     chrome/browser/chrome_browser_main.cc         owner=oxy-browser issue=7  max-added=2
+
+# --- #11: the astro:// scheme, chrome/-side ----------------------------------
+
+# chrome/common/BUILD.gn — the build-graph edge for //astro/common.
+# Cap arithmetic: one `public_deps` label. Same reasoning as chrome/browser's
+# entry, minus the circular-include allowance, which `chrome/common` does not
+# need because //astro/common does not depend back on it.
+gn-append     chrome/common/BUILD.gn                        owner=oxy-browser issue=11 max-added=1
+
+# chrome/common/DEPS — the checkdeps include rule for the common layer.
+# Cap arithmetic (§A2's reasoning, applied to the second layer): one line.
+include-rule  chrome/common/DEPS                            owner=oxy-browser issue=11 max-added=1
+
+# chrome/common/chrome_content_client.cc — scheme registration.
+# Cap arithmetic (§B, astro-scheme-hooks.md §2.1): one `#include` plus one call
+# into astro::, the same shape as chrome_browser_main.cc = 2. The `Schemes*`
+# out-parameter is upstream's own extension mechanism, so every per-scheme
+# policy decision lives behind the call in //astro rather than here.
+call-hook     chrome/common/chrome_content_client.cc        owner=oxy-browser issue=11 max-added=2
+
+# --- #11/#12: the trusted/untrusted WebUI scheme split, content/-side --------
+#
+# These two are `embedder-hook`, the weakest shape, and the reason is stated
+# rather than assumed: astro-scheme-hooks.md §2.3 measures that WebUIConfigMap
+# hard-codes `kChromeUIScheme` in a `CHECK_EQ`, and minimum-chromium-hooks.md
+# §C1 records that this single `CHECK_EQ` is the exact boundary of the "WebUI
+# configs need no hook" claim. Generalising it cannot be done with a call into
+# astro::, because content/ must stay embedder-agnostic — so these files gain
+# upstream-shaped code that names no Astro symbol, and the cap plus the removal
+# rule are the only things bounding them.
+
+# content/public/browser/content_browser_client.h — two new virtual embedder
+# extension points, GetAdditionalTrustedWebUISchemes and
+# GetAdditionalUntrustedWebUISchemes.
+#
+# Cap arithmetic (astro-scheme-hooks.md §2.2 and §2.12): 2 methods x 2
+# declaration lines = 4, plus the blank separating them, plus the doc comment
+# that records WHY the two lists are separate — §2.12 establishes that trust is
+# per-controller and per-scheme rather than a category, and a merged list would
+# push that decision into every future call site. Comment budget 20, giving 25;
+# 28 leaves room for a third trust level's declaration without ratifying the
+# current 20-line content.
+embedder-hook content/public/browser/content_browser_client.h owner=oxy-browser issue=11 max-added=28
+
+# content/public/browser/webui_config_map.cc — the scheme literals replaced by
+# the embedder-supplied lists declared above.
+#
+# Cap arithmetic (astro-scheme-hooks.md §2.3): 5 includes + 2 memoised
+# NoDestructor accessors at ~9 lines each (18) + a `Contains` helper (3) + the
+# disjointness CHECK the two-list design requires (8) + an anonymous namespace
+# (2) + 3 call-site replacements (7) + the doc comment carrying the security
+# rationale (20) = 63. 72 gives that shape ~15% headroom.
+#
+# NOTE, and it is the first thing this gate found: the change in the tree also
+# REMOVES 4 upstream lines — the two `CHECK_EQ(config->scheme(), ...)`
+# assertions and the two-line scheme test in GetConfig. No shape here can
+# express that, deliberately, so this file FAILS the gate until #11's owner
+# resolves it. Reading the diff, the four lines are REPLACED by strictly
+# stronger checks rather than stripped, which is very likely fine — but "very
+# likely fine" decided by whoever runs the build next is exactly what the 007
+# record exists to prevent. It is a review, and the gate is what forces it.
+embedder-hook content/public/browser/webui_config_map.cc     owner=oxy-browser issue=11 max-added=72
+
+# --- Planned: declared, capped, and granting nothing -------------------------
+#
+# The remaining content/-layer hooks astro-scheme-hooks.md identifies. Each is
+# declared now so its cap is reviewed in the calm rather than invented at the
+# moment it lands; each FAILS the gate the instant its file starts to change,
+# and the fix is to promote the entry to a live shape by review.
+
+# §2.5 / §2.12 — URLDataManagerBackend::GetWebUISchemes is `{chrome,
+# chrome-untrusted} + GetAdditionalWebUISchemes`, memoised in a NoDestructor
+# static, and the origin-keyed data-source lookup tests the untrusted scheme
+# literally. Both need the same generalisation as webui_config_map.cc.
+# Cap arithmetic: the origin-keyed lookup rewritten across both scheme sets
+# (~14) plus the comment recording why a bare-host fallback collapses two
+# principals into one key once more than one WebUI scheme exists (~12) = 26.
+# 30 gives that ~15% headroom.
+planned       content/browser/webui/url_data_manager_backend.cc owner=oxy-browser issue=11 max-added=30
+
+# §2.5 / §2.9 — WebUIDataSourceImpl::GetOrigin CHECKs that a source name which
+# parses as a URL is chrome-untrusted://, so an astro-untrusted:// source name
+# crashes. The fix derives the origin from the scheme actually present,
+# validated against the embedder's WebUI-scheme list.
+# Cap arithmetic: the predicate is the same `Contains` shape as
+# webui_config_map.cc's, applied at one site — ~8 lines of logic plus a comment
+# recording which of the two lists is authoritative. 20.
+planned       content/browser/webui/web_ui_data_source_impl.cc owner=oxy-browser issue=11 max-added=20
+
+# §2.5 — WebUIImpl::ShouldIncludeDataSource hard-codes
+# `origin.scheme() != kChromeUIScheme`; same predicate, one site.
+# Cap arithmetic: one predicate replacement plus its comment. 12.
+planned       content/browser/webui/web_ui_impl.cc            owner=oxy-browser issue=11 max-added=12
+
+# §2.6 — IsWebUIScheme / HasWebUIScheme / HasWebUIOrigin: a three-element
+# literal with NO embedder hook at all, and 25+ call sites including the
+# should-fork decision and IsSafeRedirectTarget. §2.6 calls this the sharpest
+# blocker and names the one non-trivial design question in the whole document:
+# the answer must be available in the RENDERER, where there is no
+# ContentBrowserClient, so the list has to come from a common-layer store
+# populated during RegisterContentSchemes rather than from the browser client.
+# Cap arithmetic: a common-layer store (accessor + setter + storage, ~15),
+# three predicates rewritten (~12), and the comment that has to explain why
+# this one cannot use ContentBrowserClient (~13). 40.
+planned       content/public/common/url_utils.cc              owner=oxy-browser issue=12 max-added=40
