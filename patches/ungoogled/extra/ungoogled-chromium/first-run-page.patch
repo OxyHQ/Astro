@@ -28,7 +28,7 @@
    map.AddWebUIConfig(std::make_unique<VersionUIConfig>());
 --- /dev/null
 +++ b/chrome/browser/ui/webui/ungoogled_first_run.h
-@@ -0,0 +1,144 @@
+@@ -0,0 +1,145 @@
 +#ifndef CHROME_BROWSER_UI_WEBUI_UNGOOGLED_FIRST_RUN_H_
 +#define CHROME_BROWSER_UI_WEBUI_UNGOOGLED_FIRST_RUN_H_
 +
@@ -38,6 +38,7 @@
 +#include "content/public/browser/web_ui.h"
 +#include "content/public/browser/web_ui_controller.h"
 +#include "content/public/browser/webui_config.h"
++#include "content/public/common/url_constants.h"
 +#include "services/network/public/mojom/content_security_policy.mojom.h"
 +
 +class UFRDataSource : public content::URLDataSource {
@@ -160,7 +161,7 @@
 +class UngoogledFirstRun;
 +class UngoogledFirstRunUIConfig : public content::DefaultWebUIConfig<UngoogledFirstRun> {
 +  public:
-+   UngoogledFirstRunUIConfig() : DefaultWebUIConfig("chrome", "ungoogled-first-run") {}
++   UngoogledFirstRunUIConfig() : DefaultWebUIConfig(content::kChromeUIScheme, "ungoogled-first-run") {}
 +};
 +
 +class UngoogledFirstRun : public content::WebUIController {
