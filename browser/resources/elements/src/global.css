@@ -1,0 +1,25 @@
+/* Astro's new tab page, on the same design layer as the rest of Oxy.
+ *
+ * Mirrors Mention's global.css deliberately -- it is the reference consumer of
+ * Bloom on web, and the two must not drift. The @source lines are the part that
+ * is easy to omit and impossible to notice: react-native-css emits REAL CSS
+ * classes on web rather than runtime styles, so without scanning Bloom's own
+ * lib/ every flex-row, gap and items-center inside a Bloom component is a
+ * no-op, while its colours still render because Bloom applies those inline.
+ * The page then looks almost right, which is the worst way for this to fail.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+@import "nativewind/theme";
+
+/* Bloom's canonical tokens -- radius scale, spacing, typography, colour
+   aliases -- imported rather than hand-copied so they stay in sync with the
+   published package. */
+/* Tokens only. Bloom's theme.css also declares @font-face with base64 payloads,
+   which the settings page's CSP refuses and which a control does not need --
+   the host page supplies the type. */
+@import "@oxyhq/bloom/design-tokens/theme.css" layer(bloom-tokens);
+
+@source "./**/*.{ts,tsx}";
+@source "../node_modules/@oxyhq/bloom/lib/**/*.{js,jsx}";

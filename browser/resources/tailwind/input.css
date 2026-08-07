@@ -132,3 +132,77 @@
   box-shadow: var(--cr-card-shadow);
   overflow: hidden;
 }
+
+
+/* ── Bloom's grouped section and switch ────────────────────────────────────
+ *
+ * Bloom's components are React Native; Chromium's settings are Polymer, and the
+ * two cannot share a shadow root. What CAN be shared is the design: these carry
+ * Bloom's own geometry, read out of its published components rather than
+ * approximated by eye, so a settings group here matches a SettingsList in
+ * Mention and a toggle matches Bloom's Switch.
+ *
+ * Measured from @oxyhq/bloom/settings-list and /switch:
+ *   group   radius 16, rows 44 tall, 20 horizontal padding, 16 below, clipped
+ *   switch  track 44x26, thumb 22
+ */
+
+/* A grouped section: rows clipped inside one rounded surface, the pattern
+ * Bloom uses for settings. Chromium draws a top border on every row instead,
+ * which is why converting a page to this changes how it reads, not just how it
+ * looks. */
+@utility astro-group {
+  background-color: var(--cr-card-background-color);
+  border-radius: 16px;
+  margin-block-end: 16px;
+  overflow: hidden;
+}
+
+/* A row inside that group. No top border: the group's own clipping and the
+ * divider below separate them, which is what stops a grouped list looking like
+ * a stack of unrelated bands. */
+@utility astro-group-item {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 20px;
+}
+
+@utility astro-group-divider {
+  border-block-end: var(--cr-separator-line);
+}
+
+/* Bloom's switch. Sized from its component, not from Chromium's toggle, so the
+ * two do not sit at different scales on the same page. */
+@utility astro-switch {
+  background: var(--cr-separator-color);
+  border-radius: 13px;
+  display: inline-block;
+  flex-shrink: 0;
+  height: 26px;
+  position: relative;
+  transition: background 150ms ease;
+  width: 44px;
+}
+
+@utility astro-switch-on {
+  background: var(--cr-fallback-color-primary);
+}
+
+@utility astro-switch-thumb {
+  background: #fff;
+  border-radius: 11px;
+  height: 22px;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  position: absolute;
+  transition: transform 150ms ease;
+  width: 22px;
+}
+
+/* 44 - 22 - 2 - 2 = 18: the travel is derived from the track and thumb rather
+ * than typed, so changing either keeps the thumb inside the track. */
+@utility astro-switch-thumb-on {
+  transform: translateX(18px);
+}
