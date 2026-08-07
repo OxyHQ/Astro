@@ -9,17 +9,21 @@
 # required failure actually covered?" answerable only by reading all of them.
 # This case answers it in one place: a table enumerating the required failure
 # modes of every mutating script in the build pipeline — the overlay sync, the
-# patch runner, build.sh's required inputs and the baseline capture tools — so
-# adding a guard is one line and a guard that quietly stops failing cannot hide
-# between cases.
+# patch runner and build.sh's required inputs — so adding a guard is one line
+# and a guard that quietly stops failing cannot hide between cases.
 #
-# The source-lock gates are the same property one layer up, and they live in
-# lock-failures-exit-non-zero.sh. They are a separate case because they are a
-# separate layer: the lock, the script that enforces it and the provenance
-# writer do not exist at this layer, so a table mixing the two could not run
-# here at all. The two tables share their machinery
-# (harness::register_failure / harness::run_failure_table) rather than
-# duplicating it.
+# The same property holds one and two layers up, and is asserted where the
+# tooling it describes actually exists, because a table mixing layers could not
+# run at the earliest of them at all:
+#
+#   * lock-failures-exit-non-zero.sh — the source lock, the script that
+#     enforces it and the provenance writer.
+#   * baseline-harness-fails-closed.sh — the baseline smoke and network-capture
+#     harnesses, whose refusals are asserted beside the stub-driven controls
+#     that prove they do not simply refuse unconditionally.
+#
+# The tables share their machinery (harness::register_failure /
+# harness::run_failure_table) rather than duplicating it.
 #
 # Every row asserts WHY the command failed as well as that it did. A row
 # checking only "exit != 0" keeps passing once the script starts failing for
@@ -324,26 +328,6 @@ run_build_missing_adblock_resources() {
 }
 
 # ==========================================================================
-# tools/baseline/smoke.sh and tools/baseline/capture-network.sh
-#
-# A baseline document citing an empty-but-successful report is worse than one
-# citing an honest gap: later issues quote the baseline as their compatibility
-# reference.
-# ==========================================================================
-
-baseline_absent_binary="$tmp/baseline-absent-chrome"
-
-run_smoke_without_binary() {
-    "$TOOLS/baseline/smoke.sh" --binary "$baseline_absent_binary" \
-        --report "required-failures-smoke.json"
-}
-
-run_capture_without_binary() {
-    "$TOOLS/baseline/capture-network.sh" --binary "$baseline_absent_binary" \
-        --phase idle --seconds 1 --report "required-failures-capture.json"
-}
-
-# ==========================================================================
 # THE TABLE
 #
 # One line per required failure. Every entry names the reason the command must
@@ -400,22 +384,15 @@ harness::register_failure "build with missing ad blocker filter lists" \
     run_build_missing_adblock_resources \
     "ad blocker filter lists"
 
-harness::register_failure "baseline smoke run with no browser binary" \
-    run_smoke_without_binary \
-    "Browser binary not found" "will not emit an empty or placeholder report"
-harness::register_failure "baseline network capture with no browser binary" \
-    run_capture_without_binary \
-    "Browser binary not found" "will not write a trace it did not record"
-
 # ==========================================================================
 # Property 1: every required failure exits non-zero, and says why
 #
-# The floor is this case's own: 17 rows are registered above, and a truncated
+# The floor is this case's own: 15 rows are registered above, and a truncated
 # table, a mis-registered row or a broken loop would otherwise report a green
 # case having asserted almost nothing.
 # ==========================================================================
 
-harness::run_failure_table 17
+harness::run_failure_table 15
 
 # ==========================================================================
 # Property 2: the modified-tree summary is visible in the logs

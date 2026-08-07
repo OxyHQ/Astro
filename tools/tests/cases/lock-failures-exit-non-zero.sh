@@ -163,54 +163,22 @@ run_sync_occupied_destination() {
 # ==========================================================================
 # tools/build.sh — the revision gate
 #
-# harness::make_build_root supplies everything a --dry-run requires except the
-# lock, because the lock is this layer. What is added here is the gate's own
-# input: the script that enforces it, the schema it is validated against, the
-# provenance writer the same fixture would run on a real build, and the
-# depot_tools/ungoogled checkouts --verify-only inspects.
+# harness::make_locked_build_root supplies the fixture: everything a --dry-run
+# requires, plus the gate's own inputs — the script that enforces it, the
+# schema it is validated against, the provenance writer the same fixture would
+# run on a real build, and the depot_tools/ungoogled checkouts --verify-only
+# inspects. build-verifies-locked-revisions.sh, which asserts the gate's
+# ordering and its override in depth, builds on the same fixture; this row
+# exists so the gate also appears in the one table that enumerates every
+# required failure of this layer.
 # ==========================================================================
-
-write_build_lock() {
-    local root="$1" chromium="$2" chromium_commit="$3"
-    harness::write_lock "$root/browser.lock.json" \
-        "file://$chromium" "$chromium_commit" \
-        "file://$root/depot_tools" "$(git -C "$root/depot_tools" rev-parse HEAD)" \
-        "file://$root/.ungoogled-chromium" "$(git -C "$root/.ungoogled-chromium" rev-parse HEAD)"
-}
-
-make_locked_build_root() {
-    local root="$1" chromium="$2"
-
-    harness::make_build_root "$root" "$chromium"
-
-    cp "$TOOLS/sync-sources.sh" "$TOOLS/generate-provenance.sh" \
-       "$TOOLS/gclient.template" "$root/tools/"
-    cp "$ASTRO_ROOT/browser.lock.schema.json" "$root/"
-
-    # build.sh gates on sync-sources.sh --verify-only, which inspects every
-    # locked source, so depot_tools and ungoogled have to be real checkouts
-    # sitting detached at the commits the lock names.
-    harness::setup_run git -C "$root/depot_tools" init --quiet --initial-branch=main
-    harness::setup_run git -C "$root/depot_tools" add -A
-    harness::setup_run git -C "$root/depot_tools" commit --quiet -m "depot_tools fixture"
-    harness::setup_run git -C "$root/depot_tools" checkout --quiet --detach HEAD
-
-    mkdir -p "$root/.ungoogled-chromium"
-    printf 'patches\n' > "$root/.ungoogled-chromium/README"
-    harness::setup_run git -C "$root/.ungoogled-chromium" init --quiet --initial-branch=main
-    harness::setup_run git -C "$root/.ungoogled-chromium" add -A
-    harness::setup_run git -C "$root/.ungoogled-chromium" commit --quiet -m "ungoogled fixture"
-    harness::setup_run git -C "$root/.ungoogled-chromium" checkout --quiet --detach HEAD
-
-    write_build_lock "$root" "$chromium" "$(git -C "$chromium" rev-parse HEAD)"
-}
 
 # --- Checkout off the locked revision ---------------------------------------
 
 build_lock_root="$tmp/build-lock-root"
 build_lock_chromium="$tmp/build-lock-chromium"
-make_locked_build_root "$build_lock_root" "$build_lock_chromium"
-write_build_lock "$build_lock_root" "$build_lock_chromium" "$ABSENT_COMMIT"
+harness::make_locked_build_root "$build_lock_root" "$build_lock_chromium"
+harness::write_build_lock "$build_lock_root" "$build_lock_chromium" "$ABSENT_COMMIT"
 
 run_build_off_locked_revision() {
     env ASTRO_CHROMIUM_SRC="$build_lock_chromium" \

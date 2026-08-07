@@ -61,10 +61,22 @@ harness::assert_output_contains "Unknown phase: not-a-phase" "names the bad phas
 harness::assert_output_contains "adblock-update" "lists the known phases"
 
 # --- No browser binary: refuse, and write nothing ----------------------------
+#
+# The gate is asserted by NAME as well as by its consequences. Two reasons, and
+# both are load-bearing. It is the positive half of the `assert_output_lacks
+# "Browser binary not found"` assertions further down, which prove a later run
+# got PAST this gate — and a lacks-assertion whose needle is never shown to
+# appear on the failing path can be satisfied by a typo. And the refusal must
+# promise, in words, that nothing was written: a baseline document citing an
+# empty-but-successful report is worse than one citing an honest gap, because
+# later issues quote the baseline as their compatibility reference.
 
 harness::run "$SMOKE" --binary "$MISSING_BINARY"
 harness::assert_nonzero_status "smoke with no browser binary"
+harness::assert_output_contains "Browser binary not found" "the binary gate is what refused"
 harness::assert_output_contains "$MISSING_BINARY" "the refusal names the missing binary"
+harness::assert_output_contains "will not emit an empty or placeholder report" \
+    "the refusal states that no report was written"
 harness::assert_output_contains "tools/build.sh Release linux" "the refusal gives the build command"
 harness::assert_output_contains "tools/sync-sources.sh" "the refusal gives the sync command"
 harness::assert_file_missing "$SMOKE_REPORT"
@@ -72,9 +84,23 @@ harness::assert_file_missing "$reports"
 
 harness::run "$CAPTURE" --binary "$MISSING_BINARY" --recorder "$MISSING_RECORDER"
 harness::assert_nonzero_status "capture-network with no browser binary"
+harness::assert_output_contains "Browser binary not found" "the binary gate is what refused"
 harness::assert_output_contains "$MISSING_BINARY" "the refusal names the missing binary"
+harness::assert_output_contains "will not write a trace it did not record" \
+    "the refusal states that no trace was written"
 harness::assert_output_contains "tools/build.sh Release linux" "the refusal gives the build command"
 harness::assert_file_missing "$FULL_TRACE"
+harness::assert_file_missing "$reports"
+
+# The same two refusals through the argument shape the build-pipeline table
+# used before this moved here: no --recorder, an explicit phase and a --report
+# name. A gate that fires only on one argument spelling is not a gate.
+harness::run "$CAPTURE" --binary "$MISSING_BINARY" --phase idle --seconds 1 \
+    --report "baseline-fails-closed-capture.json"
+harness::assert_nonzero_status "capture-network with no browser binary, one phase, named report"
+harness::assert_output_contains "Browser binary not found" "the binary gate is what refused"
+harness::assert_output_contains "will not write a trace it did not record" \
+    "the refusal states that no trace was written"
 harness::assert_file_missing "$reports"
 
 # A binary that exists but cannot be executed is a different failure and says so.

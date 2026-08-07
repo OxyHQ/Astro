@@ -10,14 +10,25 @@
 #     tree carries 181 tracked `.orig` and 0 untracked — a find-by-name artifact
 #     hunt condemns a pristine checkout on sight.
 #
-# A third hazard of the same kind — a failed `git fetch` keeps nothing, so
-# telling a user their retry resumes is a promise git does not make — belongs
-# to the source-fetching layer and lives in real-checkout-lock-hazards.sh. It
-# is a separate case because the script it is about does not exist at this
-# layer; everything here runs against the build pipeline alone.
-#
 # Each hazard gets a static guard AND a demonstration that the hazard is real,
 # because a style rule nobody can justify is a style rule somebody deletes.
+# The demonstrations are here and are not repeated elsewhere: the mechanism is
+# a property of the shell and of git, not of any one script, so proving it once
+# is enough. What every scanning case does need is proof that its REGEX still
+# fires, which is harness::assert_hazard_patterns_fire.
+#
+# Two sibling cases scan the same way over lists that do not exist at this
+# layer, and are separate files for exactly that reason:
+#
+#   * real-checkout-lock-hazards.sh — a failed `git fetch` keeps nothing, which
+#     is a fact about the script that fetches the locked sources.
+#   * baseline-harness-hazards.sh — the same two patterns over the product
+#     baseline's own harness scripts.
+#
+# The list below therefore covers tools/ and tools/lib/ only. Both are
+# directories that exist at every layer, so the glob adapts as scripts arrive.
+# The baseline harness's directory does not, and an unexpanded glob here is a
+# hard failure rather than a silent "nothing to check".
 
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/harness.sh"
 harness::setup
@@ -30,57 +41,22 @@ tmp="$(harness::tmpdir)"
 PRODUCTION_SCRIPTS=(
     "$ASTRO_ROOT"/tools/*.sh
     "$ASTRO_ROOT"/tools/lib/*.sh
-    "$ASTRO_ROOT"/tools/baseline/*.sh
 )
 
-# Vacuity floor. An unmatched glob leaves its own pattern in the array, and grep
-# over a nonexistent path exits 2 — which `if grep -q` reads as "no match", i.e.
-# as a pass. Both failure shapes are caught here instead.
-scanned=0
-for script in "${PRODUCTION_SCRIPTS[@]}"; do
-    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-    if [ ! -f "$script" ]; then
-        harness::fail "production script list contains a non-file: $script"
-    fi
-    scanned=$((scanned + 1))
-done
+# Vacuity floor. The count is deliberately well below what any layer carries —
+# measured at 18 where this case is earliest carried and 21 where it currently
+# sits — because the list legitimately grows layer by layer and a floor pinned
+# to today's tree would fail on the earliest branch for no reason. A count
+# alone would not notice a list that stayed large while losing the scripts the
+# scan exists for, so four that exist at every layer are named outright.
+harness::assert_script_list 15 \
+    build.sh sync-overlay.sh apply-patches.sh astro-common.sh \
+    -- "${PRODUCTION_SCRIPTS[@]}"
 
-HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-if [ "$scanned" -lt 20 ]; then
-    harness::fail "only $scanned production scripts matched; the globs are broken"
-fi
-
-# Reports every offending line in full. A truncated capture group reads the same
-# whether the rule caught something fatal or something harmless.
-assert_no_production_line_matching() {
-    local pattern="$1" what="$2"
-    local hits status=0
-    hits="$(grep -nE "$pattern" "${PRODUCTION_SCRIPTS[@]}")" || status=$?
-    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-    if [ "$status" -gt 1 ]; then
-        harness::fail "$what: grep itself failed (exit $status)"
-    fi
-    if [ -n "$hits" ]; then
-        harness::fail "$what
-$hits"
-    fi
-}
-
-# Mutation support for the two static patterns below: a regex that stopped
-# matching would report the whole tree clean, which is indistinguishable from
-# the tree actually being clean.
-assert_pattern_hits() {
-    local pattern="$1" file="$2" expected="$3" what="$4"
-    local hits status=0
-    hits="$(grep -cE "$pattern" "$file")" || status=$?
-    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-    if [ "$status" -gt 1 ]; then
-        harness::fail "$what: grep itself failed (exit $status)"
-    fi
-    if [ "$hits" != "$expected" ]; then
-        harness::fail "$what: expected $expected matching line(s), got $hits"
-    fi
-}
+# The regexes still fire. Without this a pattern tightened into uselessness
+# would report the whole tree clean, which is indistinguishable from the tree
+# actually being clean.
+harness::assert_hazard_patterns_fire
 
 # --------------------------------------------------------------------------
 # Hazard 1 — `find … | head` under pipefail
@@ -136,35 +112,9 @@ PROBE
 harness::run bash "$tmp/pipefail-safe.sh" "$big" "$tmp/safe.listing"
 harness::assert_status 0 "the same listing, read from a file instead of a pipe"
 
-# `find` must be a command word — the trailing whitespace requirement is what
-# keeps `security find-identity … | head -1` out, which is a different program
-# and not this hazard. `head` may sit anywhere downstream: an intermediate stage
-# such as `sort` takes the SIGPIPE instead of find, which changes which process
-# dies, not whether pipefail surfaces 141.
-FIND_INTO_HEAD='^([^#]*[^[:alnum:]_./-])?find[[:space:]][^#]*\|[^#]*[[:space:]]head([[:space:]]|$)'
-
-# Executable lines only. These scripts describe the hazard in prose — the script
-# the construct was removed from carries a comment quoting the very shape it no
-# longer runs — and a raw grep would flag its own documentation.
-cat > "$tmp/probe-find-head-hazardous.sh" <<'PROBE'
-find "$BUILD_DIR" -name "*.apk" | head -10
-paths="$(find "$root" -type f | head -5)"
-find "$src" -type f | sort | head -1
-PROBE
-assert_pattern_hits "$FIND_INTO_HEAD" "$tmp/probe-find-head-hazardous.sh" 3 \
-    "the find-into-head pattern must match every hazardous shape"
-
-cat > "$tmp/probe-find-head-benign.sh" <<'PROBE'
-# `find … | head` raises under pipefail once head has what it needs.
-IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | head -1)"
-BUILD_TOOLS="$(find "$sdk/build-tools" -maxdepth 1 -type d | sort -V | tail -1)"
-head -20 "$listing"
-PROBE
-assert_pattern_hits "$FIND_INTO_HEAD" "$tmp/probe-find-head-benign.sh" 0 \
-    "the find-into-head pattern must ignore prose, a different program, and tail"
-
-assert_no_production_line_matching "$FIND_INTO_HEAD" \
-    "a production script pipes find into head; on a real checkout head closes the pipe and pipefail surfaces exit 141"
+harness::assert_no_lines_matching "$HARNESS_FIND_INTO_HEAD" \
+    "a production script pipes find into head; on a real checkout head closes the pipe and pipefail surfaces exit 141" \
+    "${PRODUCTION_SCRIPTS[@]}"
 
 # --------------------------------------------------------------------------
 # Hazard 2 — a tracked .orig is upstream content, not a patch artifact
@@ -205,27 +155,8 @@ harness::assert_output_contains "net/net_util.cc.rej" "names the untracked artif
 harness::assert_output_lacks "Cargo.toml.orig" \
     "a tracked upstream .orig must never be reported as a patch artifact"
 
-# The static half: an artifact hunt must ask git which files are untracked. A
-# find-by-name walk cannot tell upstream content from leftover state, and pays
-# 400,000 stat calls to get the wrong answer.
-FIND_ARTIFACT_HUNT='^([^#]*[^[:alnum:]_./-])?find[[:space:]][^#]*-name[^#]*(rej|orig)'
-
-cat > "$tmp/probe-artifact-hunt-hazardous.sh" <<'PROBE'
-find "$src" -name '*.rej' -print
-find "$CHROMIUM_SRC" \( -name "*.rej" -o -name "*.orig" \) -print
-PROBE
-assert_pattern_hits "$FIND_ARTIFACT_HUNT" "$tmp/probe-artifact-hunt-hazardous.sh" 2 \
-    "the artifact-hunt pattern must match a find-by-name walk"
-
-cat > "$tmp/probe-artifact-hunt-benign.sh" <<'PROBE'
-# A find-based check condemns a pristine upstream checkout: 181 tracked .orig.
-git -C "$dir" status --porcelain --untracked-files=all | grep -E '\.(rej|orig)$'
-find "$BUILD_DIR" -name "*.apk" -print
-PROBE
-assert_pattern_hits "$FIND_ARTIFACT_HUNT" "$tmp/probe-artifact-hunt-benign.sh" 0 \
-    "the artifact-hunt pattern must ignore prose, the git form, and unrelated find calls"
-
-assert_no_production_line_matching "$FIND_ARTIFACT_HUNT" \
-    "a production script hunts patch artifacts with find-by-name; it must ask git for untracked files, because upstream ships 181 tracked .orig files"
+harness::assert_no_lines_matching "$HARNESS_FIND_ARTIFACT_HUNT" \
+    "a production script hunts patch artifacts with find-by-name; it must ask git for untracked files, because upstream ships 181 tracked .orig files" \
+    "${PRODUCTION_SCRIPTS[@]}"
 
 harness::pass
