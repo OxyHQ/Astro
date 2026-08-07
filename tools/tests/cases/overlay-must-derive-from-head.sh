@@ -13,17 +13,21 @@
 # and worthless: an overlay that matches HEAD must sync, and a change OUTSIDE
 # the overlay must not block anything, or the check is measuring the wrong thing.
 #
-# Covered here, end to end: refusal for modified / untracked / deleted overlay
-# paths; that nothing at all is copied when it refuses; that the explicit
-# developer override lets the copy through; that the resulting build is recorded
-# as not reproducible in provenance; that normal packaging then refuses it; and
-# that no CI workflow sets the override.
+# Covered here, end to end: refusal for modified / untracked / ignored / deleted
+# overlay paths; that every differing path is named and classified; that nothing
+# at all is copied when it refuses and nothing of the developer's is touched;
+# that the explicit developer override lets the copy through and records what it
+# found; and that no CI workflow sets that override.
+#
+# What the override COSTS — the build being recorded as not reproducible, and
+# packaging then refusing it — is a separate layer, because it is written and
+# read by the provenance generator, which does not exist here. It is asserted in
+# dirty-overlay-is-recorded-and-refused.sh.
 
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/harness.sh"
 harness::setup
 
 SYNC="$ASTRO_ROOT/tools/sync-overlay.sh"
-PROVENANCE="$ASTRO_ROOT/tools/generate-provenance.sh"
 
 tmp="$(harness::tmpdir)"
 chromium="$tmp/chromium-src"
@@ -34,19 +38,7 @@ patches="$tmp/patches"
 mkdir -p "$patches"
 
 harness::make_chromium_fixture "$chromium"
-
-# The overlay lives in a SUBDIRECTORY of its repository, exactly as src/ does in
-# Astro, so the path-scoping this gate depends on is the scoping under test.
-mkdir -p "$repo"
-git -C "$repo" init --quiet
-harness::make_overlay_fixture "$overlay" "$allowlist"
-printf 'unrelated repository content\n' > "$repo/README.md"
-# An ignore rule, so this case can cover the one shape `git status` cannot see.
-printf '*.gen.cc\n' > "$repo/.gitignore"
-git -C "$repo" add -A
-git -C "$repo" commit --quiet -m "astro fixture: committed overlay"
-
-OVERLAY_HEAD="$(git -C "$repo" rev-parse HEAD)"
+OVERLAY_HEAD="$(harness::make_overlay_repo "$repo" "$allowlist")"
 
 # Committed content of the two files this case moves around. Restored with
 # printf rather than `git checkout`, so the fixture is never repaired by the
@@ -55,6 +47,7 @@ SERVICE_REL="chrome/browser/oxy/oxy_auth_service.cc"
 SERVICE_COMMITTED='// astro service'
 ICON_REL="chrome/app/vector_icons/alia_spark.icon"
 ICON_COMMITTED='CANVAS_DIMENSIONS, 16,'
+UNTRACKED_REL="chrome/browser/oxy/oxy_untracked_wip.cc"
 
 # Any arguments are passed to env as additional VAR=VALUE settings.
 sync_overlay() {
@@ -85,10 +78,9 @@ harness::assert_files_identical "$overlay/$SERVICE_REL" "$chromium/$SERVICE_REL"
 
 manifest="$ASTRO_REPORT_DIR/overlay-manifest.json"
 harness::assert_file_exists "$manifest"
-cp "$manifest" "$tmp/manifest-clean.json"
 
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-python3 - "$tmp/manifest-clean.json" "$OVERLAY_HEAD" <<'PY' || exit 1
+python3 - "$manifest" "$OVERLAY_HEAD" <<'PY' || exit 1
 import json, sys
 path, head = sys.argv[1:3]
 with open(path, encoding="utf-8") as handle:
@@ -156,7 +148,6 @@ harness::assert_nonzero_status "dry run against a modified overlay"
 # ==========================================================================
 
 printf '%s\n' "$SERVICE_COMMITTED" > "$overlay/$SERVICE_REL"
-UNTRACKED_REL="chrome/browser/oxy/oxy_untracked_wip.cc"
 printf '// work in progress, never committed\n' > "$overlay/$UNTRACKED_REL"
 before="$(harness::manifest "$chromium")"
 
@@ -216,6 +207,41 @@ harness::assert_tree_unchanged "$chromium" "$before"
 printf '%s\n' "$ICON_COMMITTED" > "$overlay/$ICON_REL"
 
 # ==========================================================================
+# EVERY differing path is named, and each is classified
+#
+# The four directions above each present the gate with ONE difference, which
+# cannot distinguish a report that names every path from one that stops at the
+# first and calls it a day. A developer given a partial list fixes what they
+# were told about, re-runs, and is refused again for the next one — so all
+# three shapes are presented at once here, and all three must appear.
+# ==========================================================================
+
+printf '// LOCAL EDIT, never committed\n' > "$overlay/$SERVICE_REL"
+rm "$overlay/$ICON_REL"
+printf '// work in progress, never committed\n' > "$overlay/$UNTRACKED_REL"
+before="$(harness::manifest "$chromium")"
+
+sync_overlay
+harness::assert_nonzero_status "three differing overlay paths at once"
+harness::assert_output_contains "has 3 path(s) that differ from HEAD" "reports the full count"
+assert_classified "modified" "src/$SERVICE_REL"
+assert_classified "deleted" "src/$ICON_REL"
+assert_classified "untracked" "src/$UNTRACKED_REL"
+
+# The refusal must SAY what it did, not merely have done it. A developer who is
+# not told the copy was skipped has to go and look, and the reasonable guess —
+# that a half-finished copy was left behind — is the one that leads them to
+# delete things.
+harness::assert_output_contains "Nothing has been copied and nothing of yours has been touched." \
+    "the refusal states that it copied nothing and touched nothing"
+
+harness::assert_tree_unchanged "$chromium" "$before"
+harness::assert_file_missing "$chromium/$UNTRACKED_REL"
+
+rm "$overlay/$UNTRACKED_REL"
+printf '%s\n' "$ICON_COMMITTED" > "$overlay/$ICON_REL"
+
+# ==========================================================================
 # The override is real, scoped, and recorded
 # ==========================================================================
 
@@ -232,10 +258,8 @@ if ! grep -qF -- "LOCAL EDIT" "$chromium/$SERVICE_REL"; then
     harness::fail "the override did not copy the working-tree content"
 fi
 
-cp "$manifest" "$tmp/manifest-dirty.json"
-
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-python3 - "$tmp/manifest-dirty.json" "src/$SERVICE_REL" <<'PY' || exit 1
+python3 - "$manifest" "src/$SERVICE_REL" <<'PY' || exit 1
 import json, sys
 path, changed = sys.argv[1:3]
 with open(path, encoding="utf-8") as handle:
@@ -248,291 +272,66 @@ assert differences == {changed: "modified"}, differences
 PY
 
 # ==========================================================================
-# Provenance records it, machine-readably
-# ==========================================================================
-
-mapfile -t DEPOT_SHAS < <(harness::make_source_repo "$tmp/depot_tools" depot_tools)
-mapfile -t UNGOOGLED_SHAS < <(harness::make_source_repo "$tmp/ungoogled" ungoogled)
-lock="$tmp/browser.lock.json"
-cp "$ASTRO_ROOT/browser.lock.schema.json" "$tmp/browser.lock.schema.json"
-harness::write_lock "$lock" \
-    "file://$chromium" "$(git -C "$chromium" rev-parse HEAD)" \
-    "file://$tmp/depot_tools" "${DEPOT_SHAS[2]}" \
-    "file://$tmp/ungoogled" "${UNGOOGLED_SHAS[2]}"
-
-generate_provenance() {
-    local overlay_manifest="$1" output="$2"
-    harness::run env ASTRO_CHROMIUM_SRC="$chromium" "$PROVENANCE" \
-        --lock "$lock" --output "$output" --platform linux --build-type Release \
-        --chromium-src "$chromium" --depot-tools "$tmp/depot_tools" \
-        --ungoogled "$tmp/ungoogled" --overlay-manifest "$overlay_manifest"
-}
-
-generate_provenance "$tmp/manifest-dirty.json" "$tmp/provenance-dirty.json"
-harness::assert_status 0 "provenance for a build made from a dirty overlay"
-harness::assert_output_contains "NOT-REPRODUCIBLE dirty overlay" "announced on stderr"
-
-HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-python3 - "$tmp/provenance-dirty.json" "src/$SERVICE_REL" <<'PY' || exit 1
-import json, sys
-path, changed = sys.argv[1:3]
-with open(path, encoding="utf-8") as handle:
-    document = json.load(handle)
-
-assert document["reproducible"] is False, document["reproducible"]
-
-overlay = document["overlay"]
-assert overlay["state"] == "dirty", overlay
-assert overlay["clean"] is False, overlay
-assert overlay["override"] is True, overlay
-assert [entry["overlay_path"] for entry in overlay["differences"]] == [changed], overlay
-
-# The reason must NAME the paths: "not reproducible" with no subject is a
-# verdict nobody can act on.
-reasons = [line for line in document["not_reproducible_because"] if "overlay" in line]
-assert reasons, document["not_reproducible_because"]
-assert any(changed in line for line in reasons), reasons
-PY
-
-generate_provenance "$tmp/manifest-clean.json" "$tmp/provenance-clean.json"
-harness::assert_status 0 "provenance for a build made from a committed overlay"
-
-HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-python3 - "$tmp/provenance-clean.json" "$OVERLAY_HEAD" <<'PY' || exit 1
-import json, sys
-path, head = sys.argv[1:3]
-with open(path, encoding="utf-8") as handle:
-    document = json.load(handle)
-
-overlay = document["overlay"]
-assert overlay["state"] == "clean", overlay
-assert overlay["clean"] is True, overlay
-assert overlay["revision"] == head, overlay
-
-# `reproducible` also answers for source drift and for worktrees this case does
-# not control, so the assertion is the one this case governs: no reason blames
-# the overlay. Without this, the dirty assertion above would pass just as well
-# against a generator that always blames the overlay.
-blamed = [line for line in document["not_reproducible_because"] if "overlay" in line]
-assert not blamed, blamed
-PY
-
-# A missing manifest is "unmeasured", never "clean": a check whose pass and
-# whose nothing-was-measured look the same certifies nothing.
-generate_provenance "$tmp/no-such-manifest.json" "$tmp/provenance-unmeasured.json"
-harness::assert_status 0 "provenance with no overlay manifest"
-harness::assert_output_contains "NOT-REPRODUCIBLE overlay unmeasured" "distinguishes it from clean"
-
-HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-python3 - "$tmp/provenance-unmeasured.json" <<'PY' || exit 1
-import json, sys
-with open(sys.argv[1], encoding="utf-8") as handle:
-    document = json.load(handle)
-overlay = document["overlay"]
-assert overlay["state"] == "unmeasured", overlay
-assert overlay["clean"] is False, overlay
-assert "sync-overlay.sh did not run" in (overlay["reason"] or ""), overlay
-assert document["reproducible"] is False, document["reproducible"]
-PY
-
-# A release build asks for the strict verdict, and must not get one.
-harness::run env ASTRO_CHROMIUM_SRC="$chromium" "$PROVENANCE" \
-    --lock "$lock" --output "$tmp/provenance-strict.json" \
-    --platform linux --build-type Release --require-match \
-    --chromium-src "$chromium" --depot-tools "$tmp/depot_tools" \
-    --ungoogled "$tmp/ungoogled" --overlay-manifest "$tmp/manifest-dirty.json"
-harness::assert_nonzero_status "--require-match against a dirty overlay"
-harness::assert_output_contains "did not come from a commit" "refusal names the overlay"
-
-# ==========================================================================
-# The verdict itself, with nothing else able to move it
-#
-# Every provenance run above executes the generator out of the REAL repository,
-# so `reproducible` there also answers for Astro's own worktree — which a test
-# cannot control and which is dirty whenever anyone is mid-change. Asserting
-# "reproducible is False" under those conditions passes whether or not the
-# overlay was consulted at all: mutation-testing confirmed it, a generator
-# computing the verdict as `not drift and not dirty` satisfied every assertion
-# above while ignoring the overlay entirely.
-#
-# So the verdict is measured once more where NOTHING ELSE is wrong: a
-# committed, clean miniature Astro repository holding the generator, a clean
-# Chromium fixture, and a lock naming exactly what is on disk. The overlay is
-# then the only input that can move the answer, in either direction.
-# ==========================================================================
-
-mirror="$tmp/astro-mirror"
-mkdir -p "$mirror/tools/lib"
-cp "$PROVENANCE" "$mirror/tools/"
-cp -R "$ASTRO_ROOT/tools/lib/." "$mirror/tools/lib/"
-# A byte-compiled cache copied out of the real tree would be COMMITTED here and
-# then rewritten by the first run — cp -R gives the sources new mtimes, so
-# python regenerates the .pyc — leaving this repository dirty for the second
-# run only. The control would then pass and the comparison fail, for a reason
-# that has nothing to do with the overlay.
-rm -rf "$mirror/tools/lib/__pycache__"
-cp "$ASTRO_ROOT/browser.lock.schema.json" "$mirror/"
-git -C "$mirror" init --quiet
-git -C "$mirror" add -A
-git -C "$mirror" commit --quiet -m "astro mirror: committed and clean"
-
-clean_chromium="$tmp/chromium-clean"
-harness::make_chromium_fixture "$clean_chromium"
-
-mirror_lock="$mirror/browser.lock.json"
-harness::write_lock "$mirror_lock" \
-    "file://$clean_chromium" "$(git -C "$clean_chromium" rev-parse HEAD)" \
-    "file://$tmp/depot_tools" "${DEPOT_SHAS[2]}" \
-    "file://$tmp/ungoogled" "${UNGOOGLED_SHAS[2]}"
-
-verdict_provenance() {
-    local overlay_manifest="$1" output="$2"
-    harness::run env ASTRO_CHROMIUM_SRC="$clean_chromium" \
-        "$mirror/tools/generate-provenance.sh" \
-        --lock "$mirror_lock" --output "$output" --platform linux --build-type Release \
-        --chromium-src "$clean_chromium" --depot-tools "$tmp/depot_tools" \
-        --ungoogled "$tmp/ungoogled" --overlay-manifest "$overlay_manifest"
-}
-
-verdict_provenance "$tmp/manifest-clean.json" "$tmp/verdict-clean.json"
-harness::assert_status 0 "verdict run with a committed overlay"
-
-HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-python3 - "$tmp/verdict-clean.json" <<'PY' || exit 1
-import json, sys
-with open(sys.argv[1], encoding="utf-8") as handle:
-    document = json.load(handle)
-# The control: with nothing else wrong, the answer is reproducible. Without
-# this, "not reproducible" could be this generator's only answer.
-assert document["drift"] == [], document["drift"]
-assert document["dirty_worktrees"] == [], document["dirty_worktrees"]
-assert document["not_reproducible_because"] == [], document["not_reproducible_because"]
-assert document["reproducible"] is True, document
-PY
-
-verdict_provenance "$tmp/manifest-dirty.json" "$tmp/verdict-dirty.json"
-harness::assert_status 0 "verdict run with an uncommitted overlay"
-
-HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-python3 - "$tmp/verdict-dirty.json" "src/$SERVICE_REL" <<'PY' || exit 1
-import json, sys
-path, changed = sys.argv[1:3]
-with open(path, encoding="utf-8") as handle:
-    document = json.load(handle)
-# Same tree, same lock, same everything — only the overlay manifest differs.
-assert document["drift"] == [], document["drift"]
-assert document["dirty_worktrees"] == [], document["dirty_worktrees"]
-reasons = document["not_reproducible_because"]
-assert len(reasons) == 1, reasons
-assert reasons[0].startswith("dirty overlay"), reasons
-assert changed in reasons[0], reasons
-assert document["reproducible"] is False, document
-PY
-
-# ==========================================================================
-# Packaging refuses the result
-#
-# Run against a miniature Astro repository so the real releases/ directory is
-# never written to by a test.
-# ==========================================================================
-
-pkgroot="$tmp/pkgroot"
-mkdir -p "$pkgroot/tools/lib"
-cp "$ASTRO_ROOT/tools/package-release.sh" "$pkgroot/tools/"
-cp -R "$ASTRO_ROOT/tools/lib/." "$pkgroot/tools/lib/"
-printf '9.9.9-test\n' > "$pkgroot/VERSION"
-
-builddir="$tmp/out-release"
-mkdir -p "$builddir"
-# The markers tools/lib/overlay_in_binary.py looks for, so the binary check
-# passes and the overlay-provenance check is what this section measures.
-printf 'pad chrome://version pad chrome://alia pad astro-ntp pad astro-error pad' \
-    > "$builddir/chrome"
-printf 'sandbox\n' > "$builddir/chrome_sandbox"
-printf 'crashpad\n' > "$builddir/chrome_crashpad_handler"
-printf 'icu\n' > "$builddir/icudtl.dat"
-
-package() {
-    harness::run env "$@" "$pkgroot/tools/package-release.sh" "$builddir"
-}
-
-# --- a build from a committed overlay packages normally ----------------------
-cp "$tmp/provenance-clean.json" "$ASTRO_REPORT_DIR/provenance.json"
-package
-harness::assert_status 0 "packaging a build made from a committed overlay"
-harness::assert_file_exists "$pkgroot/releases/astro-9.9.9-test-linux-x64.tar.gz"
-
-# --- a build from a dirty overlay is refused ---------------------------------
-cp "$tmp/provenance-dirty.json" "$ASTRO_REPORT_DIR/provenance.json"
-package
-harness::assert_nonzero_status "packaging a build made from a dirty overlay"
-harness::assert_output_contains "Refusing to package a build whose overlay did not come from a commit" \
-    "refusal reason"
-harness::assert_output_contains "src/$SERVICE_REL" "names the offending overlay path"
-harness::assert_output_contains "ASTRO_ALLOW_DIRTY_OVERLAY_PACKAGE=1" "names the override"
-harness::assert_file_missing "$pkgroot/releases/unreproducible-9.9.9-test-linux-x64-DIRTY-OVERLAY.tar.gz"
-
-# --- and the override names the artifact for what it is ----------------------
-package ASTRO_ALLOW_DIRTY_OVERLAY_PACKAGE=1
-harness::assert_status 0 "packaging deliberately as an unreproducible artifact"
-harness::assert_output_contains "override:dirty-overlay-package" "structured override warning"
-harness::assert_file_exists "$pkgroot/releases/unreproducible-9.9.9-test-linux-x64-DIRTY-OVERLAY.tar.gz"
-
-# --- an unmeasured overlay is refused too, and differently -------------------
-cp "$tmp/provenance-unmeasured.json" "$ASTRO_REPORT_DIR/provenance.json"
-package ASTRO_ALLOW_DIRTY_OVERLAY_PACKAGE=1
-harness::assert_nonzero_status "packaging a build whose overlay state was never measured"
-harness::assert_output_contains "Cannot determine whether this build's overlay came from a commit" \
-    "refusal reason"
-harness::assert_output_lacks "Refusing to package a build whose overlay did not come" \
-    "must not report a verdict it does not have"
-
-# ==========================================================================
 # CI must never set the override
+#
+# The scan matches a workflow SETTING the override — a YAML `env:` entry or a
+# shell assignment — rather than the name appearing at all. That distinction is
+# what lets the scan read every file under .github/ with no exclusions, which
+# matters more than it looks: the previous form excluded build-safety.yml by
+# name, because the guard living there mentions the override, and an
+# exclusion-by-filename is a hole that grows. Anything excluded by name stops
+# being checked, including the day someone adds `ASTRO_ALLOW_DIRTY_OVERLAY: 1`
+# to the very file that was excluded for carrying the guard.
+#
+# Comment lines are excluded, on the same principle applied everywhere else
+# here: the workflows describe the override in prose, and a check that flags its
+# own documentation is a check somebody disables.
 # ==========================================================================
 
-# build-safety.yml is excluded because it carries the guard itself: the name
-# has to appear there for CI to check for it anywhere else.
+CI_SETS_OVERRIDE='^[^#]*ASTRO_ALLOW_DIRTY_OVERLAY[A-Z_]*[[:space:]]*[:=]'
+
+ci_hits=""
+ci_status=0
+ci_hits="$(grep -rnE "$CI_SETS_OVERRIDE" "$ASTRO_ROOT/.github")" || ci_status=$?
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-if offenders="$(grep -rn 'ASTRO_ALLOW_DIRTY_OVERLAY' "$ASTRO_ROOT/.github" \
-        | grep -v 'build-safety.yml')"; then
+if [ "$ci_status" -gt 1 ]; then
+    harness::fail "the CI override scan failed to run (grep exit $ci_status)"
+fi
+if [ -n "$ci_hits" ]; then
     harness::fail "a file under .github/ sets the dirty-overlay override:
-$offenders"
+$ci_hits"
 fi
 
-# The exclusion above is what makes this scan able to pass, so prove the guard
-# it excludes actually exists, and that CI runs it.
-#
-# The match is on an EXECUTABLE line, not on the name appearing anywhere: the
-# step carries a comment block explaining the override, so a bare name grep
-# stays green after the guard itself is deleted. Mutation-testing confirmed it —
-# dropping the override from the guard's loop left a name-only assertion
-# passing.
-HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-if ! grep -qE '^[^#]*ASTRO_ALLOW_DIRTY_OVERLAY' \
-        "$ASTRO_ROOT/.github/workflows/build-safety.yml"; then
-    harness::fail "CI does not assert that the dirty-overlay override is unset:
-      the name appears only in comments in .github/workflows/build-safety.yml,
-      so nothing executable checks for it."
-fi
-
-# And that the scan can fail at all: a grep that matches nothing reads the same
-# whether the tree is clean or the pattern is wrong.
+# Mutation support. A grep that matches nothing reads the same whether the tree
+# is clean or the pattern is wrong, so the pattern is shown both a workflow that
+# sets the override and one that merely names it inside a guard. Without the
+# second probe, tightening the pattern until it also condemned the guard would
+# go unnoticed until it condemned CI.
 mkdir -p "$tmp/probe-github/workflows"
-cat > "$tmp/probe-github/workflows/release.yml" <<'PROBE'
+cat > "$tmp/probe-github/workflows/sets-it.yml" <<'PROBE'
 name: probe
 jobs:
   build:
     env:
       ASTRO_ALLOW_DIRTY_OVERLAY: 1
     steps:
-      - run: tools/build.sh
+      - run: ASTRO_ALLOW_DIRTY_OVERLAY_PACKAGE=1 tools/package-release.sh
 PROBE
+harness::assert_pattern_hits "$CI_SETS_OVERRIDE" "$tmp/probe-github/workflows/sets-it.yml" 2 \
+    "the scan must match a workflow that sets the override, in env: and in shell form"
 
-HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-if ! grep -rn 'ASTRO_ALLOW_DIRTY_OVERLAY' "$tmp/probe-github" \
-        | grep -v 'build-safety.yml' > /dev/null; then
-    harness::fail "the CI scan cannot detect a workflow that sets the override"
-fi
+cat > "$tmp/probe-github/workflows/guards-it.yml" <<'PROBE'
+# ASTRO_ALLOW_DIRTY_OVERLAY is developer-only and must never appear in CI.
+name: probe
+jobs:
+  build:
+    steps:
+      - run: |
+          for override in ASTRO_ALLOW_DIRTY_CHROMIUM ASTRO_ALLOW_DIRTY_OVERLAY; do
+            if [ -n "${!override:-}" ]; then exit 1; fi
+          done
+PROBE
+harness::assert_pattern_hits "$CI_SETS_OVERRIDE" "$tmp/probe-github/workflows/guards-it.yml" 0 \
+    "the scan must ignore prose and a guard that only names the override"
 
 harness::pass

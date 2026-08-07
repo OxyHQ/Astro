@@ -472,6 +472,32 @@ overwrite chrome/browser/ui/webui/chrome_web_ui_configs.cc owner=test issue=4
 EOF
 }
 
+# harness::make_overlay_repo <repo dir> <allowlist path>
+#
+# A committed Astro-shaped repository whose overlay lives in a SUBDIRECTORY,
+# src/, exactly as it does in Astro — so the path-scoping the derive-from-HEAD
+# gate depends on is the scoping under test rather than something the fixture
+# flattened away.
+#
+# It also carries one file OUTSIDE the overlay, so a case can prove the gate is
+# scoped to the copied paths and not to the repository's cleanliness in
+# general, and an ignore rule, so a case can cover the one shape `git status`
+# can never see.
+#
+# Echoes the commit the overlay was committed at.
+harness::make_overlay_repo() {
+    local repo="$1" allowlist="$2"
+
+    mkdir -p "$repo"
+    git -C "$repo" init --quiet
+    harness::make_overlay_fixture "$repo/src" "$allowlist"
+    printf 'unrelated repository content\n' > "$repo/README.md"
+    printf '*.gen.cc\n' > "$repo/.gitignore"
+    git -C "$repo" add -A
+    git -C "$repo" commit --quiet -m "astro fixture: committed overlay"
+    git -C "$repo" rev-parse HEAD
+}
+
 # A patch series directory the patch runner can consume.
 harness::make_patch_fixture() {
     local dir="$1"
