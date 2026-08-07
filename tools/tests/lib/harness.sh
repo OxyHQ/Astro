@@ -86,6 +86,24 @@ harness::run() {
     "$@" >"$RUN_STDOUT" 2>"$RUN_STDERR" || RUN_STATUS=$?
 }
 
+# harness::setup_run <command> [args...]
+#
+# Fixture preparation runs OUTSIDE harness::run, so a failure in it produces no
+# captured output and no status anyone looks at. Without this wrapper a case
+# whose fixture was never built goes on to assert a message against nothing and
+# fails somewhere else entirely, which is the wrong-reason failure the
+# required-failure tables exist to make impossible.
+harness::setup_run() {
+    local log="$HARNESS_TMPDIR/setup.log"
+    local status=0
+    "$@" >"$log" 2>&1 || status=$?
+    if [ "$status" -ne 0 ]; then
+        printf -- '--- setup output ---\n' >&2
+        cat "$log" >&2
+        harness::fail "fixture setup failed (exit $status): $*"
+    fi
+}
+
 harness::assert_status() {
     local expected="$1" what="$2"
     HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
@@ -169,6 +187,74 @@ harness::assert_tree_unchanged() {
 }
 
 # --------------------------------------------------------------------------
+# Required-failure tables
+#
+# A case proving "every required step that fails exits non-zero" enumerates its
+# failure modes as rows rather than as prose, so adding a guard is one line and
+# a guard that quietly stops failing cannot hide between cases.
+#
+# The mechanism lives here because more than one case owns rows — the build
+# pipeline's required inputs and the source-lock gates are separate layers of
+# the same property, and they ship on separate branches. Two copies of this
+# loop would drift, and a fix to one would silently miss the other; that is
+# precisely the failure mode the table exists to prevent, so it is not
+# reproduced per case. Each case still declares its OWN vacuity floor, by
+# passing its own minimum row count to harness::run_failure_table.
+# --------------------------------------------------------------------------
+
+declare -a HARNESS_CASE_DESC=() HARNESS_CASE_RUN=() HARNESS_CASE_NEEDLES=()
+
+# harness::register_failure <description> <runner-function> <expected-fragment>...
+#
+# At least one fragment is mandatory: a row that named no reason would assert
+# only that something went wrong, which is the assertion the table replaces.
+# Every row asserts WHY the command failed as well as that it did. A row
+# checking only "exit != 0" keeps passing once the script starts failing for an
+# unrelated reason — a fixture that was never built, a renamed flag, a typo in
+# an argument — and that is how a suite goes green while the guarantee
+# underneath it is gone.
+harness::register_failure() {
+    local description="$1" runner="$2"
+    shift 2
+    if [ "$#" -lt 1 ]; then
+        harness::fail "row '$description' declares no expected message fragment"
+    fi
+    HARNESS_CASE_DESC+=("$description")
+    HARNESS_CASE_RUN+=("$runner")
+    HARNESS_CASE_NEEDLES+=("$(printf '%s\n' "$@")")
+}
+
+# harness::run_failure_table <minimum rows>
+#
+# The floor comes first: a truncated table, a mis-registered row or a broken
+# loop would otherwise report a green case having asserted almost nothing.
+harness::run_failure_table() {
+    local minimum="$1"
+
+    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 2))
+    if [ "${#HARNESS_CASE_DESC[@]}" -lt "$minimum" ]; then
+        harness::fail "table has ${#HARNESS_CASE_DESC[@]} row(s), below the floor of $minimum"
+    fi
+    if [ "${#HARNESS_CASE_RUN[@]}" != "${#HARNESS_CASE_DESC[@]}" ] \
+       || [ "${#HARNESS_CASE_NEEDLES[@]}" != "${#HARNESS_CASE_DESC[@]}" ]; then
+        harness::fail "table arrays disagree: ${#HARNESS_CASE_DESC[@]} descriptions, ${#HARNESS_CASE_RUN[@]} runners, ${#HARNESS_CASE_NEEDLES[@]} needle sets"
+    fi
+
+    printf 'Required failure modes under test: %s\n' "${#HARNESS_CASE_DESC[@]}"
+
+    local index description needle
+    for index in "${!HARNESS_CASE_DESC[@]}"; do
+        description="${HARNESS_CASE_DESC[$index]}"
+        harness::run "${HARNESS_CASE_RUN[$index]}"
+        harness::assert_nonzero_status "$description"
+        while IFS= read -r needle; do
+            [ -n "$needle" ] || continue
+            harness::assert_output_contains "$needle" "$description"
+        done <<< "${HARNESS_CASE_NEEDLES[$index]}"
+    done
+}
+
+# --------------------------------------------------------------------------
 # Fixtures
 # --------------------------------------------------------------------------
 
@@ -239,6 +325,49 @@ diff --git a/$target b/$target
 -$old
 +$new
 EOF
+}
+
+# Creates a miniature Astro repository for tools/build.sh to run against, so
+# the real webui/ and gn_args/ are never touched and no case can depend on
+# another's damage.
+#
+# Everything a `--dry-run` REQUIRES is here and nothing else. In particular the
+# source lock is not: the revision gate is a separate layer with its own
+# script, its own lock file and its own checkouts to inspect, and a case that
+# exercises it adds those on top of this fixture. Building them here would make
+# every build-input case depend on tooling it does not test.
+harness::make_build_root() {
+    local root="$1" chromium="$2"
+
+    harness::make_chromium_fixture "$chromium"
+    harness::setup_run git -C "$chromium" checkout --quiet --detach HEAD
+
+    mkdir -p "$root/tools/lib" "$root/gn_args" "$root/depot_tools" "$root/patches" \
+             "$root/src/chrome/browser/oxy/adblock/resources"
+    cp "$ASTRO_ROOT/tools/build.sh" "$ASTRO_ROOT/tools/sync-overlay.sh" \
+       "$ASTRO_ROOT/tools/overlay.allowlist" \
+       "$ASTRO_ROOT/tools/gn-check-baseline.json" "$root/tools/"
+    # The whole library, not a name list. A name list means every tool added to
+    # tools/lib/ silently breaks this fixture, and the build then fails for a
+    # reason that has nothing to do with what the test is asserting — which is
+    # exactly how gn_args_drift.py first surfaced here.
+    cp -R "$ASTRO_ROOT/tools/lib/." "$root/tools/lib/"
+
+    printf 'is_debug = false\n' > "$root/gn_args/linux.gn"
+    printf '! filter list\n' > "$root/src/chrome/browser/oxy/adblock/resources/easylist.txt"
+
+    local page
+    for page in ntp alia settings whats-new error; do
+        mkdir -p "$root/webui/$page/dist"
+        printf '<!doctype html><title>%s</title>\n' "$page" > "$root/webui/$page/dist/index.html"
+    done
+
+    # gn and autoninja must RESOLVE — build.sh requires them — but must never
+    # run during a dry run, so they announce themselves and fail loudly.
+    printf '#!/usr/bin/env bash\necho "gn was executed during a dry run" >&2\nexit 99\n' \
+        > "$root/depot_tools/gn"
+    cp "$root/depot_tools/gn" "$root/depot_tools/autoninja"
+    chmod +x "$root/depot_tools/gn" "$root/depot_tools/autoninja"
 }
 
 # --------------------------------------------------------------------------

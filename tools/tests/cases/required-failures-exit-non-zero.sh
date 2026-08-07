@@ -8,8 +8,18 @@
 # The other cases prove these one script at a time, which leaves "is every
 # required failure actually covered?" answerable only by reading all of them.
 # This case answers it in one place: a table enumerating the required failure
-# modes of every mutating script, so adding a guard is one line and a guard
-# that quietly stops failing cannot hide between cases.
+# modes of every mutating script in the build pipeline — the overlay sync, the
+# patch runner, build.sh's required inputs and the baseline capture tools — so
+# adding a guard is one line and a guard that quietly stops failing cannot hide
+# between cases.
+#
+# The source-lock gates are the same property one layer up, and they live in
+# lock-failures-exit-non-zero.sh. They are a separate case because they are a
+# separate layer: the lock, the script that enforces it and the provenance
+# writer do not exist at this layer, so a table mixing the two could not run
+# here at all. The two tables share their machinery
+# (harness::register_failure / harness::run_failure_table) rather than
+# duplicating it.
 #
 # Every row asserts WHY the command failed as well as that it did. A row
 # checking only "exit != 0" keeps passing once the script starts failing for
@@ -25,53 +35,6 @@ harness::setup
 
 tmp="$(harness::tmpdir)"
 TOOLS="$ASTRO_ROOT/tools"
-
-# A commit that exists in no fixture, used wherever a lock must name a
-# revision the checkout is not on.
-ABSENT_COMMIT="0000000000000000000000000000000000000001"
-
-# --------------------------------------------------------------------------
-# Fixture preparation
-#
-# Preparation runs OUTSIDE harness::run, so a failure in it produces no
-# captured output and no status anyone looks at. Without this wrapper a case
-# whose fixture was never built goes on to assert a message against nothing and
-# fails somewhere else entirely, which is the wrong-reason failure this whole
-# file exists to make impossible.
-# --------------------------------------------------------------------------
-
-setup_run() {
-    local log="$tmp/setup.log"
-    local status=0
-    "$@" >"$log" 2>&1 || status=$?
-    if [ "$status" -ne 0 ]; then
-        printf -- '--- setup output ---\n' >&2
-        cat "$log" >&2
-        harness::fail "fixture setup failed (exit $status): $*"
-    fi
-}
-
-# --------------------------------------------------------------------------
-# The table
-#
-# register_failure <description> <runner-function> <expected-fragment>...
-#
-# At least one fragment is mandatory: a row that named no reason would assert
-# only that something went wrong, which is the assertion this case replaces.
-# --------------------------------------------------------------------------
-
-declare -a CASE_DESC=() CASE_RUN=() CASE_NEEDLES=()
-
-register_failure() {
-    local description="$1" runner="$2"
-    shift 2
-    if [ "$#" -lt 1 ]; then
-        harness::fail "row '$description' declares no expected message fragment"
-    fi
-    CASE_DESC+=("$description")
-    CASE_RUN+=("$runner")
-    CASE_NEEDLES+=("$(printf '%s\n' "$@")")
-}
 
 # ==========================================================================
 # tools/sync-overlay.sh
@@ -91,7 +54,7 @@ harness::make_overlay_fixture "$overlay_src" "$overlay_allow"
 
 overlay_bare="$tmp/overlay-dest-bare"
 mkdir -p "$overlay_bare"
-setup_run git -C "$overlay_bare" init --quiet
+harness::setup_run git -C "$overlay_bare" init --quiet
 
 run_overlay_unverified_destination() {
     env ASTRO_CHROMIUM_SRC="$overlay_bare" "$TOOLS/sync-overlay.sh" \
@@ -112,7 +75,7 @@ printf 'buildconfig = "//build/config/BUILDCONFIG.gn"\n' > "$overlay_nested/.gn"
 printf 'MAJOR=146\n' > "$overlay_nested/chrome/VERSION"
 printf 'group("base") {}\n' > "$overlay_nested/base/BUILD.gn"
 printf '# BUILDCONFIG\n' > "$overlay_nested/build/config/BUILDCONFIG.gn"
-setup_run git -C "$overlay_outer" init --quiet
+harness::setup_run git -C "$overlay_outer" init --quiet
 
 run_overlay_nested_destination() {
     env ASTRO_CHROMIUM_SRC="$overlay_nested" "$TOOLS/sync-overlay.sh" \
@@ -186,8 +149,8 @@ make_patch_base() {
     local dir="$1"
     harness::make_chromium_fixture "$dir"
     printf 'alpha\n' > "$dir/net/net_util.cc"
-    setup_run git -C "$dir" add -A
-    setup_run git -C "$dir" commit --quiet -m "patch base"
+    harness::setup_run git -C "$dir" add -A
+    harness::setup_run git -C "$dir" commit --quiet -m "patch base"
 }
 
 # --- A patch that does not apply exactly ------------------------------------
@@ -307,206 +270,25 @@ run_patch_domain_substitution() {
 }
 
 # ==========================================================================
-# tools/sync-sources.sh
-# ==========================================================================
-
-sync_origins="$tmp/sync-origins"
-mkdir -p "$sync_origins"
-mapfile -t SYNC_CHROMIUM_SHAS < <(harness::make_source_repo "$sync_origins/chromium" chromium sentinels)
-mapfile -t SYNC_DEPOT_SHAS < <(harness::make_source_repo "$sync_origins/depot_tools" depot_tools)
-mapfile -t SYNC_UNGOOGLED_SHAS < <(harness::make_source_repo "$sync_origins/ungoogled" ungoogled)
-SYNC_CHROMIUM_TIP="${SYNC_CHROMIUM_SHAS[2]}"
-SYNC_CHROMIUM_OLD="${SYNC_CHROMIUM_SHAS[0]}"
-
-sync_lock_dir="$tmp/sync-lock"
-mkdir -p "$sync_lock_dir"
-cp "$ASTRO_ROOT/browser.lock.schema.json" "$sync_lock_dir/"
-sync_lock="$sync_lock_dir/browser.lock.json"
-harness::write_lock "$sync_lock" \
-    "file://$sync_origins/chromium" "$SYNC_CHROMIUM_TIP" \
-    "file://$sync_origins/depot_tools" "${SYNC_DEPOT_SHAS[2]}" \
-    "file://$sync_origins/ungoogled" "${SYNC_UNGOOGLED_SHAS[2]}"
-
-# Brings a fresh work tree to the locked revisions, so each row below starts
-# from a checkout that is correct and then breaks exactly one thing.
-bootstrap_work_tree() {
-    local work="$1"
-    mkdir -p "$work/chromium"
-    setup_run env ASTRO_CHROMIUM_SRC="$work/chromium/src" "$TOOLS/sync-sources.sh" \
-        --no-deps --lock "$sync_lock" \
-        --chromium-src "$work/chromium/src" \
-        --depot-tools "$work/depot_tools" \
-        --ungoogled "$work/ungoogled"
-}
-
-# --- --verify-only against a wrong commit -----------------------------------
-
-sync_wrong="$tmp/sync-wrong"
-bootstrap_work_tree "$sync_wrong"
-setup_run git -C "$sync_wrong/chromium/src" checkout --quiet --detach "$SYNC_CHROMIUM_OLD"
-
-run_sync_wrong_commit() {
-    env ASTRO_CHROMIUM_SRC="$sync_wrong/chromium/src" "$TOOLS/sync-sources.sh" \
-        --no-deps --verify-only --lock "$sync_lock" \
-        --chromium-src "$sync_wrong/chromium/src" \
-        --depot-tools "$sync_wrong/depot_tools" --ungoogled "$sync_wrong/ungoogled"
-}
-
-# --- --verify-only against an attached HEAD ---------------------------------
-#
-# The right commit is not enough: a branch can be advanced afterwards, and
-# nothing would notice that the build stopped being pinned.
-
-sync_branch="$tmp/sync-branch"
-bootstrap_work_tree "$sync_branch"
-setup_run git -C "$sync_branch/chromium/src" checkout --quiet -b astro-146.0.7680.177
-
-run_sync_attached_head() {
-    env ASTRO_CHROMIUM_SRC="$sync_branch/chromium/src" "$TOOLS/sync-sources.sh" \
-        --no-deps --verify-only --lock "$sync_lock" \
-        --chromium-src "$sync_branch/chromium/src" \
-        --depot-tools "$sync_branch/depot_tools" --ungoogled "$sync_branch/ungoogled"
-}
-
-# --- --verify-only when the checkout is absent ------------------------------
-
-sync_absent="$tmp/sync-absent"
-bootstrap_work_tree "$sync_absent"
-rm -rf "${sync_absent:?}/chromium/src"
-
-run_sync_absent_checkout() {
-    env ASTRO_CHROMIUM_SRC="$sync_absent/chromium/src" "$TOOLS/sync-sources.sh" \
-        --no-deps --verify-only --lock "$sync_lock" \
-        --chromium-src "$sync_absent/chromium/src" \
-        --depot-tools "$sync_absent/depot_tools" --ungoogled "$sync_absent/ungoogled"
-}
-
-# --- A lock that fails schema validation ------------------------------------
-#
-# An abbreviated SHA is the most plausible mistake and the most dangerous: it
-# is not a syntax error, and abbreviations stop being unique as a repository
-# grows. The lock is validated before anything else looks at it, so no
-# checkout has to exist for this row.
-
-sync_bad_lock_dir="$tmp/sync-bad-lock"
-mkdir -p "$sync_bad_lock_dir"
-cp "$ASTRO_ROOT/browser.lock.schema.json" "$sync_bad_lock_dir/"
-sync_bad_lock="$sync_bad_lock_dir/browser.lock.json"
-harness::write_lock "$sync_bad_lock" \
-    "file://$sync_origins/chromium" "$SYNC_CHROMIUM_TIP" \
-    "file://$sync_origins/depot_tools" "${SYNC_DEPOT_SHAS[2]}" \
-    "file://$sync_origins/ungoogled" "${SYNC_UNGOOGLED_SHAS[2]}"
-setup_run python3 - "$sync_bad_lock" <<'PY'
-import json, sys
-
-path = sys.argv[1]
-with open(path, encoding="utf-8") as handle:
-    document = json.load(handle)
-document["chromium"]["commit"] = document["chromium"]["commit"][:7]
-with open(path, "w", encoding="utf-8") as handle:
-    json.dump(document, handle, indent=2)
-    handle.write("\n")
-PY
-
-run_sync_invalid_lock() {
-    env ASTRO_CHROMIUM_SRC="$tmp/sync-bad-lock-work/chromium/src" "$TOOLS/sync-sources.sh" \
-        --no-deps --verify-only --lock "$sync_bad_lock" \
-        --chromium-src "$tmp/sync-bad-lock-work/chromium/src" \
-        --depot-tools "$tmp/sync-bad-lock-work/depot_tools" \
-        --ungoogled "$tmp/sync-bad-lock-work/ungoogled"
-}
-
-# --- A non-empty, non-checkout directory at the destination -----------------
-#
-# The shape this repository was actually found in: chromium/src held only the
-# copied overlay. `git clone` into it fails with a message about the directory
-# already existing, and the obvious reflex — deleting it — can destroy the only
-# copy of something.
-
-sync_occupied="$tmp/sync-occupied"
-mkdir -p "$sync_occupied/chromium/src/chrome/browser/oxy"
-printf '// the copied overlay, and nothing else\n' \
-    > "$sync_occupied/chromium/src/chrome/browser/oxy/oxy_auth_service.cc"
-
-run_sync_occupied_destination() {
-    env ASTRO_CHROMIUM_SRC="$sync_occupied/chromium/src" "$TOOLS/sync-sources.sh" \
-        --no-deps --lock "$sync_lock" \
-        --chromium-src "$sync_occupied/chromium/src" \
-        --depot-tools "$sync_occupied/depot_tools" --ungoogled "$sync_occupied/ungoogled"
-}
-
-# ==========================================================================
 # tools/build.sh
 #
 # Each row gets its own miniature Astro repository, so the real webui/ and
 # gn_args/ are never touched and no row can depend on another's damage.
+#
+# ASTRO_SKIP_LOCK_VERIFY=1 keeps these rows about the required INPUT that was
+# removed. build.sh's revision gate runs before every input check, so without
+# the override the fixture — which carries no lock, because the lock is not
+# part of this layer — would fail at the gate and every row below would pass
+# for the wrong reason. The gate has its own rows in
+# lock-failures-exit-non-zero.sh. Where build.sh has no such gate the variable
+# is simply unread, so setting it costs nothing.
 # ==========================================================================
-
-write_build_lock() {
-    local root="$1" chromium="$2" chromium_commit="$3"
-    harness::write_lock "$root/browser.lock.json" \
-        "file://$chromium" "$chromium_commit" \
-        "file://$root/depot_tools" "$(git -C "$root/depot_tools" rev-parse HEAD)" \
-        "file://$root/.ungoogled-chromium" "$(git -C "$root/.ungoogled-chromium" rev-parse HEAD)"
-}
-
-make_build_root() {
-    local root="$1" chromium="$2"
-
-    harness::make_chromium_fixture "$chromium"
-    setup_run git -C "$chromium" checkout --quiet --detach HEAD
-
-    mkdir -p "$root/tools/lib" "$root/gn_args" "$root/depot_tools" "$root/patches" \
-             "$root/src/chrome/browser/oxy/adblock/resources"
-    cp "$TOOLS/build.sh" "$TOOLS/sync-overlay.sh" "$TOOLS/sync-sources.sh" \
-       "$TOOLS/generate-provenance.sh" "$TOOLS/overlay.allowlist" \
-       "$TOOLS/gclient.template" "$TOOLS/gn-check-baseline.json" "$root/tools/"
-    # The whole library, not a name list. A name list means every tool added to
-    # tools/lib/ silently breaks this fixture, and the build then fails for a
-    # reason that has nothing to do with what the test is asserting — which is
-    # exactly how gn_args_drift.py first surfaced here.
-    cp -R "$TOOLS/lib/." "$root/tools/lib/"
-    cp "$ASTRO_ROOT/browser.lock.schema.json" "$root/"
-
-    printf 'is_debug = false\n' > "$root/gn_args/linux.gn"
-    printf '! filter list\n' > "$root/src/chrome/browser/oxy/adblock/resources/easylist.txt"
-
-    local page
-    for page in ntp alia settings whats-new error; do
-        mkdir -p "$root/webui/$page/dist"
-        printf '<!doctype html><title>%s</title>\n' "$page" > "$root/webui/$page/dist/index.html"
-    done
-
-    # gn and autoninja must RESOLVE — build.sh requires them — but must never
-    # run during a dry run, so they announce themselves and fail loudly.
-    printf '#!/usr/bin/env bash\necho "gn was executed during a dry run" >&2\nexit 99\n' \
-        > "$root/depot_tools/gn"
-    cp "$root/depot_tools/gn" "$root/depot_tools/autoninja"
-    chmod +x "$root/depot_tools/gn" "$root/depot_tools/autoninja"
-
-    # build.sh gates on sync-sources.sh --verify-only, which inspects every
-    # locked source, so depot_tools and ungoogled have to be real checkouts
-    # sitting detached at the commits the lock names.
-    setup_run git -C "$root/depot_tools" init --quiet --initial-branch=main
-    setup_run git -C "$root/depot_tools" add -A
-    setup_run git -C "$root/depot_tools" commit --quiet -m "depot_tools fixture"
-    setup_run git -C "$root/depot_tools" checkout --quiet --detach HEAD
-
-    mkdir -p "$root/.ungoogled-chromium"
-    printf 'patches\n' > "$root/.ungoogled-chromium/README"
-    setup_run git -C "$root/.ungoogled-chromium" init --quiet --initial-branch=main
-    setup_run git -C "$root/.ungoogled-chromium" add -A
-    setup_run git -C "$root/.ungoogled-chromium" commit --quiet -m "ungoogled fixture"
-    setup_run git -C "$root/.ungoogled-chromium" checkout --quiet --detach HEAD
-
-    write_build_lock "$root" "$chromium" "$(git -C "$chromium" rev-parse HEAD)"
-}
 
 # --- Missing GN args --------------------------------------------------------
 
 build_gn_root="$tmp/build-gn-root"
 build_gn_chromium="$tmp/build-gn-chromium"
-make_build_root "$build_gn_root" "$build_gn_chromium"
+harness::make_build_root "$build_gn_root" "$build_gn_chromium"
 rm -f "$build_gn_root/gn_args/linux.gn"
 
 run_build_missing_gn_args() {
@@ -518,7 +300,7 @@ run_build_missing_gn_args() {
 
 build_webui_root="$tmp/build-webui-root"
 build_webui_chromium="$tmp/build-webui-chromium"
-make_build_root "$build_webui_root" "$build_webui_chromium"
+harness::make_build_root "$build_webui_root" "$build_webui_chromium"
 rm -rf "${build_webui_root:?}/webui/settings/dist"
 
 run_build_missing_webui_bundle() {
@@ -533,54 +315,12 @@ run_build_missing_webui_bundle() {
 
 build_adblock_root="$tmp/build-adblock-root"
 build_adblock_chromium="$tmp/build-adblock-chromium"
-make_build_root "$build_adblock_root" "$build_adblock_chromium"
+harness::make_build_root "$build_adblock_root" "$build_adblock_chromium"
 rm -rf "${build_adblock_root:?}/src/chrome/browser/oxy/adblock/resources"
 
 run_build_missing_adblock_resources() {
     env ASTRO_CHROMIUM_SRC="$build_adblock_chromium" ASTRO_SKIP_LOCK_VERIFY=1 \
         "$build_adblock_root/tools/build.sh" Release linux --dry-run
-}
-
-# --- Checkout off the locked revision ---------------------------------------
-
-build_lock_root="$tmp/build-lock-root"
-build_lock_chromium="$tmp/build-lock-chromium"
-make_build_root "$build_lock_root" "$build_lock_chromium"
-write_build_lock "$build_lock_root" "$build_lock_chromium" "$ABSENT_COMMIT"
-
-run_build_off_locked_revision() {
-    env ASTRO_CHROMIUM_SRC="$build_lock_chromium" \
-        "$build_lock_root/tools/build.sh" Release linux --dry-run
-}
-
-# ==========================================================================
-# tools/generate-provenance.sh --require-match
-# ==========================================================================
-
-provenance_drift="$tmp/provenance-drift"
-bootstrap_work_tree "$provenance_drift"
-setup_run git -C "$provenance_drift/chromium/src" checkout --quiet --detach "$SYNC_CHROMIUM_OLD"
-
-run_provenance_drifted_revision() {
-    env ASTRO_CHROMIUM_SRC="$provenance_drift/chromium/src" "$TOOLS/generate-provenance.sh" \
-        --lock "$sync_lock" --output "$tmp/provenance-drift.json" \
-        --platform linux --build-type Release --require-match \
-        --chromium-src "$provenance_drift/chromium/src" \
-        --depot-tools "$provenance_drift/depot_tools" \
-        --ungoogled "$provenance_drift/ungoogled"
-}
-
-provenance_dirty="$tmp/provenance-dirty"
-bootstrap_work_tree "$provenance_dirty"
-printf 'local edit\n' >> "$provenance_dirty/chromium/src/content.txt"
-
-run_provenance_dirty_worktree() {
-    env ASTRO_CHROMIUM_SRC="$provenance_dirty/chromium/src" "$TOOLS/generate-provenance.sh" \
-        --lock "$sync_lock" --output "$tmp/provenance-dirty.json" \
-        --platform linux --build-type Release --require-match \
-        --chromium-src "$provenance_dirty/chromium/src" \
-        --depot-tools "$provenance_dirty/depot_tools" \
-        --ungoogled "$provenance_dirty/ungoogled"
 }
 
 # ==========================================================================
@@ -610,131 +350,72 @@ run_capture_without_binary() {
 # give, so the row cannot be satisfied by an unrelated failure.
 # ==========================================================================
 
-register_failure "overlay destination is not a Chromium checkout" \
+harness::register_failure "overlay destination is not a Chromium checkout" \
     run_overlay_unverified_destination \
     "does not look like a Chromium source checkout" "chrome/VERSION"
-register_failure "overlay destination is not its own git work tree" \
+harness::register_failure "overlay destination is not its own git work tree" \
     run_overlay_nested_destination \
     "is not its own git work tree" "including any destructive one"
-register_failure "overlay file with no declared destination" \
+harness::register_failure "overlay file with no declared destination" \
     run_overlay_undeclared_destination \
     "no declared destination" "components/policy/policy_constants.cc"
-register_failure "undeclared overwrite of a tracked upstream file" \
+harness::register_failure "undeclared overwrite of a tracked upstream file" \
     run_overlay_undeclared_overwrite \
     "would overwrite a Chromium-tracked file" "net/net_util.cc"
-register_failure "overlay above ASTRO_OVERLAY_MAX_FILES" \
+harness::register_failure "overlay above ASTRO_OVERLAY_MAX_FILES" \
     run_overlay_over_ceiling \
     "over the declared ceiling of 2"
-register_failure "overlay against a checkout carrying unrelated work" \
+harness::register_failure "overlay against a checkout carrying unrelated work" \
     run_overlay_dirty_checkout \
     "Astro did not write" "net/net_util.cc" "ASTRO_ALLOW_DIRTY_CHROMIUM=1"
 
-register_failure "a patch that does not apply exactly" \
+harness::register_failure "a patch that does not apply exactly" \
     run_patch_does_not_apply \
     "does not apply exactly" "001-context-drifted.patch" "no three-way merge"
-register_failure "a series entry with no patch file" \
+harness::register_failure "a series entry with no patch file" \
     run_patch_series_entry_missing \
     "series lists patches that do not exist" "099-vanished.patch" \
     "Refusing to apply a partial stack"
-register_failure "a patch on disk absent from the series" \
+harness::register_failure "a patch on disk absent from the series" \
     run_patch_undeclared_on_disk \
     "series does not declare" "002-undeclared.patch" \
     "not a property of the filesystem"
-register_failure "a .rej artifact in the checkout" \
+harness::register_failure "a .rej artifact in the checkout" \
     run_patch_artifact_present \
     "Patch artifacts found" "net_util.cc.rej" "applied partially"
-register_failure "patching a non-pristine checkout" \
+harness::register_failure "patching a non-pristine checkout" \
     run_patch_dirty_checkout \
     "must be pristine" "net/developer_scratch.cc" "ASTRO_ALLOW_DIRTY_CHROMIUM=1"
-register_failure "domain substitution without --skip-domain-substitution" \
+harness::register_failure "domain substitution without --skip-domain-substitution" \
     run_patch_domain_substitution \
     "Domain substitution is not implemented" "--skip-domain-substitution"
 
-register_failure "--verify-only against a wrong commit" \
-    run_sync_wrong_commit \
-    "chromium is at the wrong commit" "$SYNC_CHROMIUM_OLD" "$SYNC_CHROMIUM_TIP" \
-    "stale self-hosted runner"
-register_failure "--verify-only against an attached HEAD" \
-    run_sync_attached_head \
-    "not detached" "astro-146.0.7680.177" "can be advanced after the sync"
-register_failure "--verify-only when the checkout is absent" \
-    run_sync_absent_checkout \
-    "chromium is not present at" "--verify-only never creates a checkout"
-register_failure "a lock that fails schema validation" \
-    run_sync_invalid_lock \
-    "does not satisfy browser.lock.schema.json" "abbreviated SHA"
-register_failure "a non-empty non-checkout directory at the destination" \
-    run_sync_occupied_destination \
-    "is not a git checkout, and is not empty" "Nothing is deleted automatically"
-
-register_failure "build with a missing GN args file" \
+harness::register_failure "build with a missing GN args file" \
     run_build_missing_gn_args \
     "GN args file for linux"
-register_failure "build with a missing WebUI bundle" \
+harness::register_failure "build with a missing WebUI bundle" \
     run_build_missing_webui_bundle \
     "Required WebUI bundle missing" "webui/settings/dist" "would render blank"
-register_failure "build with missing ad blocker filter lists" \
+harness::register_failure "build with missing ad blocker filter lists" \
     run_build_missing_adblock_resources \
     "ad blocker filter lists"
-register_failure "build against a checkout off the locked revision" \
-    run_build_off_locked_revision \
-    "chromium is at the wrong commit" "$ABSENT_COMMIT"
 
-# The obvious fragment — "does not correspond to the lock" — is deliberately
-# NOT used here. generate-provenance.sh emits its refusal from a python3
-# heredoc, so when that program exits non-zero the ERR trap echoes the failing
-# command, and the failing command is the program TEXT, which contains the
-# refusal sentence as a string literal. The fragment therefore matches on any
-# non-zero exit of that block, including a python crash that never reached the
-# check. Only the runtime-formatted lines below distinguish the intended
-# refusal from an unrelated failure.
-register_failure "provenance --require-match against a drifted revision" \
-    run_provenance_drifted_revision \
-    "DRIFT chromium: locked $SYNC_CHROMIUM_TIP, on disk $SYNC_CHROMIUM_OLD" \
-    "command failed (exit 1)"
-register_failure "provenance --require-match against a dirty worktree" \
-    run_provenance_dirty_worktree \
-    "DIRTY chromium has uncommitted changes" "command failed (exit 1)"
-
-register_failure "baseline smoke run with no browser binary" \
+harness::register_failure "baseline smoke run with no browser binary" \
     run_smoke_without_binary \
     "Browser binary not found" "will not emit an empty or placeholder report"
-register_failure "baseline network capture with no browser binary" \
+harness::register_failure "baseline network capture with no browser binary" \
     run_capture_without_binary \
     "Browser binary not found" "will not write a trace it did not record"
 
 # ==========================================================================
-# Vacuity floor
-#
-# A truncated table, a mis-registered row or a broken loop would otherwise
-# report a green case having asserted almost nothing.
-# ==========================================================================
-
-MINIMUM_ROWS=18
-
-HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 2))
-if [ "${#CASE_DESC[@]}" -lt "$MINIMUM_ROWS" ]; then
-    harness::fail "table has ${#CASE_DESC[@]} row(s), below the floor of $MINIMUM_ROWS"
-fi
-if [ "${#CASE_RUN[@]}" != "${#CASE_DESC[@]}" ] || [ "${#CASE_NEEDLES[@]}" != "${#CASE_DESC[@]}" ]; then
-    harness::fail "table arrays disagree: ${#CASE_DESC[@]} descriptions, ${#CASE_RUN[@]} runners, ${#CASE_NEEDLES[@]} needle sets"
-fi
-
-# ==========================================================================
 # Property 1: every required failure exits non-zero, and says why
+#
+# The floor is this case's own: 17 rows are registered above, and a truncated
+# table, a mis-registered row or a broken loop would otherwise report a green
+# case having asserted almost nothing.
 # ==========================================================================
 
-printf 'Required failure modes under test: %s\n' "${#CASE_DESC[@]}"
-
-for index in "${!CASE_DESC[@]}"; do
-    description="${CASE_DESC[$index]}"
-    harness::run "${CASE_RUN[$index]}"
-    harness::assert_nonzero_status "$description"
-    while IFS= read -r needle; do
-        [ -n "$needle" ] || continue
-        harness::assert_output_contains "$needle" "$description"
-    done <<< "${CASE_NEEDLES[$index]}"
-done
+harness::run_failure_table 17
 
 # ==========================================================================
 # Property 2: the modified-tree summary is visible in the logs
@@ -776,7 +457,7 @@ harness::assert_output_contains "=== end summary ===" "the summary is closed"
 
 order_root="$tmp/build-order-root"
 order_chromium="$tmp/build-order-chromium"
-make_build_root "$order_root" "$order_chromium"
+harness::make_build_root "$order_root" "$order_chromium"
 
 harness::run env ASTRO_CHROMIUM_SRC="$order_chromium" ASTRO_SKIP_LOCK_VERIFY=1 \
     "$order_root/tools/build.sh" Release linux --dry-run
