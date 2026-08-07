@@ -1,0 +1,10 @@
+# The bottom layer of //astro: constants and types with no dependency on
+# Chromium's browser-side API. common/DEPS subtracts `chrome` and
+# `content/public/browser` so this layer cannot acquire one by accident.
+
+source_set("url_constants") {
+  # Header-only, but still listed: a header in no target is not attributable
+  # for `gn check`, which is why upstream lists url_constants.h in
+  # content/public/common/BUILD.gn:224 despite there being no .cc beside it.
+  sources = [ "url_constants.h" ]
+}

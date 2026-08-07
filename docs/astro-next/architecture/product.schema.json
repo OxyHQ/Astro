@@ -1,0 +1,466 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/OxyHQ/Astro/docs/astro-next/architecture/product.schema.json",
+  "title": "Astro product manifest",
+  "description": "Declares every value that makes a build call itself Astro: the names a person sees, the identifiers an operating system registers, and the identity constants compiled into the binaries. Everything downstream of it is GENERATED. Nothing may hand-edit a generated product constant, and nothing may hold a second copy of a value declared here.\n\nDesigned to be validated by the JSON Schema subset already implemented in tools/lib/lock.py, which treats an unimplemented keyword as a hard error rather than skipping it. Only keywords that validator supports are used, so the contract is enforced from the day it lands rather than from the day a second validator is written.\n\nThe schema cannot express every rule. Cross-field and release-safety rules are listed exhaustively in product-manifest.md under 'Rules the schema cannot express' and belong to the validator; a rule that is in neither place is not enforced.",
+  "type": "object",
+  "required": [
+    "manifest_version",
+    "product",
+    "company",
+    "urls",
+    "schemes",
+    "version",
+    "user_agent",
+    "channels",
+    "platforms"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Relative path to this schema, for editor tooling."
+    },
+
+    "manifest_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Format version. Bump when the shape changes incompatibly, so an old generator refuses a new manifest instead of emitting half-correct constants."
+    },
+
+    "product": {
+      "type": "object",
+      "description": "The product's own names. These reach Chromium through a generated BRANDING file, which is read by //build/util/branding.gni and by base/version_info's process_version target — so a change here reaches the macOS bundle name, the macOS helper and framework names, the Windows PE ProductName, and version_info::GetProductName() at once.",
+      "required": ["short_name", "full_name", "installer_short_name", "installer_full_name", "copyright"],
+      "additionalProperties": false,
+      "properties": {
+        "short_name": {
+          "$ref": "#/$defs/displayName",
+          "description": "BRANDING PRODUCT_SHORTNAME. Appears where space is tight."
+        },
+        "full_name": {
+          "$ref": "#/$defs/displayName",
+          "description": "BRANDING PRODUCT_FULLNAME. This is the single highest-blast-radius string in the manifest: chrome/BUILD.gn:502 makes it the macOS .app name, chrome/BUILD.gn:451-452 make it the Helper and Framework bundle names, and base/version_info/version_info_values.h.version makes it version_info::GetProductName(), which components/embedder_support/user_agent_utils.cc:167 would put in Sec-CH-UA if branding were ever switched on. It is a product name, not a marketing sentence."
+        },
+        "installer_short_name": {
+          "$ref": "#/$defs/displayName",
+          "description": "BRANDING PRODUCT_INSTALLER_SHORTNAME."
+        },
+        "installer_full_name": {
+          "$ref": "#/$defs/displayName",
+          "description": "BRANDING PRODUCT_INSTALLER_FULLNAME. Becomes the Windows installer's PE ProductName."
+        },
+        "copyright": {
+          "type": "string",
+          "pattern": "^.*@LASTCHANGE_YEAR@.*$",
+          "description": "BRANDING COPYRIGHT. Must contain the literal @LASTCHANGE_YEAR@ token: build/util/version.py substitutes it from the source's last-change date, so a hardcoded year silently ages into a wrong copyright notice on every future build."
+        }
+      }
+    },
+
+    "company": {
+      "type": "object",
+      "description": "BRANDING COMPANY_SHORTNAME and COMPANY_FULLNAME. Reaches the Windows PE CompanyName and CompanyShortName fields, and (when non-empty) the Windows install path and uninstall registry key via install_static::kCompanyPathName.",
+      "required": ["short_name", "full_name"],
+      "additionalProperties": false,
+      "properties": {
+        "short_name": { "$ref": "#/$defs/displayName" },
+        "full_name": { "$ref": "#/$defs/displayName" }
+      }
+    },
+
+    "urls": {
+      "type": "object",
+      "description": "Product identity URLs. These are the addresses the product points a person at; they are not the service endpoints the browser talks to on its own, which belong to the network manifest in issue #10.",
+      "required": ["company", "product", "support", "privacy", "bug_tracker"],
+      "additionalProperties": false,
+      "properties": {
+        "company": { "$ref": "#/$defs/httpsUrl" },
+        "product": { "$ref": "#/$defs/httpsUrl" },
+        "support": { "$ref": "#/$defs/httpsUrl" },
+        "privacy": { "$ref": "#/$defs/httpsUrl" },
+        "bug_tracker": { "$ref": "#/$defs/httpsUrl" }
+      }
+    },
+
+    "schemes": {
+      "type": "object",
+      "description": "The two internal URL schemes, which are SEPARATE security principals rather than one scheme and a variant of it. Each is registered in its own right (content/common/url_schemes.cc:70-71 registers Chromium's two with two independent AddStandardScheme calls), each yields its own origins, its own site URLs and its own process locks, and neither inherits anything from the other. Declared here and generated into //astro/common/url_constants.h so that issue #11's registration code has exactly one place to read them from and no source file spells a scheme name as a literal.",
+      "required": ["trusted", "untrusted"],
+      "additionalProperties": false,
+      "properties": {
+        "trusted": {
+          "type": "string",
+          "const": "astro",
+          "description": "The privileged scheme. Pages served under it may be granted WebUI bindings. Pinned with const, not a pattern, for the same reason user_agent's policy fields are: this is not a per-build knob. Every registered origin, every WebUI config key and every process lock is derived from this string, so changing it must cost a schema edit and a review rather than a manifest edit. The value is lowercase ASCII because a scheme is compared case-insensitively but written lowercase throughout Chromium, and a capitalised declaration would produce constants that never match a parsed URL."
+        },
+        "untrusted": {
+          "type": "string",
+          "const": "astro-untrusted",
+          "description": "The scheme for pages that must NEVER receive WebUI bindings, whatever their host. It is a distinct principal from schemes.trusted, not a mode of it: sharing the same textual stem is a readability convention borrowed from Chromium's own chrome/chrome-untrusted pair and carries no relationship the URL, origin or process-model code can observe. Pinned with const for the same reason as schemes.trusted."
+        }
+      }
+    },
+
+    "version": {
+      "type": "object",
+      "description": "How Astro's version relates to Chromium's. See product-manifest.md 'Version and channel model' for why the four-part version stays upstream's.",
+      "required": ["four_part_source", "release"],
+      "additionalProperties": false,
+      "properties": {
+        "four_part_source": {
+          "type": "string",
+          "const": "chromium",
+          "description": "The four-part version reaching every binary, installer, update manifest and crash-symbol record is Chromium's own, read from //chrome/VERSION. Declared as a constant rather than assumed, so that changing the policy is a manifest edit somebody has to review rather than a silent divergence."
+        },
+        "release": {
+          "type": "integer",
+          "description": "Astro's respin counter for one Chromium version. Reaches the Linux package release field, the artifact filename and the version surface. It is metadata, NOT an ordering key on Windows or macOS, where the updater compares four-part versions only."
+        },
+        "release_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional human label for the respin, e.g. a codename. Display only."
+        }
+      }
+    },
+
+    "user_agent": {
+      "type": "object",
+      "description": "The User-Agent decision, declared so it is asserted rather than assumed. Both flags are const false: issue #9 forbids appending a product token for branding, and the measured default already satisfies that.",
+      "required": ["expose_product_token", "expose_brand_in_client_hints", "decision_record"],
+      "additionalProperties": false,
+      "properties": {
+        "expose_product_token": {
+          "type": "boolean",
+          "const": false,
+          "description": "Whether the UA string carries an Astro token. Fixed false. Chromium's product token stays Chrome/<version>; adding one is a fingerprinting surface and a web-compatibility risk with no compensating benefit."
+        },
+        "expose_brand_in_client_hints": {
+          "type": "boolean",
+          "const": false,
+          "description": "Whether Sec-CH-UA carries an Astro brand entry. Fixed false. components/embedder_support/user_agent_utils.cc:166-168 adds version_info::GetProductName() to the brand list only when !CHROMIUM_BRANDING; build/BUILD.gn:26-31 sets CHROMIUM_BRANDING=true whenever is_chrome_branded is false, which is Astro's configuration. The field exists so a test can assert the negative and so flipping is_chrome_branded cannot quietly change a fingerprinting surface as a side effect of branding."
+        },
+        "decision_record": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the decision record explaining the policy. Required: a security-relevant constant with no recorded reason gets reversed by whoever meets it next."
+        }
+      }
+    },
+
+    "channels": {
+      "type": "object",
+      "description": "Release channels. Only channels that actually ship may appear: an identifier declared for a channel nobody builds is an invented fact, and its GUIDs would be reserved against nothing.",
+      "required": ["stable"],
+      "additionalProperties": false,
+      "propertyNames": { "pattern": "^(stable|beta|dev|canary)$" },
+      "properties": {
+        "stable": { "$ref": "#/$defs/channel" },
+        "beta": { "$ref": "#/$defs/channel" },
+        "dev": { "$ref": "#/$defs/channel" },
+        "canary": { "$ref": "#/$defs/channel" }
+      }
+    },
+
+    "platforms": {
+      "type": "object",
+      "description": "Per-platform public identity. Only values upstream cannot derive are stored; anything Chromium already computes from another declared value is generated, never declared twice.",
+      "required": ["linux", "windows", "macos", "android"],
+      "additionalProperties": false,
+      "properties": {
+        "linux": { "$ref": "#/$defs/linuxPlatform" },
+        "windows": { "$ref": "#/$defs/windowsPlatform" },
+        "macos": { "$ref": "#/$defs/macosPlatform" },
+        "android": { "$ref": "#/$defs/androidPlatform" }
+      }
+    }
+  },
+
+  "$defs": {
+    "displayName": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9 ]{0,31}$",
+      "description": "A name a person reads. ASCII letters, digits and interior spaces only, at most 32 characters. The restriction is not cosmetic: this string becomes a macOS bundle name, a Windows registry key component and a filesystem path component, and punctuation that is legal in one of those is not legal in the others."
+    },
+
+    "httpsUrl": {
+      "type": "string",
+      "pattern": "^https://[a-z0-9.-]+(/[^\\s]*)?$",
+      "description": "https only, lowercase host. A product URL that a release build can be made to point at localhost or plain http is the exact failure the release-safety rules exist to prevent, and the scheme is the cheapest place to stop it."
+    },
+
+    "identifier": {
+      "type": "object",
+      "description": "A stable identifier that must be minted once and never regenerated: a GUID, a CLSID, an AppContainer SID prefix, an Apple Team ID. Modelled on browser.lock.schema.json's thirdPartyEntry so an unminted identifier is DECLARED and greppable rather than absent and invisible. A build-time-generated GUID would change every build and orphan every registration it ever wrote, so the generator never invents one.",
+      "required": ["declared"],
+      "additionalProperties": false,
+      "properties": {
+        "declared": {
+          "type": "boolean",
+          "description": "true when a real value has been minted and recorded below."
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The minted value. Required when declared is true."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required when declared is false: why it has not been minted yet, and what would change that."
+        },
+        "issue": {
+          "type": "integer",
+          "description": "The issue that will mint it."
+        }
+      }
+    },
+
+    "channel": {
+      "type": "object",
+      "description": "One release channel's cross-platform identity. Per-platform, per-channel identifiers live under platforms.<os>.channels.<channel> so that the platform-specific shape stays next to the platform that defines it.",
+      "required": ["display_suffix", "is_release"],
+      "additionalProperties": false,
+      "properties": {
+        "display_suffix": {
+          "type": "string",
+          "pattern": "^( [A-Z][A-Za-z]{1,15})?$",
+          "description": "Appended to the product name for this channel, e.g. ' Beta'. Empty for stable. Leading space included deliberately, so concatenation is the whole rule and no generator has to decide about spacing."
+        },
+        "is_release": {
+          "type": "boolean",
+          "description": "Whether builds on this channel are shipped to people. Release-safety rules — no localhost, no plain http, no undeclared identifier — are enforced for every channel where this is true."
+        }
+      }
+    },
+
+    "linuxPlatform": {
+      "type": "object",
+      "description": "Linux identity. Generated into the .info file Chromium's own packager reads (chrome/installer/linux/common/installer.py:387-389 selects it, :447 reads PROGNAME, :794 derives the .desktop basename from PACKAGE), and consumed by Astro's packagers so both agree by construction.",
+      "required": [
+        "package", "program_name", "command_name", "install_dir",
+        "desktop_id", "menu_name", "short_description", "full_description",
+        "maintainer_name", "maintainer_email", "developer_name",
+        "project_license", "enrollment_dir", "mime_types"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "package": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,31}$",
+          "description": "Debian/RPM package name. Also determines the .desktop basename, the AppStream filename and the /usr/bin symlink upstream generates, so those are NOT declared separately."
+        },
+        "program_name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,31}$",
+          "description": "PROGNAME: the browser binary's filename inside install_dir. This is the executable a person's process list shows."
+        },
+        "command_name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,31}$",
+          "description": "The name under /usr/bin that a person types. May differ from package (upstream's own symlink is package-derived and channel-suffixed); declared because it is the command-line identity of the product."
+        },
+        "install_dir": {
+          "type": "string",
+          "pattern": "^/opt/[a-z0-9][a-z0-9._/-]*[a-z0-9]$",
+          "description": "INSTALLDIR. Vendor-scoped under /opt, matching Chromium's own /opt/chromium.org/chromium and Google's /opt/google/chrome."
+        },
+        "desktop_id": {
+          "type": "string",
+          "pattern": "^[a-z]{2,}(\\.[A-Za-z][A-Za-z0-9]*){2,}$",
+          "description": "RDN: the reverse-DNS application id used by AppStream metainfo and by the desktop entry."
+        },
+        "menu_name": { "$ref": "#/$defs/displayName" },
+        "short_description": { "type": "string", "minLength": 1 },
+        "full_description": { "type": "string", "minLength": 1 },
+        "maintainer_name": { "type": "string", "minLength": 1 },
+        "maintainer_email": {
+          "type": "string",
+          "pattern": "^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$"
+        },
+        "developer_name": { "type": "string", "minLength": 1 },
+        "project_license": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SPDX expression for the package metadata. Must continue to name Chromium's upstream licences; Astro adds to them, it does not replace them."
+        },
+        "enrollment_dir": {
+          "type": "string",
+          "pattern": "^/etc/[a-z0-9][a-z0-9._/-]*[a-z0-9]$"
+        },
+        "mime_types": {
+          "type": "array",
+          "description": "MimeType entries for the desktop file. Declares the web content types and the http/https scheme handlers a browser must claim to be selectable as the default.\n\nIt must NOT declare an x-scheme-handler entry for schemes.trusted or schemes.untrusted — that would hand a privileged internal scheme to any web page that emits a link, which is the boundary issue #11 exists to defend. The one external protocol Astro may register is platforms.windows.direct_launch_url_scheme, and upstream generates its handler entry itself (chrome/browser/shell_integration_linux.cc:382-388). The validator rejects a collision.",
+          "items": { "type": "string", "pattern": "^[a-z0-9.+-]+/[a-zA-Z0-9.+*-]+$" }
+        }
+      }
+    },
+
+    "windowsPlatform": {
+      "type": "object",
+      "description": "Windows identity. The per-channel block is a one-to-one image of install_static::InstallConstants (chrome/install_static/install_constants.h, instantiated for Chromium in chromium_install_modes.h:36-108), so a reader can check the generated file against upstream's struct field by field.",
+      "required": [
+        "executable", "internal_name", "product_path_name", "company_path_name",
+        "safe_browsing_name", "channels"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "executable": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{1,31}\\.exe$",
+          "description": "The public executable filename. Lowercase, matching every shipping Windows browser (chrome.exe, msedge.exe, firefox.exe, brave.exe) and matching the Linux command name, so one spelling works in scripts on both. Reaches the build output name and the generated ORIGINAL_FILENAME in the PE version resource, which chrome/app/chrome_exe.ver supplies upstream."
+        },
+        "internal_name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{1,31}$",
+          "description": "PE InternalName, upstream chrome_exe. Conventionally the executable name with the extension replaced by an underscore-joined suffix."
+        },
+        "product_path_name": {
+          "$ref": "#/$defs/displayName",
+          "description": "install_static::kProductPathName. One string decides four OS-facing surfaces at once: the install directory under Program Files, %LOCALAPPDATA%\\<name>\\User Data, the uninstall registry key (chrome/install_static/install_util.cc:336-344), and the policy key SOFTWARE\\Policies\\<name> (install_util.cc:526). Written the way a person should see it in a path."
+        },
+        "company_path_name": {
+          "type": "string",
+          "pattern": "^([A-Za-z][A-Za-z0-9 ]{0,31})?$",
+          "description": "install_static::kCompanyPathName. Empty means no company component in the install path or uninstall key, which is upstream Chromium's choice. Non-empty inserts '<company> ' before the product component everywhere the product component appears."
+        },
+        "safe_browsing_name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{1,31}$",
+          "description": "install_static::kSafeBrowsingName. Kept declared even while Safe Browsing is disabled, because the constant is compiled in regardless and an unreviewed value would be the one that leaks if it were ever enabled."
+        },
+        "channels": {
+          "type": "object",
+          "additionalProperties": false,
+          "propertyNames": { "pattern": "^(stable|beta|dev|canary)$" },
+          "properties": {
+            "stable": { "$ref": "#/$defs/windowsChannel" },
+            "beta": { "$ref": "#/$defs/windowsChannel" },
+            "dev": { "$ref": "#/$defs/windowsChannel" },
+            "canary": { "$ref": "#/$defs/windowsChannel" }
+          }
+        }
+      }
+    },
+
+    "windowsChannel": {
+      "type": "object",
+      "description": "One entry of the generated kInstallModes array.",
+      "required": [
+        "install_switch", "install_suffix", "logo_suffix",
+        "base_app_name", "base_app_id",
+        "browser_prog_id_prefix", "browser_prog_id_description",
+        "pdf_prog_id_prefix", "pdf_prog_id_description",
+        "direct_launch_url_scheme",
+        "app_guid", "active_setup_guid", "legacy_command_execute_clsid",
+        "toast_activator_clsid", "elevator_clsid", "elevator_iid",
+        "tracing_service_clsid", "tracing_service_iid",
+        "sandbox_sid_prefix",
+        "supports_system_level", "supports_set_as_default_browser"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "install_switch": {
+          "type": "string",
+          "pattern": "^[a-z-]*$",
+          "description": "Setup's switch selecting this mode. Empty for the primary mode."
+        },
+        "install_suffix": {
+          "type": "string",
+          "pattern": "^( [A-Z][A-Za-z]{1,15})?$",
+          "description": "Appended to every install path and registry key for this mode. Empty for the primary mode. This is what keeps a beta install from overwriting a stable one."
+        },
+        "logo_suffix": {
+          "type": "string",
+          "pattern": "^([A-Z][A-Za-z]{1,15})?$",
+          "description": "Suffix on the branded logo resources for this mode."
+        },
+        "base_app_name": {
+          "$ref": "#/$defs/displayName",
+          "description": "The name Windows shows for the application, including in the default-browser chooser."
+        },
+        "base_app_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9.]{1,63}$",
+          "description": "AppUserModelID base. Decides taskbar grouping, jump lists and toast attribution. No spaces: Windows treats an AppUserModelID as an opaque token and a space in one is a long-standing source of broken pinning."
+        },
+        "browser_prog_id_prefix": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9]{1,31}$",
+          "description": "ProgID prefix for HTML association, upstream ChromiumHTM. This is the string default-browser registration is built from, so it must not remain Chromium's: two Chromium forks that both kept it fight over the same association."
+        },
+        "browser_prog_id_description": { "type": "string", "minLength": 1 },
+        "pdf_prog_id_prefix": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9]{1,31}$"
+        },
+        "pdf_prog_id_description": { "type": "string", "minLength": 1 },
+        "direct_launch_url_scheme": {
+          "type": "string",
+          "pattern": "^([a-z][a-z0-9-]{1,31})?$",
+          "description": "install_static's direct-launch scheme: an OS-registered EXTERNAL protocol handler, which on Linux becomes an x-scheme-handler/<scheme> MIME entry (chrome/browser/shell_integration_linux.cc:382-388). It is NOT schemes.trusted, and must never equal it: schemes.trusted is a privileged internal scheme that no web page may reach, while this one is reachable by any page that emits a link. Upstream keeps them different strings on purpose — the internal scheme is chrome:// while this is 'chromium' (shell_integration_linux.cc:927) or 'google-chrome' (:924) — and restricts it further for stated security reasons: empty on every non-stable channel and every secondary install mode (:912-922, chrome/browser/shell_integration_win_unittest.cc:399-408).\n\nEmpty means no external protocol is registered at all, which is the default until somebody decides Astro wants one. A non-empty value colliding with either declared internal scheme is rejected by the validator."
+        },
+        "app_guid": {
+          "type": "string",
+          "pattern": "^(\\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\\})?$",
+          "description": "Update-service application GUID. Modelled as a plain string rather than an identifier because the empty string is a legitimate, deliberate value: it means no update-service integration, which is upstream Chromium's own choice (chromium_install_modes.h:46-47). Empty here is a decision, not an omission, and the release check does not flag it."
+        },
+        "active_setup_guid": { "$ref": "#/$defs/identifier" },
+        "legacy_command_execute_clsid": { "$ref": "#/$defs/identifier" },
+        "toast_activator_clsid": { "$ref": "#/$defs/identifier" },
+        "elevator_clsid": { "$ref": "#/$defs/identifier" },
+        "elevator_iid": { "$ref": "#/$defs/identifier" },
+        "tracing_service_clsid": { "$ref": "#/$defs/identifier" },
+        "tracing_service_iid": { "$ref": "#/$defs/identifier" },
+        "sandbox_sid_prefix": {
+          "$ref": "#/$defs/identifier",
+          "description": "AppContainer SID prefix for the sandbox. Must be unique to the product: sharing Chromium's means sharing AppContainer profiles with every other fork that also failed to change it."
+        },
+        "supports_system_level": { "type": "boolean" },
+        "supports_set_as_default_browser": { "type": "boolean" }
+      }
+    },
+
+    "macosPlatform": {
+      "type": "object",
+      "description": "macOS identity. Deliberately small: the .app name, the main executable name, the Helper bundle names and the Framework name are all derived by Chromium from product.full_name (chrome/BUILD.gn:451-452, :502), so declaring them here would create the second copy this manifest exists to abolish.",
+      "required": ["bundle_id", "creator_code", "team_id"],
+      "additionalProperties": false,
+      "properties": {
+        "bundle_id": {
+          "type": "string",
+          "pattern": "^[a-z]{2,}(\\.[A-Za-z][A-Za-z0-9-]*){2,}$",
+          "description": "BRANDING MAC_BUNDLE_ID. Helper and framework bundle identifiers are suffixed from it by upstream and are not declared separately."
+        },
+        "creator_code": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]{4}$",
+          "description": "BRANDING MAC_CREATOR_CODE. A vestigial four-character OSType that macOS no longer consults for behaviour, but which Chromium still requires to be present and four characters long."
+        },
+        "team_id": {
+          "$ref": "#/$defs/identifier",
+          "description": "BRANDING MAC_TEAM_ID: the Apple Developer Team ID. Empty upstream. Code signing and notarisation cannot succeed without it, so it is modelled as an identifier that must be declared before a macOS release channel exists rather than as an optional string."
+        }
+      }
+    },
+
+    "androidPlatform": {
+      "type": "object",
+      "description": "Android identity. chrome_public_manifest_package is a GN declare_args (chrome/android/chrome_public_apk_tmpl.gni:22-31), so the application id is set by argument and needs no source change; the same block appends the channel suffix, so per-channel application ids are NOT declared here.",
+      "required": ["application_id", "app_label"],
+      "additionalProperties": false,
+      "properties": {
+        "application_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*){2,}$",
+          "description": "The Play application id, replacing org.chromium.chrome."
+        },
+        "app_label": {
+          "$ref": "#/$defs/displayName",
+          "description": "The launcher label, replacing the Chromium string at chrome/android/java/res_chromium_base/values/channel_constants.xml:10."
+        }
+      }
+    }
+  }
+}
