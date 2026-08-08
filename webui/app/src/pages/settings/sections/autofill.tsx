@@ -10,16 +10,15 @@
 // upstream element, so linking both would be two rows to one screen. It stays
 // routed, so an old link still lands.
 //
-// THE SWITCHES ARE THE WHOLE SECTION, and that is a measured limit rather than
-// a stopping point. Every list this section is about -- addresses, cards,
-// IBANs, identity documents, travel entities -- reaches the browser through
-// `chrome.autofillPrivate`, and there is NO C++ handler behind any of it:
-// `settings_ui.cc` registers `PasswordManagerHandler`, `SavedInfoHandler` and
-// `PasskeysHandler` and nothing else autofill-shaped, and `SavedInfoHandler`
-// only answers counts. The API itself is granted to this host (its `matches`
-// pattern in chrome/common/extensions/api/_api_features.json is
-// `chrome://settings/*`), but this app's browser layer exposes no binding for
-// it, and that layer is not this section's to change.
+// THE SWITCHES ARE THE WHOLE SECTION. Every list this section is about --
+// addresses, cards, IBANs, identity documents, travel entities -- reaches the
+// browser through `chrome.autofillPrivate`, and there is NO C++ handler behind
+// any of it: `settings_ui.cc` registers `PasswordManagerHandler`,
+// `SavedInfoHandler` and `PasskeysHandler` and nothing else autofill-shaped,
+// and `SavedInfoHandler` only answers counts. The lists themselves live on the
+// subpages, which read the typed facade in
+// `src/platform/browser/autofill-private.ts`; this screen stays the switches
+// plus one row per list.
 //
 // Three prefs are rendered and several are not, on one rule: a pref upstream
 // shows unconditionally is here, and a pref upstream shows only when a feature
