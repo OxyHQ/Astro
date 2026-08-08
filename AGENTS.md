@@ -1,6 +1,6 @@
 # Astro — De-Googled Chromium Browser by Oxy
 
-Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 56 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
+Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 57 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
 
 ## Build Commands
 
@@ -154,35 +154,39 @@ do not let a build imply they are resolved:
   applied series: GN now LOADS the overlay, and there is **no dependency
   cycle** through `//chrome/browser/ui` — the cycle this entry used to warn
   about does not exist. Owned by #7.
-- **`gn gen` fails, and the cause is a crate-privilege collision, not
-  anything in `patches/` or the overlay.** The first thing the new build edge
-  does is pull the ad blocker's Rust target into the graph, and that target
-  fails the test-only rule:
+- `gn gen` then failed on a crate-privilege collision — nothing in `patches/`
+  or the overlay — because pulling the ad blocker's Rust target into the graph
+  made it fail the test-only rule. Resolved by
+  `059-itertools-shipping-group.patch`, which reclassifies `itertools` from
+  Chromium's `test` crate group to `safe` in
+  `third_party/rust/chromium_crates_io/gnrt_config.toml`. Measured on
+  2026-08-08 with the patch applied and the crates re-vendored:
+  `Done. Made 29928 targets from 4409 files`, exit 0. Owned by #7.
 
-  ```
-  //chrome/browser/oxy/adblock/rs:adblock_engine_ffi_cxx_generated
-  which is NOT marked testonly can't depend on
-  //third_party/rust/adblock/v0_9:lib which is marked testonly.
-  ```
+  Three things from it are durable and outlive the defect:
 
-  `adblock` 0.9 depends on `itertools`, which Chromium classifies
-  `group = 'test'` in `third_party/rust/chromium_crates_io/gnrt_config.toml`,
-  and gnrt propagates the least privilege of every dependency. Do not try to
-  fix it with `[crate.adblock] group = 'safe'`: a self-declared group replaces
-  only ANCESTORS, and the final privilege is the minimum of that and every
-  dependency, so the crate stays test-only. The two real options are
-  reclassifying `itertools` — a Chromium policy edit that puts a crate
-  Chromium has not cleared for shipping into the browser process, so it wants
-  a reviewed patch and an `upstream.allowlist` entry — or patching `adblock`
-  to drop the dependency.
-
-  With that one line temporarily set to `'safe'` and then reverted, the same
-  tree generated `Done. Made 29928 targets from 4409 files`, so this is the
-  only thing between the committed configuration and a full build graph.
+  - **The override cannot go on the consuming crate.** gnrt's privilege is
+    `min(ancestor_privilege, dependency_privilege)` and a group declared on a
+    crate replaces only its ANCESTORS, so `[crate.adblock] group = 'safe'`
+    changes nothing — the classification has to move on the dependency that
+    carries it.
+  - **The edit cannot be epoch-scoped, even though the config syntax offers
+    it.** `fill_allow_unsafe_settings` in `tools/crates/gnrt/vendor.rs` keys
+    its edits on the bare package name, so the next `gnrt vendor` writes a
+    bare `[crate.itertools]` beside any `[crate."itertools@v0_13"]` and
+    `BuildConfig::validate` then rejects the file for mixing the two forms.
+  - **`group` is not an audit verdict.** It records where Chromium itself uses
+    a crate. Moving one to `safe` is nonetheless a claim about its source, so
+    the patch header carries the unsafe audit backing it — do that for the
+    next one too rather than treating the reclassification as clerical.
 - **Nothing fails when a patch stops applying — the whole series applying is
-  a measurement, never an assumption.** All 168 apply today (112 ungoogled +
-  56 Astro, `applied_count: 168`, `failed_count: 0` in
-  `build/reports/patch-report.json`), and
+  a measurement, never an assumption.** All 169 apply today (112 ungoogled +
+  57 Astro). `build/reports/patch-report.json` records
+  `applied_count: 168`, `failed_count: 0` from the last full-series run, which
+  predates `059-itertools-shipping-group.patch`; 059 was measured on its own
+  against the pristine file with the same acceptance test, and it is the only
+  patch in either series naming `gnrt_config.toml`, so nothing before it in
+  declared order can change its input. Also,
   `docs/astro-next/policy/endpoints.json` declares the non-applying list
   EMPTY, with the replay that emptied it and the three waves of repairs
   written up there. Read it there rather than here; what belongs here is the
@@ -303,7 +307,7 @@ absorbs them; do not start a fourth one beside them.
 
 ```
 patches/ungoogled/   # 112 inherited de-Google patches
-patches/astro/       # 56 Astro-specific patches (numbered 001-058; 007 and 035 were
+patches/astro/       # 57 Astro-specific patches (numbered 001-059; 007 and 035 were
                      #   removed as empty files, so two numbers are unused)
 gn_args/             # GN build args per platform (linux.gn, android.gn, macos.gn, windows.gn, etc.)
 branding/            # Logos, icons, astro.conf, .desktop file

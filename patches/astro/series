@@ -64,3 +64,4 @@
 056-ntp-redirect-to-astro.patch
 057-oxy-webui-build-edge.patch
 058-alia-webui-register.patch
+059-itertools-shipping-group.patch

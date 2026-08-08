@@ -244,7 +244,7 @@ references, 39 appear only on removed lines or diff headers.
 A diff side says what the patch *does*, not whether it *applies*, and for most of
 this project's life those were different answers. **They are now the same one:
 every patch in both declared series applies, in declared order, at the locked
-revision — 112 ungoogled and 56 Astro, 168 of 168.** `non_applying_patches` in
+revision — 112 ungoogled and 57 Astro, 169 of 169.** `non_applying_patches` in
 `endpoints.json` is an empty list, and the comment on it carries the method and
 the history.
 

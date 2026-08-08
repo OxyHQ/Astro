@@ -23,7 +23,7 @@
       "type": "object",
       "description": [
         "Astro patches that do not apply to the locked Chromium revision, so a host their text",
-        "ADDS is in no tree today. The list is currently EMPTY: all 168 patches in both declared",
+        "ADDS is in no tree today. The list is currently EMPTY: all 169 patches in both declared",
         "series apply, in declared order. See the comment on the list itself in endpoints.json",
         "for the measurement and how it emptied.",
         "Measuring apply status needs a Chromium checkout and a patch run; this module",

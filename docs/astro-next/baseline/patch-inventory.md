@@ -10,7 +10,7 @@ Dispositions live in `patch-dispositions.json` and are joined in strictly:
 a patch with no disposition, or a disposition for a patch that no longer
 exists, fails generation. This inventory therefore cannot silently rot.
 
-## `patches/astro` — 56 patches
+## `patches/astro` — 57 patches
 
 | # | Patch | Files | Hunks | Disposition | Purpose |
 |---|---|---|---|---|---|
@@ -70,6 +70,7 @@ exists, fails generation. This inventory therefore cannot silently rot.
 | 54 | `056-ntp-redirect-to-astro.patch` | `chrome/browser/search/search.cc` | 3 | **replace** | Redirects chrome://newtab to the Astro NTP. |
 | 55 | `057-oxy-webui-build-edge.patch` | `chrome/browser/ui/webui/BUILD.gn` | 1 | **replace** | Makes //chrome/browser/ui/webui:configs depend on the overlay's two WebUI targets. Without this edge nothing in the build graph reaches chrome/browser/oxy, so the whole overlay compiles to zero objects and the configs the registration patches name do not link. |
 | 56 | `058-alia-webui-register.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 2 | **replace** | Registers AstroAliaUIConfig. The Alia side panel loads chrome://alia into a WebView, so without the registration the panel renders an error page. |
+| 57 | `059-itertools-shipping-group.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml` | 1 | **replace** | Moves itertools from Chromium's 'test' crate group to 'safe' in gnrt_config.toml. adblock 0.9 depends on it, and a testonly crate cannot be linked into the browser-process ad blocker, so without this gn gen fails outright. The content is a security classification rather than code: 'test' records that Chromium itself only used the crate in tests, not an audit verdict, and the patch header carries the unsafe audit that backs the new claim. The requirement outlives any integration model while Astro ships adblock; patching an upstream file to state it does not. |
 
 ### Overlapping patches (3)
 

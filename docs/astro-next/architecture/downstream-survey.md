@@ -12,7 +12,7 @@ The headline finding is worth stating before the detail, because it contradicts
 the premise the current Astro architecture was built on. `AGENTS.md` describes the
 overlay as "following the Brave-style approach". Brave carries **952 files in
 `brave-core/patches/`** *in addition to* its `chromium_src` override tree. Astro
-carries 168 (112 ungoogled + 56 Astro). **Copying Brave is not a route to a
+carries 169 (112 ungoogled + 57 Astro). **Copying Brave is not a route to a
 smaller delta.** What is worth copying from Brave is one specific technique, and
 it is not `chromium_src`.
 

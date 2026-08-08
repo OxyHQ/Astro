@@ -20,7 +20,7 @@
   "non_applying_patches": {
     "_comment": [
       "THE LIST IS EMPTY. Every patch in both declared series applies, in declared order,",
-      "at the locked Chromium revision: 112 ungoogled and 56 Astro, 168 of 168. No host a",
+      "at the locked Chromium revision: 112 ungoogled and 57 Astro, 169 of 169. No host a",
       "patch ADDS is missing from a patched tree for want of the patch applying, and no",
       "entry below may cite a non-applying patch as the reason for its observed_state.",
       "",
@@ -34,6 +34,11 @@
       "cannot read them; those paths are resolved from the SUBREPO's own git at exactly",
       "the commit the gitlink records -- pristine by construction, and unaffected by the",
       "edits an earlier apply run left in the subrepo working trees.",
+      "",
+      "059 is the 169th and was measured the same way rather than assumed: it is the only",
+      "patch in either series naming third_party/rust/chromium_crates_io/gnrt_config.toml,",
+      "so its declared-order position cannot change its input, and git apply --check",
+      "against the pristine file exits 0.",
       "",
       "How the list emptied, in three waves, all of them the same defect:",
       "",

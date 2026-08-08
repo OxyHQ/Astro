@@ -286,7 +286,7 @@ headers.
 - It does not solve the problem #7 actually has. `-iquote` shadowing cannot alter
   a `BUILD.gn`, so the build-graph hook still needs H1 or a patch. Brave proves
   this: it carries **952 files in `brave-core/patches/`** *alongside*
-  `chromium_src`. Astro today carries 168 (112 ungoogled + 56 Astro). Adopting
+  `chromium_src`. Astro today carries 169 (112 ungoogled + 57 Astro). Adopting
   Brave's model wholesale is not a route to a smaller delta.
 - It makes a header's meaning depend on the compiler wrapper, which makes
   `gn check`, `clangd`, `compile_commands.json` and stack traces all subtly wrong

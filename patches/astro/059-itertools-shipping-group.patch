@@ -1,0 +1,140 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Sat, 8 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Classify itertools as shippable, because Astro ships it
+
+Astro links Brave's `adblock` engine into the browser process, and adblock
+0.9.8 depends on `itertools`. Chromium declares `group = 'test'` for itertools
+in `gnrt_config.toml`, so gnrt writes `testonly = true` into the generated
+`//third_party/rust/itertools/v0_13:lib`, privilege flows down to
+`//third_party/rust/adblock/v0_9:lib`, and
+`//chrome/browser/oxy/adblock/rs:adblock_engine_ffi_cxx_generated`, which is
+not testonly, may not depend on it. That is a hard `gn gen` failure and it is
+the last one between a reset checkout and a complete build graph.
+
+WHY THE OVERRIDE CANNOT GO ON adblock
+
+`find_inherited_privilege_group` (tools/crates/gnrt/lib/inherit.rs) computes
+
+    ancestor_privilege   = fold(ancestor_groups,   Test, max)
+    dependency_privilege = fold(dependency_groups, Safe, min)
+    privilege            = min(ancestor_privilege, dependency_privilege)
+
+and a group declared on the crate itself replaces only the ancestor list. So
+`[crate.adblock] group = 'safe'` raises the side that is already Safe and
+leaves the dependency side at Test. The classification has to move on the
+dependency that carries it, which is itertools.
+
+WHAT 'test' ACTUALLY RECORDS
+
+`gnrt_config.toml` documents `group` as "where the library is allowed to be
+used and where its GN rules will be written" -- a statement about Chromium's
+own usage, not a verdict on the crate. Nothing in the tree records an audit
+rejecting itertools; it reaches the build only through prost-derive, which
+Chromium uses in tests. In the generated rule `testonly` is literally
+`dep.group == Group::Test` (tools/crates/gnrt/lib/gn.rs).
+
+THE AUDIT, BECAUSE 'safe' IS A CLAIM ABOUT SOURCE
+
+itertools 0.13.0 is an iterator-adaptor library, and it is not unsafe-free.
+`grep -rn unsafe third_party/rust/chromium_crates_io/vendor/itertools-v0_13/src`
+returns 5 lines, all in one file, `src/either_or_both.rs`, in three public
+methods of the `EitherOrBoth` enum:
+
+  * `insert_left` (line 393) and `insert_right` (435): a move in place -- a
+    `ptr::read` of the current payload immediately followed by a `ptr::write`
+    of `Both(..)` over `*self`. No user code runs between the two, so there is
+    no panic window in which the payload exists twice.
+  * `insert_left` (405), `insert_right` (446), `insert_both` (461):
+    `hint::unreachable_unchecked()` on the else arm of an `if let Both(..)`
+    re-match, three lines after the code assigns `Both(..)` to `*self`.
+
+No transmutes, no pointer arithmetic, no unchecked indexing, no FFI, no
+`unsafe impl Send`/`Sync`. itertools 0.11.0 carries the same five, unchanged.
+
+Reachability is recorded rather than relied on: adblock names itertools in
+five places -- the `Itertools` trait, `Either`, and `itertools::join` -- and
+never `EitherOrBoth` nor any of the three methods, and nothing else inside
+itertools calls them either, so the generic functions holding every unsafe
+block are never instantiated. 'safe' is still a claim about the whole crate,
+and the audit above is what backs it.
+
+WHY THE EDIT IS NOT EPOCH-SCOPED
+
+Two epochs are vendored: 0.13 for adblock, 0.11 for prost-derive. gnrt does
+support `[crate."itertools@v0_13"]`, and scoping the change that way would
+leave prost-derive exactly as upstream has it. It cannot be used here.
+`fill_allow_unsafe_settings` (tools/crates/gnrt/vendor.rs) keys its edits on
+the bare package name -- with a TODO, crbug.com/419104870, naming that gap --
+so the next `gnrt vendor` writes a bare `[crate.itertools]` beside the
+versioned ones, and `BuildConfig::validate` then rejects the whole file:
+mixing versioned and unversioned config for one crate is an error. The
+unversioned edit is the one the tooling supports.
+
+Its cost, measured rather than reasoned about: exactly one crate moves that
+did not have to. Regenerating the tree with this line changed removes
+`testonly` from three BUILD.gn files -- adblock/v0_9, itertools/v0_13 (both
+intended) and itertools/v0_11 (the collateral) -- and flips
+itertools/v0_11/README.chromium from `Shipped: no` / `Security Critical: no`
+to yes. Nothing else in third_party/rust changes. prost and prost-derive, the
+only consumers of 0.11, are unaffected: they declare `group = 'test'` on
+themselves, so their own classification does not depend on itertools'. No
+target gains a dependency it did not have; what changes is a permission and a
+record.
+
+WHY 'safe' AND NOT 'sandbox'
+
+Both clear the build -- the generated rule marks `testonly` only for
+`Group::Test`. But the sandbox group's visibility restriction is an
+unimplemented TODO in tools/crates/gnrt/lib/gn.rs, so 'sandbox' would be a
+restriction nothing enforces, and a false one besides: AstroAdBlockService is
+a `KeyedService` and the engine runs in the browser process, which is not
+sandboxed. 'safe' is the accurate statement.
+
+WHERE THIS SITS IN THE PIPELINE
+
+Before vendoring, which is the existing order (sync-sources, apply-patches,
+vendor-adblock-rust, sync-overlay, build). gnrt reads `gnrt_config.toml` and
+writes the `BUILD.gn` files that carry the classification, so the line has to
+be in the file before gnrt runs.
+
+MEASURED
+
+Patch applied, `tools/vendor-adblock-rust.sh` re-run so gnrt rewrote the
+generated build files, then from chromium/src with the committed
+gn_args/linux.gn (verified byte-identical to out/GateCheck/args.gn, so the
+configuration is the repository's and not a local edit):
+
+    $ ./buildtools/linux64/gn gen out/GateCheck
+    Done. Made 29928 targets from 4409 files in 3104ms
+    exit 0
+
+Exit 0 is also the no-cycle result: gn reports a dependency cycle as a hard
+error. With `group = 'test'` the same tree fails, which is what out/GateCheck
+held before this patch:
+
+    //chrome/browser/oxy/adblock/rs:adblock_engine_ffi_cxx_generated
+    which is NOT marked testonly can't depend on
+    //third_party/rust/adblock/v0_9:lib which is marked testonly.
+
+The target count is the vacuity floor. A `gn gen` that fails writes no build
+graph at all, and every check downstream of one reads clean against nothing;
+29,928 targets from 4,409 files is the evidence that something was measured.
+
+diff --git a/third_party/rust/chromium_crates_io/gnrt_config.toml b/third_party/rust/chromium_crates_io/gnrt_config.toml
+--- a/third_party/rust/chromium_crates_io/gnrt_config.toml
++++ b/third_party/rust/chromium_crates_io/gnrt_config.toml
+@@ -408,7 +408,12 @@ allow_unsafe = true
+ 
+ [crate.itertools]
+ extra_kv = { allow_unsafe = true }
+-group = 'test'
++# Astro: `adblock` depends on `itertools`, and Astro links the ad-blocking
++# engine into the browser process, so the generated target cannot be testonly.
++# Upstream's 'test' records that Chromium itself only used the crate in tests;
++# it is not an audit verdict against shipping it. The unsafe audit backing this
++# line is in the Astro patch that sets it.
++group = 'safe'
+ 
+ [crate.itoa.extra_kv]
+ allow_unsafe = true

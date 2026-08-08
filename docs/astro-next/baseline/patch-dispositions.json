@@ -454,6 +454,12 @@
       "effect": "user-visible",
       "purpose": "Registers AstroAliaUIConfig. The Alia side panel loads chrome://alia into a WebView, so without the registration the panel renders an error page.",
       "replacement_issue": 17
+    },
+    "059-itertools-shipping-group.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Moves itertools from Chromium's 'test' crate group to 'safe' in gnrt_config.toml. adblock 0.9 depends on it, and a testonly crate cannot be linked into the browser-process ad blocker, so without this gn gen fails outright. The content is a security classification rather than code: 'test' records that Chromium itself only used the crate in tests, not an audit verdict, and the patch header carries the unsafe audit that backs the new claim. The requirement outlives any integration model while Astro ships adblock; patching an upstream file to state it does not.",
+      "replacement_issue": 7
     }
   }
 }
