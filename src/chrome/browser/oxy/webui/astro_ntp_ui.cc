@@ -30,7 +30,11 @@ namespace oxy {
 namespace {
 
 // Returns the path to the astro-ntp resources directory.
-// Resources are located at <exe_dir>/astro-ntp/ alongside the browser binary.
+//
+// This must stay byte-identical to where tools/build.sh stages the bundle, and
+// the page name must be in its REQUIRED_WEBUI_PAGES. When those disagreed the
+// page rendered blank with no error and the build reported success, so treat
+// the path as a contract with the build rather than as a local detail.
 base::FilePath GetNtpResourcesDir() {
   base::FilePath exe_dir;
   base::PathService::Get(base::DIR_EXE, &exe_dir);
