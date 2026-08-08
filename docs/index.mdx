@@ -14,7 +14,7 @@ Astro is a Chromium fork by [Oxy](https://oxy.so) that strips every Google servi
 
 Astro is built on top of [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) (112 inherited patches that remove Google service dependencies) plus 56 Astro-specific patches that add Oxy integrations, branding, and a custom URL scheme. All Astro-only C++ code lives in a self-contained overlay at `src/chrome/browser/oxy/`, following the Brave-style approach of keeping custom source separate from upstream Chromium.
 
-The internal pages (New Tab, Settings, Alia AI, What's New, Error) are not Polymer like in upstream Chrome — they are standalone Vite + Tailwind v4 apps that talk to the browser process through Mojo IPC for type-safe, bidirectional messaging.
+The internal pages Astro owns (New Tab, Alia AI, What's New) are not Polymer like in upstream Chrome — they are standalone Vite + Tailwind v4 apps. Settings and the error page are upstream Chromium's own; Astro deleted its versions of both in `c9c4383`. The next of these surfaces is being consolidated into a single Vite + Tailwind + Bloom application in `webui/app/`.
 
 | Aspect | Astro |
 |--------|-------|
@@ -60,13 +60,13 @@ Custom C++ services that live alongside Chrome's existing services, registered t
 | `OxyAuthTokenStore` | `oxy_auth_token_store.*` | OSCrypt-backed encrypted storage for access + refresh tokens |
 | `OxyAliaSidePanel` | `oxy_alia_side_panel.*` | Registers the Alia AI panel in Chrome's side-panel registry |
 | `AstroAdBlockService` | `adblock/astro_adblock_service.*` | KeyedService that owns the Rust engine, filter list catalog, and updater |
-| Astro WebUI pages | `webui/astro_*_ui.*` | `chrome://settings`, `chrome://astro-ntp`, `chrome://alia`, `chrome://whats-new`, `chrome://astro-error` |
+| Astro WebUI pages | `webui/astro_*_ui.*` | `chrome://astro-ntp`, `chrome://alia`, `chrome://whats-new` |
 
 ### 3. Vite-built WebUI pages, not Polymer
 
-Chrome's stock internal pages use Polymer 3 + Lit + chrome:// resources baked into the binary. Astro replaces the five pages above with standalone Vite + Tailwind v4 apps in `webui/`. The C++ WebUI controllers serve the pre-built `dist/` from disk (or a localhost dev server with hot reload during development).
+Chrome's stock internal pages use Polymer 3 + Lit + chrome:// resources baked into the binary. Astro replaces the three pages above with standalone Vite + Tailwind v4 apps in `webui/`. The C++ WebUI controllers serve the pre-built `dist/` by reading it off disk at request time — which means the assets are in no `.pak` and the page renders blank, silently, if the directory was not staged beside the binary. Fixing that is [issue #14](https://github.com/OxyHQ/Astro/issues/14).
 
-The settings page in particular is wired through a real Mojo interface (`src/chrome/browser/oxy/webui/astro_settings.mojom`) that generates type-safe TS + C++ bindings. `PrefChangeRegistrar` watches Chromium `PrefService` and pushes live updates to the page via `Page::OnPrefChanged()` — opening settings in two tabs keeps both in sync.
+None of them uses Mojo. Astro defines no Mojo interface of its own — no `.mojom` has ever been committed at any revision — so earlier versions of this page describing a typed settings pipeline were describing something that was never built. Only the New Tab page talks to the browser process at all, through a `WebUIMessageHandler` (`chrome.send`); Alia and What's New are static bundles.
 
 ## URL scheme
 
@@ -78,7 +78,8 @@ Astro adds an `astro://` URL scheme that is aliased to `chrome://` (patch `011-a
 | Settings | `chrome://settings` | `astro://settings` |
 | Alia AI | `chrome://alia` | `astro://alia` |
 | What's New | `chrome://whats-new` | `astro://whats-new` |
-| Error page | `chrome://astro-error` | `astro://error` |
+
+The alias covers every WebUI host, Chromium's own included, so `astro://settings` and `astro://whats-new` resolve whether or not Astro registers the page behind them. Today it registers neither: settings is upstream's, and What's New cannot be registered beside upstream's without crashing the browser on a duplicate origin. There is no `astro://error` — that page was deleted in `c9c4383`.
 
 The omnibox, autocomplete, security UI, copy-URL, navigation controller, session restore, web app handling, and protocol handler are all patched to display the `astro://` form (patches `021-030`, `037-043`).
 
@@ -133,5 +134,5 @@ See [Build](./build) for the full workflow, cross-compilation, gotchas, and pack
 ## Documentation map
 
 - [Build](./build) — fetch, sync, apply patches, gn args, incremental builds, cross-compile, packaging, gotchas
-- [Architecture](./architecture) — patch model, overlay layout, Mojo settings pipeline, WebUI controllers, Rust adblock FFI
+- [Architecture](./architecture) — patch model, overlay layout, WebUI controllers, Rust adblock FFI
 - [Oxy integration](./oxy-integration) — how Astro talks to `auth.oxy.so` and `api.oxy.so`, cookie observer flow, Alia, update server
