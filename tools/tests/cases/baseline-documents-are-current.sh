@@ -47,6 +47,80 @@ trap 'plant::restore; harness::teardown' EXIT
 
 harness::assert_file_exists "$GENERATE"
 
+# --- No plant ever reached the commit ----------------------------------------
+#
+# The restore above is a trap, so it survives a failed assertion and an
+# interrupt. It does not survive SIGKILL or a machine going down, and both have
+# happened: markers from this case have been committed three times now. Twice
+# into baseline documents and the overlay controller, deleted in `ba1367e` and
+# `c9c4383`; once into `patches/astro/001-branding-strings.patch`, where two
+# planted hunk headers were swept in by `e564408` and made `git apply` reject
+# the FIRST patch of the series as corrupt. `apply-patches.sh` uses `git apply
+# --check` as its only acceptance test, so the whole patch pipeline stopped at
+# patch one, and nothing said so — the leak is silent in every other check here.
+#
+# The question is asked of GIT, never of disk: this case plants these very
+# strings into the working tree a few lines below, so a filesystem scan would
+# report its own fixtures and could never be left enabled.
+PLANTED_MARKERS=(
+    "planted by the test suite"
+    "AstroWorkingTreeMarker"
+    "astro-worktree-marker.invalid"
+    "astro_worktree_marker"
+    "safe_browsing_mode = 99"
+)
+
+# This file is the one place the markers are allowed to appear, because it is
+# where they are defined.
+MARKER_SOURCE="tools/tests/cases/$(basename "${BASH_SOURCE[0]}")"
+
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if ! git -C "$ASTRO_ROOT" ls-files --error-unmatch "$MARKER_SOURCE" >/dev/null 2>&1; then
+    harness::fail "$MARKER_SOURCE is not tracked, so the scan below excludes a path that
+      does not exist and would miss a marker planted in this file"
+fi
+
+for marker in "${PLANTED_MARKERS[@]}"; do
+    # Vacuity guard: a marker this case no longer plants is a scan looking for
+    # a string nothing can produce. Renaming a plant without renaming its entry
+    # here would leave the gate green and blind, which is the failure shape it
+    # exists to prevent.
+    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+    if [ "$(grep -cF -- "$marker" "${BASH_SOURCE[0]}")" -lt 2 ]; then
+        harness::fail "'$marker' is declared in PLANTED_MARKERS but this case no longer
+      plants it, so scanning for it proves nothing. Delete the entry, or restore
+      the plant it belongs to."
+    fi
+
+    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+    if leaked="$(git -C "$ASTRO_ROOT" grep -n --fixed-strings -- "$marker" HEAD \
+            -- ':!'"$MARKER_SOURCE" 2>/dev/null)"; then
+        harness::fail "content this case plants into the working tree is part of the commit:
+$leaked
+
+      It is a test fixture, never product state. Remove it, and if it landed in
+      a patch, re-check that the patch still applies — a planted hunk header
+      makes \`git apply\` reject the whole file as corrupt."
+    fi
+done
+
+# The detector must fire. Built as a fixture rather than by mutating the
+# repository, because the thing under test is "is this in the commit" and the
+# only honest way to answer it positively is a commit that has it.
+marker_fixture="$tmp/marker-fixture"
+mkdir -p "$marker_fixture"
+harness::setup_run git -C "$marker_fixture" init --quiet
+printf 'planted by the test suite\n' > "$marker_fixture/leaked.txt"
+harness::setup_run git -C "$marker_fixture" add -A
+harness::setup_run git -C "$marker_fixture" -c user.email=t@t -c user.name=t \
+    commit --quiet -m "a commit carrying a plant"
+
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if ! git -C "$marker_fixture" grep -q --fixed-strings -- "planted by the test suite" HEAD; then
+    harness::fail "the marker scan did not find a marker in a commit built to contain one;
+      the scan is broken and its clean result above means nothing"
+fi
+
 # --- The committed documents are current -------------------------------------
 
 harness::run "$GENERATE" --check

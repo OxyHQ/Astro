@@ -14,7 +14,7 @@ exists, fails generation. This inventory therefore cannot silently rot.
 
 | # | Patch | Files | Hunks | Disposition | Purpose |
 |---|---|---|---|---|---|
-| 1 | `001-branding-strings.patch` | `chrome/app/chromium_strings.grd` | 45 | **replace** | Replaces user-facing Chromium strings with Astro in .grd resources. |
+| 1 | `001-branding-strings.patch` | `chrome/app/chromium_strings.grd` | 43 | **replace** | Replaces user-facing Chromium strings with Astro in .grd resources. |
 | 2 | `002-branding-product-name.patch` | `chrome/app/theme/chromium/BRANDING` | 1 | **replace** | Sets the product name in the BRANDING file the build system reads. |
 | 3 | `003-branding-linux-package.patch` | `chrome/installer/linux/common/chromium-browser.info` | 1 | **replace** | Linux package metadata: package name, maintainer, description. |
 | 4 | `004-default-search-duckduckgo.patch` | `components/search_engines/template_url_prepopulate_data.cc` | 1 | **keep** | Makes DuckDuckGo the default search engine and curates the prepopulated list. |
