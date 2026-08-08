@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/webui/BUILD.gn b/chrome/browser/ui/webui/BUILD.gn
+--- a/chrome/browser/ui/webui/BUILD.gn
++++ b/chrome/browser/ui/webui/BUILD.gn
+@@ -46,6 +46,8 @@ source_set("configs") {
+   deps = [
+     ":webui",
+     "//chrome/browser/optimization_guide",
++    "//chrome/browser/oxy/adblock",
++    "//chrome/browser/oxy:webui_controllers",
+     "//chrome/browser/ui",
+     "//chrome/browser/ui/webui/about",
+     "//chrome/browser/ui/webui/accessibility",

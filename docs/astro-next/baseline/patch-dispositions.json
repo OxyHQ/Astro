@@ -442,6 +442,18 @@
       "effect": "user-visible",
       "purpose": "Redirects chrome://newtab to the Astro NTP.",
       "replacement_issue": 22
+    },
+    "057-oxy-webui-build-edge.patch": {
+      "disposition": "replace",
+      "effect": "build-only",
+      "purpose": "Makes //chrome/browser/ui/webui:configs depend on the overlay's two WebUI targets. Without this edge nothing in the build graph reaches chrome/browser/oxy, so the whole overlay compiles to zero objects and the configs the registration patches name do not link.",
+      "replacement_issue": 7
+    },
+    "058-alia-webui-register.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Registers AstroAliaUIConfig. The Alia side panel loads chrome://alia into a WebView, so without the registration the panel renders an error page.",
+      "replacement_issue": 17
     }
   }
 }

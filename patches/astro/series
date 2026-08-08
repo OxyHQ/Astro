@@ -62,3 +62,5 @@
 054-adblock-webui-register.patch
 055-ntp-webui-register.patch
 056-ntp-redirect-to-astro.patch
+057-oxy-webui-build-edge.patch
+058-alia-webui-register.patch
