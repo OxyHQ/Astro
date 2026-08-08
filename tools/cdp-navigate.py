@@ -165,15 +165,26 @@ async def measure(session: Session, url: str, marker: str) -> dict:
         # carrying 2,249 elements. This walks into shadow roots instead, and
         # `rendered_elements` is the number that tells a real page from an error
         # page (34 elements) without depending on any text at all.
+        #
+        # The text a scope contributes is read from a DIFFERENT node than the
+        # one that is searched for shadow hosts, and that is the whole subtlety:
+        # `Document.textContent` is null per the DOM spec, so a walk that read
+        # it collected shadow-root text and NOTHING from the light DOM. On
+        # upstream's own WebUI that is invisible -- it is all shadow DOM -- and
+        # on Astro's Vite + react-native-web pages, which have none, `body_text`
+        # came back empty every time, `body_sha256` was the hash of "" on every
+        # run, and `--marker` could never match. Three separate sessions read
+        # that as a fact about the page. A ShadowRoot is a DocumentFragment and
+        # reads directly; the document has to be read from <body>.
         ("body_text", """(() => {
              let text = '';
-             const walk = (root) => {
-               for (const el of root.querySelectorAll('*'))
-                 if (el.shadowRoot) walk(el.shadowRoot);
-               const t = root.textContent || '';
+             const walk = (scope, textSource) => {
+               for (const el of scope.querySelectorAll('*'))
+                 if (el.shadowRoot) walk(el.shadowRoot, el.shadowRoot);
+               const t = (textSource && textSource.textContent) || '';
                if (t.trim()) text += t.trim() + ' ';
              };
-             walk(document);
+             walk(document, document.body);
              return text.slice(0, 4000);
            })()"""),
         ("rendered_elements", """(() => {

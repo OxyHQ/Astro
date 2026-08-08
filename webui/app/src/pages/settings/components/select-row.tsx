@@ -48,8 +48,18 @@ interface Item {
 }
 
 export function SelectRow({prefKey, label, sublabel, options}: SelectRowProps) {
+  /**
+   * The label for a value, wherever the value came from.
+   *
+   * Compared as strings rather than by identity because the same function is
+   * asked about the value in two shapes: the pref's own (a number, for the
+   * integer enums most of these are) when a policy note reports a recommended
+   * value, and the string Bloom's Select keys its items by when the trigger
+   * asks what is selected. An identity comparison answers the first and misses
+   * the second.
+   */
   const describe = (value: unknown): string => {
-    const match = options.find(option => option.value === value);
+    const match = options.find(option => String(option.value) === String(value));
     return match ? t(match.label) : String(value ?? '');
   };
   const {pref, enforced, note} = usePrefControl(prefKey, describe);
@@ -80,7 +90,14 @@ export function SelectRow({prefKey, label, sublabel, options}: SelectRowProps) {
         <View className="min-w-40">
           <Select value={String(pref.value)} onValueChange={write} disabled={enforced}>
             <SelectTrigger label={t(label)}>
-              <SelectValue placeholder={describe(pref.value)} />
+              {/* The extractor is not optional here, whatever the placeholder
+                  says. Bloom's web fork renders `value ?? placeholder`, so a
+                  trigger without one shows the STORED value -- `16` where the
+                  option reads "Medium", `2` where it reads "Battery Saver" --
+                  and only falls back to the placeholder when nothing is
+                  selected at all. Its native fork extracts a label either way,
+                  so the defect appears on web only. */}
+              <SelectValue placeholder={describe(pref.value)}>{describe}</SelectValue>
               <SelectIcon />
             </SelectTrigger>
             <SelectContent

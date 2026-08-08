@@ -100,11 +100,18 @@ function RailRow({
       <View className="w-5 shrink-0 items-center">
         <Icon size="md" fill={iconColor} />
       </View>
+      {/* The selected row is marked by the pill and the weight, NOT by
+          colouring the label. Bloom's `primary` on its own `primary-subtle`
+          measures 2.72:1 in the dark scheme (4.84:1 in light) for the oxy
+          preset -- below the 4.5:1 WCAG AA floor for body text, so the one row
+          the user is looking at would be the hardest one to read. `foreground`
+          on the same fill is 10.72:1 dark and 13.55:1 light. The icon keeps the
+          accent, which is where the colour cue can afford to live. */}
       <Text
         numberOfLines={1}
         className={
           selected
-            ? 'text-bodyTitleSmall text-primary max-rail:hidden'
+            ? 'text-bodyTitleSmall text-foreground max-rail:hidden'
             : 'text-body text-foreground max-rail:hidden'
         }
       >

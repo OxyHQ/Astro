@@ -7,13 +7,46 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
+import type {MessageId} from '@astro/platform';
+
+import {CONTENT_TYPES} from './site-settings.content-types.ts';
+
 export const siteSettingsStrings = {
   'settings.nav.siteSettings': 'Site settings',
   'settings.siteSettings.title': 'Site settings',
+  'settings.siteSettings.description':
+    'What a site is allowed to do, and what it is allowed to store.',
   'settings.siteSettings.allSites.title': 'All sites',
   'settings.siteSettings.siteDetails.title': 'Site details',
   'settings.siteSettings.handlers.title': 'Protocol handlers',
   'settings.siteSettings.fileSystemDetails.title': 'File editing details',
+
+  'settings.siteSettings.group.permissions': 'Permissions',
+  'settings.siteSettings.group.permissionsMore': 'More permissions',
+  'settings.siteSettings.group.content': 'Content',
+  'settings.siteSettings.group.contentMore': 'More content settings',
+  'settings.siteSettings.thirdPartyCookies': 'Third-party cookies',
+  'settings.siteSettings.autoRevoke':
+    'Take permissions back from sites you have not visited for a while',
+
+  'settings.siteSettings.default': 'Default behaviour',
+  'settings.siteSettings.default.description':
+    'What Astro does on a site you have not given a setting of its own.',
+  'settings.siteSettings.default.pending':
+    'The browser has not reported this permission yet.',
+  'settings.siteSettings.default.allow': 'Allowed',
+  'settings.siteSettings.default.allow.description':
+    'Sites may use this without asking first.',
+  'settings.siteSettings.default.ask': 'Ask first',
+  'settings.siteSettings.default.ask.description': 'A site must ask you before it may use this.',
+  'settings.siteSettings.default.block': 'Blocked',
+  'settings.siteSettings.default.block.description': 'No site may use this.',
+  'settings.siteSettings.exceptions': 'Sites with their own setting',
+  'settings.siteSettings.exceptions.body':
+    'Astro can hold a setting for one site that differs from the default above. ' +
+    'Reading and editing that list is not built into this page yet, so any ' +
+    'exceptions the browser already holds are still in force and are not shown ' +
+    'here.',
   'settings.siteSettings.unknownType':
     'This page routed "{path}" to the permission screen and then found no ' +
     'permission of that name. The route table and the screen disagree; nothing ' +
@@ -71,8 +104,21 @@ export const siteSettingsStrings = {
 /**
  * The controls this section ACTUALLY renders, for search to match on.
  *
- * Empty while the section renders none. Listing a control here that the section
- * does not draw makes the search field promise a setting the page cannot show,
- * which is worse than not finding it.
+ * Listing a control here that the section does not draw makes the search field
+ * promise a setting the page cannot show, which is worse than not finding it.
+ *
+ * The permission names are read out of the table rather than repeated, because
+ * the section renders exactly the rows the table gives a `group` -- so a type
+ * that stops being listed stops being findable in the same edit, and cannot
+ * drift into promising a row that is no longer drawn. A hit opens the SECTION,
+ * which is the screen the row is on, so a name found here lands somewhere the
+ * setting is reachable.
  */
-export const siteSettingsControls = [] as const;
+export const siteSettingsControls: readonly MessageId[] = [
+  'settings.siteSettings.allSites.title',
+  'settings.siteSettings.handlers.title',
+  'settings.siteSettings.thirdPartyCookies',
+  'settings.siteSettings.autoRevoke',
+  'settings.siteSettings.default',
+  ...CONTENT_TYPES.filter(type => type.group !== undefined).map(type => type.title),
+];

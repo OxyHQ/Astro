@@ -120,6 +120,15 @@ interface SectionDef extends ScreenDef {
    * Owned by the section's own `*.strings.ts`. Empty while it renders none:
    * listing a control the section does not draw would make the search field
    * promise a setting the page cannot show.
+   *
+   * KNOWN GAP, declared rather than discovered: this covers only what the
+   * SECTION screen draws. A control that lives on a subpage -- Secure DNS on
+   * `/security`, the time range on `/clearBrowserData` -- is unfindable by
+   * name, because a hit built from this list can only carry the section's own
+   * fragment. Subpage TITLES are indexed (see `search`), so the screen is
+   * reachable; the controls on it are not. Closing it means pairing a control
+   * id with the fragment it is on, which is a change to the contract every
+   * section's strings module is written against.
    */
   readonly controls: readonly MessageId[];
   /** Screens reached from inside this section. The rail stays on the parent. */
@@ -657,7 +666,15 @@ function targetForPath(path: string): Target | undefined {
 
 /** One thing the search field found. */
 interface Hit {
+  /** The section the hit belongs to, which is what the rail narrows to. */
   readonly id: SectionId;
+  /**
+   * The fragment opening the hit goes to -- a subpage's OWN fragment when the
+   * hit is a subpage, not its section's. Without this the field could only
+   * offer sections, and everything on a subpage would be unfindable: `Camera`,
+   * `Secure DNS`, `Captions` and eighty more all live one level down.
+   */
+  readonly path: string;
   readonly label: string;
   readonly context: string;
 }
@@ -668,19 +685,43 @@ function search(query: string): readonly Hit[] {
     const title = t(section.title);
     const hits: Hit[] = [];
     if (title.toLowerCase().includes(query)) {
-      hits.push({id, label: title, context: t('settings.search.sectionContext')});
+      hits.push({
+        id,
+        path: section.path,
+        label: title,
+        context: t('settings.search.sectionContext'),
+      });
     }
+    // A subpage titled the same as its section is that section under another
+    // name -- upstream's reset confirmation is literally "Reset settings" --
+    // and offering both produces two rows a user cannot tell apart.
+    const subpages = (section.subpages ?? []).filter(
+      subpage => t(subpage.title) !== title,
+    );
+    // The same name is often BOTH a row on the section and a screen of its own:
+    // every site-settings permission is drawn as a link on the category list
+    // and has its own page. One hit, and it opens the page rather than the list
+    // the link is on -- otherwise "Camera" appears twice, identically labelled,
+    // and one of the two is a worse answer.
+    const asSubpage = new Set(subpages.map(subpage => t(subpage.title)));
+
     for (const control of section.controls) {
       const label = t(control);
+      if (!asSubpage.has(label) && label.toLowerCase().includes(query)) {
+        hits.push({id, path: section.path, label, context: title});
+      }
+    }
+    for (const subpage of subpages) {
+      const label = t(subpage.title);
       if (label.toLowerCase().includes(query)) {
-        hits.push({id, label, context: title});
+        hits.push({id, path: subpage.path, label, context: title});
       }
     }
     return hits;
   });
 }
 
-function SearchResults({query, onOpen}: {query: string; onOpen: (id: SectionId) => void}) {
+function SearchResults({query, onOpen}: {query: string; onOpen: (path: string) => void}) {
   const hits = search(query);
   return (
     <>
@@ -694,11 +735,13 @@ function SearchResults({query, onOpen}: {query: string; onOpen: (id: SectionId) 
       ) : (
         <SettingsListGroup>
           {hits.map(hit => (
+            // Keyed by destination: two screens may legitimately share a label,
+            // and the fragment is what actually distinguishes them.
             <SettingsListItem
-              key={`${hit.id}:${hit.label}`}
+              key={`${hit.path}:${hit.label}`}
               title={hit.label}
               description={hit.context}
-              onPress={() => onOpen(hit.id)}
+              onPress={() => onOpen(hit.path)}
             />
           ))}
         </SettingsListGroup>
@@ -716,9 +759,9 @@ export function SettingsPage() {
   };
   const normalized = query.trim().toLowerCase();
 
-  const open = (id: SectionId): void => {
+  const open = (path: string): void => {
     setQuery('');
-    setHashPath(SECTIONS[id].path);
+    setHashPath(path);
   };
 
   // While searching, the rail narrows to the sections that matched -- the same
@@ -738,7 +781,7 @@ export function SettingsPage() {
       title={t('settings.title')}
       groups={groups}
       selected={target.section}
-      onSelect={open}
+      onSelect={(id: SectionId) => open(SECTIONS[id].path)}
       searchLabel={t('settings.search.label')}
       searchValue={query}
       onSearchChange={setQuery}

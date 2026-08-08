@@ -4,12 +4,24 @@
 // from inside an `import.meta.env.DEV` branch, so nothing here is emitted into a
 // bundle the browser ships. See `platform/browser/env.ts`.
 //
-// Every Chromium pref declared here must be one of the entries in
-// `chrome/browser/extensions/api/settings_private/prefs_util.cc`: a pref outside
-// that allowlist is invisible to `chrome.settingsPrivate` however correctly it is
-// spelled, so a control built against one works in dev and does nothing in the
-// browser. Handler messages must be ones the C++ handler registered by
-// `settings_ui.cc` actually answers, for the same reason.
+// EMPTY, and that is the finding rather than an omission to be filled in later.
+// A fixture is a stand-in for something the browser really serves, and the
+// browser serves this section nothing:
+//
+//   * the four `oxy.adblock.*` preferences exist (patch 046) but are not in
+//     `chrome/browser/extensions/api/settings_private/prefs_util.cc`, so
+//     `chrome.settingsPrivate` will never report them however they are spelled
+//     here. Declaring one would make a control work in dev and fail silently in
+//     the browser, which is the exact failure the allowlist rule exists to stop;
+//   * `AstroAdBlockUIHandler`'s three messages are installed by the controller
+//     for `astro://adblock`, not by the one this page is served from, so a
+//     reply fixture for `getAdBlockState` would be answering a message that is
+//     a CHECK failure in a real build;
+//   * there is no Mojo interface for the ad blocker anywhere in the overlay.
+//
+// The section therefore renders facts about the build -- the filter-list
+// catalogue and the updater's own constants -- which are compiled in and need
+// no transport at all.
 
 import type {SectionFixtures} from '@astro/platform';
 
