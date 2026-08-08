@@ -35,7 +35,7 @@ GN_ARGS_OVERRIDE=""
 
 # WebUI pages compiled into the product. A missing bundle is a build failure:
 # the page would render blank at runtime, which is not a warning-level event.
-REQUIRED_WEBUI_PAGES=(ntp alia settings whats-new error)
+REQUIRED_WEBUI_PAGES=(ntp alia whats-new)
 
 usage() {
     cat >&2 <<'EOF'
@@ -288,17 +288,24 @@ fi
 
 BUILD_OUT="$CHROMIUM_SRC/$OUT_DIR"
 
+# The controllers read <DIR_EXE>/resources/astro-<page>/, so that is where the
+# pages go. Staging them at <DIR_EXE>/astro-<page>/ instead put every page one
+# directory away from the only path its controller looks in, and the failure is
+# silent: WebUIDataSource serves nothing, the page renders blank, and the build
+# reports success. The installers and all four packagers already write the
+# resources/ form, so this is the layout every artifact except the build
+# directory itself already had.
 astro::info ">>> Staging WebUI resources..."
 for page in "${REQUIRED_WEBUI_PAGES[@]}"; do
     page_dist="$ASTRO_ROOT/webui/$page/dist"
     if astro::dry_run; then
-        astro::plan "stage webui/$page/dist -> $OUT_DIR/astro-$page/"
+        astro::plan "stage webui/$page/dist -> $OUT_DIR/resources/astro-$page/"
     else
-        mkdir -p "$BUILD_OUT/astro-$page"
+        mkdir -p "$BUILD_OUT/resources/astro-$page"
         # No --delete: the destination is inside the build directory, but the
         # rule is uniform so no future edit can turn one of these into the
         # destructive shape.
-        rsync -a "$page_dist/" "$BUILD_OUT/astro-$page/"
+        rsync -a "$page_dist/" "$BUILD_OUT/resources/astro-$page/"
     fi
 done
 

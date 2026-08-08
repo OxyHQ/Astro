@@ -53,7 +53,7 @@ run_build
 
 harness::assert_status 0 "dry run with every required input present"
 harness::assert_output_contains "Syncing the Astro overlay" "the overlay sync is a required step"
-harness::assert_output_contains "all 5 bundles present" "webui bundle check ran"
+harness::assert_output_contains "all 3 bundles present" "webui bundle check ran"
 harness::assert_output_contains "gn gen" "planned generation"
 harness::assert_output_contains "gn check" "gn check is a required step"
 harness::assert_output_lacks "gn was executed during a dry run" "dry run must not invoke gn"
@@ -61,19 +61,19 @@ harness::assert_tree_unchanged "$chromium" "$before"
 
 # --- A missing WebUI bundle stops the build, before generation --------------
 
-rm -rf "${fake_root:?}/webui/settings/dist"
+rm -rf "${fake_root:?}/webui/whats-new/dist"
 
 run_build
 
 harness::assert_nonzero_status "missing WebUI bundle"
 harness::assert_output_contains "Required WebUI bundle missing" "refusal reason"
-harness::assert_output_contains "webui/settings/dist" "names the missing bundle"
+harness::assert_output_contains "webui/whats-new/dist" "names the missing bundle"
 harness::assert_output_contains "would render blank" "explains the consequence"
 harness::assert_output_lacks "gn gen" "must fail before build generation"
 harness::assert_tree_unchanged "$chromium" "$before"
 
-mkdir -p "$fake_root/webui/settings/dist"
-printf '<!doctype html>\n' > "$fake_root/webui/settings/dist/index.html"
+mkdir -p "$fake_root/webui/whats-new/dist"
+printf '<!doctype html>\n' > "$fake_root/webui/whats-new/dist/index.html"
 
 # --- A bundle directory without index.html is equally fatal -----------------
 

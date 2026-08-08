@@ -29,7 +29,7 @@ BUILD_DIR="$PROJECT_ROOT/chromium/src/out/Release"
 ICON_SRC="$PROJECT_ROOT/branding/web/icon-512.png"
 DESKTOP_SRC="$PROJECT_ROOT/branding/astro-browser.desktop"
 
-WEBUI_PAGES=(ntp alia settings whats-new error)
+WEBUI_PAGES=(ntp alia whats-new)
 
 astro::require_cmd rsync bun ninja sed find
 astro::require_dir "$BUILD_DIR" "build output (run tools/build.sh first)"

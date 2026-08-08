@@ -147,10 +147,10 @@ fi
 
 # --- WebUI pages ---
 echo ">>> Copying WebUI pages..."
-for page in ntp alia settings whats-new error; do
-    if [ -d "$BUILD_DIR/astro-$page" ]; then
+for page in ntp alia whats-new; do
+    if [ -d "$BUILD_DIR/resources/astro-$page" ]; then
         mkdir -p "$INSTALL_PREFIX/resources/astro-$page"
-        cp -r "$BUILD_DIR/astro-$page/"* "$INSTALL_PREFIX/resources/astro-$page/"
+        cp -r "$BUILD_DIR/resources/astro-$page/"* "$INSTALL_PREFIX/resources/astro-$page/"
     elif [ -d "$ASTRO_ROOT/webui/$page/dist" ]; then
         mkdir -p "$INSTALL_PREFIX/resources/astro-$page"
         cp -r "$ASTRO_ROOT/webui/$page/dist/"* "$INSTALL_PREFIX/resources/astro-$page/"

@@ -52,10 +52,10 @@ mkdir -p "$RELEASE_DIR"
 
 # --- Copy WebUI resources into the bundle ---
 RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
-for page in ntp alia settings whats-new error; do
-    if [ -d "$BUILD_DIR/astro-$page" ]; then
+for page in ntp alia whats-new; do
+    if [ -d "$BUILD_DIR/resources/astro-$page" ]; then
         mkdir -p "$RESOURCES_DIR/astro-$page"
-        cp -r "$BUILD_DIR/astro-$page/"* "$RESOURCES_DIR/astro-$page/"
+        cp -r "$BUILD_DIR/resources/astro-$page/"* "$RESOURCES_DIR/astro-$page/"
     fi
 done
 

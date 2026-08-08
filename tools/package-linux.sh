@@ -79,10 +79,10 @@ if [ -d "$BUILD_DIR/MEIPreload" ]; then
 fi
 
 # WebUI pages
-for page in ntp alia settings whats-new error; do
-    if [ -d "$BUILD_DIR/astro-$page" ]; then
+for page in ntp alia whats-new; do
+    if [ -d "$BUILD_DIR/resources/astro-$page" ]; then
         mkdir -p "$STAGING/astro/resources/astro-$page"
-        cp -r "$BUILD_DIR/astro-$page/"* "$STAGING/astro/resources/astro-$page/"
+        cp -r "$BUILD_DIR/resources/astro-$page/"* "$STAGING/astro/resources/astro-$page/"
     fi
 done
 

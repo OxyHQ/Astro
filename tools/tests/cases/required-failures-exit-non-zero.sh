@@ -305,7 +305,7 @@ run_build_missing_gn_args() {
 build_webui_root="$tmp/build-webui-root"
 build_webui_chromium="$tmp/build-webui-chromium"
 harness::make_build_root "$build_webui_root" "$build_webui_chromium"
-rm -rf "${build_webui_root:?}/webui/settings/dist"
+rm -rf "${build_webui_root:?}/webui/whats-new/dist"
 
 run_build_missing_webui_bundle() {
     env ASTRO_CHROMIUM_SRC="$build_webui_chromium" ASTRO_SKIP_LOCK_VERIFY=1 \
@@ -406,7 +406,7 @@ harness::register_failure "build with a missing GN args file" \
     "GN args file for linux"
 harness::register_failure "build with a missing WebUI bundle" \
     run_build_missing_webui_bundle \
-    "Required WebUI bundle missing" "webui/settings/dist" "would render blank"
+    "Required WebUI bundle missing" "webui/whats-new/dist" "would render blank"
 harness::register_failure "build with missing ad blocker filter lists" \
     run_build_missing_adblock_resources \
     "ad blocker filter lists"
