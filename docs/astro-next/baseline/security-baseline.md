@@ -7,20 +7,28 @@ Read from the controller source. Each controller builds a
 `WebUIDataSource`, overrides CSP directives on it, and decides whether to
 enforce Trusted Types — so this is evidence, and it needs no built browser.
 
-**Scope, and why it is drawn here.** CSP directives are read only from
-`OverrideContentSecurityPolicy` calls, not from the file as a whole.
-`unsafe-eval` appears twice in this repository and neither occurrence is
-Astro's: both are `$csp=` rules inside the shipped easylist filter data. A
-grep would report two epic-rule violations that do not exist.
+**Scope, and why it is drawn here.** CSP directives are read from two
+shapes and only those two: an `OverrideContentSecurityPolicy` call, and a
+`WebUIPage`'s CSP fields, which `astro_webui_page.cc` applies on the
+controller's behalf. A controller that declares a `WebUIPage` is reported
+together with that base, because the base is also what reads assets from
+`base::DIR_EXE` — reading the controller alone showed the first page built
+on it as having no CSP and no `DIR_EXE` read, with an `'unsafe-inline'`
+widening invisible.
+
+Nothing else in a file counts. `unsafe-eval` appears twice in this
+repository and neither occurrence is Astro's: both are `$csp=` rules inside
+the shipped easylist filter data. A grep would report two epic-rule
+violations that do not exist.
 
 ## Rule violations
 
 | Rule | Source | Controllers |
 |---|---|---|
 | No privileged WebUI loading remote scripts, styles or fonts | epic #3, non-negotiable rules | `astro_alia_ui.cc`, `astro_ntp_ui.cc`, `astro_whats_new_ui.cc` |
-| No privileged WebUI reads mutable application files from beside the executable | epic #3, global definition of done | `astro_alia_ui.cc`, `astro_ntp_ui.cc`, `astro_whats_new_ui.cc` |
+| No privileged WebUI reads mutable application files from beside the executable | epic #3, global definition of done | `astro_alia_ui.cc`, `astro_ntp_ui.cc`, `astro_settings_ui.cc`, `astro_whats_new_ui.cc` |
 | No blanket disabling of Trusted Types | epic #3, non-negotiable rules | `astro_alia_ui.cc`, `astro_ntp_ui.cc`, `astro_whats_new_ui.cc` |
-| No `unsafe-inline` unless a narrowly documented temporary exception has an owner and removal issue | epic #3, non-negotiable rules | `astro_adblock_ui.cc` |
+| No `unsafe-inline` unless a narrowly documented temporary exception has an owner and removal issue | epic #3, non-negotiable rules | `astro_adblock_ui.cc`, `astro_settings_ui.cc` |
 
 None of these is a new finding introduced by this baseline — they are the
 current state, recorded so that later issues can show they were fixed
@@ -69,6 +77,25 @@ CSP and Trusted Types is
 | Trusted Types enforced | **no** — `DisableTrustedTypesCSP()` |
 | Remote origins allowed | `https://fonts.gstatic.com` |
 | Unsafe CSP tokens | none |
+| Serves resources from `DIR_EXE` | **yes** — mutable files beside the executable |
+
+### `src/chrome/browser/oxy/webui/astro_settings_ui.cc`
+
+Declares a `WebUIPage`; its data source, CSP and asset serving are
+`astro_webui_page.cc`'s. Both are reported below.
+
+| Directive | Value |
+|---|---|
+| `ConnectSrc` | `connect-src 'none';` |
+| `FontSrc` | `font-src data:;` |
+| `ImgSrc` | `img-src 'self' data:;` |
+| `StyleSrc` | `style-src 'self' 'unsafe-inline';` |
+
+| Property | Value |
+|---|---|
+| Trusted Types enforced | yes |
+| Remote origins allowed | none |
+| Unsafe CSP tokens | `'unsafe-inline'` |
 | Serves resources from `DIR_EXE` | **yes** — mutable files beside the executable |
 
 ### `src/chrome/browser/oxy/webui/astro_whats_new_ui.cc`

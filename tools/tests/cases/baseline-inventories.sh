@@ -220,6 +220,80 @@ harness::assert_output_contains "unsafe-inline" "catches unsafe-inline"
 harness::assert_output_contains "remote-origins" "catches remote origins"
 harness::assert_output_contains "serves-from-exe-dir" "catches DIR_EXE"
 
+# A controller can also declare its CSP as a `WebUIPage` and let
+# astro_webui_page.cc apply it. That refactor CLEARED the settings page from
+# this baseline once: no OverrideContentSecurityPolicy call in the controller
+# meant "No CSP overrides", and no `base::DIR_EXE` in it meant the DIR_EXE read
+# went unreported too, with an 'unsafe-inline' widening invisible in both. A
+# refactor must not be able to clear a security finding, so both shapes are
+# read, and both directions are exercised here.
+shared="$tmp/shared-base-source"
+mkdir -p "$shared/webui"
+cat > "$shared/webui/astro_webui_page.cc" <<'BASE'
+// The shared page base: it owns the data source, applies the page's declared
+// CSP, and reads the assets from beside the executable.
+void CreateAstroWebUIDataSource(content::WebUI* web_ui, const WebUIPage& page) {
+  base::PathService::Get(base::DIR_EXE, &exe_dir);
+}
+BASE
+cat > "$shared/webui/astro_shared_ui.cc" <<'CONTROLLER'
+// A controller that declares its CSP rather than calling the data source.
+const WebUIPage& SharedPage() {
+  static const WebUIPage kPage{
+      .host = kHost,
+      .resource_directory = "astro-shared",
+      .csp =
+          {
+              .style_src = "style-src 'self' 'unsafe-inline';",
+              .connect_src = "connect-src 'none';",
+          },
+  };
+  return kPage;
+}
+CONTROLLER
+
+harness::run python3 "$BASELINE/inventory_webui_security.py" --verify --worktree-source "$shared"
+harness::assert_status 0 "a controller declaring a WebUIPage"
+harness::assert_output_contains "unsafe-inline" "reads CSP out of the WebUIPage fields"
+harness::assert_output_contains "serves-from-exe-dir" \
+    "attributes the base's DIR_EXE read to the page that declared the WebUIPage"
+
+# The mutation that broke it: same controller, base file absent. Reporting a
+# clean page here is the failure, so the tool must refuse instead.
+orphan="$tmp/shared-base-missing"
+mkdir -p "$orphan/webui"
+cp "$shared/webui/astro_shared_ui.cc" "$orphan/webui/astro_shared_ui.cc"
+
+harness::run python3 "$BASELINE/inventory_webui_security.py" --verify --worktree-source "$orphan"
+harness::assert_nonzero_status "a WebUIPage whose base is not in the scanned source"
+harness::assert_output_contains "astro_webui_page.cc" "and the refusal names the file it needed"
+
+# And the other direction for the base half: a page declaring nothing unsafe,
+# with a base that does not read DIR_EXE, must come back clean — otherwise the
+# two findings above are a detector that always fires.
+declared_clean="$tmp/shared-base-clean"
+mkdir -p "$declared_clean/webui"
+cat > "$declared_clean/webui/astro_webui_page.cc" <<'BASE'
+// A base that serves from a .pak instead, which is where #16 takes it.
+void CreateAstroWebUIDataSource(content::WebUI* web_ui, const WebUIPage& page) {
+  source->AddResourcePaths(page.resources);
+}
+BASE
+cat > "$declared_clean/webui/astro_clean_shared_ui.cc" <<'CONTROLLER'
+const WebUIPage& CleanPage() {
+  static const WebUIPage kPage{
+      .host = kHost,
+      .csp = {.style_src = "style-src 'self';"},
+  };
+  return kPage;
+}
+CONTROLLER
+
+harness::run python3 "$BASELINE/inventory_webui_security.py" --verify --worktree-source "$declared_clean"
+harness::assert_status 0 "a WebUIPage with nothing to report"
+harness::assert_output_lacks "unsafe-inline" "no false positive from the WebUIPage shape"
+harness::assert_output_lacks "serves-from-exe-dir" "no false positive from a pak-backed base"
+
 # Reading a directory off disk is a diagnostic mode, and it must not be able to
 # write the committed document. Without this, --worktree-source is one flag away
 # from reintroducing exactly the bug this generator was changed to fix.
