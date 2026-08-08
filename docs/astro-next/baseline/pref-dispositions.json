@@ -122,6 +122,10 @@
     "oxy.adblock.lifetime_blocked_count": {
       "status": "legacy-baseline",
       "purpose": "Cumulative count of requests the ad blocker has blocked, for the shield UI."
+    },
+    "astro.theme.preset": {
+      "status": "legacy-baseline",
+      "purpose": "The active Bloom colour preset, by name. Paints the native browser UI through ui/astro_color_mixer.cc and every astro:// page through astro_theme.mojom, so both read one stored value and cannot drift. Deliberately paired with upstream's browser.theme.color_scheme2 for light/dark rather than adding a second Astro pref for it."
     }
   }
 }
