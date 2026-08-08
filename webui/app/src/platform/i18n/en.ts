@@ -1,0 +1,45 @@
+// Every string the app renders, in one place.
+//
+// The browser's own strings live in `.grd` files and reach a WebUI page
+// through `loadTimeData`, which is worth bridging only for a page that adopts
+// an upstream handler surface wholesale. Astro's pages are its own, so they
+// carry their own catalog: a flat record with no runtime lookup table, which
+// makes a missing or misspelled id a type error rather than a page that shows
+// its own key back to the user.
+
+export const en = {
+  'app.unknownHost.title': 'No Astro page for this address',
+  'app.unknownHost.body':
+    'The browser served this bundle to a host it does not implement. Either a ' +
+    'WebUIConfig is registered for a page that does not exist yet, or this page ' +
+    'was removed and its registration was not.',
+  'app.devIndex.title': 'Astro pages',
+  'app.devIndex.body': 'Development server. Choose a page.',
+
+  'settings.title': 'Settings',
+  'settings.nav.appearance': 'Appearance',
+  'settings.nav.privacy': 'Privacy',
+
+  'settings.appearance.title': 'Appearance',
+  'settings.appearance.mode': 'Theme',
+  'settings.appearance.mode.system': 'System',
+  'settings.appearance.mode.light': 'Light',
+  'settings.appearance.mode.dark': 'Dark',
+  'settings.appearance.preset': 'Colour',
+  'settings.appearance.preset.description':
+    'Applies to every Astro page and to the browser window itself.',
+
+  'settings.privacy.title': 'Privacy',
+  'settings.privacy.doNotTrack': 'Send a "Do Not Track" request',
+  'settings.privacy.leakDetection': 'Warn if a password is exposed in a breach',
+  'settings.privacy.httpsOnly': 'Always use secure connections',
+  'settings.privacy.searchSuggest': 'Show search suggestions',
+
+  'pref.unavailable': 'Not available in this profile',
+  'pref.enforced': 'Managed by your organisation',
+  'pref.enforcedBy': 'Managed by {controller}',
+  'pref.recommendedOn': 'Your organisation recommends this setting on',
+  'pref.recommendedOff': 'Your organisation recommends this setting off',
+} as const;
+
+export type MessageId = keyof typeof en;

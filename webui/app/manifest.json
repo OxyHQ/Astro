@@ -1,0 +1,24 @@
+{
+  "generated_by": "webui/app/vite.config.ts (astro-manifest plugin)",
+  "regenerate": "cd webui/app && bun run build && bun run build:platform",
+  "builds": {
+    "app": {
+      "out_dir": "dist/app",
+      "entry": "index.html",
+      "files": [
+        "astro-webui-settings-page.js",
+        "astro-webui-style.css",
+        "astro_webui.js",
+        "index.html"
+      ]
+    },
+    "platform": {
+      "out_dir": "dist/platform",
+      "entry": "platform.js",
+      "files": [
+        "platform.css",
+        "platform.js"
+      ]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+# dependencies (bun install)
+node_modules
+
+# output — manifest.json is tracked; the emitted bytes are not
+dist
+*.tgz
+
+# caches
+.cache
+*.tsbuildinfo

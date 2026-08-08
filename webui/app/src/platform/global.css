@@ -1,0 +1,52 @@
+/* The one stylesheet every astro:// page is drawn against.
+ *
+ * The @source lines are the part that is easy to omit and impossible to
+ * notice. On web, react-native-css emits REAL CSS classes rather than the
+ * runtime styles it produces on native, so without scanning Bloom's own lib/
+ * every flex-row, gap and items-center inside a Bloom component is a no-op --
+ * while its COLOURS still render, because Bloom applies those inline. The page
+ * then looks almost right, which is the worst way for this to fail.
+ */
+@import "tailwindcss";
+@import "nativewind/theme";
+
+/* Bloom's canonical tokens -- radius scale, spacing, typography, colour
+   aliases -- imported rather than hand-copied so they stay in sync with the
+   published package. Every entry reads `var(--x)`; never `hsl(var(--x))`,
+   which double-wraps an already-resolved colour into an invalid value. */
+@import "@oxyhq/bloom/design-tokens/theme.css";
+
+/* Values for those tokens, for the frame before BloomThemeProvider writes the
+   user's real theme onto the document root. Generated from Bloom, never
+   hand-edited -- see the file's header. */
+@import "./theme-fallback.css";
+
+@source "../**/*.{ts,tsx}";
+/* Tailwind skips node_modules by default, and this app renders Bloom's
+   className-styled components. `@oxyhq/services` is deliberately NOT scanned:
+   this app does not depend on it (no Oxy session runs inside the browser's own
+   chrome), so a second scan glob would be a path nothing resolves. */
+@source "../../node_modules/@oxyhq/bloom/lib/**/*.{js,jsx}";
+
+/* Bloom switches schemes by writing a `dark` class onto the document root, so
+   the dark variant has to follow the class rather than the media query. */
+@custom-variant dark (&:is(.dark *));
+
+/* The page owns its whole document, so the html/body chrome is ours to set.
+   Bloom paints the surface; this only makes the root fill the viewport. */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* The app's outermost View is `flex-1`, which needs a flex parent with a
+   height to expand into. Without this the root sizes to its content and the
+   page background stops where the content does -- a band of user-agent white
+   below the shell that reads as a rendering bug rather than a missing display
+   rule. */
+#root {
+  display: flex;
+  flex-direction: column;
+}
