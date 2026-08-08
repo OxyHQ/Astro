@@ -41,6 +41,11 @@ source_set("webui_controllers") {
     "oxy_alia_side_panel.cc",
     "oxy_alia_side_panel.h",
 
+    # Shared page base: asset serving, the per-host CSP table, and the two
+    # controller bases every Astro page derives from.
+    "webui/astro_webui_page.cc",
+    "webui/astro_webui_page.h",
+
     # NTP WebUI (astro://newtab -> chrome://astro-ntp)
     "webui/astro_ntp_ui.cc",
     "webui/astro_ntp_ui.h",

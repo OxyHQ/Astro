@@ -11,7 +11,9 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/path_service.h"
+#include "base/strings/strcat.h"
 #include "base/values.h"
+#include "chrome/browser/oxy/webui/astro_webui_page.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -117,21 +119,20 @@ void CreateAndAddDataSource(content::WebUI* web_ui) {
   // fetches favicons from chrome://favicon2.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src " CONTENT_WEBUI_SCHEME_LITERAL
-      "://resources " CONTENT_WEBUI_SCHEME_LITERAL
-      "://new-tab-page-third-party " CONTENT_WEBUI_SCHEME_LITERAL
-      "://webui-test 'self' 'unsafe-inline';");
+      base::StrCat({"script-src ", astro::WebUIOrigin("resources"), " ",
+                    astro::WebUIOrigin("new-tab-page-third-party"), " ",
+                    astro::WebUIOrigin("webui-test"), " 'self' 'unsafe-inline';"}));
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::StyleSrc,
-      "style-src 'self' 'unsafe-inline' " CONTENT_WEBUI_SCHEME_LITERAL
-      "://theme https://fonts.googleapis.com;");
+      base::StrCat({"style-src 'self' 'unsafe-inline' ",
+                    astro::WebUIOrigin("theme"), " https://fonts.googleapis.com;"}));
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::FontSrc,
       "font-src 'self' https://fonts.gstatic.com;");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ImgSrc,
-      "img-src 'self' " CONTENT_WEBUI_SCHEME_LITERAL
-      "://favicon2 " CONTENT_WEBUI_SCHEME_LITERAL "://theme data:;");
+      base::StrCat({"img-src 'self' ", astro::WebUIOrigin("favicon2"), " ",
+                    astro::WebUIOrigin("theme"), " data:;"}));
 
   // Disable Trusted Types enforcement for our custom NTP since the Vite
   // build output doesn't use Trusted Types.
