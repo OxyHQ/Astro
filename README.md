@@ -61,15 +61,15 @@ All Astro C++ lives in a self contained overlay at `src/chrome/browser/oxy/`, th
 
 ## Internal pages
 
-The five `astro://` pages are standalone Vite and Tailwind v4 apps that talk to the browser process over Mojo IPC, which means type safe calls in both directions and live pref updates pushed to the page.
+The three `astro://` pages are standalone Vite and Tailwind v4 apps, built to static assets that the browser process serves from a `WebUIDataSource`. The New Tab Page exchanges messages with C++ through `chrome.send`; the other two are presentation only.
 
 | Page | Source | What it does |
 |---|---|---|
 | New Tab | [`webui/ntp/`](webui/ntp) | Clock, notes, quick links, weather, wallpaper, an Alia prompt, and a badge counting what the ad blocker stopped |
-| Settings | [`webui/settings/`](webui/settings) | Reads and writes real Chromium prefs through a Mojo `PageHandler` |
 | Alia | [`webui/alia/`](webui/alia) | The AI side panel |
 | What's New | [`webui/whats-new/`](webui/whats-new) | Release notes |
-| Error | [`webui/error/`](webui/error) | Network and navigation error pages |
+
+Settings and the error page were deleted in `c9c4383`; `astro://settings` is upstream Chromium's own page. Replacing it — along with every other surface — with one Vite + Tailwind + Bloom application is issues #15, #14, #22, #17 and #24.
 
 ```bash
 cd webui/ntp && bun install && bun run dev

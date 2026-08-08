@@ -142,23 +142,33 @@ do not let a build imply they are resolved:
   discarded). `apply-patches.sh` refuses; `--skip-domain-substitution`
   reproduces what previous builds did. Owned by #8.
 - A whole-file overlay copy of `chrome/browser/ui/webui/chrome_web_ui_configs.cc`
-  reverts four patches, so `AstroAdBlockUIConfig` is never registered. The copy
-  is currently untracked working-tree content, not committed state; the
-  collision is declared in `tools/overlay.allowlist` so any checkout carrying
-  it behaves loudly. Owned by #7.
-- The entire Oxy overlay (`chrome/browser/oxy` — settings, adblock, NTP, Alia
-  panel) compiles to zero objects: no `BUILD.gn` outside `chrome/browser/oxy/`
-  itself declares a dependency on it. `astro://settings` is served by
-  upstream `settings::SettingsUIConfig`, not by any Astro-owned config — the
-  underlying reason `AstroAdBlockUIConfig` above is never registered. Owned
-  by #7.
-- Astro's own settings implementation is 2,347 lines across
-  `webui/settings/src` and maps 41 prefs; upstream's own settings surface is
-  301 `.ts` files and 58,568 lines. Astro's copy also serves its assets by
-  reading a directory next to the executable at runtime (`base::DIR_EXE` +
-  `resources/astro-settings`) rather than from a `.pak`, so it carries none
-  of Chromium's resource-bundling guarantees and renders blank, with no
-  error, if that directory is missing.
+  once reverted four patches, so `AstroAdBlockUIConfig` was never registered.
+  That copy is now gone: no such file exists under `src/`, tracked or
+  untracked, and `tools/overlay.allowlist` carries no entry for it. Registration
+  is a patch again. Kept here because a checkout that reintroduces the copy
+  reintroduces the defect with no warning. Owned by #7.
+- The Oxy overlay compiled to zero objects because no `BUILD.gn` outside
+  `chrome/browser/oxy/` declared a dependency on it. Patch
+  `057-oxy-webui-build-edge.patch` adds that edge to
+  `//chrome/browser/ui/webui:configs`. The edge has been verified to APPLY,
+  not to LINK — no `gn gen` has been run against it, so a dependency cycle
+  through `//chrome/browser/ui` remains possible and unmeasured. Owned by #7.
+- **Patches are not verified to apply, and at least two silently did not.**
+  `docs/astro-next/policy/endpoints.json` declares nine non-applying patches,
+  but that list was declared rather than measured, and it warns in its own
+  comment that a change of apply status will not fail loudly. Measured on
+  2026-08-08: `054` and `055` also did not apply to the locked revision —
+  written against a Chromium where `RegisterChromeWebUIConfigs()` sat near
+  line 150, since moved to 232 — and neither was on the list. Both have been
+  regenerated against the locked revision and verified with `git apply
+  --check`, which is the acceptance test `apply-patches.sh` itself uses. The
+  remaining nine are untouched, and `apply-patches.sh` still dies at the first
+  of them, so the patch pipeline does not reach the end of the series today.
+- Every WebUI page serves its assets by reading a directory next to the
+  executable at runtime (`base::DIR_EXE` + `resources/astro-<page>`) rather
+  than from a `.pak`, so none of them carries Chromium's resource-bundling
+  guarantees, and each renders blank, with no error, if its directory is
+  missing. Removing `DIR_EXE` entirely is owned by #14.
 
 ## Branding
 
@@ -211,15 +221,12 @@ src/chrome/browser/oxy/
 │   ├── astro_adblock_filter_list_*  # Filter list catalog + updater
 │   ├── adblock_domain_resolver.*    # Domain matching
 │   ├── astro_adblock_resource_type.* # Resource type classification
+│   ├── webui/astro_adblock_ui.*     # chrome://adblock controller + handler
 │   └── rs/                          # Rust source + BUILD.gn
 └── webui/                           # WebUI page controllers
     ├── astro_ntp_ui.*               # chrome://astro-ntp controller
-    ├── astro_settings_ui.*          # chrome://settings controller (Mojo PageHandlerFactory)
-    ├── astro_settings_handler.*     # Settings Mojo PageHandler implementation
-    ├── astro_settings.mojom         # Mojo interface definition for settings IPC
     ├── astro_alia_ui.*              # chrome://alia controller
-    ├── astro_whats_new_ui.*         # chrome://whats-new controller
-    └── astro_error_ui.*             # chrome://astro-error controller
+    └── astro_whats_new_ui.*         # chrome://whats-new controller
 ```
 
 ### WebUI frontend pages
@@ -227,61 +234,39 @@ src/chrome/browser/oxy/
 ```
 webui/
 ├── ntp/           # New Tab Page (Vite + Tailwind v4)
-├── settings/      # Settings Page (Vite + Tailwind v4, uses Mojo bindings)
 ├── alia/          # Alia AI Panel
-├── whats-new/     # What's New Page
-└── error/         # Error Page
+└── whats-new/     # What's New Page
 ```
 
 ### Other directories
 
 ```
 patches/ungoogled/   # 112 inherited de-Google patches
-patches/astro/       # 56 Astro-specific patches (numbered 001-056)
+patches/astro/       # 56 Astro-specific patches (numbered 001-058; 007 and 035 were
+                     #   removed as empty files, so two numbers are unused)
 gn_args/             # GN build args per platform (linux.gn, android.gn, macos.gn, windows.gn, etc.)
 branding/            # Logos, icons, astro.conf, .desktop file
 tools/               # Build, install, patch, packaging scripts
 ```
 
-## Mojo Architecture (Settings Page)
+## Settings and the error page do not exist
 
-The settings page uses Chromium's Mojo IPC for type-safe communication between the JavaScript frontend and the C++ browser process. This is the same pattern used by Chrome's internal pages.
+There is no Astro settings page and no Astro error page. Both were deleted in
+`c9c4383`. The Mojo settings backend this file used to describe never existed
+at all — no `.mojom` has ever been committed to this repository, at any
+revision. What `c9c4383` removed was a generic `chrome.send` handler carrying
+six messages and thirty-four prefs. So `astro_settings.mojom`,
+`AstroSettingsHandler`, `kProfilePrefMappings[]` and the "add a setting in
+three steps" recipe were all describing something that was never built, which
+is worse than describing nothing: it sent readers looking for a file to edit.
 
-### How it works
+`astro://settings` today is served by upstream's own `settings::SettingsUIConfig`.
 
-1. **Interface definition** (`astro_settings.mojom`): Defines three interfaces:
-   - `PageHandlerFactory` — Creates the PageHandler when the page loads
-   - `PageHandler` — Browser-side: `GetAllPrefs()`, `SetPref()`, `SetTheme()`, `ClearBrowsingData()`, `OpenPage()`
-   - `Page` — WebUI-side: `OnPrefChanged()` for live push notifications
-
-2. **Controller** (`astro_settings_ui.*`): Inherits `MojoWebUIController` and implements `PageHandlerFactory`. Binds the Mojo interface and creates `AstroSettingsHandler` instances on demand.
-
-3. **Handler** (`astro_settings_handler.*`): Implements `PageHandler`. Contains the pref mapping table that maps frontend setting IDs to real Chromium `PrefService` paths. Uses `PrefChangeRegistrar` to watch for changes and push updates to the page via `Page::OnPrefChanged()`.
-
-4. **Frontend** (`webui/settings/`): Uses the generated Mojo JS bindings to call `PageHandler` methods and receive `Page` callbacks.
-
-### Pref mapping table
-
-The handler contains two static arrays:
-
-- `kProfilePrefMappings[]` — Per-profile prefs (autofill, appearance, privacy, NTP widgets, etc.)
-- `kLocalStatePrefMappings[]` — Global prefs (memory saver, energy saver, hardware acceleration)
-
-Each entry maps a `settings_id` (string used in the frontend JS, matches `data-toggle-id` / `data-select-id` / `data-slider-id` HTML attributes) to a `pref_path` (Chromium PrefService path).
-
-## How to Add a New Setting
-
-1. **Register the pref** in patch `020-register-oxy-prefs.patch`. Profile prefs go in `RegisterProfilePrefs()`, local state prefs in `RegisterLocalState()`.
-
-2. **Add the mapping** in `astro_settings_handler.cc`:
-   - Add to `kProfilePrefMappings[]` or `kLocalStatePrefMappings[]`
-   - Format: `{"frontend-setting-id", "chromium.pref.path"}`
-
-3. **Add the UI** in `webui/settings/`:
-   - Add the control (toggle, select, slider) in the appropriate section
-   - Set `data-toggle-id="frontend-setting-id"` (or `data-select-id` / `data-slider-id`) matching the mapping
-
-The Mojo plumbing, pref watching, and live sync all happen automatically through the existing infrastructure.
+The direction is a single Vite + Tailwind + Bloom application serving every
+`astro://` surface, one entry per WebUI host, with narrow typed Mojo per domain
+rather than a generic `SetPref(string, value)`. That is issues #15 (as amended
+2026-08-08), #14, #22, #17 and #24. Nothing about that architecture is
+documented here until it exists.
 
 ## How to Add a New WebUI Page
 
@@ -306,10 +291,19 @@ The Mojo plumbing, pref watching, and live sync all happen automatically through
 | Page | Internal URL | Displayed as |
 |------|-------------|-------------|
 | New Tab | `chrome://astro-ntp` | `astro://newtab` |
-| Settings | `chrome://settings` | `astro://settings` |
 | Alia AI | `chrome://alia` | `astro://alia` |
 | What's New | `chrome://whats-new` | `astro://whats-new` |
-| Error | `chrome://astro-error` | `astro://error` |
+
+`chrome://settings` and `chrome://astro-error` are NOT in this table: Astro owns
+neither. Settings is upstream's page and the error page was deleted.
+
+`chrome://whats-new` is served by upstream's `WhatsNewUIConfig`, not by
+Astro's controller. Astro's host string is byte-identical to upstream's, and
+`WebUIConfigMap::AddWebUIConfigImpl` CHECKs on a duplicate origin, so
+registering `AstroWhatsNewUIConfig` alongside it crashes the browser at
+startup. Taking that host over means SWAPPING the upstream registration line,
+not adding one — which is why only the NTP, Alia and the ad blocker appear in
+`patches/astro/05{4,5,8}-*-webui-register.patch`.
 
 The `astro://` URL scheme is aliased to `chrome://` via patch `011-astro-url-scheme-alias.patch`.
 
@@ -408,9 +402,7 @@ Rules that follow:
 ```bash
 cd webui/ntp && bun run dev          # http://localhost:5173
 cd webui/alia && bun run dev         # http://localhost:5174
-cd webui/settings && bun run dev     # http://localhost:5175
 cd webui/whats-new && bun run dev    # http://localhost:5176
-cd webui/error && bun run dev        # http://localhost:5177
 ```
 
 ### Chromium incremental build
