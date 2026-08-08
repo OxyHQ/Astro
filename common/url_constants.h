@@ -38,6 +38,18 @@ namespace astro {
 inline constexpr char kAstroUIScheme[] = "astro";
 inline constexpr char kAstroUIUntrustedScheme[] = "astro-untrusted";
 
+// Hosts Astro's own WebUI app serves.
+//
+// One entry per page, and each one is an ORIGIN: astro://settings-next and a
+// future astro://history are different security principals served the same
+// bundle, which is what lets the extension API grants stay per page.
+//
+// `settings-next` rather than `settings` on purpose. Chromium's own settings
+// page keeps serving astro://settings until the Bloom one covers what it
+// covers; a half-built replacement occupying the real URL is worse than an
+// obviously separate one. The rename is the cutover.
+inline constexpr char kAstroSettingsNextHost[] = "settings-next";
+
 }  // namespace astro
 
 #endif  // ASTRO_COMMON_URL_CONSTANTS_H_

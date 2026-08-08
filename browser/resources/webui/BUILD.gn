@@ -1,0 +1,70 @@
+# Copyright 2026 Oxy. Astro product module.
+
+# Astro's internal pages: ONE Vite + Tailwind + Bloom app for all of them.
+#
+# Built here rather than committed under dist/. A checked-in bundle is a
+# perfectly valid input that nothing can tell apart from a current one, and one
+# fell a build behind in this tree already -- the page rendered, the build was
+# green, and a component added that afternoon simply did not exist at runtime.
+action("app") {
+  script = "//astro/build/run_bun.py"
+
+  inputs = [
+    "build.mjs",
+    "package.json",
+    "vite.config.ts",
+    "src/index.html",
+    "src/main.tsx",
+    "src/global.css",
+    "src/shell/shell.tsx",
+    "src/lib/webui-bridge.ts",
+    "src/pages/settings/pref-control.tsx",
+    "src/pages/settings/sections/downloads.tsx",
+    "src/pages/settings/settings-page.tsx",
+    "src/pages/settings/catalog.ts",
+    "src/pages/settings/pref-store.ts",
+    "src/pages/settings/prefs.ts",
+  ]
+
+  outputs = [
+    "$target_gen_dir/index.html",
+    "$target_gen_dir/astro_webui.js",
+    "$target_gen_dir/astro_webui.css",
+  ]
+
+  args = [
+    "--script",
+    rebase_path("build.mjs", root_build_dir),
+    "--",
+    "--out-dir",
+    rebase_path(target_gen_dir, root_build_dir),
+  ]
+}
+
+# The app's bytes, compiled into the binary.
+action("embedded_resources") {
+  script = "//astro/build/embed_resources.py"
+
+  deps = [ ":app" ]
+  _app_dir = get_label_info(":app", "target_gen_dir")
+
+  sources = [
+    "$_app_dir/index.html",
+    "$_app_dir/astro_webui.css",
+    "$_app_dir/astro_webui.js",
+  ]
+  outputs = [ "$target_gen_dir/astro_webui_resources.cc" ]
+
+  args = [
+    "--out",
+    rebase_path(outputs[0], root_build_dir),
+    "--header",
+    "astro/browser/webui/astro_webui_resources.h",
+    "--resource",
+    "kAstroWebUiIndexHtml=" + rebase_path("$_app_dir/index.html", root_build_dir),
+    "--resource",
+    "kAstroWebUiCss=" + rebase_path("$_app_dir/astro_webui.css", root_build_dir),
+    "--resource",
+    "kAstroWebUiJs=" + rebase_path("$_app_dir/astro_webui.js", root_build_dir),
+  ]
+}

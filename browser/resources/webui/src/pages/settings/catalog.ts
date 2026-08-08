@@ -87,3 +87,62 @@ export function labelFor(key: string): string {
   const words = last.replace(/_/g, ' ').trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+/**
+ * Prefs whose value is a choice, and what each value means.
+ *
+ * chrome.settingsPrivate reports these as plain NUMBER or STRING: nothing in
+ * the API says that cookie_controls_mode 1 is "block third-party in Incognito".
+ * Naming a choice is presentation -- the same job as labelFor -- so it belongs
+ * here rather than being inferred. A pref missing from this table still renders
+ * with its real value in an editable field; it is never hidden.
+ */
+export interface Choice {
+  value: string | number;
+  label: string;
+}
+
+export const CHOICES: Record<string, Choice[]> = {
+  'profile.cookie_controls_mode': [
+    {value: 0, label: 'Allow all cookies'},
+    {value: 1, label: 'Block third-party cookies in Incognito'},
+    {value: 3, label: 'Block third-party cookies'},
+  ],
+  'generated.safe_browsing': [
+    {value: 0, label: 'No protection'},
+    {value: 1, label: 'Standard protection'},
+    {value: 2, label: 'Enhanced protection'},
+  ],
+  'download.default_directory': [],
+  'session.restore_on_startup': [
+    {value: 1, label: 'Open a specific page or set of pages'},
+    {value: 4, label: 'Continue where you left off'},
+    {value: 5, label: 'Open the New Tab page'},
+  ],
+  'browser.clear_data.time_period': [
+    {value: 0, label: 'Last hour'},
+    {value: 1, label: 'Last 24 hours'},
+    {value: 2, label: 'Last 7 days'},
+    {value: 3, label: 'Last 4 weeks'},
+    {value: 4, label: 'All time'},
+  ],
+  'performance_tuning.high_efficiency_mode.state': [
+    {value: 0, label: 'Off'},
+    {value: 1, label: 'When memory is low'},
+    {value: 2, label: 'Always'},
+  ],
+  'net.network_prediction_options': [
+    {value: 0, label: 'Standard preloading'},
+    {value: 1, label: 'Extended preloading'},
+    {value: 2, label: 'No preloading'},
+  ],
+};
+
+/** The choices for a pref, or null when it is not a choice. */
+export function choicesFor(key: string): Choice[] | null {
+  const choices = CHOICES[key];
+  // An empty array is a deliberate "known, but not a choice" marker for a pref
+  // whose value looks enum-like and is not; returning it would render an empty
+  // dropdown.
+  return choices && choices.length > 0 ? choices : null;
+}

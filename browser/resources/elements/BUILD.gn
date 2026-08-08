@@ -1,0 +1,41 @@
+# Copyright 2026 Oxy. Astro product module.
+
+# Bloom's components, wrapped as custom elements for Chromium's WebUI pages.
+#
+# Built here rather than checked in. The bundle used to be produced by hand and
+# copied into chrome/browser/resources/settings/; that copy silently fell a
+# build behind and the page rendered fine while an element it referenced was
+# never defined. Nothing in the build could have caught it, because the stale
+# file was a perfectly valid input.
+action("elements") {
+  script = "//astro/build/run_bun.py"
+
+  # Vite reads the whole of src/ plus its configuration. Listing the entry
+  # point and the config is enough for GN to re-run the action when the
+  # components change; node_modules is intentionally not an input.
+  inputs = [
+    "build.mjs",
+    "package.json",
+    "vite.config.ts",
+    "src/elements.tsx",
+  ]
+
+  # Every file Vite emits, by name. The names are pinned in vite.config.ts
+  # precisely so they can be written here: a content hash would rename them on
+  # every build and GN would never find its declared outputs.
+  outputs = [
+    "$target_gen_dir/astro_elements.js",
+    "$target_gen_dir/astro_elements.woff2",
+    "$target_gen_dir/astro_elements2.woff2",
+    "$target_gen_dir/astro_elements3.woff2",
+    "$target_gen_dir/astro_elements4.woff2",
+  ]
+
+  args = [
+    "--script",
+    rebase_path("build.mjs", root_build_dir),
+    "--",
+    "--out-dir",
+    rebase_path(target_gen_dir, root_build_dir),
+  ]
+}

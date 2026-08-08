@@ -1,0 +1,41 @@
+/* Astro's settings page, on the same design layer as the rest of Oxy.
+ *
+ * Mirrors the new tab page and Mention's global.css deliberately -- Mention is
+ * the reference consumer of Bloom on web, and the three must not drift. The
+ * @source lines are the part that is easy to omit and impossible to notice:
+ * react-native-css emits REAL CSS classes on web rather than runtime styles, so
+ * without scanning Bloom's own lib/ every flex-row, gap and items-center inside
+ * a Bloom component is a no-op, while its colours still render because Bloom
+ * applies those inline. The page then looks almost right, which is the worst
+ * way for this to fail.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+@import "nativewind/theme";
+
+/* Bloom's canonical tokens -- radius scale, spacing, typography, colour
+   aliases -- imported rather than hand-copied so they stay in sync with the
+   published package. */
+@import "@oxyhq/bloom/design-tokens/theme.css";
+
+@source "./**/*.{ts,tsx}";
+@source "../node_modules/@oxyhq/bloom/lib/**/*.{js,jsx}";
+
+/* The page owns its whole document, so the html/body chrome is ours to set.
+   Bloom paints the surface; this only makes the root fill the viewport. */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* The app's outermost View is `flex-1`, which needs a flex parent with a
+   height to expand into. Without this the root sizes to its content and the
+   page background stops where the content does -- a white band below the
+   shell that looks like a rendering bug rather than a missing display rule. */
+#root {
+  display: flex;
+  flex-direction: column;
+}

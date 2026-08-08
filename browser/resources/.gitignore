@@ -1,1 +1,10 @@
 node_modules/
+
+# Built by GN, not committed.
+#
+# A checked-in bundle is a valid input nothing can tell apart from a current
+# one. The elements bundle fell a build behind exactly that way: the page
+# rendered, the build was green, and an element added that afternoon did not
+# exist at runtime. //astro/browser/resources/*/BUILD.gn builds these now.
+elements/dist/
+webui/dist/

@@ -1,14 +1,13 @@
 // Copyright 2026 Oxy. Astro product module.
 
-#include "astro/browser/webui/astro_ntp_ui.h"
+#include "astro/browser/webui/astro_webui_page.h"
 
 #include <string>
 
-#include "astro/browser/webui/astro_ntp_resources.h"
+#include "astro/browser/webui/astro_webui_resources.h"
 #include "astro/common/url_constants.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted_memory.h"
-#include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
@@ -19,13 +18,13 @@ namespace {
 
 std::string_view ContentForPath(const std::string& path) {
   if (path.empty() || path == "index.html") {
-    return kAstroNtpIndexHtml;
+    return kAstroWebUiIndexHtml;
   }
-  if (path == "ntp.js") {
-    return kAstroNtpJs;
+  if (path == "astro_webui.js") {
+    return kAstroWebUiJs;
   }
-  if (path == "ntp.css") {
-    return kAstroNtpCss;
+  if (path == "astro_webui.css") {
+    return kAstroWebUiCss;
   }
   return {};
 }
@@ -50,8 +49,7 @@ void HandleRequest(const std::string& path,
 
 }  // namespace
 
-AstroNtpUI::AstroNtpUI(content::WebUI* web_ui, const GURL& url)
-    : content::WebUIController(web_ui) {
+void AddAstroWebUiDataSource(content::WebUI* web_ui, const GURL& url) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(), std::string(url.host()));
 
@@ -59,9 +57,9 @@ AstroNtpUI::AstroNtpUI(content::WebUI* web_ui, const GURL& url)
                            base::BindRepeating(&HandleRequest));
 
   // React needs inline styles: react-native-web writes them onto elements, and
-  // Bloom applies its colours that way. Scripts stay restricted to this origin.
+  // Bloom applies its colours that way.
   //
-  // 'unsafe-inline' for styles is a real widening and is written here rather
+  // 'unsafe-inline' for STYLES is a real widening and is written here rather
   // than inherited, so it is visible to whoever reads this file next. Scripts
   // are NOT widened: the bundle is served from this origin and nothing else may
   // execute.
@@ -70,15 +68,16 @@ AstroNtpUI::AstroNtpUI(content::WebUI* web_ui, const GURL& url)
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::StyleSrc,
       "style-src 'self' 'unsafe-inline';");
-  // Fonts are inlined into the stylesheet as data: URIs, so the page needs no
-  // network at all -- but data: must be permitted for them to load.
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::FontSrc, "font-src data:;");
 }
 
-AstroNtpUI::~AstroNtpUI() = default;
+AstroWebUiPage::AstroWebUiPage(content::WebUI* web_ui, const GURL& url)
+    : content::WebUIController(web_ui) {
+  AddAstroWebUiDataSource(web_ui, url);
+}
 
-AstroNtpUIConfig::AstroNtpUIConfig(std::string_view host)
+AstroWebUiPage::~AstroWebUiPage() = default;
+
+AstroWebUiPageConfig::AstroWebUiPageConfig(std::string_view host)
     : DefaultWebUIConfig(kAstroUIScheme, host) {}
 
 }  // namespace astro

@@ -8,7 +8,9 @@
 
 #include "astro/browser/webui/astro_ntp_ui.h"
 #include "astro/browser/webui/astro_settings_next_ui.h"
+#include "astro/browser/webui/astro_settings_page.h"
 #include "astro/browser/webui/astro_test_ui.h"
+#include "astro/browser/webui/astro_webui_page.h"
 #include "astro/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/webui_config_map.h"
@@ -52,16 +54,39 @@ void RegisterAstroWebUIConfigs() {
 
   // The new tab page. Unlike settings, nothing upstream is preserved here:
   // Chromium's is Google's, and what ungoogled leaves is a minimal stand-in.
-  const GURL ntp_url(base::StrCat(
-      {kAstroUIScheme, url::kStandardSchemeSeparator,
-       chrome::kChromeUINewTabPageHost}));
-  std::unique_ptr<content::WebUIConfig> replaced_ntp =
-      content::WebUIConfigMap::GetInstance().RemoveConfig(ntp_url);
-  CHECK(replaced_ntp) << "no config was registered for " << ntp_url
-                      << "; upstream's new tab page registration has moved";
+  //
+  // BOTH of upstream's new tab hosts. Chromium serves its own page when the
+  // default search engine is Google and a "third party" page otherwise
+  // (search.cc, NewTabURLDetails::ForProfile) -- so in Astro, where it never
+  // is, every new tab reached the third-party host and rendered ungoogled's
+  // near-empty stand-in. Astro's page is not a stand-in for Google's, so the
+  // branch has nothing to choose between: both hosts serve it, and search.cc
+  // keeps behaving exactly as upstream wrote it.
+  for (const char* host : {chrome::kChromeUINewTabPageHost,
+                           chrome::kChromeUINewTabPageThirdPartyHost}) {
+    const GURL ntp_url(base::StrCat(
+        {kAstroUIScheme, url::kStandardSchemeSeparator, host}));
+    std::unique_ptr<content::WebUIConfig> replaced_ntp =
+        content::WebUIConfigMap::GetInstance().RemoveConfig(ntp_url);
+    CHECK(replaced_ntp) << "no config was registered for " << ntp_url
+                        << "; upstream's new tab page registration has moved";
 
+    content::WebUIConfigMap::GetInstance().AddWebUIConfig(
+        std::make_unique<AstroNtpUIConfig>(host));
+  }
+
+  // Astro's own pages, all served by ONE app (see AstroWebUiPage).
+  //
+  // Registered on hosts upstream does not claim, so upstream's page keeps
+  // serving its own host until the Bloom page reaches parity and the two swap
+  // -- a half-built replacement taking over a real page is worse than an
+  // obviously separate one.
+  // Settings is the one page that does NOT use the generic controller: it
+  // derives from Chromium's settings controller so the app inherits the
+  // forty-three message handlers that are the browser's real control surface
+  // (see AstroSettingsPage).
   content::WebUIConfigMap::GetInstance().AddWebUIConfig(
-      std::make_unique<AstroNtpUIConfig>());
+      std::make_unique<AstroSettingsPageConfig>(kAstroSettingsNextHost));
 
   // Nothing else belongs here. Astro's internal scheme is composed at build
   // time from //astro/build/product.gni, so content::kChromeUIScheme already

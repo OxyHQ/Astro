@@ -9,6 +9,10 @@
 _ntp_embedded = get_label_info("//astro/browser/resources/ntp:embedded_resources",
                                "target_gen_dir") + "/astro_ntp_resources.cc"
 
+_webui_embedded =
+    get_label_info("//astro/browser/resources/webui:embedded_resources",
+                   "target_gen_dir") + "/astro_webui_resources.cc"
+
 source_set("webui") {
   sources = [
     "astro_ntp_resources.h",
@@ -18,14 +22,22 @@ source_set("webui") {
     "astro_settings_next_ui.h",
     "astro_test_ui.cc",
     "astro_test_ui.h",
+    "astro_settings_page.cc",
+    "astro_settings_page.h",
+    "astro_webui_page.cc",
+    "astro_webui_page.h",
+    "astro_webui_resources.h",
     "astro_web_ui_configs.cc",
     "astro_web_ui_configs.h",
     _ntp_embedded,
+    _webui_embedded,
   ]
 
   deps = [
     # The new tab page's own bytes, compiled into the binary.
     "//astro/browser/resources/ntp:embedded_resources",
+    # Astro's own pages -- ONE Vite + Tailwind + Bloom app for all of them.
+    "//astro/browser/resources/webui:embedded_resources",
     # The page's own bytes, packaged into the binary.
     # Settings is reused, not copied: astro://settings/ instantiates
     # settings::SettingsUI itself.

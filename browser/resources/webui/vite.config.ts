@@ -5,14 +5,12 @@ import react from '@vitejs/plugin-react';
 import reactNativeWeb from 'vite-plugin-react-native-web';
 import tailwindcss from '@tailwindcss/vite';
 
-// Bloom's components, wrapped as custom elements so Chromium's Polymer WebUI
-// can use them directly.
+// Astro's settings page: a Vite + Tailwind + Bloom app, the same stack the
+// Oxy console and Alia are built on.
 //
-// Not an imitation in CSS. A settings toggle IS Bloom's Switch: the same React
-// Native component that Mention and the console render, mounted into a React
-// root inside the custom element's own shadow root. Copying its geometry into a
-// stylesheet was tried first and rejected -- it looks the same until Bloom
-// changes, and then two things that claim to be one component quietly differ.
+// Nothing of Chromium's own settings UI is reused. What IS reused is the API
+// underneath it -- chrome.settingsPrivate -- which is what actually controls
+// the browser (see src/prefs.ts).
 //
 // This configuration is deliberately the one from OxyHQServices' IdP
 // (packages/auth), not a fresh derivation. Building it from first principles
@@ -33,16 +31,18 @@ export default defineConfig(({mode}) => ({
     reactNativeWeb(),
     react({
       // node_modules is EXCLUDED by default (`defaultExcludeRE` in
-      // @vitejs/plugin-react), and Bloom is installed rather than linked here.
+      // @vitejs/plugin-react), and Bloom is installed here rather than linked.
       //
-      // That single default is why Bloom's className-styled components render
-      // unstyled in this bundle and correctly in the Oxy console: the console
-      // resolves @oxyhq/bloom through a workspace symlink, whose real path is
-      // outside node_modules, so the transform below runs over Bloom's source.
-      // From an installed copy it does not, and every `className` on a Bloom
-      // View is dropped -- while StyleSheet-styled components (Switch, Search)
-      // keep working, so the failure looks like "some Bloom components are
-      // broken" rather than "one build setting is wrong".
+      // That one default decides whether Bloom renders at all. Bloom styles
+      // with `className`, which only becomes real CSS once the react-native-css
+      // preset below has run over Bloom's own files; from an installed copy it
+      // never runs, every className is dropped, and the components come out
+      // unstyled. The Oxy console does not hit this because it resolves
+      // @oxyhq/bloom through a workspace symlink whose real path is outside
+      // node_modules. Measured here: ContentPanel rendered with no surface, no
+      // radius and no border, while Switch and Search -- which style with
+      // StyleSheet, not className -- looked perfect. That asymmetry is what
+      // makes it read as "some Bloom components are broken".
       exclude: [/[\\/]node_modules[\\/](?!@oxyhq[\\/]bloom[\\/])/],
       babel: {presets: [reactNativeCssBabel]},
     }),
@@ -77,19 +77,15 @@ export default defineConfig(({mode}) => ({
     // into the browser binary file by file, and four separate binary blobs
     // would each need their own resource path, their own C++ symbol and their
     // own chance to be forgotten. Three text files is the whole page.
-    // No inlined fonts. Bloom's stylesheet declares @font-face with base64
-    // payloads; the settings page's Content Security Policy refuses data: fonts,
-    // and a switch has no typography of its own to lose. Keeping them cost four
-    // console errors per page load and 300KB for nothing.
-    assetsInlineLimit: 0,
+    assetsInlineLimit: 1024 * 1024,
     rollupOptions: {
-      input: 'src/elements.tsx',
+      input: 'src/index.html',
       output: {
         // Stable, unhashed: a GN action embeds these by name into the browser
         // binary, and a content hash would change them on every build.
-        entryFileNames: 'astro_elements.js',
-        chunkFileNames: 'astro-elements-[name].js',
-        assetFileNames: 'astro_elements.[ext]',
+        entryFileNames: 'astro_webui.js',
+        chunkFileNames: 'astro-webui-[name].js',
+        assetFileNames: 'astro_webui.[ext]',
       },
     },
   },
