@@ -227,18 +227,25 @@ The seed resolves every patch reference to the diff side it sits on, because a
 host in a patch may be one the patch **deletes**: of the 94 hosts carrying patch
 references, 39 appear only on removed lines or diff headers.
 
-A diff side says what the patch *does*, not whether it *applies*. Nine Astro
-patches do not apply at the locked revision (baseline finding 3), and this has a
-consequence the manifest records rather than smooths over: `009` and `013` — the
-two patches that replace Google references in the settings and profile strings —
-are both among them. So the Google hostnames those patches were written to remove
-are **still in the tree today**. Six endpoint entries whose `state` is
-`DISABLE_BUILD` therefore carry `observed_state: PRESENT`, and each says so.
+A diff side says what the patch *does*, not whether it *applies*. Five Astro
+patches do not apply at the locked revision — `020`, `023`, `027`, `036`, `039` —
+and the Google hostnames the branding patches were written to remove are
+**still in the tree today** regardless, because `apply-patches.sh` dies partway
+through the ungoogled series and never reaches the Astro one. Six endpoint
+entries whose `state` is `DISABLE_BUILD` therefore carry
+`observed_state: PRESENT`.
 
-The non-applying list is `endpoints.json`'s `non_applying_patches`, declared from
-baseline finding 3 rather than measured here. The validator checks only that each
-name is still in `patches/astro/series`: a rename fails loudly, a **change of
-apply status does not**. That limit is stated rather than left to be discovered.
+The non-applying list is `endpoints.json`'s `non_applying_patches`, and it is now
+measured rather than declared: both series are replayed in declared order against
+a scratch tree of pristine files read out of `chromium/src` at the locked commit,
+acceptance-tested with the same `git apply --check` the runner uses. The list it
+replaced named nine patches and was wrong in both directions — `009`, `012`,
+`013` and `015` apply, while five patches it never mentioned were malformed. The
+comment on the list carries the full method and its caveats.
+
+The validator still checks only that each name is in `patches/astro/series`: a
+rename fails loudly, a **change of apply status does not**. That limit is stated
+rather than left to be discovered.
 
 ## Rules the validator enforces
 

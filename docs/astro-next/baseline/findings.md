@@ -203,6 +203,21 @@ for seven malformed files, indefinitely and silently.
 **Context drift (9):** `009`, `012`, `013`, `015`, `020`, `023`, `027`, `036`,
 `039`. Well-formed patches whose surrounding Chromium code has moved.
 
+**Since resolved.** All seven malformed files have been regenerated against the
+locked revision — `054` and `055` in `7bb07f4`, and `045`, `046`, `052`, `053`,
+`056` after that. Four of them had drifted as well as being malformed, so
+correcting the headers alone would not have applied them: `045`'s include hunk
+named an `#include <functional>` the locked revision no longer has, `052` and
+`053` both anchored on symbols since renamed or deleted, and `046` anchored on
+prefs that only exist if `020` applies, which it does not.
+
+The "context drift (9)" list above is also wrong, and measurement rather than
+reasoning is what showed it: replaying both series in declared order against a
+scratch tree of pristine files from `chromium/src` at the locked commit applies
+`009`, `012`, `013` and `015` cleanly. Five patches do not apply today: `020`,
+`023`, `027`, `036`, `039`. `docs/astro-next/policy/endpoints.json` carries that
+measured list and the caveats on the replay.
+
 ---
 
 ## 4. The depot_tools pin did not hold
