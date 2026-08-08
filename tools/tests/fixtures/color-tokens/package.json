@@ -1,0 +1,6 @@
+{
+  "name": "@oxyhq/bloom",
+  "version": "0.0.0-fixture",
+  "private": true,
+  "description": "Not a package. This is the manifest tools/generate-color-mixer.py reads to record which Bloom release a header was transcribed from; the fixture beside it needs one for the same reason the real document has one. The version is deliberately impossible, so a fixture-generated header can never be mistaken for a real one."
+}
