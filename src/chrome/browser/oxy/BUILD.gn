@@ -33,6 +33,41 @@ source_set("oxy") {
   ]
 }
 
+# Theming — the profile's Bloom colour preset, and the mixer that paints
+# Chromium's native UI from it.
+#
+# Its own target, and NOT part of "webui_controllers", because of who has to
+# reach it: `//chrome/browser/ui/color:mixers` calls AddAstroColorMixers
+# (patch 061) and must not acquire a dependency on the WebUI layer to do it.
+# Nothing here depends on //chrome/browser/ui, which is what keeps that edge
+# acyclic.
+source_set("theming") {
+  sources = [
+    "astro_pref_names.h",
+    "astro_theme_service.cc",
+    "astro_theme_service.h",
+    "astro_theme_service_factory.cc",
+    "astro_theme_service_factory.h",
+    "ui/astro_color_mixer.cc",
+    "ui/astro_color_mixer.h",
+    "ui/astro_color_tokens.h",
+  ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/profiles",
+    "//chrome/browser/themes",
+    "//chrome/browser/ui/color:color_headers",
+    "//chrome/common:constants",
+    "//components/keyed_service/core",
+    "//components/prefs",
+    "//content/public/browser",
+    "//skia",
+    "//ui/color",
+    "//ui/native_theme",
+  ]
+}
+
 # Oxy WebUI controllers (NTP, Settings, Alia, etc.) — CAN depend on
 # //chrome/browser/ui because they live alongside other WebUI controllers.
 # This matches how Chrome does it: WebUI controllers are part of the UI layer.
@@ -45,6 +80,16 @@ source_set("webui_controllers") {
     # controller bases every Astro page derives from.
     "webui/astro_webui_page.cc",
     "webui/astro_webui_page.h",
+
+    # Read-only theme transport, held by every Astro page controller.
+    "webui/astro_theme_provider.cc",
+    "webui/astro_theme_provider.h",
+
+    # Settings WebUI (astro://settings — upstream's own host, see the header)
+    "webui/astro_settings_page_handler.cc",
+    "webui/astro_settings_page_handler.h",
+    "webui/astro_settings_ui.cc",
+    "webui/astro_settings_ui.h",
 
     # NTP WebUI (astro://newtab -> chrome://astro-ntp)
     "webui/astro_ntp_ui.cc",
@@ -61,8 +106,15 @@ source_set("webui_controllers") {
 
   ]
 
+  public_deps = [
+    # public_deps rather than deps: the mojom's generated headers appear in
+    # this target's own public headers, so every dependent needs them too.
+    "webui:mojo_bindings",
+  ]
+
   deps = [
     ":oxy",
+    ":theming",
     "//base",
     "//chrome/browser/profiles",
     "//chrome/browser:shell_integration",

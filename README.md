@@ -28,7 +28,7 @@
 
 112 [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) patches remove Google account and sync infrastructure, Safe Browsing pings, Google Update, the hard coded API keys and OAuth secrets, and the prefetches that reach Google domains before you type anything.
 
-57 Astro patches finish the job: branding, the product menu, the settings surface, and the remaining `chrome://` strings.
+60 Astro patches finish the job: branding, the product menu, the settings surface, and the remaining `chrome://` strings.
 
 </td>
 <td valign="top" width="50%">
@@ -49,7 +49,7 @@ The ad blocker is a Rust engine compiled into the browser and wired into the net
 |---|---|
 | Base | Chromium 146.0.7680.177, pinned by commit in [`browser.lock.json`](browser.lock.json) |
 | De-Google patches | 112, inherited from ungoogled-chromium |
-| Oxy patches | 56, in `patches/astro/001` through `056` |
+| Oxy patches | 60, in `patches/astro/001` through `063` |
 | URL scheme | `astro://`, aliased onto `chrome://` |
 | Internal pages | 5, built as Vite and Tailwind apps rather than Polymer |
 | Default search | DuckDuckGo, with Google, Bing, Brave Search and Startpage also available |

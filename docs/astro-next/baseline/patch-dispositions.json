@@ -176,14 +176,8 @@
     "011-astro-url-scheme-alias.patch": {
       "disposition": "replace",
       "effect": "security/privacy",
-      "purpose": "Aliases astro:// onto chrome:// \u2014 a cosmetic alias, not a real scheme.",
+      "purpose": "Aliases astro:// onto chrome:// — a cosmetic alias, not a real scheme.",
       "replacement_issue": 11
-    },
-    "012-settings-border-style.patch": {
-      "disposition": "replace",
-      "effect": "user-visible",
-      "purpose": "Settings page border styling.",
-      "replacement_issue": 15
     },
     "013-settings-google-to-oxy.patch": {
       "disposition": "replace",
@@ -460,6 +454,30 @@
       "effect": "security/privacy",
       "purpose": "Moves itertools from Chromium's 'test' crate group to 'safe' in gnrt_config.toml. adblock 0.9 depends on it, and a testonly crate cannot be linked into the browser-process ad blocker, so without this gn gen fails outright. The content is a security classification rather than code: 'test' records that Chromium itself only used the crate in tests, not an audit verdict, and the patch header carries the unsafe audit that backs the new claim. The requirement outlives any integration model while Astro ships adblock; patching an upstream file to state it does not.",
       "replacement_issue": 7
+    },
+    "060-settings-webui-takeover.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Swaps upstream's settings::SettingsUIConfig for Astro's AstroSettingsUIConfig, so astro://settings is served by the Astro application. Same host, deliberately: settingsPrivate and five other private APIs are granted by host pattern, and a duplicate origin CHECK-fails at startup, so a swap is the only shape that both inherits the grants and does not crash.",
+      "replacement_issue": 15
+    },
+    "061-astro-color-mixers-hook.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Calls astro::AddAstroColorMixers last in AddChromeColorMixers, and adds the build edge that makes it link, so the toolbar, tab strip, omnibox and menus are painted from the profile's Bloom colour preset. Stands down under forced colours, high contrast and an installed theme extension.",
+      "replacement_issue": 24
+    },
+    "062-astro-theme-service-register.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Instantiates AstroThemeServiceFactory in EnsureBrowserContextKeyedServiceFactoriesBuilt. Its ServiceIsCreatedWithBrowserContext is inert without this, so the browser would open in the default colours and switch to the profile's preset at whatever later moment something first asked for the theme.",
+      "replacement_issue": 24
+    },
+    "063-astro-webui-mojo-binders.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Registers astro.mojom.ThemeProvider and astro.settings.mojom.PageHandlerFactory in the WebUI frame binder map. An interface absent from that map is dropped by RenderFrameHostImpl with no error on either side, so the controller's BindInterface is never reached. Read and write are registered separately so a page that reads the theme cannot change it.",
+      "replacement_issue": 15
     }
   }
 }

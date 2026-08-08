@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Sun, 9 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Make Astro's Mojo interfaces reachable from its own pages
+
+A WebUI controller that implements a Mojo interface and overrides
+`BindInterface` for it is still unreachable until the interface appears in the
+frame binder map: `RenderFrameHostImpl` looks the interface up there, finds
+nothing, and drops the request. The page sees a pipe that never answers. There
+is no error, on either side.
+
+This registers Astro's two interfaces for `astro://settings`, and registers
+them SEPARATELY rather than as one, because they are not the same grant:
+
+  astro.mojom.ThemeProvider              read-only. Every Astro page binds it,
+                                         so the theme is live everywhere -- new
+                                         tab page, side panels, settings.
+
+  astro.settings.mojom.PageHandlerFactory  writes the theme. Granted here to
+                                         the settings controller alone, which
+                                         is also the only surface holding the
+                                         settingsPrivate grant (patch 060).
+
+A single read-write interface would have made every page that wants to READ
+the theme able to CHANGE it, which is a grant nobody would have written down
+deliberately.
+
+Registered in the desktop parts file, not the all-platforms one, to match
+where `AstroSettingsUIConfig` itself is registered: inside the non-Android
+branch of chrome_web_ui_configs.cc. The `//chrome/browser` dependency on
+`//chrome/browser/oxy:webui_controllers` is in the same non-Android branch and
+covers both halves of what this file needs -- the controller's own header, and
+the generated mojom headers, which arrive through that target's `public_deps`
+on `//chrome/browser/oxy/webui:mojo_bindings` and must EXIST before this file
+compiles, not merely link afterwards.
+
+Owned by https://github.com/OxyHQ/Astro/issues/15.
+---
+diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
+--- a/chrome/browser/BUILD.gn
++++ b/chrome/browser/BUILD.gn
+@@ -4255,6 +4255,7 @@ static_library("browser") {
+       "//chrome/browser/media/router/discovery/access_code:access_code_sink_service",
+       "//chrome/browser/metrics/desktop_session_duration",
+       "//chrome/browser/new_tab_page/chrome_colors",
++      "//chrome/browser/oxy:webui_controllers",
+       "//chrome/browser/page_content_annotations:fetcher",
+       "//chrome/browser/password_manager/password_change",
+       "//chrome/browser/performance_manager/public/user_tuning",
+diff --git a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
+--- a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
++++ b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
+@@ -22,6 +22,9 @@
+ #include "chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption.mojom.h"
+ #include "chrome/browser/new_tab_page/modules/v2/tab_groups/tab_groups.mojom.h"
+ #include "chrome/browser/new_tab_page/new_tab_page_util.h"
++#include "chrome/browser/oxy/webui/astro_settings.mojom.h"
++#include "chrome/browser/oxy/webui/astro_settings_ui.h"
++#include "chrome/browser/oxy/webui/astro_theme.mojom.h"
+ #include "chrome/browser/ui/lens/lens_overlay_untrusted_ui.h"
+ #include "chrome/browser/ui/lens/lens_side_panel_untrusted_ui.h"
+ #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
+@@ -597,6 +600,20 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
+         DefaultBrowserModalUI>(map);
+   }
+ #endif
++
++  // Astro's own typed transports. Without an entry in this map the interface
++  // is unreachable from the page: the controller's BindInterface is never
++  // called and the request is dropped, which the page sees as a pipe that
++  // never answers rather than as a missing registration.
++  //
++  // The two are granted separately and to different scopes on purpose.
++  // ThemeProvider is READ-only and every Astro page gets it; PageHandler
++  // WRITES the theme and is granted here only to the settings controller,
++  // which is also the only surface holding the settingsPrivate grant.
++  RegisterWebUIControllerInterfaceBinder<astro::mojom::ThemeProvider,
++                                         astro::AstroSettingsUI>(map);
++  RegisterWebUIControllerInterfaceBinder<
++      astro::settings::mojom::PageHandlerFactory, astro::AstroSettingsUI>(map);
+ }
+ 
+ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(

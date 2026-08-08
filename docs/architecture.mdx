@@ -24,7 +24,7 @@ declared by its own `series` file:
 ```
 patches/
   ungoogled/   112 patches inherited from ungoogled-chromium (+ series)
-  astro/        57 patches for Oxy integrations + branding + scheme (+ series)
+  astro/        60 patches for Oxy integrations + branding + scheme (+ series)
 ```
 
 The series file is the single source of order. It must agree with the directory
@@ -57,6 +57,10 @@ Ungoogled patches handle the heavy lifting of removing Google services (sync, ha
 | `055-056` | NTP WebUI registration and `chrome://newtab` redirect |
 | `057-058` | Overlay build edge into `//chrome/browser/ui/webui:configs`, Alia WebUI registration |
 | `059` | Ship `itertools` outside the test group, so the adblock engine's GN target is not test-only |
+| `060` | Serve `astro://settings` from Astro, by swapping upstream's registration under the same host |
+| `061` | Paint the native UI from the profile's Bloom colour preset (`AddAstroColorMixers`, last) |
+| `062` | Build `AstroThemeService` with the profile, so the preset is applied before the first paint |
+| `063` | Register Astro's Mojo interfaces in the WebUI frame binder map |
 
 Every patch is named after what it does. Inspection is encouraged before any version bump — most patches are a handful of lines.
 

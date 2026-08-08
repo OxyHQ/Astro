@@ -1,0 +1,153 @@
+// Copyright 2026 Oxy. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+
+#include "chrome/browser/oxy/ui/astro_color_mixer.h"
+
+#include <atomic>
+#include <optional>
+
+#include "chrome/browser/oxy/astro_pref_names.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
+#include "ui/color/color_id.h"
+#include "ui/color/color_mixer.h"
+#include "ui/color/color_provider.h"
+#include "ui/color/color_recipe.h"
+
+namespace astro {
+
+namespace {
+
+// The pref's registered default has to name a preset this build of Bloom
+// actually ships, and the only moment that can be checked for free is now.
+constexpr std::optional<ColorPreset> kDefaultPreset =
+    ColorPresetFromName(prefs::kDefaultThemePreset);
+static_assert(kDefaultPreset.has_value(),
+              "astro::prefs::kDefaultThemePreset names a colour preset that is "
+              "not in astro_color_tokens.h — regenerate the tokens or change "
+              "the default, but do not let the pref default to a colour that "
+              "does not exist");
+
+// Read by the mixer and written by AstroThemeService. Both happen on the UI
+// thread today, but a ColorProvider is also built for snapshots off-sequence,
+// so the read is not guaranteed to share the writer's sequence. Atomic rather
+// than a lock: a torn read would index the token table out of range.
+std::atomic<ColorPreset> g_active_preset{*kDefaultPreset};
+
+ColorScheme SchemeFor(const ui::ColorProviderKey& key) {
+  return key.color_mode == ui::ColorProviderKey::ColorMode::kDark
+             ? ColorScheme::kDark
+             : ColorScheme::kLight;
+}
+
+}  // namespace
+
+void SetActiveColorPreset(ColorPreset preset) {
+  g_active_preset.store(preset, std::memory_order_relaxed);
+}
+
+ColorPreset GetActiveColorPresetForTesting() {
+  return g_active_preset.load(std::memory_order_relaxed);
+}
+
+void AddAstroColorMixers(ui::ColorProvider* provider,
+                         const ui::ColorProviderKey& key) {
+  // Forced colours and the increased-contrast system setting are the user's
+  // accessibility configuration answering the same question this mixer would
+  // answer. A brand palette painted over them is a regression the user cannot
+  // undo from inside the browser, so Astro stands down entirely.
+  if (key.forced_colors != ui::ColorProviderKey::ForcedColors::kNone ||
+      key.contrast_mode == ui::ColorProviderKey::ContrastMode::kHigh) {
+    return;
+  }
+
+  // An installed theme extension is an explicit per-profile choice made after
+  // the preset was chosen. Upstream applies it near the end of
+  // AddChromeColorMixers and this mixer runs after that, so without this the
+  // preset would silently win over the theme the user just installed.
+  if (key.custom_theme) {
+    return;
+  }
+
+  const ColorPreset preset = g_active_preset.load(std::memory_order_relaxed);
+  const ColorScheme scheme = SchemeFor(key);
+  const auto token = [preset, scheme](ColorToken which) {
+    return ColorTokenValue(preset, scheme, which);
+  };
+
+  ui::ColorMixer& mixer = provider->AddMixer();
+
+  // --- The browser chrome band ---------------------------------------------
+  //
+  // Bloom's `surface` is its raised-above-the-page colour and `background` is
+  // the page itself, which is the same distinction Chromium draws between the
+  // toolbar and the content area. The frame takes `muted` so the tab strip
+  // reads as recessed behind the toolbar, which is the shape Chromium's own
+  // themes have.
+  mixer[kColorToolbar] = {token(ColorToken::kSurface)};
+  mixer[kColorToolbarText] = {token(ColorToken::kSurfaceForeground)};
+  mixer[kColorToolbarButtonIcon] = {token(ColorToken::kMutedForeground)};
+  mixer[kColorToolbarSeparator] = {token(ColorToken::kBorder)};
+  mixer[kColorToolbarContentAreaSeparator] = {token(ColorToken::kBorder)};
+
+  mixer[ui::kColorFrameActive] = {token(ColorToken::kMuted)};
+  // An unfocused window recedes to the plain page background. Bloom has no
+  // "inactive" variant of any token, so this is a choice between two real
+  // tokens rather than a computed dimming — deliberately, because a computed
+  // one would be this file inventing a colour.
+  mixer[ui::kColorFrameInactive] = {token(ColorToken::kBackground)};
+
+  // --- Tab strip ------------------------------------------------------------
+  //
+  // The active tab is painted with the toolbar's colour and inactive tabs with
+  // the frame's, which is what makes the active tab look continuous with the
+  // toolbar below it. Keeping that continuity is the reason all four
+  // frame/tab combinations are set rather than a subset: leaving one out
+  // paints it from upstream's palette and breaks the join at exactly the
+  // moment the window loses focus.
+  mixer[kColorTabBackgroundActiveFrameActive] = {token(ColorToken::kSurface)};
+  mixer[kColorTabBackgroundActiveFrameInactive] = {token(ColorToken::kSurface)};
+  mixer[kColorTabBackgroundInactiveFrameActive] = {token(ColorToken::kMuted)};
+  mixer[kColorTabBackgroundInactiveFrameInactive] = {
+      token(ColorToken::kBackground)};
+
+  mixer[kColorTabForegroundActiveFrameActive] = {
+      token(ColorToken::kSurfaceForeground)};
+  mixer[kColorTabForegroundActiveFrameInactive] = {
+      token(ColorToken::kSurfaceForeground)};
+  mixer[kColorTabForegroundInactiveFrameActive] = {
+      token(ColorToken::kMutedForeground)};
+  mixer[kColorTabForegroundInactiveFrameInactive] = {
+      token(ColorToken::kMutedForeground)};
+
+  // --- Omnibox / location bar -----------------------------------------------
+  //
+  // `input` is Bloom's form-field background and the location bar is the
+  // browser's one form field, so this is the token doing the job it was named
+  // for rather than an approximation.
+  mixer[kColorLocationBarBackground] = {token(ColorToken::kInput)};
+  mixer[kColorLocationBarBorder] = {token(ColorToken::kBorder)};
+  mixer[kColorOmniboxText] = {token(ColorToken::kForeground)};
+  mixer[kColorOmniboxTextDimmed] = {token(ColorToken::kMutedForeground)};
+
+  // --- Menus ----------------------------------------------------------------
+  //
+  // `popover` is Bloom's floating-surface token; a menu is a popover.
+  mixer[ui::kColorMenuBackground] = {token(ColorToken::kPopover)};
+  mixer[ui::kColorMenuBorder] = {token(ColorToken::kBorder)};
+  mixer[ui::kColorMenuSeparator] = {token(ColorToken::kBorder)};
+  mixer[ui::kColorMenuItemForeground] = {token(ColorToken::kPopoverForeground)};
+  mixer[ui::kColorMenuItemForegroundSecondary] = {
+      token(ColorToken::kMutedForeground)};
+  mixer[ui::kColorMenuItemBackgroundSelected] = {token(ColorToken::kAccent)};
+  mixer[ui::kColorMenuItemForegroundSelected] = {
+      token(ColorToken::kAccentForeground)};
+
+  // --- Focus ----------------------------------------------------------------
+  //
+  // Bloom's `ring` exists for exactly this and nothing else, so the focus ring
+  // is the one place where the native UI and a page are guaranteed to agree
+  // pixel for pixel.
+  mixer[ui::kColorFocusableBorderFocused] = {token(ColorToken::kRing)};
+}
+
+}  // namespace astro

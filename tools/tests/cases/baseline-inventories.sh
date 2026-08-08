@@ -28,7 +28,7 @@ harness::assert_status 0 "patch inventory over the real patch stack"
 # assertion agree with whatever it is handed, and the inventory's whole job is
 # to notice a patch that arrived without a disposition — so a new patch is
 # meant to fail here once, deliberately, and be counted in by hand.
-harness::assert_output_contains "astro 57" "every Astro patch is covered"
+harness::assert_output_contains "astro 60" "every Astro patch is covered"
 harness::assert_output_contains "ungoogled 112" "every inherited patch is covered"
 
 harness::run python3 "$BASELINE/inventory_patches.py" --json "$tmp/patches.json"

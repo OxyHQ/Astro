@@ -92,7 +92,7 @@ Runs in order:
 
 1. **Binary pruning** — deletes pre-built binaries from `chromium/src/` per `patches/ungoogled/pruning.list`.
 2. **Domain substitution** — currently refuses to run. See below.
-3. **Apply patches** — the 112 ungoogled patches, then the 57 Astro patches, each in the order declared by its `series` file (`patches/ungoogled/series`, `patches/astro/series`). The series must match the directory in both directions; a patch on disk that no series declares fails the run.
+3. **Apply patches** — the 112 ungoogled patches, then the 60 Astro patches, each in the order declared by its `series` file (`patches/ungoogled/series`, `patches/astro/series`). The series must match the directory in both directions; a patch on disk that no series declares fails the run.
 
 Patches are applied **exactly or not at all**. There is no fuzzy application and
 no automatic three-way merge: the first patch that does not apply exactly stops

@@ -1,0 +1,26 @@
+# Copyright 2026 Oxy. All rights reserved.
+# Use of this source code is governed by a BSD-style license.
+
+import("//mojo/public/tools/bindings/mojom.gni")
+
+# Typed Mojo transports for the Astro WebUI surfaces.
+#
+# The controllers that bind these live in the parent target,
+# //chrome/browser/oxy:webui_controllers. Only the generated bindings are here,
+# because a mojom() target has to be its own target and this is the directory
+# the .mojom files belong to.
+#
+# `//chrome/browser/oxy/webui:mojo_bindings` is the name the overlay's BUILD.gn
+# named for a target that did not exist — the whole overlay compiled to zero
+# objects, so nothing ever tried to resolve it. This is that target, for real.
+mojom("mojo_bindings") {
+  sources = [
+    "astro_settings.mojom",
+    "astro_theme.mojom",
+  ]
+
+  # Generated JS modules resolve from the WebUI root, so a page imports
+  # `chrome/browser/oxy/webui/astro_theme.mojom-webui.js`. The same path the
+  # C++ header uses, which is what stops the two sides being renamed apart.
+  webui_module_path = "/"
+}

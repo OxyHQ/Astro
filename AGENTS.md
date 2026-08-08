@@ -1,6 +1,6 @@
 # Astro — De-Googled Chromium Browser by Oxy
 
-Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 57 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
+Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 60 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
 
 ## Build Commands
 
@@ -180,13 +180,13 @@ do not let a build imply they are resolved:
     the patch header carries the unsafe audit backing it — do that for the
     next one too rather than treating the reclassification as clerical.
 - **Nothing fails when a patch stops applying — the whole series applying is
-  a measurement, never an assumption.** All 169 apply today (112 ungoogled +
-  57 Astro). `build/reports/patch-report.json` records
-  `applied_count: 168`, `failed_count: 0` from the last full-series run, which
-  predates `059-itertools-shipping-group.patch`; 059 was measured on its own
-  against the pristine file with the same acceptance test, and it is the only
-  patch in either series naming `gnrt_config.toml`, so nothing before it in
-  declared order can change its input. Also,
+  a measurement, never an assumption.** All 172 apply today (112 ungoogled +
+  60 Astro), measured 2026-08-09 by the replay described below: 745 files
+  seeded pristine (732 from `chromium/src` HEAD, 13 from DEPS
+  sub-repositories), 172/172 applied in declared order, no fuzz.
+  `build/reports/patch-report.json` is OLDER than that and says so —
+  `applied_count: 168` from the last full run against the real checkout — so
+  read the replay, not the report, for whether the series applies. Also,
   `docs/astro-next/policy/endpoints.json` declares the non-applying list
   EMPTY, with the replay that emptied it and the three waves of repairs
   written up there. Read it there rather than here; what belongs here is the
@@ -219,8 +219,12 @@ do not let a build imply they are resolved:
 - Every WebUI page serves its assets by reading a directory next to the
   executable at runtime (`base::DIR_EXE` + `resources/astro-<page>`) rather
   than from a `.pak`, so none of them carries Chromium's resource-bundling
-  guarantees, and each renders blank, with no error, if its directory is
-  missing. Removing `DIR_EXE` entirely is owned by #14.
+  guarantees. Removing `DIR_EXE` entirely is owned by #14 (packaging: #16).
+  The three legacy pages still render BLANK, with no error, when their
+  directory is missing. Pages built on `astro_webui_page.cc` do not: it logs
+  the absolute path it tried and serves a document naming it. Settings is the
+  only such page today, and it has no assets at all in this pipeline — see
+  the settings section below before reporting the takeover as working.
 
 ## Branding
 
@@ -275,11 +279,31 @@ src/chrome/browser/oxy/
 │   ├── astro_adblock_resource_type.* # Resource type classification
 │   ├── webui/astro_adblock_ui.*     # chrome://adblock controller + handler
 │   └── rs/                          # Rust source + BUILD.gn
+├── astro_pref_names.h               # Astro's own pref paths, as constants
+├── astro_theme_service.*            # KeyedService: watches the mode and preset
+│   astro_theme_service_factory.*    #   prefs, repaints the native UI, notifies
+│                                    #   the pages. Built with the profile.
 ├── ui/astro_color_tokens.h          # GENERATED from Bloom's tokens.json by
 │                                    #   tools/generate-color-mixer.py. Never
 │                                    #   hand-edit: a build-safety case
 │                                    #   regenerates it and compares.
+├── ui/astro_color_mixer.*           # Bloom token -> Chromium ColorId, by hand.
+│                                    #   Called last from AddChromeColorMixers
+│                                    #   (patch 061); computes no colour.
 └── webui/                           # WebUI page controllers
+    ├── BUILD.gn                     # mojom("mojo_bindings") ONLY. The
+    │                                #   controllers are sources of the parent
+    │                                #   target //chrome/browser/oxy:webui_controllers.
+    ├── astro_theme.mojom            # GetTheme + OnThemeChanged. READ ONLY, and
+    │                                #   bound by every Astro page.
+    ├── astro_settings.mojom         # SetThemeMode / SetColorPreset. Named
+    │                                #   methods only — never SetPref(string,…).
+    ├── astro_webui_page.*           # Shared base: asset serving (the one seam
+    │                                #   #16 replaces), per-host CSP, and the
+    │                                #   plain and Mojo controller bases.
+    ├── astro_theme_provider.*       # Serves astro_theme.mojom for one page.
+    ├── astro_settings_ui.*          # astro://settings controller + config
+    ├── astro_settings_page_handler.* # Browser side of astro_settings.mojom
     ├── astro_ntp_ui.*               # chrome://astro-ntp controller
     ├── astro_alia_ui.*              # chrome://alia controller
     └── astro_whats_new_ui.*         # chrome://whats-new controller
@@ -307,31 +331,80 @@ absorbs them; do not start a fourth one beside them.
 
 ```
 patches/ungoogled/   # 112 inherited de-Google patches
-patches/astro/       # 57 Astro-specific patches (numbered 001-059; 007 and 035 were
-                     #   removed as empty files, so two numbers are unused)
+patches/astro/       # 60 Astro-specific patches (numbered 001-063; 007 and 035 were
+                     #   removed as empty files and 012 was retired by 060, so
+                     #   three numbers are unused)
 gn_args/             # GN build args per platform (linux.gn, android.gn, macos.gn, windows.gn, etc.)
 branding/            # Logos, icons, astro.conf, .desktop file
 tools/               # Build, install, patch, packaging scripts
 ```
 
-## Settings and the error page do not exist
+## Settings: Astro serves it, and it has no assets yet
 
-There is no Astro settings page and no Astro error page. Both were deleted in
-`c9c4383`. The Mojo settings backend this file used to describe never existed
-at all — no `.mojom` has ever been committed to this repository, at any
-revision. What `c9c4383` removed was a generic `chrome.send` handler carrying
-six messages and thirty-four prefs. So `astro_settings.mojom`,
-`AstroSettingsHandler`, `kProfilePrefMappings[]` and the "add a setting in
-three steps" recipe were all describing something that was never built, which
-is worse than describing nothing: it sent readers looking for a file to edit.
+There is still no Astro error page — it was deleted in `c9c4383` and nothing
+replaced it. Settings is different now, and the difference has a sharp edge.
 
-`astro://settings` today is served by upstream's own `settings::SettingsUIConfig`.
+HISTORY, because this file used to lie about it. The Mojo settings backend
+older revisions of this document described never existed: no `.mojom` was
+committed to this repository at any revision before 2026-08-09. What `c9c4383`
+removed was a generic `chrome.send` handler carrying six messages and
+thirty-four prefs. `AstroSettingsHandler`, `kProfilePrefMappings[]` and the
+"add a setting in three steps" recipe all described something never built.
 
-The direction is a single Vite + Tailwind + Bloom application serving every
-`astro://` surface, one entry per WebUI host, with narrow typed Mojo per domain
-rather than a generic `SetPref(string, value)`. That is issues #15 (as amended
-2026-08-08), #14, #22, #17 and #24. Nothing about that architecture is
-documented here until it exists.
+WHAT IS TRUE NOW. `060-settings-webui-takeover.patch` swaps upstream's
+`settings::SettingsUIConfig` for `astro::AstroSettingsUIConfig`, under
+upstream's own host. The controller binds two typed Mojo interfaces
+(`astro_theme.mojom` read-only, `astro_settings.mojom` for the writes) and
+adopts four upstream handlers wholesale — `BrowserLifetimeHandler`,
+`ClearBrowsingDataHandler`, `SearchEnginesHandler`, `AboutHandler`.
+
+THE SHARP EDGE, declared rather than hidden: **the page has no assets.**
+`webui/app` is not built by `tools/build.sh` and `astro-settings` is not in
+its `REQUIRED_WEBUI_PAGES`, so `<DIR_EXE>/resources/astro-settings/` does not
+exist in any build this pipeline produces. Navigating to `astro://settings`
+in such a build gets the diagnostic document `astro_webui_page.cc` generates:
+a page naming the absent directory, plus a `LOG(ERROR)` naming it. That is
+deliberate — the deleted settings surface rendered BLANK with no error, and
+that is what condemned it — but it means this branch's browser has no working
+settings page until the packaging in #16 lands. Do not report the takeover as
+"settings works".
+
+WHY THE SAME HOST. `settingsPrivate` and seven other extension APIs are
+granted by host pattern in the two `_api_features.json` files, and the pattern
+names the settings host — `grep -n 'chrome://settings/\*'` finds six in
+`chrome/common/extensions/api/` and two in `extensions/common/api/`. Any other
+host gets no bindings, silently. Registering a second
+config for the same origin is not an option either:
+`WebUIConfigMap::AddWebUIConfigImpl` CHECKs on a duplicate. Swapping the line
+is the only shape that satisfies both.
+
+The rest of the direction — one Vite + Tailwind + Bloom application serving
+every `astro://` surface, one entry per host, narrow typed Mojo per domain and
+never a generic `SetPref(string, value)` — is issues #15, #14, #22, #17 and
+#24. Nothing about it is documented here until it exists.
+
+### Theming reaches the native UI
+
+Changing the theme in settings re-colours the browser, not just the page. The
+mode is upstream's `browser.theme.color_scheme2`; the Bloom colour preset is
+Astro's own `astro.theme.preset`. `AstroThemeService` watches both, pushes the
+preset into `astro::AddAstroColorMixers` (patch 061, called last so it wins),
+and calls `NativeTheme::NotifyOnNativeThemeUpdated()`, which drops the cached
+ColorProviders so open windows repaint with no restart.
+
+Two things to know before touching it:
+
+- **The preset is process-global in v1.** A `ColorProvider` is keyed by
+  `ui::ColorProviderKey`, which carries no profile, so with two profiles open
+  the last write wins for every window. Recorded on #24, not fixed here.
+- **`astro.theme.preset` is spelled in three places** — `astro_pref_names.h`,
+  the registration inside `020-register-oxy-prefs.patch`, and
+  `pref-ids.ts` — because a patch edits an upstream file and cannot include an
+  overlay header. `PrefService::GetString` on an unregistered path returns
+  empty rather than failing, so a rename that misses one produces a control
+  that moves and changes nothing.
+  `tools/tests/cases/theme-pref-ids-match-across-the-boundary.sh` is the only
+  thing that compares them.
 
 ## How to Add a New WebUI Page
 
@@ -341,7 +414,10 @@ documented here until it exists.
    - Create a `UIConfig` class inheriting `content::DefaultWebUIConfig<AstroFooUI>`
    - In the constructor, set up `WebUIDataSource` to serve the Vite-built assets from disk
 
-2. **Add to BUILD.gn** in `src/chrome/browser/oxy/webui/BUILD.gn`
+2. **Add the sources** to `source_set("webui_controllers")` in
+   `src/chrome/browser/oxy/BUILD.gn`. `webui/BUILD.gn` holds the
+   `mojom("mojo_bindings")` target and nothing else — add a `.mojom` there if
+   the page needs one, and bind it from a `MojoWebUIController`.
 
 3. **Register the config** with a numbered patch to
    `chrome/browser/ui/webui/chrome_web_ui_configs.cc`, following
@@ -372,11 +448,16 @@ documented here until it exists.
 | Page | Internal URL | Displayed as |
 |------|-------------|-------------|
 | New Tab | `chrome://astro-ntp` | `astro://newtab` |
+| Settings | `chrome://settings` | `astro://settings` |
 | Alia AI | `chrome://alia` | `astro://alia` |
 | What's New | `chrome://whats-new` | `astro://whats-new` |
 
-`chrome://settings` and `chrome://astro-error` are NOT in this table: Astro owns
-neither. Settings is upstream's page and the error page was deleted.
+Settings is Astro's since `060-settings-webui-takeover.patch`, on upstream's
+own host and by swapping upstream's registration — see the settings section
+above, including the part where it has no assets to serve yet.
+
+`chrome://astro-error` is NOT in this table: the error page was deleted and
+nothing replaced it.
 
 `chrome://whats-new` is served by upstream's `WhatsNewUIConfig`, not by
 Astro's controller. Astro's host string is byte-identical to upstream's, and
