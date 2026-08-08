@@ -110,8 +110,12 @@ function RailRow({
       <Text
         numberOfLines={1}
         className={
+          // Both states keep text-body's 15px/22px metrics: bodyTitleSmall is
+          // 13px/18px, so swapping tokens on selection visibly shrinks the
+          // label and changes the row height -- it reads as a broken scale
+          // animation. Only the weight moves.
           selected
-            ? 'text-bodyTitleSmall text-foreground max-rail:hidden'
+            ? 'text-body font-semibold text-foreground max-rail:hidden'
             : 'text-body text-foreground max-rail:hidden'
         }
       >
