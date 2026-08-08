@@ -84,10 +84,12 @@ export default defineConfig(({command, mode}) => {
   return {
     base: './',
     server: {
-      port: 5173,
+      // Not 5173: ~/Oxy/website's dev server sits on that port on this
+      // machine, and sharing it already sent one person to the wrong app.
+      port: 5178,
       // Refuse a busy port instead of quietly taking the next one. Vite's
-      // default is to increment, and the result is a dev server on :5174 while
-      // every instruction, bookmark and verification command still says :5173
+      // default is to increment, and the result is a dev server on :5179 while
+      // every instruction, bookmark and verification command still says :5178
       // -- which in this repository already produced a session that curled
       // another project's app and read its HTML as this one's.
       strictPort: true,
