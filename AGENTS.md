@@ -161,9 +161,32 @@ do not let a build imply they are resolved:
   written against a Chromium where `RegisterChromeWebUIConfigs()` sat near
   line 150, since moved to 232 — and neither was on the list. Both have been
   regenerated against the locked revision and verified with `git apply
-  --check`, which is the acceptance test `apply-patches.sh` itself uses. The
-  remaining nine are untouched, and `apply-patches.sh` still dies at the first
-  of them, so the patch pipeline does not reach the end of the series today.
+  --check`, which is the acceptance test `apply-patches.sh` itself uses.
+
+  The declared nine were then measured too, by replaying BOTH series in
+  declared order against a scratch tree holding the pristine version of every
+  file any patch names (759 of them, read out of `chromium/src` at the locked
+  commit — no checkout is mutated, and the acceptance test is the same `git
+  apply --check`). The list is wrong in both directions, so do not cite it:
+  - Five Astro patches are MALFORMED and nothing had noticed. `045`, `046`,
+    `052`, `053` and `056` carry hunk headers whose line counts disagree with
+    their bodies — blank context lines written with the leading space stripped
+    — so `git apply` rejects each with `corrupt patch at line N` no matter what
+    tree it is pointed at. `--recount` parses them, which is how the cause was
+    identified; it is not a fix, and `apply-patches.sh` must never adopt it.
+    All five have been that way since they were written in `4513abb`.
+  - Four of the declared nine — `009`, `012`, `013`, `015` — applied cleanly in
+    that replay. Treat this as weaker than the point above: four ungoogled
+    patches fail and four more target `gclient`-fetched DEPS subrepos that are
+    absent from `chromium/src`'s own git tree, so the replayed tree is not
+    byte-identical to what a real run produces.
+  - `020`, `023`, `027`, `036` and `039` did fail, as declared. `020` is worth
+    knowing about: it applies perfectly to pristine upstream ON ITS OWN and
+    fails only after the ungoogled series has edited `browser_prefs.cc`. A
+    per-patch check against a pristine tree would have called it healthy.
+
+  `apply-patches.sh` still dies partway, so the patch pipeline does not reach
+  the end of the series today.
 - Every WebUI page serves its assets by reading a directory next to the
   executable at runtime (`base::DIR_EXE` + `resources/astro-<page>`) rather
   than from a `.pak`, so none of them carries Chromium's resource-bundling
