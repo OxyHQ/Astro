@@ -32,10 +32,10 @@ exists, fails generation. This inventory therefore cannot silently rot.
 | 16 | `017-ntp-logo-css.patch` | `chrome/browser/resources/new_tab_page/logo.css` | 1 | **replace** | NTP logo styling. |
 | 17 | `018-ntp-logo-ts.patch` | `chrome/browser/resources/new_tab_page/logo.ts` | 2 | **replace** | NTP logo TypeScript wiring. |
 | 18 | `019-ntp-default-sites.patch` | `components/ntp_tiles/resources/default_popular_sites.json`<br>`components/ntp_tiles/resources/default_popular_sites_with_popular_apps.json`<br>`components/ntp_tiles/resources/default_popular_sites_without_popular_apps.json` | 3 | **replace** | Replaces the prepopulated NTP tiles, removing the Google-owned defaults. |
-| 19 | `020-register-oxy-prefs.patch` | `chrome/browser/prefs/browser_prefs.cc` | 8 | **replace** | Registers the Oxy profile and local-state preferences. |
+| 19 | `020-register-oxy-prefs.patch` | `chrome/browser/prefs/browser_prefs.cc` | 1 | **replace** | Registers the Oxy profile and local-state preferences. |
 | 20 | `021-omnibox-display-astro.patch` | `components/omnibox/browser/location_bar_model_impl.cc` | 1 | **replace** | Displays astro:// instead of chrome:// in the omnibox. |
 | 21 | `022-autocomplete-astro-scheme.patch` | `chrome/browser/autocomplete/chrome_autocomplete_provider_client.cc` | 1 | **replace** | Teaches autocomplete about the astro:// scheme. |
-| 22 | `023-url-fixer-astro-scheme.patch` | `components/url_formatter/url_fixer.cc` | 8 | **replace** | URL fixup accepts astro:// input. |
+| 22 | `023-url-fixer-astro-scheme.patch` | `components/url_formatter/url_fixer.cc` | 4 | **replace** | URL fixup accepts astro:// input. |
 | 23 | `024-astro-scheme-constant.patch` | `content/public/common/url_constants.h` | 1 | **replace** | Defines the astro scheme constant. |
 | 24 | `025-astro-scheme-register.patch` | `chrome/common/chrome_content_client.cc` | 1 | **replace** | Registers astro:// as a known scheme. |
 | 25 | `026-navigator-astro-rewrite.patch` | `chrome/browser/ui/browser_navigator.cc` | 2 | **replace** | Rewrites astro:// navigations to chrome:// in the navigator. |
@@ -50,7 +50,7 @@ exists, fails generation. This inventory therefore cannot silently rot.
 | 34 | `036-navigator-auth-intercept.patch` | `chrome/browser/ui/browser_navigator.cc` | 2 | **replace** | Intercepts auth.oxy.so redirects in the navigator. |
 | 35 | `037-builtin-provider-astro-scheme.patch` | `components/omnibox/browser/builtin_provider.cc` | 1 | **replace** | Builtin omnibox provider offers astro:// URLs. |
 | 36 | `038-dino-game-astro-scheme.patch` | `components/error_page/common/localized_error.cc` | 4 | **replace** | Offline dino game reachable over astro://. |
-| 37 | `039-auth-navigation-throttle-register.patch` | `chrome/browser/chrome_content_browser_client_navigation_throttles.cc` | 3 | **replace** | Registers the Oxy auth navigation throttle. |
+| 37 | `039-auth-navigation-throttle-register.patch` | `chrome/browser/chrome_content_browser_client_navigation_throttles.cc` | 2 | **replace** | Registers the Oxy auth navigation throttle. |
 | 38 | `040-tab-hover-astro-scheme.patch` | `chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.cc` | 1 | **replace** | Tab hover card shows the astro:// form. |
 | 39 | `041-navigation-controller-astro.patch` | `content/browser/renderer_host/navigation_controller_impl.cc` | 3 | **replace** | NavigationController handling for astro:// entries. |
 | 40 | `042-session-restore-astro.patch` | `components/sessions/content/content_serialized_navigation_driver.cc` | 2 | **replace** | Session restore persists and restores astro:// URLs. |

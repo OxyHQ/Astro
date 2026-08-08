@@ -227,21 +227,38 @@ The seed resolves every patch reference to the diff side it sits on, because a
 host in a patch may be one the patch **deletes**: of the 94 hosts carrying patch
 references, 39 appear only on removed lines or diff headers.
 
-A diff side says what the patch *does*, not whether it *applies*. Five Astro
-patches do not apply at the locked revision — `020`, `023`, `027`, `036`, `039` —
-and the Google hostnames the branding patches were written to remove are
-**still in the tree today** regardless, because `apply-patches.sh` dies partway
-through the ungoogled series and never reaches the Astro one. Six endpoint
-entries whose `state` is `DISABLE_BUILD` therefore carry
-`observed_state: PRESENT`.
+A diff side says what the patch *does*, not whether it *applies*. Four Astro
+patches do not apply at the locked revision — `009`, `012`, `013`, `015` — and
+the Google hostnames the branding patches were written to remove are **still in
+the tree today** regardless, because `apply-patches.sh` stops at the first
+failure and `009` is the eighth of the 56 Astro patches, so the other 48 never
+land either. Six endpoint entries whose `state` is `DISABLE_BUILD` therefore
+carry `observed_state: PRESENT`.
 
 The non-applying list is `endpoints.json`'s `non_applying_patches`, and it is now
 measured rather than declared: both series are replayed in declared order against
-a scratch tree of pristine files read out of `chromium/src` at the locked commit,
-acceptance-tested with the same `git apply --check` the runner uses. The list it
-replaced named nine patches and was wrong in both directions — `009`, `012`,
-`013` and `015` apply, while five patches it never mentioned were malformed. The
-comment on the list carries the full method and its caveats.
+a scratch tree of pristine files, acceptance-tested with the same
+`git apply --check` the runner uses.
+
+What that replay reads its input from turned out to matter more than anything it
+measured. `chromium/src` records 13 of the files the series touches inside
+gclient-fetched DEPS subrepos, as gitlinks, so `git show HEAD:<path>` cannot read
+them and an earlier replay left them out of the tree entirely. Resolving them
+from each subrepo's own git, at the commit the gitlink records, changes the
+verdict on **twelve** patches: all eight ungoogled failures disappear, and four
+Astro patches previously reported as applying do not. The eight had a single root
+cause — one patch naming a devtools-frontend file was skipped whole, and four
+later ungoogled patches then failed on the edits it never made. So no ungoogled
+patch is drift, and none belongs to #8.
+
+The four Astro failures are collisions with ungoogled patches that only now
+apply: `009`, `012` and `013` with `remove-uneeded-ui`, `015` with
+`remove-unused-preferences-fields`. Skipping each ungoogled patch makes its
+victims apply, which is how the attribution was established rather than inferred.
+They are measured here, not repaired.
+
+The five patches this list previously named — `020`, `023`, `027`, `036`, `039` —
+are repaired and now apply. The comment on the list carries the full method.
 
 The validator still checks only that each name is in `patches/astro/series`: a
 rename fails loudly, a **change of apply status does not**. That limit is stated
