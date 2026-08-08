@@ -14,6 +14,8 @@ import type {ReactNode} from 'react';
 
 import {t, type MessageId} from '@astro/platform';
 
+import {ControlAnchor} from './control-anchor.tsx';
+
 export interface RowGroupProps {
   title?: MessageId;
   footer?: MessageId;
@@ -21,9 +23,15 @@ export interface RowGroupProps {
 }
 
 export function RowGroup({title, footer, children}: RowGroupProps) {
-  return (
+  const group = (
     <SettingsListGroup title={title ? t(title) : undefined} footer={footer ? t(footer) : undefined}>
       {children}
     </SettingsListGroup>
   );
+  // A heading is a legitimate thing to search for, and for some runs of rows it
+  // is the ONLY name the whole run has -- the startup pages, the site-search
+  // engines. A section that declares its heading as a control gets the group
+  // revealed; one that does not is unaffected, since the anchor only acts on a
+  // request naming it.
+  return title ? <ControlAnchor id={title}>{group}</ControlAnchor> : group;
 }

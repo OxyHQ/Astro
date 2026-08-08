@@ -113,6 +113,12 @@ export const siteSettingsStrings = {
  * drift into promising a row that is no longer drawn. A hit opens the SECTION,
  * which is the screen the row is on, so a name found here lands somewhere the
  * setting is reachable.
+ *
+ * "Default behaviour" is the one entry that is NOT on the screen it opens, and
+ * it stays that way on purpose: forty-eight subpages draw a control by that
+ * name, one per content type, and no single fragment is a better answer than
+ * the list of categories to pick from. Naming any one of them would send
+ * someone looking for the camera default to the microphone.
  */
 export const siteSettingsControls: readonly MessageId[] = [
   'settings.siteSettings.allSites.title',

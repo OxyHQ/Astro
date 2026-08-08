@@ -7,6 +7,8 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
+import type {SettingsControl} from '../controls.ts';
+
 export const performanceStrings = {
   'settings.nav.performance': 'Performance',
   'settings.performance.title': 'Performance',
@@ -82,11 +84,11 @@ export const performanceStrings = {
 /**
  * The controls this section ACTUALLY renders, for search to match on.
  *
- * The preloading SUBPAGE's choice is listed too. The search field opens the
- * section a hit belongs to, and a setting that could not be found because it is
- * one row further in would be a setting the page has and cannot surface.
+ * The preloading SUBPAGE's choice is listed too, naming `/preloading` as the
+ * screen it is on -- a setting that could not be found because it is one row
+ * further in would be a setting the page has and cannot surface.
  */
-export const performanceControls = [
+export const performanceControls: readonly SettingsControl[] = [
   'settings.performance.memorySaver',
   'settings.performance.aggressiveness',
   'settings.performance.exceptions',
@@ -94,5 +96,6 @@ export const performanceControls = [
   'settings.performance.discardRing',
   'settings.performance.intervention',
   'settings.performance.preloading.link',
-  'settings.performance.preloading.choice',
-] as const;
+
+  {id: 'settings.performance.preloading.choice', on: '/preloading'},
+];

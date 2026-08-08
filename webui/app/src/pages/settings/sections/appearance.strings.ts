@@ -7,6 +7,8 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
+import type {SettingsControl} from '../controls.ts';
+
 export const appearanceStrings = {
   'settings.nav.appearance': 'Appearance',
   'settings.appearance.title': 'Appearance',
@@ -74,11 +76,12 @@ export const appearanceStrings = {
  * Listing a control here that the section does not draw makes the search field
  * promise a setting the page cannot show, which is worse than not finding it.
  *
- * The fonts SUBPAGE's controls are listed too. The search field opens the
- * section a hit belongs to, and a font family that could not be found because
- * it is one row further in would be a setting the page has and cannot surface.
+ * The fonts SUBPAGE's controls are listed too, each naming `/fonts` as the
+ * screen it is on. Before that they were listed bare, so a search for
+ * "Minimum font size" opened `/appearance`, which does not have one -- found,
+ * and then not there.
  */
-export const appearanceControls = [
+export const appearanceControls: readonly SettingsControl[] = [
   'settings.appearance.mode',
   'settings.appearance.mode.system',
   'settings.appearance.mode.light',
@@ -96,11 +99,12 @@ export const appearanceControls = [
   'settings.appearance.resetToolbar',
   'settings.appearance.fontSize',
   'settings.appearance.fonts.link',
-  'settings.appearance.fonts.size',
-  'settings.appearance.fonts.minimumSize',
-  'settings.appearance.fonts.standard',
-  'settings.appearance.fonts.serif',
-  'settings.appearance.fonts.sansSerif',
-  'settings.appearance.fonts.fixed',
-  'settings.appearance.fonts.math',
-] as const;
+
+  {id: 'settings.appearance.fonts.size', on: '/fonts'},
+  {id: 'settings.appearance.fonts.minimumSize', on: '/fonts'},
+  {id: 'settings.appearance.fonts.standard', on: '/fonts'},
+  {id: 'settings.appearance.fonts.serif', on: '/fonts'},
+  {id: 'settings.appearance.fonts.sansSerif', on: '/fonts'},
+  {id: 'settings.appearance.fonts.fixed', on: '/fonts'},
+  {id: 'settings.appearance.fonts.math', on: '/fonts'},
+];

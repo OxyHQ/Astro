@@ -16,6 +16,8 @@ import {SettingsListItem} from '@oxyhq/bloom';
 
 import {navigateTo, setHashPath, t, type MessageId, type RouteId} from '@astro/platform';
 
+import {ControlAnchor} from './control-anchor.tsx';
+
 export type LinkRowProps = {
   label: MessageId;
   sublabel?: MessageId;
@@ -27,18 +29,20 @@ export type LinkRowProps = {
 // narrows the union on the object, not on variables pulled out of it.
 export function LinkRow(props: LinkRowProps) {
   return (
-    <SettingsListItem
-      title={t(props.label)}
-      description={props.sublabel ? t(props.sublabel) : undefined}
-      value={props.value}
-      accessibilityRole="link"
-      onPress={() => {
-        if (props.to === undefined) {
-          navigateTo(props.route);
-        } else {
-          setHashPath(props.to);
-        }
-      }}
-    />
+    <ControlAnchor id={props.label}>
+      <SettingsListItem
+        title={t(props.label)}
+        description={props.sublabel ? t(props.sublabel) : undefined}
+        value={props.value}
+        accessibilityRole="link"
+        onPress={() => {
+          if (props.to === undefined) {
+            navigateTo(props.route);
+          } else {
+            setHashPath(props.to);
+          }
+        }}
+      />
+    </ControlAnchor>
   );
 }

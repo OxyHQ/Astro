@@ -7,6 +7,8 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
+import type {SettingsControl} from '../controls.ts';
+
 export const languagesStrings = {
   'settings.nav.languages': 'Languages',
   'settings.languages.title': 'Languages',
@@ -90,18 +92,17 @@ export const languagesStrings = {
 /**
  * The controls this section ACTUALLY renders, for search to match on.
  *
- * The spell-check SUBPAGE's controls are listed too. The search field opens the
- * section a hit belongs to, and a setting that could not be found because it is
- * one row further in would be a setting the page has and cannot surface. The
- * The custom dictionary's own controls are listed now that the screen draws
- * them; its TITLE is indexed separately by the registry, which routes a hit to
- * the subpage's own fragment.
+ * Both SUBPAGES' controls are listed too, each naming the screen it is on.
+ * Their TITLES are indexed separately by the registry, which already routes a
+ * hit on one to that subpage; what needed naming here is the controls INSIDE
+ * them, which a bare entry would have sent to `/languages`.
  */
-export const languagesControls = [
+export const languagesControls: readonly SettingsControl[] = [
   'settings.languages.preferred',
   'settings.languages.spellCheck.link',
-  'settings.languages.spellCheck.enabled',
-  'settings.languages.spellCheck.dictionaries',
   'settings.languages.add',
-  'settings.languages.editDictionary.add',
-] as const;
+
+  {id: 'settings.languages.spellCheck.enabled', on: '/spellCheck'},
+  {id: 'settings.languages.spellCheck.dictionaries', on: '/spellCheck'},
+  {id: 'settings.languages.editDictionary.add', on: '/editDictionary'},
+];

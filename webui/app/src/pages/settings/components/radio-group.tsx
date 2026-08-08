@@ -42,7 +42,10 @@ export function RadioGroup({prefKey, label, options}: RadioGroupProps) {
 
   return (
     <View className="gap-2">
-      <SearchableLabel id={label} note={note} />
+      {/* The option names are searchable in their own right where a section
+          declares them, and none of them has a row the page can mark on its
+          own -- so a search for one reveals the choice they belong to. */}
+      <SearchableLabel id={label} note={note} also={options.map(option => option.label)} />
       <View accessibilityRole="radiogroup" accessibilityLabel={t(label)}>
         {options
           .filter(option => allowed === undefined || allowed.includes(option.value))

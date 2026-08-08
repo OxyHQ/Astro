@@ -12,6 +12,8 @@
 // and two unrelated things under one prefix is how a string ends up rendered in
 // the wrong place.
 
+import type {SettingsControl} from '../controls.ts';
+
 export const searchStrings = {
   'settings.nav.search': 'Search engine',
   'settings.searchEngine.title': 'Search engine',
@@ -57,10 +59,15 @@ export const searchStrings = {
  *
  * The engine names themselves are not listed and cannot be: they come from the
  * browser at runtime, and this list is a compile-time set of message ids.
+ *
+ * The two on the engines SUBPAGE name it. "Site search" in particular is the
+ * heading over the engines a user added, and the only name that run of rows
+ * has.
  */
-export const searchControls = [
+export const searchControls: readonly SettingsControl[] = [
   'settings.searchEngine.default',
   'settings.searchEngine.manage',
-  'settings.searchEngine.keywordSpace',
-  'settings.searchEngine.siteSearch',
-] as const;
+
+  {id: 'settings.searchEngine.keywordSpace', on: '/searchEngines'},
+  {id: 'settings.searchEngine.siteSearch', on: '/searchEngines'},
+];

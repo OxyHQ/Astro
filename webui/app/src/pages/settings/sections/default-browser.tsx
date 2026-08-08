@@ -34,6 +34,7 @@ import {useSyncExternalStore} from 'react';
 
 import {SectionCard, addWebUIListener, send, sendWithPromise, t} from '@astro/platform';
 
+import {ControlAnchor} from '../components/control-anchor.tsx';
 import {RowGroup} from '../components/row-group.tsx';
 import {SectionHeader} from '../components/section-header.tsx';
 
@@ -140,26 +141,30 @@ export function DefaultBrowserSection() {
       <SectionHeader title="settings.defaultBrowser.title" />
 
       <RowGroup>
-        <SettingsListItem
-          title={t('settings.defaultBrowser.status')}
-          description={statusText(current)}
-          showChevron={false}
-        />
-        <SettingsListItem
-          title={t('settings.defaultBrowser.make')}
-          description={t('settings.defaultBrowser.make.sublabel')}
-          showChevron={false}
-          rightElement={
-            <Button
-              variant="secondary"
-              size="small"
-              disabled={!canAsk}
-              onPress={() => send('setAsDefaultBrowser')}
-            >
-              {t('settings.defaultBrowser.make.button')}
-            </Button>
-          }
-        />
+        <ControlAnchor id="settings.defaultBrowser.status">
+          <SettingsListItem
+            title={t('settings.defaultBrowser.status')}
+            description={statusText(current)}
+            showChevron={false}
+          />
+        </ControlAnchor>
+        <ControlAnchor id="settings.defaultBrowser.make">
+          <SettingsListItem
+            title={t('settings.defaultBrowser.make')}
+            description={t('settings.defaultBrowser.make.sublabel')}
+            showChevron={false}
+            rightElement={
+              <Button
+                variant="secondary"
+                size="small"
+                disabled={!canAsk}
+                onPress={() => send('setAsDefaultBrowser')}
+              >
+                {t('settings.defaultBrowser.make.button')}
+              </Button>
+            }
+          />
+        </ControlAnchor>
       </RowGroup>
 
       {state?.isDisabledByPolicy === true ? (

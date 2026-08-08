@@ -17,6 +17,8 @@ import {View} from 'react-native';
 
 import {t, type MessageId} from '@astro/platform';
 
+import {ControlAnchor} from './control-anchor.tsx';
+
 export interface SearchableLabelProps {
   id: MessageId;
   /**
@@ -24,13 +26,17 @@ export interface SearchableLabelProps {
    * pref-bound control produced. Rendered in the same muted style either way.
    */
   note?: string;
+  /** Option names inside the control, which reveal the control itself. */
+  also?: readonly MessageId[];
 }
 
-export function SearchableLabel({id, note}: SearchableLabelProps) {
+export function SearchableLabel({id, note, also}: SearchableLabelProps) {
   return (
-    <View className="gap-1">
-      <Text className="text-bodyTitleSmall text-foreground">{t(id)}</Text>
-      {note ? <Text className="text-bodySmall text-text-secondary">{note}</Text> : undefined}
-    </View>
+    <ControlAnchor id={id} also={also}>
+      <View className="gap-1">
+        <Text className="text-bodyTitleSmall text-foreground">{t(id)}</Text>
+        {note ? <Text className="text-bodySmall text-text-secondary">{note}</Text> : undefined}
+      </View>
+    </ControlAnchor>
   );
 }

@@ -14,6 +14,8 @@ import {Button, SettingsListItem} from '@oxyhq/bloom';
 
 import {t, type MessageId} from '@astro/platform';
 
+import {ControlAnchor} from './control-anchor.tsx';
+
 export interface ActionRowProps {
   label: MessageId;
   sublabel?: MessageId;
@@ -34,20 +36,22 @@ export function ActionRow({
   destructive,
 }: ActionRowProps) {
   return (
-    <SettingsListItem
-      title={t(label)}
-      description={sublabel ? t(sublabel) : undefined}
-      showChevron={false}
-      rightElement={
-        <Button
-          variant={destructive ? 'destructive' : 'secondary'}
-          size="small"
-          disabled={disabled}
-          onPress={onPress}
-        >
-          {t(actionLabel)}
-        </Button>
-      }
-    />
+    <ControlAnchor id={label}>
+      <SettingsListItem
+        title={t(label)}
+        description={sublabel ? t(sublabel) : undefined}
+        showChevron={false}
+        rightElement={
+          <Button
+            variant={destructive ? 'destructive' : 'secondary'}
+            size="small"
+            disabled={disabled}
+            onPress={onPress}
+          >
+            {t(actionLabel)}
+          </Button>
+        }
+      />
+    </ControlAnchor>
   );
 }

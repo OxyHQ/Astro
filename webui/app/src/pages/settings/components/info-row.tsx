@@ -14,6 +14,8 @@ import {SettingsListItem} from '@oxyhq/bloom';
 
 import {t, type MessageId} from '@astro/platform';
 
+import {ControlAnchor} from './control-anchor.tsx';
+
 export interface InfoRowProps {
   label: MessageId;
   /** What the browser reported. Undefined while it has not answered yet. */
@@ -23,13 +25,15 @@ export interface InfoRowProps {
 
 export function InfoRow({label, value, sublabel}: InfoRowProps) {
   return (
-    <SettingsListItem
-      title={t(label)}
-      description={sublabel ? t(sublabel) : undefined}
-      // An unanswered value says so. A blank right-hand side reads as a fact
-      // whose value happens to be empty.
-      value={value ?? t('pref.pending')}
-      showChevron={false}
-    />
+    <ControlAnchor id={label}>
+      <SettingsListItem
+        title={t(label)}
+        description={sublabel ? t(sublabel) : undefined}
+        // An unanswered value says so. A blank right-hand side reads as a fact
+        // whose value happens to be empty.
+        value={value ?? t('pref.pending')}
+        showChevron={false}
+      />
+    </ControlAnchor>
   );
 }

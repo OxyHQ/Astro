@@ -29,6 +29,7 @@ import {
 } from '@astro/platform';
 
 import {ActionRow} from '../components/action-row.tsx';
+import {ControlAnchor} from '../components/control-anchor.tsx';
 import {InfoRow} from '../components/info-row.tsx';
 import {LinkRow} from '../components/link-row.tsx';
 import {RowGroup} from '../components/row-group.tsx';
@@ -41,6 +42,9 @@ const MODES: readonly {readonly id: ThemeMode; readonly label: MessageId}[] = [
   {id: 'light', label: 'settings.appearance.mode.light'},
   {id: 'dark', label: 'settings.appearance.mode.dark'},
 ];
+
+/** The three mode names, which the section declares as searchable in their own right. */
+const MODE_LABELS: readonly MessageId[] = MODES.map(entry => entry.label);
 
 /**
  * The colours offered.
@@ -113,31 +117,38 @@ export function AppearanceSection() {
     <>
       <SectionHeader title="settings.appearance.title" />
 
-      <SectionCard title={t('settings.appearance.mode')}>
-        <SegmentedControl
-          label={t('settings.appearance.mode')}
-          type="radio"
-          value={mode}
-          onChange={setMode}
-        >
-          {MODES.map(entry => (
-            <SegmentedControlItem key={entry.id} value={entry.id}>
-              <SegmentedControlItemText>{t(entry.label)}</SegmentedControlItemText>
-            </SegmentedControlItem>
-          ))}
-        </SegmentedControl>
-      </SectionCard>
+      {/* Anchored by hand, unlike every row below: `SectionCard` takes a
+          rendered string rather than a message id, so it cannot anchor itself
+          the way the row components do. */}
+      <ControlAnchor id="settings.appearance.mode" also={MODE_LABELS}>
+        <SectionCard title={t('settings.appearance.mode')}>
+          <SegmentedControl
+            label={t('settings.appearance.mode')}
+            type="radio"
+            value={mode}
+            onChange={setMode}
+          >
+            {MODES.map(entry => (
+              <SegmentedControlItem key={entry.id} value={entry.id}>
+                <SegmentedControlItemText>{t(entry.label)}</SegmentedControlItemText>
+              </SegmentedControlItem>
+            ))}
+          </SegmentedControl>
+        </SectionCard>
+      </ControlAnchor>
 
-      <SectionCard
-        title={t('settings.appearance.preset')}
-        description={t('settings.appearance.preset.description')}
-      >
-        <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2">
-          {PRESETS.map(name => (
-            <Swatch key={name} name={name} selected={name === preset} />
-          ))}
-        </View>
-      </SectionCard>
+      <ControlAnchor id="settings.appearance.preset">
+        <SectionCard
+          title={t('settings.appearance.preset')}
+          description={t('settings.appearance.preset.description')}
+        >
+          <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2">
+            {PRESETS.map(name => (
+              <Swatch key={name} name={name} selected={name === preset} />
+            ))}
+          </View>
+        </SectionCard>
+      </ControlAnchor>
 
       <RowGroup title="settings.appearance.group.homeButton">
         <ToggleRow prefKey="browser.show_home_button" label="settings.appearance.homeButton" />

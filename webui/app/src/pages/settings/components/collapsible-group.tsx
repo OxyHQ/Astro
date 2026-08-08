@@ -12,6 +12,8 @@ import {View} from 'react-native';
 
 import {t, type MessageId} from '@astro/platform';
 
+import {ControlAnchor} from './control-anchor.tsx';
+
 export interface CollapsibleGroupProps {
   title: MessageId;
   /** Open on arrival. Off by default: the point of the group is that it is folded. */
@@ -21,8 +23,10 @@ export interface CollapsibleGroupProps {
 
 export function CollapsibleGroup({title, defaultOpen, children}: CollapsibleGroupProps) {
   return (
-    <Collapsible title={t(title)} defaultOpen={defaultOpen}>
-      <View className="gap-3 pt-2">{children}</View>
-    </Collapsible>
+    <ControlAnchor id={title}>
+      <Collapsible title={t(title)} defaultOpen={defaultOpen}>
+        <View className="gap-3 pt-2">{children}</View>
+      </Collapsible>
+    </ControlAnchor>
   );
 }

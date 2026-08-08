@@ -38,6 +38,7 @@ import {View} from 'react-native';
 
 import {SectionCard, addWebUIListener, send, sendWithPromise, t, usePref} from '@astro/platform';
 
+import {ControlAnchor} from '../components/control-anchor.tsx';
 import {RadioGroup} from '../components/radio-group.tsx';
 import {RowGroup} from '../components/row-group.tsx';
 import {SectionHeader} from '../components/section-header.tsx';
@@ -140,27 +141,29 @@ function AddPageRow() {
   };
 
   return (
-    <SectionCard
-      title={t('settings.onStartup.pages.add')}
-      description={rejected ? t('settings.onStartup.pages.add.rejected') : undefined}
-    >
-      <View className="flex-row items-center gap-2">
-        <View className="flex-1">
-          <TextField>
-            <TextFieldInput
-              label={t('settings.onStartup.pages.add.field')}
-              placeholder={t('settings.onStartup.pages.add.placeholder')}
-              value={draft}
-              onChangeText={setDraft}
-              onSubmitEditing={add}
-            />
-          </TextField>
+    <ControlAnchor id="settings.onStartup.pages.add">
+      <SectionCard
+        title={t('settings.onStartup.pages.add')}
+        description={rejected ? t('settings.onStartup.pages.add.rejected') : undefined}
+      >
+        <View className="flex-row items-center gap-2">
+          <View className="flex-1">
+            <TextField>
+              <TextFieldInput
+                label={t('settings.onStartup.pages.add.field')}
+                placeholder={t('settings.onStartup.pages.add.placeholder')}
+                value={draft}
+                onChangeText={setDraft}
+                onSubmitEditing={add}
+              />
+            </TextField>
+          </View>
+          <Button variant="secondary" size="small" disabled={draft.trim() === ''} onPress={add}>
+            {t('settings.onStartup.pages.add.button')}
+          </Button>
         </View>
-        <Button variant="secondary" size="small" disabled={draft.trim() === ''} onPress={add}>
-          {t('settings.onStartup.pages.add.button')}
-        </Button>
-      </View>
-    </SectionCard>
+      </SectionCard>
+    </ControlAnchor>
   );
 }
 
@@ -197,19 +200,21 @@ function StartupPages() {
             }
           />
         ))}
-        <SettingsListItem
-          title={t('settings.onStartup.pages.useCurrent')}
-          showChevron={false}
-          rightElement={
-            <Button
-              variant="secondary"
-              size="small"
-              onPress={() => send('setStartupPagesToCurrentPages')}
-            >
-              {t('settings.onStartup.pages.useCurrent.button')}
-            </Button>
-          }
-        />
+        <ControlAnchor id="settings.onStartup.pages.useCurrent">
+          <SettingsListItem
+            title={t('settings.onStartup.pages.useCurrent')}
+            showChevron={false}
+            rightElement={
+              <Button
+                variant="secondary"
+                size="small"
+                onPress={() => send('setStartupPagesToCurrentPages')}
+              >
+                {t('settings.onStartup.pages.useCurrent.button')}
+              </Button>
+            }
+          />
+        </ControlAnchor>
       </RowGroup>
 
       <AddPageRow />

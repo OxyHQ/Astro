@@ -26,6 +26,7 @@ import {View} from 'react-native';
 
 import {setPref, t, type MessageId} from '@astro/platform';
 
+import {ControlAnchor} from './control-anchor.tsx';
 import {usePrefControl} from './policy.ts';
 
 export interface SelectOption {
@@ -65,7 +66,11 @@ export function SelectRow({prefKey, label, sublabel, options}: SelectRowProps) {
   const {pref, enforced, note} = usePrefControl(prefKey, describe);
 
   if (!pref) {
-    return <SettingsListItem title={t(label)} description={note} disabled showChevron={false} />;
+    return (
+      <ControlAnchor id={label}>
+        <SettingsListItem title={t(label)} description={note} disabled showChevron={false} />
+      </ControlAnchor>
+    );
   }
 
   const allowed = pref.userSelectableValues;
@@ -81,38 +86,40 @@ export function SelectRow({prefKey, label, sublabel, options}: SelectRowProps) {
   };
 
   return (
-    <SettingsListItem
-      title={t(label)}
-      description={note ?? (sublabel ? t(sublabel) : undefined)}
-      disabled={enforced}
-      showChevron={false}
-      rightElement={
-        <View className="min-w-40">
-          <Select value={String(pref.value)} onValueChange={write} disabled={enforced}>
-            <SelectTrigger label={t(label)}>
-              {/* The extractor is not optional here, whatever the placeholder
-                  says. Bloom's web fork renders `value ?? placeholder`, so a
-                  trigger without one shows the STORED value -- `16` where the
-                  option reads "Medium", `2` where it reads "Battery Saver" --
-                  and only falls back to the placeholder when nothing is
-                  selected at all. Its native fork extracts a label either way,
-                  so the defect appears on web only. */}
-              <SelectValue placeholder={describe(pref.value)}>{describe}</SelectValue>
-              <SelectIcon />
-            </SelectTrigger>
-            <SelectContent
-              label={t(label)}
-              items={items}
-              renderItem={(item: Item) => (
-                <SelectItem value={item.value} label={item.label}>
-                  <SelectItemIndicator />
-                  <SelectItemText>{item.label}</SelectItemText>
-                </SelectItem>
-              )}
-            />
-          </Select>
-        </View>
-      }
-    />
+    <ControlAnchor id={label}>
+      <SettingsListItem
+        title={t(label)}
+        description={note ?? (sublabel ? t(sublabel) : undefined)}
+        disabled={enforced}
+        showChevron={false}
+        rightElement={
+          <View className="min-w-40">
+            <Select value={String(pref.value)} onValueChange={write} disabled={enforced}>
+              <SelectTrigger label={t(label)}>
+                {/* The extractor is not optional here, whatever the placeholder
+                    says. Bloom's web fork renders `value ?? placeholder`, so a
+                    trigger without one shows the STORED value -- `16` where the
+                    option reads "Medium", `2` where it reads "Battery Saver" --
+                    and only falls back to the placeholder when nothing is
+                    selected at all. Its native fork extracts a label either way,
+                    so the defect appears on web only. */}
+                <SelectValue placeholder={describe(pref.value)}>{describe}</SelectValue>
+                <SelectIcon />
+              </SelectTrigger>
+              <SelectContent
+                label={t(label)}
+                items={items}
+                renderItem={(item: Item) => (
+                  <SelectItem value={item.value} label={item.label}>
+                    <SelectItemIndicator />
+                    <SelectItemText>{item.label}</SelectItemText>
+                  </SelectItem>
+                )}
+              />
+            </Select>
+          </View>
+        }
+      />
+    </ControlAnchor>
   );
 }

@@ -7,6 +7,8 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
+import type {SettingsControl} from '../controls.ts';
+
 export const privacyStrings = {
   'settings.nav.privacy': 'Privacy and security',
   'settings.privacy.title': 'Privacy and security',
@@ -124,13 +126,22 @@ export const privacyStrings = {
 /**
  * The controls this section ACTUALLY renders, for search to match on.
  *
- * The SECTION screen only -- a hit opens the section, not one of its subpages,
- * so listing a subpage's controls here would send someone looking for "time
- * range" to a screen that does not draw one. The subpage titles ARE listed,
- * because the section draws a row for each of them and that row is what the
- * search is meant to find.
+ * Everything below the first run is on a SUBPAGE and says which one. This is
+ * the section the fragment-carrying form was added for: five subpages hold
+ * most of what a user comes to Privacy looking for -- secure DNS, the HTTPS
+ * warning level, the time range and the seven kinds of data a deletion covers
+ * -- and none of it was findable at all. Listing them bare was not an option
+ * either, since every hit would have opened `/privacy`, which draws none of
+ * them.
+ *
+ * Two things on those screens are deliberately still absent. The cookie policy
+ * is labelled "Third-party cookies", the same words as the subpage's own
+ * title, so it is already found -- listing it would put two rows in the
+ * results that a user cannot tell apart. And `clearData.siteSettings` reads
+ * "Site settings", which is the label of a row on this section pointing
+ * somewhere else entirely.
  */
-export const privacyControls = [
+export const privacyControls: readonly SettingsControl[] = [
   'settings.privacy.doNotTrack',
   'settings.privacy.leakDetection',
   'settings.privacy.searchSuggest',
@@ -140,4 +151,17 @@ export const privacyControls = [
   'settings.privacy.siteSettings',
   'settings.privacy.safetyHub.title',
   'settings.privacy.securityKeys.title',
-] as const;
+
+  {id: 'settings.privacy.security.httpsMode', on: '/security'},
+  {id: 'settings.privacy.security.dns.mode', on: '/security'},
+  {id: 'settings.privacy.security.dns.resolver', on: '/security'},
+
+  {id: 'settings.privacy.clearData.timeRange', on: '/clearBrowserData'},
+  {id: 'settings.privacy.clearData.history', on: '/clearBrowserData'},
+  {id: 'settings.privacy.clearData.downloads', on: '/clearBrowserData'},
+  {id: 'settings.privacy.clearData.cookies', on: '/clearBrowserData'},
+  {id: 'settings.privacy.clearData.cache', on: '/clearBrowserData'},
+  {id: 'settings.privacy.clearData.formData', on: '/clearBrowserData'},
+  {id: 'settings.privacy.clearData.hostedApps', on: '/clearBrowserData'},
+  {id: 'settings.privacy.clearData.action', on: '/clearBrowserData'},
+];

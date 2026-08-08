@@ -62,6 +62,7 @@ import {
   type MessageId,
 } from '@astro/platform';
 
+import {ControlAnchor} from '../components/control-anchor.tsx';
 import {usePrefControl} from '../components/policy.ts';
 import {RowGroup} from '../components/row-group.tsx';
 import {SubpageHeader} from '../components/section-header.tsx';
@@ -191,12 +192,14 @@ function TimeRangeRow() {
 
   if (!pref) {
     return (
-      <SettingsListItem
-        title={t('settings.privacy.clearData.timeRange')}
-        description={note}
-        disabled
-        showChevron={false}
-      />
+      <ControlAnchor id="settings.privacy.clearData.timeRange">
+        <SettingsListItem
+          title={t('settings.privacy.clearData.timeRange')}
+          description={note}
+          disabled
+          showChevron={false}
+        />
+      </ControlAnchor>
     );
   }
 
@@ -206,49 +209,51 @@ function TimeRangeRow() {
   ).map(period => ({value: String(period.value), label: t(period.label)}));
 
   return (
-    <SettingsListItem
-      title={t('settings.privacy.clearData.timeRange')}
-      description={note}
-      disabled={enforced}
-      showChevron={false}
-      rightElement={
-        <View className="min-w-40">
-          <Select
-            value={String(pref.value)}
-            disabled={enforced}
-            onValueChange={(next: string) => {
-              const period = TIME_PERIODS.find(candidate => String(candidate.value) === next);
-              if (!period) {
-                return;
-              }
-              setPref(TIME_PERIOD_PREF, period.value);
-              restartCounters(period.value);
-            }}
-          >
-            <SelectTrigger label={t('settings.privacy.clearData.timeRange')}>
-              {/* The function child is not optional decoration: `SelectValue`
-                  renders the raw context value whenever there is one, and the
-                  value here is a browsing_data::TimePeriod, so without it the
-                  trigger reads "1" instead of "Last 24 hours". */}
-              <SelectValue placeholder={describe(pref.value)}>
-                {value => describe(Number(value))}
-              </SelectValue>
-              <SelectIcon />
-            </SelectTrigger>
-            <SelectContent
-              label={t('settings.privacy.clearData.timeRange')}
-              items={items}
-              renderItem={(item: {value: string; label: string}) => (
-                <SelectItem value={item.value} label={item.label}>
-                  <SelectItemIndicator />
-                  <SelectItemText>{item.label}</SelectItemText>
-                </SelectItem>
-              )}
-            />
-          </Select>
-        </View>
-      }
-    />
+    <ControlAnchor id="settings.privacy.clearData.timeRange">
+      <SettingsListItem
+        title={t('settings.privacy.clearData.timeRange')}
+        description={note}
+        disabled={enforced}
+        showChevron={false}
+        rightElement={
+          <View className="min-w-40">
+            <Select
+              value={String(pref.value)}
+              disabled={enforced}
+              onValueChange={(next: string) => {
+                const period = TIME_PERIODS.find(candidate => String(candidate.value) === next);
+                if (!period) {
+                  return;
+                }
+                setPref(TIME_PERIOD_PREF, period.value);
+                restartCounters(period.value);
+              }}
+            >
+              <SelectTrigger label={t('settings.privacy.clearData.timeRange')}>
+                {/* The function child is not optional decoration: `SelectValue`
+                    renders the raw context value whenever there is one, and the
+                    value here is a browsing_data::TimePeriod, so without it the
+                    trigger reads "1" instead of "Last 24 hours". */}
+                <SelectValue placeholder={describe(pref.value)}>
+                  {value => describe(Number(value))}
+                </SelectValue>
+                <SelectIcon />
+              </SelectTrigger>
+              <SelectContent
+                label={t('settings.privacy.clearData.timeRange')}
+                items={items}
+                renderItem={(item: {value: string; label: string}) => (
+                  <SelectItem value={item.value} label={item.label}>
+                    <SelectItemIndicator />
+                    <SelectItemText>{item.label}</SelectItemText>
+                  </SelectItem>
+                )}
+              />
+            </Select>
+          </View>
+        }
+      />
+    </ControlAnchor>
   );
 }
 
@@ -266,25 +271,27 @@ function DataTypeRow({
   const locked = enforced || !pref;
 
   return (
-    <SettingsListItem
-      title={t(label)}
-      description={note}
-      // The handler's own phrasing of how much there is ("1,234 items",
-      // "Less than 1 MB"). Absent until it has finished counting.
-      value={counter}
-      disabled={locked}
-      showChevron={false}
-      onPress={() => setPref(prefKey, !checked)}
-      accessibilityRole="none"
-      rightElement={
-        <Checkbox
-          checked={checked}
-          disabled={locked}
-          accessibilityLabel={t(label)}
-          onCheckedChange={next => setPref(prefKey, next)}
-        />
-      }
-    />
+    <ControlAnchor id={label}>
+      <SettingsListItem
+        title={t(label)}
+        description={note}
+        // The handler's own phrasing of how much there is ("1,234 items",
+        // "Less than 1 MB"). Absent until it has finished counting.
+        value={counter}
+        disabled={locked}
+        showChevron={false}
+        onPress={() => setPref(prefKey, !checked)}
+        accessibilityRole="none"
+        rightElement={
+          <Checkbox
+            checked={checked}
+            disabled={locked}
+            accessibilityLabel={t(label)}
+            onCheckedChange={next => setPref(prefKey, next)}
+          />
+        }
+      />
+    </ControlAnchor>
   );
 }
 
@@ -367,24 +374,26 @@ export function PrivacyClearDataScreen() {
         </SectionCard>
       ) : (
         <RowGroup>
-          <SettingsListItem
-            title={t('settings.privacy.clearData.action')}
-            description={
-              canDelete ? undefined : t('settings.privacy.clearData.action.nothing')
-            }
-            showChevron={false}
-            rightElement={
-              <Button
-                variant="destructive"
-                size="small"
-                disabled={!canDelete || progress.kind === 'working'}
-                loading={progress.kind === 'working'}
-                onPress={() => setProgress({kind: 'confirming'})}
-              >
-                {t('settings.privacy.clearData.action.button')}
-              </Button>
-            }
-          />
+          <ControlAnchor id="settings.privacy.clearData.action">
+            <SettingsListItem
+              title={t('settings.privacy.clearData.action')}
+              description={
+                canDelete ? undefined : t('settings.privacy.clearData.action.nothing')
+              }
+              showChevron={false}
+              rightElement={
+                <Button
+                  variant="destructive"
+                  size="small"
+                  disabled={!canDelete || progress.kind === 'working'}
+                  loading={progress.kind === 'working'}
+                  onPress={() => setProgress({kind: 'confirming'})}
+                >
+                  {t('settings.privacy.clearData.action.button')}
+                </Button>
+              }
+            />
+          </ControlAnchor>
         </RowGroup>
       )}
 

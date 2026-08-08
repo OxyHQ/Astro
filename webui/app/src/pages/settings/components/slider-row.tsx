@@ -19,6 +19,7 @@ import {View} from 'react-native';
 
 import {setPref, t, type MessageId} from '@astro/platform';
 
+import {ControlAnchor} from './control-anchor.tsx';
 import {usePrefControl} from './policy.ts';
 
 export interface SliderRowProps {
@@ -49,36 +50,42 @@ export function SliderRow({
   const [dragging, setDragging] = useState<number | undefined>(undefined);
 
   if (!pref) {
-    return <SettingsListItem title={t(label)} description={note} disabled showChevron={false} />;
+    return (
+      <ControlAnchor id={label}>
+        <SettingsListItem title={t(label)} description={note} disabled showChevron={false} />
+      </ControlAnchor>
+    );
   }
 
   const stored = typeof pref.value === 'number' ? pref.value : min;
   const shown = dragging ?? stored;
 
   return (
-    <View className="gap-2 rounded-2xl bg-card p-4">
-      <View className="flex-row items-center justify-between gap-4">
-        <Text className="text-bodyTitleSmall text-foreground">{t(label)}</Text>
-        <Text className="text-body text-text-secondary">{format(shown)}</Text>
+    <ControlAnchor id={label}>
+      <View className="gap-2 rounded-2xl bg-card p-4">
+        <View className="flex-row items-center justify-between gap-4">
+          <Text className="text-bodyTitleSmall text-foreground">{t(label)}</Text>
+          <Text className="text-body text-text-secondary">{format(shown)}</Text>
+        </View>
+        {note ?? sublabel ? (
+          <Text className="text-bodySmall text-text-secondary">
+            {note ?? (sublabel ? t(sublabel) : '')}
+          </Text>
+        ) : undefined}
+        <Slider
+          accessibilityLabel={t(label)}
+          value={shown}
+          min={min}
+          max={max}
+          step={step}
+          disabled={enforced}
+          onValueChange={setDragging}
+          onSlidingComplete={next => {
+            setDragging(undefined);
+            setPref(prefKey, next);
+          }}
+        />
       </View>
-      {note ?? sublabel ? (
-        <Text className="text-bodySmall text-text-secondary">
-          {note ?? (sublabel ? t(sublabel) : '')}
-        </Text>
-      ) : undefined}
-      <Slider
-        accessibilityLabel={t(label)}
-        value={shown}
-        min={min}
-        max={max}
-        step={step}
-        disabled={enforced}
-        onValueChange={setDragging}
-        onSlidingComplete={next => {
-          setDragging(undefined);
-          setPref(prefKey, next);
-        }}
-      />
-    </View>
+    </ControlAnchor>
   );
 }

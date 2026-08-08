@@ -7,6 +7,8 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
+import type {SettingsControl} from '../controls.ts';
+
 export const accessibilityStrings = {
   'settings.nav.accessibility': 'Accessibility',
   'settings.accessibility.title': 'Accessibility',
@@ -92,17 +94,19 @@ export const accessibilityStrings = {
 /**
  * The controls this section ACTUALLY renders, for search to match on.
  *
- * The captions SUBPAGE's controls are listed too, by their full names rather
- * than the short labels the subpage uses: "Colour" appears twice on that screen
- * and would be an ambiguous search hit on its own.
+ * The captions SUBPAGE's controls are listed too, each naming `/captions` as
+ * the screen it is on. Only the ones whose label identifies them on its own:
+ * "Colour" and "Opacity" each appear twice on that screen, once for the text
+ * and once for the background, so neither is a hit a user could act on.
  */
-export const accessibilityControls = [
+export const accessibilityControls: readonly SettingsControl[] = [
   'settings.accessibility.focusHighlight',
   'settings.accessibility.caretBrowsing',
   'settings.accessibility.overscroll',
   'settings.accessibility.toastLevel',
   'settings.accessibility.captions.link',
-  'settings.accessibility.captions.textSize',
-  'settings.accessibility.captions.textFont',
-  'settings.accessibility.captions.textShadow',
-] as const;
+
+  {id: 'settings.accessibility.captions.textSize', on: '/captions'},
+  {id: 'settings.accessibility.captions.textFont', on: '/captions'},
+  {id: 'settings.accessibility.captions.textShadow', on: '/captions'},
+];

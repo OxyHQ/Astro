@@ -35,6 +35,7 @@ import {View} from 'react-native';
 
 import {SectionCard, addWebUIListener, send, sendWithPromise, t} from '@astro/platform';
 
+import {ControlAnchor} from '../components/control-anchor.tsx';
 import {LinkRow} from '../components/link-row.tsx';
 import {RowGroup} from '../components/row-group.tsx';
 import {SearchableLabel} from '../components/searchable-label.tsx';
@@ -174,17 +175,19 @@ export function YouAndAstroSection() {
         description="settings.youAndAstro.description"
       />
 
-      <SectionCard
-        title={t('settings.youAndAstro.account')}
-        description={t('settings.youAndAstro.account.body')}
-      >
-        <Text className="text-bodySmall text-text-secondary">
-          {t('settings.youAndAstro.account.sync')}
-        </Text>
-        <Text className="text-bodySmall text-text-tertiary">
-          {t('settings.youAndAstro.account.replaces')}
-        </Text>
-      </SectionCard>
+      <ControlAnchor id="settings.youAndAstro.account">
+        <SectionCard
+          title={t('settings.youAndAstro.account')}
+          description={t('settings.youAndAstro.account.body')}
+        >
+          <Text className="text-bodySmall text-text-secondary">
+            {t('settings.youAndAstro.account.sync')}
+          </Text>
+          <Text className="text-bodySmall text-text-tertiary">
+            {t('settings.youAndAstro.account.replaces')}
+          </Text>
+        </SectionCard>
+      </ControlAnchor>
 
       <LocalProfile />
 

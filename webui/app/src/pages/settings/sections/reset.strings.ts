@@ -7,6 +7,8 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
+import type {SettingsControl} from '../controls.ts';
+
 export const resetStrings = {
   'settings.nav.reset': 'Reset settings',
   'settings.reset.title': 'Reset settings',
@@ -78,10 +80,12 @@ export const resetStrings = {
  * The controls this section ACTUALLY renders, for search to match on.
  *
  * The confirmation SUBPAGE's button is listed too. Someone searching for
- * "reset" is looking for the thing that resets, and it is one row further in.
+ * "reset" is looking for the thing that resets, and it is one row further in --
+ * on `/resetProfileSettings`, which is where the hit now goes.
  */
-export const resetControls = [
+export const resetControls: readonly SettingsControl[] = [
   'settings.reset.link',
   'settings.reset.tampered',
-  'settings.reset.confirm',
-] as const;
+
+  {id: 'settings.reset.confirm', on: '/resetProfileSettings'},
+];

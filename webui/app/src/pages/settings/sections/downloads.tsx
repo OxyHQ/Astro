@@ -24,6 +24,7 @@ import {useSyncExternalStore} from 'react';
 
 import {addWebUIListener, send, t} from '@astro/platform';
 
+import {ControlAnchor} from '../components/control-anchor.tsx';
 import {usePrefControl} from '../components/policy.ts';
 import {RowGroup} from '../components/row-group.tsx';
 import {SectionHeader} from '../components/section-header.tsx';
@@ -67,22 +68,24 @@ function DownloadLocationRow() {
   const path = typeof pref?.value === 'string' ? pref.value : undefined;
 
   return (
-    <SettingsListItem
-      title={t('settings.downloads.location')}
-      description={note}
-      value={path}
-      showChevron={false}
-      rightElement={
-        <Button
-          variant="secondary"
-          size="small"
-          disabled={enforced || !pref}
-          onPress={() => send('selectDownloadLocation')}
-        >
-          {t('settings.downloads.location.change')}
-        </Button>
-      }
-    />
+    <ControlAnchor id="settings.downloads.location">
+      <SettingsListItem
+        title={t('settings.downloads.location')}
+        description={note}
+        value={path}
+        showChevron={false}
+        rightElement={
+          <Button
+            variant="secondary"
+            size="small"
+            disabled={enforced || !pref}
+            onPress={() => send('selectDownloadLocation')}
+          >
+            {t('settings.downloads.location.change')}
+          </Button>
+        }
+      />
+    </ControlAnchor>
   );
 }
 
@@ -90,27 +93,29 @@ function AutoOpenRow() {
   const hasAutoOpen = useSyncExternalStore(subscribe, getSnapshot);
 
   return (
-    <SettingsListItem
-      title={t('settings.downloads.autoOpen')}
-      description={
-        hasAutoOpen === undefined
-          ? t('settings.downloads.autoOpen.unknown')
-          : hasAutoOpen
-            ? t('settings.downloads.autoOpen.sublabel')
-            : t('settings.downloads.autoOpen.none')
-      }
-      showChevron={false}
-      rightElement={
-        <Button
-          variant="secondary"
-          size="small"
-          disabled={hasAutoOpen !== true}
-          onPress={() => send('resetAutoOpenFileTypes')}
-        >
-          {t('settings.downloads.autoOpen.reset')}
-        </Button>
-      }
-    />
+    <ControlAnchor id="settings.downloads.autoOpen">
+      <SettingsListItem
+        title={t('settings.downloads.autoOpen')}
+        description={
+          hasAutoOpen === undefined
+            ? t('settings.downloads.autoOpen.unknown')
+            : hasAutoOpen
+              ? t('settings.downloads.autoOpen.sublabel')
+              : t('settings.downloads.autoOpen.none')
+        }
+        showChevron={false}
+        rightElement={
+          <Button
+            variant="secondary"
+            size="small"
+            disabled={hasAutoOpen !== true}
+            onPress={() => send('resetAutoOpenFileTypes')}
+          >
+            {t('settings.downloads.autoOpen.reset')}
+          </Button>
+        }
+      />
+    </ControlAnchor>
   );
 }
 

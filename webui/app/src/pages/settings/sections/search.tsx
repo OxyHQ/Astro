@@ -18,6 +18,7 @@
 // already renders it. A second copy would give the page's search field two hits
 // for one setting, and two switches that must agree.
 
+import {ControlAnchor} from '../components/control-anchor.tsx';
 import {SectionHeader} from '../components/section-header.tsx';
 import {LinkRow} from '../components/link-row.tsx';
 import {RowGroup} from '../components/row-group.tsx';
@@ -37,16 +38,18 @@ export function SearchSection() {
     <>
       <SectionHeader title="settings.searchEngine.title" />
 
-      <SectionCard
-        title={t('settings.searchEngine.default')}
-        description={
-          enforced && provider?.controlledByName
-            ? t('pref.enforcedBy', {controller: provider.controlledByName})
-            : t('settings.searchEngine.default.description')
-        }
-      >
-        <DefaultEngineChooser enforced={enforced} />
-      </SectionCard>
+      <ControlAnchor id="settings.searchEngine.default">
+        <SectionCard
+          title={t('settings.searchEngine.default')}
+          description={
+            enforced && provider?.controlledByName
+              ? t('pref.enforcedBy', {controller: provider.controlledByName})
+              : t('settings.searchEngine.default.description')
+          }
+        >
+          <DefaultEngineChooser enforced={enforced} />
+        </SectionCard>
+      </ControlAnchor>
 
       <RowGroup>
         <LinkRow label="settings.searchEngine.manage" to="/searchEngines" />

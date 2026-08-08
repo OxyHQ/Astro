@@ -15,6 +15,7 @@ import {SettingsListItem, Switch} from '@oxyhq/bloom';
 
 import {setPref, t, type MessageId} from '@astro/platform';
 
+import {ControlAnchor} from './control-anchor.tsx';
 import {usePrefControl} from './policy.ts';
 
 export interface ToggleRowProps {
@@ -30,25 +31,29 @@ export function ToggleRow({prefKey, label, sublabel}: ToggleRowProps) {
 
   if (!pref) {
     return (
-      <SettingsListItem title={t(label)} description={note} disabled showChevron={false} />
+      <ControlAnchor id={label}>
+        <SettingsListItem title={t(label)} description={note} disabled showChevron={false} />
+      </ControlAnchor>
     );
   }
 
   return (
-    <SettingsListItem
-      title={t(label)}
-      // The policy note wins the description line: why the control is locked
-      // matters more than what the setting does, and only one line is on offer.
-      description={note ?? (sublabel ? t(sublabel) : undefined)}
-      disabled={enforced}
-      showChevron={false}
-      rightElement={
-        <Switch
-          value={pref.value === true}
-          disabled={enforced}
-          onValueChange={(next: boolean) => setPref(prefKey, next)}
-        />
-      }
-    />
+    <ControlAnchor id={label}>
+      <SettingsListItem
+        title={t(label)}
+        // The policy note wins the description line: why the control is locked
+        // matters more than what the setting does, and only one line is on offer.
+        description={note ?? (sublabel ? t(sublabel) : undefined)}
+        disabled={enforced}
+        showChevron={false}
+        rightElement={
+          <Switch
+            value={pref.value === true}
+            disabled={enforced}
+            onValueChange={(next: boolean) => setPref(prefKey, next)}
+          />
+        }
+      />
+    </ControlAnchor>
   );
 }

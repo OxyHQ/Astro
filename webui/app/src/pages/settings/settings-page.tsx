@@ -57,6 +57,8 @@ import {
   type NavIcon,
 } from '@astro/platform';
 
+import {revealControl} from './components/control-anchor.tsx';
+import {controlId, controlPath, type SettingsControl} from './controls.ts';
 import {CONTENT_TYPES} from './sections/site-settings.content-types.ts';
 
 // The searchable control list each section declares. Read here rather than
@@ -121,16 +123,12 @@ interface SectionDef extends ScreenDef {
    * listing a control the section does not draw would make the search field
    * promise a setting the page cannot show.
    *
-   * KNOWN GAP, declared rather than discovered: this covers only what the
-   * SECTION screen draws. A control that lives on a subpage -- Secure DNS on
-   * `/security`, the time range on `/clearBrowserData` -- is unfindable by
-   * name, because a hit built from this list can only carry the section's own
-   * fragment. Subpage TITLES are indexed (see `search`), so the screen is
-   * reachable; the controls on it are not. Closing it means pairing a control
-   * id with the fragment it is on, which is a change to the contract every
-   * section's strings module is written against.
+   * An entry that lives on a SUBPAGE names the fragment it is on (see
+   * `SettingsControl`); a bare id means the section's own screen, which is
+   * what most controls are. Both forms are indexed the same way -- what
+   * differs is only where activating the hit goes.
    */
-  readonly controls: readonly MessageId[];
+  readonly controls: readonly SettingsControl[];
   /** Screens reached from inside this section. The rail stays on the parent. */
   readonly subpages?: readonly ScreenDef[];
 }
@@ -670,13 +668,21 @@ interface Hit {
   readonly id: SectionId;
   /**
    * The fragment opening the hit goes to -- a subpage's OWN fragment when the
-   * hit is a subpage, not its section's. Without this the field could only
-   * offer sections, and everything on a subpage would be unfindable: `Camera`,
-   * `Secure DNS`, `Captions` and eighty more all live one level down.
+   * hit is a subpage or a control on one, not its section's. Without this the
+   * field could only offer sections, and everything one level down would be
+   * unfindable: `Camera`, `Secure DNS`, `Captions` and eighty more.
    */
   readonly path: string;
   readonly label: string;
   readonly context: string;
+  /**
+   * The control to point at once the screen is up, for a hit that is one.
+   *
+   * Undefined for a section or a subpage, where the whole screen IS the
+   * answer; a screen that highlighted one of its own rows on arrival would be
+   * marking something the user did not ask about.
+   */
+  readonly control?: MessageId;
 }
 
 function search(query: string): readonly Hit[] {
@@ -706,9 +712,16 @@ function search(query: string): readonly Hit[] {
     const asSubpage = new Set(subpages.map(subpage => t(subpage.title)));
 
     for (const control of section.controls) {
-      const label = t(control);
+      const controlName = controlId(control);
+      const label = t(controlName);
       if (!asSubpage.has(label) && label.toLowerCase().includes(query)) {
-        hits.push({id, path: section.path, label, context: title});
+        hits.push({
+          id,
+          path: controlPath(control, section.path),
+          label,
+          context: title,
+          control: controlName,
+        });
       }
     }
     for (const subpage of subpages) {
@@ -721,7 +734,7 @@ function search(query: string): readonly Hit[] {
   });
 }
 
-function SearchResults({query, onOpen}: {query: string; onOpen: (path: string) => void}) {
+function SearchResults({query, onOpen}: {query: string; onOpen: (hit: Hit) => void}) {
   const hits = search(query);
   return (
     <>
@@ -741,7 +754,7 @@ function SearchResults({query, onOpen}: {query: string; onOpen: (path: string) =
               key={`${hit.path}:${hit.label}`}
               title={hit.label}
               description={hit.context}
-              onPress={() => onOpen(hit.path)}
+              onPress={() => onOpen(hit)}
             />
           ))}
         </SettingsListGroup>
@@ -762,6 +775,20 @@ export function SettingsPage() {
   const open = (path: string): void => {
     setQuery('');
     setHashPath(path);
+  };
+
+  /**
+   * Open a search result.
+   *
+   * The request to point at the control is made BEFORE the navigation, and
+   * outlives it: the screen it names is `lazy()`, so it is not mounted yet and
+   * has nothing to receive the request. The anchor claims it when it arrives.
+   */
+  const openHit = (hit: Hit): void => {
+    if (hit.control !== undefined) {
+      revealControl(hit.control);
+    }
+    open(hit.path);
   };
 
   // While searching, the rail narrows to the sections that matched -- the same
@@ -795,7 +822,7 @@ export function SettingsPage() {
           <Screen />
         </Suspense>
       ) : (
-        <SearchResults query={normalized} onOpen={open} />
+        <SearchResults query={normalized} onOpen={openHit} />
       )}
     </PageShell>
   );

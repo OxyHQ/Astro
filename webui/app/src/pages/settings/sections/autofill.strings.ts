@@ -77,6 +77,10 @@ export const autofillStrings = {
  * promise a setting the page cannot show, which is worse than not finding it.
  * The subpage titles are listed because the section draws a row for each of
  * them; the saved items inside those subpages are not, because it does not.
+ *
+ * No entry here names a subpage, and none should yet: what those screens draw
+ * is saved records -- cards, addresses, account numbers -- not settings. The
+ * three switches that decide whether Astro adds to them are on this screen.
  */
 export const autofillControls = [
   'settings.autofill.profileEnabled',

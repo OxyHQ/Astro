@@ -8,7 +8,6 @@
       "files": [
         "astro-webui-Checkbox.js",
         "astro-webui-RadioIndicator.js",
-        "astro-webui-SettingsList.js",
         "astro-webui-about.js",
         "astro-webui-accessibility-captions.js",
         "astro-webui-accessibility.js",
@@ -26,6 +25,7 @@
         "astro-webui-autofill-travel.js",
         "astro-webui-autofill.js",
         "astro-webui-collapsible-group.js",
+        "astro-webui-control-anchor.js",
         "astro-webui-default-browser.js",
         "astro-webui-downloads.js",
         "astro-webui-index.web.js",

@@ -26,6 +26,7 @@ import {
   usePref,
 } from '@astro/platform';
 
+import {ControlAnchor} from '../components/control-anchor.tsx';
 import {RowGroup} from '../components/row-group.tsx';
 import {SubpageHeader} from '../components/section-header.tsx';
 import {SettingsListItem} from '@oxyhq/bloom';
@@ -57,26 +58,33 @@ export function LanguagesEditDictionaryScreen() {
         backLabel="settings.nav.languages"
       />
 
-      <SectionCard title={t('settings.languages.editDictionary.add')}>
-        <View className="flex-row items-end gap-2">
-          <View className="flex-1">
-            <TextFieldInput
-              label={t('settings.languages.editDictionary.add')}
-              value={draft}
-              onChangeText={setDraft}
-              onSubmitEditing={add}
-            />
+      <ControlAnchor id="settings.languages.editDictionary.add">
+        <SectionCard title={t('settings.languages.editDictionary.add')}>
+          <View className="flex-row items-end gap-2">
+            <View className="flex-1">
+              <TextFieldInput
+                label={t('settings.languages.editDictionary.add')}
+                value={draft}
+                onChangeText={setDraft}
+                onSubmitEditing={add}
+              />
+            </View>
+            <Button
+              variant="primary"
+              size="medium"
+              disabled={trimmed === '' || duplicate}
+              onPress={add}
+            >
+              {t('settings.languages.editDictionary.addAction')}
+            </Button>
           </View>
-          <Button variant="primary" size="medium" disabled={trimmed === '' || duplicate} onPress={add}>
-            {t('settings.languages.editDictionary.addAction')}
-          </Button>
-        </View>
-        {duplicate ? (
-          <Text className="text-bodySmall text-text-secondary">
-            {t('settings.languages.editDictionary.duplicate', {word: trimmed})}
-          </Text>
-        ) : undefined}
-      </SectionCard>
+          {duplicate ? (
+            <Text className="text-bodySmall text-text-secondary">
+              {t('settings.languages.editDictionary.duplicate', {word: trimmed})}
+            </Text>
+          ) : undefined}
+        </SectionCard>
+      </ControlAnchor>
 
       {words === undefined ? (
         <SectionCard>
