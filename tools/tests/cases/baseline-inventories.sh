@@ -19,11 +19,16 @@ tmp="$(harness::tmpdir)"
 
 harness::run python3 "$BASELINE/inventory_patches.py" --verify
 harness::assert_status 0 "patch inventory over the real patch stack"
-# 56 files, but the series numbers them to 058: two files in patches/astro/
+# 57 files, but the series numbers them to 059: two files in patches/astro/
 # were 0 bytes and were removed from the stack. An empty file is not a patch —
 # `git apply` rejects it outright. See patch-dispositions.json, which still
 # records both by name and byte size.
-harness::assert_output_contains "astro 56" "every Astro patch is covered"
+#
+# The literal is the point. Deriving this count from the series would make the
+# assertion agree with whatever it is handed, and the inventory's whole job is
+# to notice a patch that arrived without a disposition — so a new patch is
+# meant to fail here once, deliberately, and be counted in by hand.
+harness::assert_output_contains "astro 57" "every Astro patch is covered"
 harness::assert_output_contains "ungoogled 112" "every inherited patch is covered"
 
 harness::run python3 "$BASELINE/inventory_patches.py" --json "$tmp/patches.json"
