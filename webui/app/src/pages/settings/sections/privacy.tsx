@@ -1,4 +1,5 @@
-// Privacy -- four Chromium prefs, straight from chrome.settingsPrivate.
+// Privacy and security -- four Chromium prefs, straight from
+// chrome.settingsPrivate.
 //
 // Every key here is one of the paths in chrome/common/pref_names.h that the
 // settingsPrivate allowlist (prefs_util.cc) actually carries, so these rows
@@ -8,7 +9,6 @@
 
 import {SettingsListGroup} from '@oxyhq/bloom';
 import {Text} from '@oxyhq/bloom/typography';
-import {View} from 'react-native';
 
 import {t} from '@astro/platform';
 
@@ -16,7 +16,7 @@ import {PrefSwitchRow} from '../pref-switch-row.tsx';
 
 export function PrivacySection() {
   return (
-    <View className="gap-6">
+    <>
       <Text className="text-sectionTitle text-foreground">{t('settings.privacy.title')}</Text>
 
       <SettingsListGroup>
@@ -28,6 +28,6 @@ export function PrivacySection() {
         <PrefSwitchRow prefKey="https_only_mode_enabled" label="settings.privacy.httpsOnly" />
         <PrefSwitchRow prefKey="search.suggest_enabled" label="settings.privacy.searchSuggest" />
       </SettingsListGroup>
-    </View>
+    </>
   );
 }

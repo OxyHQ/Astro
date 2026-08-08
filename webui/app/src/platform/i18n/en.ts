@@ -17,8 +17,37 @@ export const en = {
   'app.devIndex.body': 'Development server. Choose a page.',
 
   'settings.title': 'Settings',
+
+  'settings.group.astro': 'Astro',
+  'settings.group.advanced': 'Advanced',
+
   'settings.nav.appearance': 'Appearance',
-  'settings.nav.privacy': 'Privacy',
+  'settings.nav.privacy': 'Privacy and security',
+  'settings.nav.siteSettings': 'Site settings',
+  'settings.nav.autofill': 'Autofill and passwords',
+  'settings.nav.search': 'Search engine',
+  'settings.nav.onStartup': 'On startup',
+  'settings.nav.downloads': 'Downloads',
+  'settings.nav.identity': 'You and Astro',
+  'settings.nav.adblock': 'Ad blocking',
+  'settings.nav.alia': 'Alia',
+  'settings.nav.performance': 'Performance',
+  'settings.nav.languages': 'Languages',
+  'settings.nav.accessibility': 'Accessibility',
+  'settings.nav.system': 'System',
+  'settings.nav.reset': 'Reset settings',
+  'settings.nav.about': 'About Astro',
+
+  'settings.search.label': 'Search settings',
+  'settings.search.results': 'Search results',
+  'settings.search.sectionContext': 'Section',
+  'settings.search.none': 'Nothing in this page matches "{query}".',
+  'settings.search.noSection': 'No section matches.',
+
+  'settings.notBuilt':
+    'This section is part of the browser but is not built into this page yet, ' +
+    'so nothing here is editable. It is listed rather than hidden so the page ' +
+    'does not imply it covers more than it does.',
 
   'settings.appearance.title': 'Appearance',
   'settings.appearance.mode': 'Theme',
@@ -29,7 +58,7 @@ export const en = {
   'settings.appearance.preset.description':
     'Applies to every Astro page and to the browser window itself.',
 
-  'settings.privacy.title': 'Privacy',
+  'settings.privacy.title': 'Privacy and security',
   'settings.privacy.doNotTrack': 'Send a "Do Not Track" request',
   'settings.privacy.leakDetection': 'Warn if a password is exposed in a breach',
   'settings.privacy.httpsOnly': 'Always use secure connections',

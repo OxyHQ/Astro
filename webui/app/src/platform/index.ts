@@ -33,7 +33,10 @@ import './global.css';
 export {BloomThemeProvider} from '@oxyhq/bloom/theme';
 
 export {PageShell} from './shell/page-shell.tsx';
-export type {NavEntry, NavGroup, PageShellProps} from './shell/page-shell.tsx';
+export type {NavEntry, NavGroup, NavIcon, PageShellProps} from './shell/page-shell.tsx';
+
+export {SectionCard} from './shell/section-card.tsx';
+export type {SectionCardProps} from './shell/section-card.tsx';
 
 export {t} from './i18n/index.ts';
 export type {MessageId} from './i18n/index.ts';
@@ -64,5 +67,7 @@ export {
 
 export {hrefFor, navigateTo, ROUTES} from './browser/navigate.ts';
 export type {RouteId} from './browser/navigate.ts';
+
+export {setHashPath, useHashPath} from './browser/hash-route.ts';
 
 export {addWebUIListener, send, sendWithPromise} from './browser/send.ts';

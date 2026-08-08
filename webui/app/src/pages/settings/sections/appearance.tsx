@@ -5,16 +5,20 @@
 // menus, and echoes back to every open Astro page, which re-renders its
 // BloomThemeProvider with the new props. One write, one source, every surface.
 
-import {
-  SegmentedControl,
-  SegmentedControlItem,
-  SegmentedControlItemText,
-} from '@oxyhq/bloom';
+import {SegmentedControl, SegmentedControlItem, SegmentedControlItemText} from '@oxyhq/bloom';
 import {APP_COLOR_PRESETS, FREE_COLOR_NAMES, type AppColorName} from '@oxyhq/bloom/color-presets';
 import {Text} from '@oxyhq/bloom/typography';
 import {Pressable, View} from 'react-native';
 
-import {setMode, setPreset, t, useThemeState, type MessageId, type ThemeMode} from '@astro/platform';
+import {
+  SectionCard,
+  setMode,
+  setPreset,
+  t,
+  useThemeState,
+  type MessageId,
+  type ThemeMode,
+} from '@astro/platform';
 
 const MODES: readonly {readonly id: ThemeMode; readonly label: MessageId}[] = [
   {id: 'system', label: 'settings.appearance.mode.system'},
@@ -31,6 +35,15 @@ const MODES: readonly {readonly id: ThemeMode; readonly label: MessageId}[] = [
  */
 const PRESETS: readonly AppColorName[] = ['oxy', ...FREE_COLOR_NAMES];
 
+/**
+ * One colour, as a target the size of a target.
+ *
+ * The ring is an OUTER pressable with its own border rather than a thicker
+ * border on the swatch itself: a border grows inward, so selecting a colour
+ * would shrink the colour, and the grid would twitch as the selection moved.
+ * The unselected state keeps the same transparent ring so the geometry is
+ * identical in both states.
+ */
 function Swatch({name, selected}: {name: AppColorName; selected: boolean}) {
   return (
     <Pressable
@@ -40,14 +53,18 @@ function Swatch({name, selected}: {name: AppColorName; selected: boolean}) {
       onPress={() => setPreset(name)}
       className={
         selected
-          ? 'size-8 rounded-radius-max border-2 border-foreground'
-          : 'size-8 rounded-radius-max border border-border'
+          ? 'rounded-radius-max border-2 border-primary p-1'
+          : 'rounded-radius-max border-2 border-transparent p-1 hover:border-border'
       }
-      // The seed colour of a preset is data, not a token: there is no utility
-      // class for "this brand's hex", and inventing one per preset would put
-      // the palette in two places.
-      style={{backgroundColor: APP_COLOR_PRESETS[name].hex}}
-    />
+    >
+      {/* The seed colour of a preset is data, not a token: there is no utility
+          class for "this brand's hex", and inventing one per preset would put
+          the palette in two places. */}
+      <View
+        className="size-8 rounded-radius-max"
+        style={{backgroundColor: APP_COLOR_PRESETS[name].hex}}
+      />
+    </Pressable>
   );
 }
 
@@ -55,15 +72,10 @@ export function AppearanceSection() {
   const {mode, preset} = useThemeState();
 
   return (
-    <View className="gap-6">
-      <Text className="text-sectionTitle text-foreground">
-        {t('settings.appearance.title')}
-      </Text>
+    <>
+      <Text className="text-sectionTitle text-foreground">{t('settings.appearance.title')}</Text>
 
-      <View className="gap-2">
-        <Text className="text-bodyTitleSmall text-text-secondary">
-          {t('settings.appearance.mode')}
-        </Text>
+      <SectionCard title={t('settings.appearance.mode')}>
         <SegmentedControl
           label={t('settings.appearance.mode')}
           type="radio"
@@ -76,21 +88,18 @@ export function AppearanceSection() {
             </SegmentedControlItem>
           ))}
         </SegmentedControl>
-      </View>
+      </SectionCard>
 
-      <View className="gap-2">
-        <Text className="text-bodyTitleSmall text-text-secondary">
-          {t('settings.appearance.preset')}
-        </Text>
-        <Text className="text-bodySmall text-text-tertiary">
-          {t('settings.appearance.preset.description')}
-        </Text>
-        <View className="flex-row flex-wrap gap-3 pt-1">
+      <SectionCard
+        title={t('settings.appearance.preset')}
+        description={t('settings.appearance.preset.description')}
+      >
+        <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2">
           {PRESETS.map(name => (
             <Swatch key={name} name={name} selected={name === preset} />
           ))}
         </View>
-      </View>
-    </View>
+      </SectionCard>
+    </>
   );
 }
