@@ -12,7 +12,7 @@ Astro is a Chromium fork by [Oxy](https://oxy.so) that strips every Google servi
 
 ## What it is
 
-Astro is built on top of [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) (112 inherited patches that remove Google service dependencies) plus 56 Astro-specific patches that add Oxy integrations, branding, and a custom URL scheme. All Astro-only C++ code lives in a self-contained overlay at `src/chrome/browser/oxy/`, following the Brave-style approach of keeping custom source separate from upstream Chromium.
+Astro is built on top of [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) (112 inherited patches that remove Google service dependencies) plus 57 Astro-specific patches that add Oxy integrations, branding, and a custom URL scheme. All Astro-only C++ code lives in a self-contained overlay at `src/chrome/browser/oxy/`, following the Brave-style approach of keeping custom source separate from upstream Chromium.
 
 The internal pages Astro owns (New Tab, Alia AI, What's New) are not Polymer like in upstream Chrome — they are standalone Vite + Tailwind v4 apps. Settings and the error page are upstream Chromium's own; Astro deleted its versions of both in `c9c4383`. The next of these surfaces is being consolidated into a single Vite + Tailwind + Bloom application in `webui/app/`.
 
@@ -20,7 +20,7 @@ The internal pages Astro owns (New Tab, Alia AI, What's New) are not Polymer lik
 |--------|-------|
 | Base | Chromium 146.0.7680.177 (current target) |
 | De-Google patches | 112 (inherited from ungoogled-chromium) |
-| Oxy patches | 56 (`patches/astro/001-056`) |
+| Oxy patches | 57 (`patches/astro/001-059`; 007 and 035 are unused numbers) |
 | Custom WebUI pages | 5 (NTP, Settings, Alia, What's New, Error) |
 | URL scheme | `astro://` (aliased to `chrome://`) |
 | Default search | DuckDuckGo |
@@ -45,7 +45,7 @@ The 112 ungoogled-chromium patches remove or stub:
 - Field trial config fetches
 - Translate UI's Google Translate dependency (provider is stubbed)
 
-The 56 Astro patches finish the substitution by replacing every remaining `chrome://`, "Google account", "Chromium" string, and product-menu entry with Oxy/Astro equivalents.
+The 57 Astro patches finish the substitution by replacing every remaining `chrome://`, "Google account", "Chromium" string, and product-menu entry with Oxy/Astro equivalents.
 
 ### 2. Native Oxy integrations
 

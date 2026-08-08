@@ -28,7 +28,7 @@
 
 112 [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) patches remove Google account and sync infrastructure, Safe Browsing pings, Google Update, the hard coded API keys and OAuth secrets, and the prefetches that reach Google domains before you type anything.
 
-56 Astro patches finish the job: branding, the product menu, the settings surface, and the remaining `chrome://` strings.
+57 Astro patches finish the job: branding, the product menu, the settings surface, and the remaining `chrome://` strings.
 
 </td>
 <td valign="top" width="50%">

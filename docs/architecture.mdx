@@ -24,7 +24,7 @@ declared by its own `series` file:
 ```
 patches/
   ungoogled/   112 patches inherited from ungoogled-chromium (+ series)
-  astro/        56 patches for Oxy integrations + branding + scheme (+ series)
+  astro/        57 patches for Oxy integrations + branding + scheme (+ series)
 ```
 
 The series file is the single source of order. It must agree with the directory
@@ -56,6 +56,7 @@ Ungoogled patches handle the heavy lifting of removing Google services (sync, ha
 | `052-054` | Adblock tab helper + toolbar button + WebUI registration |
 | `055-056` | NTP WebUI registration and `chrome://newtab` redirect |
 | `057-058` | Overlay build edge into `//chrome/browser/ui/webui:configs`, Alia WebUI registration |
+| `059` | Ship `itertools` outside the test group, so the adblock engine's GN target is not test-only |
 
 Every patch is named after what it does. Inspection is encouraged before any version bump — most patches are a handful of lines.
 
