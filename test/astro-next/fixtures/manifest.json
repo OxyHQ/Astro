@@ -1,0 +1,404 @@
+{
+  "baseline_chromium_version": "146.0.7680.177",
+  "capture_metadata_fields": [
+    "captured_at",
+    "captured_from",
+    "capture_command",
+    "astro_revision"
+  ],
+  "capture_metadata_suffix": ".capture.json",
+  "counts": {
+    "generated": 15,
+    "requires-browser-capture": 8
+  },
+  "entries": [
+    {
+      "covers": [
+        "how these fixtures are generated from scratch"
+      ],
+      "derived_from": [
+        "tools/baseline/make_profile_fixtures.py"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "README.md",
+      "provenance": "generated"
+    },
+    {
+      "covers": [
+        "the Astro-owned pref registry",
+        "Astro-owned prefs excluded from the baseline"
+      ],
+      "derived_from": [
+        "patches/astro/020-register-oxy-prefs.patch",
+        "patches/astro/046-adblock-prefs.patch",
+        "docs/astro-next/baseline/pref-dispositions.json"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "astro-owned-prefs.json",
+      "provenance": "generated"
+    },
+    {
+      "covers": [
+        "legacy chrome://astro-* and astro:// URLs"
+      ],
+      "derived_from": [
+        "src/chrome/browser/oxy/webui/astro_alia_ui.h",
+        "src/chrome/browser/oxy/webui/astro_ntp_ui.h",
+        "src/chrome/browser/oxy/webui/astro_whats_new_ui.h"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "internal-url-corpus.json",
+      "provenance": "generated"
+    },
+    {
+      "covers": [
+        "token-store layout with non-production dummy values"
+      ],
+      "derived_from": [
+        "src/chrome/browser/oxy/oxy_auth_token_store.cc"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "token-store-layout.json",
+      "provenance": "generated"
+    },
+    {
+      "capture_command": "chromium/src/out/Release/chrome --user-data-dir=\"$ASTRO_CAPTURE_DIR\"\ncp \"$ASTRO_CAPTURE_DIR/Default/AstroAdBlock/engine_cache.bin\" \"test/astro-next/fixtures/user-data/Default/AstroAdBlock/engine_cache.bin\"",
+      "capture_metadata": "user-data/Default/AstroAdBlock/engine_cache.bin.capture.json",
+      "capture_metadata_fields": [
+        "captured_at",
+        "captured_from",
+        "capture_command",
+        "astro_revision"
+      ],
+      "capture_scenario": "let the adblock service build and cache its engine, then quit",
+      "covers": [
+        "adblock engine cache"
+      ],
+      "kind": "file",
+      "owner": "chromium",
+      "path": "user-data/Default/AstroAdBlock/engine_cache.bin",
+      "provenance": "requires-browser-capture",
+      "reason": "A serialised adblock-rust engine. Its format is the Rust crate's and is version-tied; a synthetic one proves nothing about loading a real cache written by an older build."
+    },
+    {
+      "covers": [
+        "adblock filter lists"
+      ],
+      "derived_from": [
+        "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "user-data/Default/AstroAdBlock/filterlists/easylist.txt",
+      "provenance": "generated"
+    },
+    {
+      "covers": [
+        "adblock filter lists"
+      ],
+      "derived_from": [
+        "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "user-data/Default/AstroAdBlock/filterlists/easyprivacy.txt",
+      "provenance": "generated"
+    },
+    {
+      "covers": [
+        "bookmarks and folders",
+        "legacy internal URLs"
+      ],
+      "derived_from": [
+        "src/chrome/browser/oxy/webui"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "user-data/Default/Bookmarks",
+      "provenance": "generated"
+    },
+    {
+      "capture_command": "chromium/src/out/Release/chrome --user-data-dir=\"$ASTRO_CAPTURE_DIR\"\ncp -r \"$ASTRO_CAPTURE_DIR/Default/Extensions\" \"test/astro-next/fixtures/user-data/Default/Extensions\"",
+      "capture_metadata": "user-data/Default/Extensions.capture.json",
+      "capture_metadata_fields": [
+        "captured_at",
+        "captured_from",
+        "capture_command",
+        "astro_revision"
+      ],
+      "capture_scenario": "install a test extension from a local directory, then quit",
+      "covers": [
+        "installed extensions"
+      ],
+      "kind": "directory",
+      "owner": "chromium",
+      "path": "user-data/Default/Extensions",
+      "provenance": "requires-browser-capture",
+      "reason": "Unpacked extension trees. What is on disk is whatever the extension shipped, not something to invent."
+    },
+    {
+      "capture_command": "chromium/src/out/Release/chrome --user-data-dir=\"$ASTRO_CAPTURE_DIR\"\ncp \"$ASTRO_CAPTURE_DIR/Default/History\" \"test/astro-next/fixtures/user-data/Default/History\"",
+      "capture_metadata": "user-data/Default/History.capture.json",
+      "capture_metadata_fields": [
+        "captured_at",
+        "captured_from",
+        "capture_command",
+        "astro_revision"
+      ],
+      "capture_scenario": "visit every URL in internal-url-corpus.json and download a file, then quit",
+      "covers": [
+        "browsing history",
+        "download history"
+      ],
+      "kind": "file",
+      "owner": "chromium",
+      "path": "user-data/Default/History",
+      "provenance": "requires-browser-capture",
+      "reason": "SQLite database whose schema is Chromium's and changes between milestones. A hand-built one would satisfy a migration test without exercising a single real row."
+    },
+    {
+      "capture_command": "chromium/src/out/Release/chrome --user-data-dir=\"$ASTRO_CAPTURE_DIR\"\ncp \"$ASTRO_CAPTURE_DIR/Default/Login Data\" \"test/astro-next/fixtures/user-data/Default/Login Data\"",
+      "capture_metadata": "user-data/Default/Login Data.capture.json",
+      "capture_metadata_fields": [
+        "captured_at",
+        "captured_from",
+        "capture_command",
+        "astro_revision"
+      ],
+      "capture_scenario": "sign in to a local test form with throwaway credentials, accept the save prompt, then quit",
+      "covers": [
+        "saved passwords (test credentials only)"
+      ],
+      "kind": "file",
+      "owner": "chromium",
+      "path": "user-data/Default/Login Data",
+      "provenance": "requires-browser-capture",
+      "reason": "SQLite database whose credential column is OSCrypt ciphertext keyed on the OS credential store, so it cannot be produced offline at all."
+    },
+    {
+      "covers": [
+        "current Oxy preference keys",
+        "adblock preferences and per-site overrides",
+        "custom search engine configuration (default engine)",
+        "startup preferences",
+        "pinned tabs",
+        "content permissions",
+        "legacy internal URLs"
+      ],
+      "derived_from": [
+        "patches/astro/020-register-oxy-prefs.patch",
+        "patches/astro/046-adblock-prefs.patch"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "user-data/Default/Preferences",
+      "provenance": "generated"
+    },
+    {
+      "capture_command": "chromium/src/out/Release/chrome --user-data-dir=\"$ASTRO_CAPTURE_DIR\"\ncp \"$ASTRO_CAPTURE_DIR/Default/Secure Preferences\" \"test/astro-next/fixtures/user-data/Default/Secure Preferences\"",
+      "capture_metadata": "user-data/Default/Secure Preferences.capture.json",
+      "capture_metadata_fields": [
+        "captured_at",
+        "captured_from",
+        "capture_command",
+        "astro_revision"
+      ],
+      "capture_scenario": "install a test extension, toggle it off, then quit",
+      "covers": [
+        "extension enable/disable state",
+        "protected preference MACs"
+      ],
+      "kind": "file",
+      "owner": "chromium",
+      "path": "user-data/Default/Secure Preferences",
+      "provenance": "requires-browser-capture",
+      "reason": "JSON, but every protected value carries a MAC keyed on machine state. A hand-written copy is rejected by the browser and silently reset, which looks exactly like a migration that worked."
+    },
+    {
+      "capture_command": "chromium/src/out/Release/chrome --user-data-dir=\"$ASTRO_CAPTURE_DIR\"\ncp -r \"$ASTRO_CAPTURE_DIR/Default/Sessions\" \"test/astro-next/fixtures/user-data/Default/Sessions\"",
+      "capture_metadata": "user-data/Default/Sessions.capture.json",
+      "capture_metadata_fields": [
+        "captured_at",
+        "captured_from",
+        "capture_command",
+        "astro_revision"
+      ],
+      "capture_scenario": "open several tabs, group two, pin one, close another, then quit cleanly",
+      "covers": [
+        "open tabs",
+        "recently closed tabs",
+        "tab groups",
+        "pinned tab ordering"
+      ],
+      "kind": "directory",
+      "owner": "chromium",
+      "path": "user-data/Default/Sessions",
+      "provenance": "requires-browser-capture",
+      "reason": "A serialised command stream, not a document format. Tab groups and recently-closed entries exist nowhere else on disk."
+    },
+    {
+      "capture_command": "chromium/src/out/Release/chrome --user-data-dir=\"$ASTRO_CAPTURE_DIR\"\ncp \"$ASTRO_CAPTURE_DIR/Default/Web Data\" \"test/astro-next/fixtures/user-data/Default/Web Data\"",
+      "capture_metadata": "user-data/Default/Web Data.capture.json",
+      "capture_metadata_fields": [
+        "captured_at",
+        "captured_from",
+        "capture_command",
+        "astro_revision"
+      ],
+      "capture_scenario": "save a test address, add a custom search engine, then quit",
+      "covers": [
+        "autofill addresses (test data only)",
+        "payment methods",
+        "custom search engines (keywords table)"
+      ],
+      "kind": "file",
+      "owner": "chromium",
+      "path": "user-data/Default/Web Data",
+      "provenance": "requires-browser-capture",
+      "reason": "SQLite database holding autofill and the authoritative keyword table. Preferences only mirrors the DEFAULT search engine; the user's other engines live here."
+    },
+    {
+      "covers": [
+        "multiple browser profiles",
+        "profile list and ordering"
+      ],
+      "derived_from": [
+        "browser.lock.json"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "user-data/Local State",
+      "provenance": "generated"
+    },
+    {
+      "capture_command": "chromium/src/out/Release/chrome --user-data-dir=\"$ASTRO_CAPTURE_DIR\"\ncp -r \"$ASTRO_CAPTURE_DIR/OxyAuth\" \"test/astro-next/fixtures/user-data/OxyAuth-encrypted\"",
+      "capture_metadata": "user-data/OxyAuth-encrypted.capture.json",
+      "capture_metadata_fields": [
+        "captured_at",
+        "captured_from",
+        "capture_command",
+        "astro_revision"
+      ],
+      "capture_scenario": "sign in to Oxy with a throwaway test account, then quit",
+      "covers": [
+        "token store in its real encrypted form"
+      ],
+      "kind": "directory",
+      "owner": "chromium",
+      "path": "user-data/OxyAuth-encrypted",
+      "provenance": "requires-browser-capture",
+      "reason": "OSCrypt ciphertext is keyed on the OS credential store, so a valid blob cannot be produced offline and does not move between machines either. The generated placeholders cover the token store's LAYOUT; this covers its format, and sits beside the real directory name because those paths are already taken by the placeholders."
+    },
+    {
+      "covers": [
+        "token-store layout with non-production dummy values"
+      ],
+      "derived_from": [
+        "src/chrome/browser/oxy/oxy_auth_token_store.cc"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "user-data/OxyAuth/OxyAccessToken",
+      "provenance": "generated"
+    },
+    {
+      "covers": [
+        "token-store layout with non-production dummy values"
+      ],
+      "derived_from": [
+        "src/chrome/browser/oxy/oxy_auth_token_store.cc"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "user-data/OxyAuth/OxyRefreshToken",
+      "provenance": "generated"
+    },
+    {
+      "covers": [
+        "adblock filter lists"
+      ],
+      "derived_from": [
+        "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "user-data/Profile 1/AstroAdBlock/filterlists/easylist.txt",
+      "provenance": "generated"
+    },
+    {
+      "covers": [
+        "adblock filter lists"
+      ],
+      "derived_from": [
+        "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "user-data/Profile 1/AstroAdBlock/filterlists/easyprivacy.txt",
+      "provenance": "generated"
+    },
+    {
+      "covers": [
+        "bookmarks and folders",
+        "legacy internal URLs"
+      ],
+      "derived_from": [
+        "src/chrome/browser/oxy/webui"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "user-data/Profile 1/Bookmarks",
+      "provenance": "generated"
+    },
+    {
+      "covers": [
+        "current Oxy preference keys",
+        "adblock preferences and per-site overrides",
+        "custom search engine configuration (default engine)",
+        "startup preferences",
+        "pinned tabs",
+        "content permissions",
+        "legacy internal URLs"
+      ],
+      "derived_from": [
+        "patches/astro/020-register-oxy-prefs.patch",
+        "patches/astro/046-adblock-prefs.patch"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "user-data/Profile 1/Preferences",
+      "provenance": "generated"
+    }
+  ],
+  "fixture_version": 1,
+  "issue": "https://github.com/OxyHQ/Astro/issues/6",
+  "observed_local_only_pref_count": 0,
+  "parse_invariant": {
+    "note": "'detected' comes from a deliberately loose recogniser and 'parsed' from the strict parser, measured by different rules so they can disagree; generation fails unless they pair one-to-one and unless the same number reaches the generated fixtures. There is no minimum: the only floor is zero, which would satisfy the identity while describing nothing.",
+    "surfaces": {
+      "WebUI host constants": {
+        "detected": 3,
+        "parsed": 3
+      },
+      "filter list entries": {
+        "detected": 11,
+        "parsed": 11
+      },
+      "preference registrations": {
+        "detected": 18,
+        "parsed": 18
+      }
+    }
+  },
+  "profiles": [
+    "Default",
+    "Profile 1"
+  ],
+  "registered_pref_count": 18,
+  "revision_authority": "browser.lock.json",
+  "tool": "tools/baseline/make_profile_fixtures.py"
+}

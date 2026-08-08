@@ -1,5 +1,4 @@
 diff --git a/chrome/browser/resources/settings/settings_page/settings_section.html b/chrome/browser/resources/settings/settings_page/settings_section.html
-index fb23eedb381aa..1fec81e72dea4 100644
 --- a/chrome/browser/resources/settings/settings_page/settings_section.html
 +++ b/chrome/browser/resources/settings/settings_page/settings_section.html
 @@ -31,7 +31,8 @@
@@ -13,7 +12,6 @@ index fb23eedb381aa..1fec81e72dea4 100644
          overflow: hidden;
        }
 diff --git a/chrome/browser/resources/settings/settings_page/settings_subpage.html b/chrome/browser/resources/settings/settings_page/settings_subpage.html
-index 6891388ec2ba9..9ef60a98b264e 100644
 --- a/chrome/browser/resources/settings/settings_page/settings_subpage.html
 +++ b/chrome/browser/resources/settings/settings_page/settings_subpage.html
 @@ -15,7 +15,8 @@
@@ -26,12 +24,3 @@ index 6891388ec2ba9..9ef60a98b264e 100644
        }
  
        @media (forced-colors: active) {
-@@ -94,7 +95,7 @@
-       </template>
-       <h1 class="cr-title-text">[[pageTitle]]</h1>
-       <slot name="subpage-title-extra"></slot>
--      <template is="dom-if" if="[[learnMoreUrl]]">
-+      <template is="dom-if" if="[[false]]">
-         <cr-icon-button iron-icon="cr:help-outline" suppress-rtl-flip
-             aria-label="[[getLearnMoreAriaLabel_(pageTitle)]]"
-             aria-description="$i18n{opensInNewTab}" on-click="onHelpClick_">

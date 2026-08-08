@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-ASTRO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ASTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export ASTRO_ROOT
+# shellcheck source=tools/lib/astro-common.sh
+source "$ASTRO_ROOT/tools/lib/astro-common.sh"
 BUILD_DIR="${1:-$ASTRO_ROOT/chromium/src/out/Release}"
 RELEASE_DIR="$ASTRO_ROOT/releases"
-VERSION="${ASTRO_VERSION:-$(cat "$ASTRO_ROOT/VERSION" 2>/dev/null || echo "0.1.0")}"
+astro::require_file "$ASTRO_ROOT/VERSION" "VERSION file"
+VERSION="${ASTRO_VERSION:-$(cat "$ASTRO_ROOT/VERSION")}"
 ARCH="amd64"
 PKG_NAME="astro-browser"
 
@@ -14,6 +16,25 @@ if [ ! -f "$BUILD_DIR/chrome" ]; then
     echo "ERROR: Build not found at $BUILD_DIR/chrome"
     echo "Run 'tools/build.sh Release linux' first"
     exit 1
+fi
+
+# An artifact named after the product must contain the product, and the verdict
+# is reached before the staging tree exists. A .deb payload is the same ELF the
+# Linux archive ships, so the same direct scan applies with no per-format
+# handling — verified against the `chrome` inside the shipped
+# astro-browser_0.1.0_amd64.deb, which reports present.
+astro::require_astro_overlay "deb" --binary "$BUILD_DIR/chrome"
+
+# A .deb carries its identity twice: in the filename and in the control file's
+# Package field, which is what `dpkg -l` and every dependency resolver report
+# afterwards. Renaming only the file would leave `astro-browser` installed on
+# the machine, so both are changed together.
+DEB_FILE="$RELEASE_DIR/${PKG_NAME}_${VERSION}_${ARCH}.deb"
+PKG_SUMMARY="Astro Web Browser by Oxy"
+if [ "$ASTRO_OVERLAY_VERDICT" = "overlayless" ]; then
+    PKG_NAME="pipeline-validation-browser"
+    PKG_SUMMARY="PIPELINE VALIDATION BUILD - NO ASTRO OVERLAY"
+    DEB_FILE="$RELEASE_DIR/$(astro::overlayless_artifact_name "${VERSION}_${ARCH}" ".deb")"
 fi
 
 mkdir -p "$RELEASE_DIR"
@@ -39,7 +60,7 @@ Architecture: $ARCH
 Depends: libasound2, libatk-bridge2.0-0, libatk1.0-0, libatspi2.0-0, libc6 (>= 2.17), libcairo2, libcups2, libdbus-1-3, libdrm2, libexpat1, libgbm1, libglib2.0-0, libgtk-3-0, libnspr4, libnss3, libpango-1.0-0, libx11-6, libxcb1, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxkbcommon0, libxrandr2, wget
 Maintainer: Oxy <hello@oxy.so>
 Homepage: https://oxy.so
-Description: Astro Web Browser by Oxy
+Description: $PKG_SUMMARY
  A privacy-focused, de-Googled Chromium browser with built-in
  ad blocker, Oxy platform integration, and Alia AI assistant.
  .
@@ -92,18 +113,24 @@ chmod 755 "$DEB_ROOT/DEBIAN/postrm"
 echo ">>> Copying browser files..."
 
 # Core binary and helpers
-cp "$BUILD_DIR/chrome" "$INSTALL_PREFIX/"
-cp "$BUILD_DIR/chrome_sandbox" "$INSTALL_PREFIX/" 2>/dev/null || true
-cp "$BUILD_DIR/chrome_crashpad_handler" "$INSTALL_PREFIX/" 2>/dev/null || true
+astro::copy_required "$BUILD_DIR/chrome"         "$INSTALL_PREFIX/" "browser binary"
+astro::copy_required "$BUILD_DIR/chrome_sandbox" "$INSTALL_PREFIX/" "SUID sandbox binary"
+astro::copy_required "$BUILD_DIR/chrome_crashpad_handler" "$INSTALL_PREFIX/" "crash handler"
 
-# Shared libraries
-cp "$BUILD_DIR"/*.so "$INSTALL_PREFIX/" 2>/dev/null || true
+# Shared libraries: a component build produces these, a static release build
+# does not, so an empty match set is a legitimate configuration difference.
+astro::copy_glob "component-build-libraries" "$BUILD_DIR" '*.so' "$INSTALL_PREFIX/"
 
 # Data files
-cp "$BUILD_DIR"/*.pak "$INSTALL_PREFIX/" 2>/dev/null || true
-cp "$BUILD_DIR"/*.dat "$INSTALL_PREFIX/" 2>/dev/null || true
-cp "$BUILD_DIR"/*.bin "$INSTALL_PREFIX/" 2>/dev/null || true
-cp "$BUILD_DIR/icudtl.dat" "$INSTALL_PREFIX/" 2>/dev/null || true
+astro::copy_glob "v8-snapshot-blobs" "$BUILD_DIR" '*.bin' "$INSTALL_PREFIX/"
+astro::copy_glob "resource-packs"    "$BUILD_DIR" '*.pak' "$INSTALL_PREFIX/"
+astro::copy_glob "data-files"        "$BUILD_DIR" '*.dat' "$INSTALL_PREFIX/"
+astro::copy_required "$BUILD_DIR/icudtl.dat" "$INSTALL_PREFIX/" "ICU data"
+
+# A release artifact must carry the exact source revisions, GN args and
+# toolchain identity it was produced from (ASTRO-NEXT-002, #5), plus the overlay
+# verdict, so an installed tree says what it is even once its filename is gone.
+astro::stage_provenance "$INSTALL_PREFIX/provenance.json"
 
 # Locales
 if [ -d "$BUILD_DIR/locales" ]; then
@@ -120,19 +147,45 @@ fi
 
 # --- WebUI pages ---
 echo ">>> Copying WebUI pages..."
-for page in ntp alia settings whats-new error; do
-    if [ -d "$BUILD_DIR/astro-$page" ]; then
+for page in ntp alia whats-new; do
+    if [ -d "$BUILD_DIR/resources/astro-$page" ]; then
         mkdir -p "$INSTALL_PREFIX/resources/astro-$page"
-        cp -r "$BUILD_DIR/astro-$page/"* "$INSTALL_PREFIX/resources/astro-$page/"
+        cp -r "$BUILD_DIR/resources/astro-$page/"* "$INSTALL_PREFIX/resources/astro-$page/"
     elif [ -d "$ASTRO_ROOT/webui/$page/dist" ]; then
         mkdir -p "$INSTALL_PREFIX/resources/astro-$page"
         cp -r "$ASTRO_ROOT/webui/$page/dist/"* "$INSTALL_PREFIX/resources/astro-$page/"
     fi
 done
 
-# --- Launcher script ---
-cp "$ASTRO_ROOT/tools/astro-launch.sh" "$INSTALL_PREFIX/" 2>/dev/null || true
-chmod +x "$INSTALL_PREFIX/astro-launch.sh" 2>/dev/null || true
+# --- Launcher script (system-installed version, uses /opt/astro paths) ---
+cat > "$INSTALL_PREFIX/astro-launch.sh" << 'LAUNCH_EOF'
+#!/usr/bin/env bash
+INSTALL_DIR="/opt/astro"
+DATA_DIR="$HOME/.config/astro"
+PORT=19845
+
+# Kill any existing WebUI server on this port
+fuser -k $PORT/tcp 2>/dev/null
+sleep 0.2
+
+# Start local server for WebUI pages
+if [ -d "$INSTALL_DIR/resources" ]; then
+    python3 -m http.server $PORT -d "$INSTALL_DIR/resources" --bind 127.0.0.1 &>/dev/null &
+    SERVER_PID=$!
+    sleep 0.3
+fi
+
+NTP="http://127.0.0.1:$PORT/astro-ntp/index.html"
+
+if [ $# -eq 0 ]; then
+    "$INSTALL_DIR/chrome" --no-sandbox --user-data-dir="$DATA_DIR" "$NTP"
+else
+    "$INSTALL_DIR/chrome" --no-sandbox --user-data-dir="$DATA_DIR" "$@"
+fi
+
+kill $SERVER_PID 2>/dev/null || true
+LAUNCH_EOF
+chmod 755 "$INSTALL_PREFIX/astro-launch.sh"
 
 # --- Symlink in /usr/bin ---
 cat > "$DEB_ROOT/usr/bin/astro" << 'LAUNCHER'
@@ -214,7 +267,6 @@ echo ">>> Building .deb package..."
 INSTALLED_SIZE=$(du -sk "$DEB_ROOT" | cut -f1)
 echo "Installed-Size: $INSTALLED_SIZE" >> "$DEB_ROOT/DEBIAN/control"
 
-DEB_FILE="$RELEASE_DIR/${PKG_NAME}_${VERSION}_${ARCH}.deb"
 dpkg-deb --build --root-owner-group "$DEB_ROOT" "$DEB_FILE"
 
 # Clean up

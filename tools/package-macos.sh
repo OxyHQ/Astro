@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-ASTRO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ASTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export ASTRO_ROOT
+# shellcheck source=tools/lib/astro-common.sh
+source "$ASTRO_ROOT/tools/lib/astro-common.sh"
 BUILD_DIR="${1:-$ASTRO_ROOT/chromium/src/out/Release}"
 RELEASE_DIR="$ASTRO_ROOT/releases"
-VERSION="${ASTRO_VERSION:-$(cat "$ASTRO_ROOT/VERSION" 2>/dev/null || echo "0.1.0")}"
+astro::require_file "$ASTRO_ROOT/VERSION" "VERSION file"
+VERSION="${ASTRO_VERSION:-$(cat "$ASTRO_ROOT/VERSION")}"
 
 echo "=== Packaging Astro $VERSION for macOS arm64 ==="
 
@@ -26,14 +28,34 @@ fi
 APP_NAME=$(basename "$APP_BUNDLE")
 echo "Found app bundle: $APP_NAME"
 
+# An artifact named after the product must contain the product, and the verdict
+# is reached BEFORE the WebUI copy below, which writes into the bundle in place
+# inside the build directory. Two reasons, and the ordering alone does not cover
+# both: a second run of this script would find the resources from the first one
+# already there, so gating first is necessary but not sufficient.
+#
+# Hence --bundle rather than a path: it walks the bundle and scans only files
+# carrying a Mach-O magic number, so only compiled CODE can answer the question.
+# A resources tree containing `astro-ntp/index.html` — which an overlayless
+# build gets simply by being packaged twice — cannot vote.
+#
+# Walking is also what makes the probe correct at all. macOS splits the browser
+# the same way Windows does: Contents/MacOS/<name> is a launcher stub and the
+# code lives in Contents/Frameworks/<name>.framework. That split is measured on
+# the Windows equivalent — real chrome.exe reports unmeasurable while the
+# chrome.dll beside it reports present — so naming one path here would have been
+# a coin flip. Verified against a fixture, not a real .app: no macOS artifact
+# exists in this repository and none can be produced on Linux.
+astro::require_astro_overlay "macos arm64" --bundle "$APP_BUNDLE"
+
 mkdir -p "$RELEASE_DIR"
 
 # --- Copy WebUI resources into the bundle ---
 RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
-for page in ntp alia settings whats-new error; do
-    if [ -d "$BUILD_DIR/astro-$page" ]; then
+for page in ntp alia whats-new; do
+    if [ -d "$BUILD_DIR/resources/astro-$page" ]; then
         mkdir -p "$RESOURCES_DIR/astro-$page"
-        cp -r "$BUILD_DIR/astro-$page/"* "$RESOURCES_DIR/astro-$page/"
+        cp -r "$BUILD_DIR/resources/astro-$page/"* "$RESOURCES_DIR/astro-$page/"
     fi
 done
 
@@ -77,6 +99,9 @@ fi
 
 # --- Create DMG ---
 DMG_NAME="astro-${VERSION}-macos-arm64.dmg"
+if [ "$ASTRO_OVERLAY_VERDICT" = "overlayless" ]; then
+    DMG_NAME="$(astro::overlayless_artifact_name "${VERSION}-macos-arm64" ".dmg")"
+fi
 DMG_PATH="$RELEASE_DIR/$DMG_NAME"
 DMG_STAGING="$RELEASE_DIR/dmg-staging"
 
@@ -98,6 +123,10 @@ hdiutil create -volname "Astro" \
 
 rm -rf "$DMG_STAGING"
 
+# A DMG is a single opaque file, so its provenance — including the overlay
+# verdict — travels beside it rather than inside it.
+astro::stage_provenance "$DMG_PATH.provenance.json"
+
 # --- Notarize (optional, requires Apple ID credentials) ---
 if [ -n "${MACOS_NOTARY_APPLE_ID:-}" ] && [ -n "${MACOS_NOTARY_PASSWORD:-}" ] && [ -n "${MACOS_NOTARY_TEAM_ID:-}" ]; then
     echo ">>> Notarizing DMG..."
@@ -116,7 +145,7 @@ fi
 
 # --- Cleanup keychain ---
 if [ -n "${KEYCHAIN:-}" ]; then
-    security delete-keychain "$KEYCHAIN" 2>/dev/null || true
+    astro::optional "keychain-cleanup" security delete-keychain "$KEYCHAIN"
 fi
 
 echo ""

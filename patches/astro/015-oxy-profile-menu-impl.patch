@@ -1,16 +1,7 @@
 diff --git a/chrome/browser/ui/views/profiles/profile_menu_view.cc b/chrome/browser/ui/views/profiles/profile_menu_view.cc
-index 45a1311ce508b..acd73dbfd1dc9 100644
 --- a/chrome/browser/ui/views/profiles/profile_menu_view.cc
 +++ b/chrome/browser/ui/views/profiles/profile_menu_view.cc
-@@ -85,7 +85,6 @@
- #include "components/signin/core/browser/signin_error_controller.h"
- #include "components/signin/public/base/consent_level.h"
- #include "components/signin/public/base/signin_metrics.h"
--#include "components/signin/public/base/signin_pref_names.h"
- #include "components/signin/public/base/signin_switches.h"
- #include "components/signin/public/identity_manager/account_info.h"
- #include "components/signin/public/identity_manager/identity_manager.h"
-@@ -96,6 +95,7 @@
+@@ -95,6 +95,7 @@
  #include "components/vector_icons/vector_icons.h"
  #include "device/fido/public/features.h"
  #include "net/base/url_util.h"
@@ -18,7 +9,7 @@ index 45a1311ce508b..acd73dbfd1dc9 100644
  #include "ui/base/interaction/element_tracker.h"
  #include "ui/base/l10n/l10n_util.h"
  #include "ui/base/models/image_model.h"
-@@ -121,6 +121,10 @@
+@@ -120,6 +121,10 @@
  #include "chrome/browser/web_applications/os_integration/mac/app_shim_registry.h"
  #endif
  
@@ -29,44 +20,7 @@ index 45a1311ce508b..acd73dbfd1dc9 100644
  namespace {
  
  std::u16string GetSyncErrorButtonText(
-@@ -1017,9 +1021,7 @@ void ProfileMenuView::MaybeBuildChromeAccountSettingsButtonWithSync() {
-   // Show the settings button when signed in to Chrome or to the web, or if
-   // signin is disallowed.
-   const bool should_show_settings_button =
--      !identity_manager->GetExtendedAccountInfoForAccountsWithRefreshToken()
--           .empty() ||
--      !profile().GetPrefs()->GetBoolean(prefs::kSigninAllowed);
-+      false;
-   if (!should_show_settings_button) {
-     return;
-   }
-@@ -1041,25 +1043,6 @@ void ProfileMenuView::MaybeBuildChromeAccountSettingsButtonWithSync() {
- }
- 
- void ProfileMenuView::MaybeBuildGoogleServicesSettingsButton() {
--  CHECK(!profile().IsGuestSession());
--
--  signin::IdentityManager* identity_manager =
--      IdentityManagerFactory::GetForProfile(&profile());
--
--  if (!identity_manager) {
--    return;
--  }
--
--  // Show the services settings button  if signin is disallowed.
--  if (profile().GetPrefs()->GetBoolean(prefs::kSigninAllowed)) {
--    return;
--  }
--  AddFeatureButton(
--      l10n_util::GetStringUTF16(IDS_PROFILE_MENU_OPEN_ACCOUNT_SETTINGS),
--      base::BindRepeating(
--          &ProfileMenuView::OnGoogleServicesSettingsButtonClicked,
--          base::Unretained(this)),
--      vector_icons::kSettingsChromeRefreshIcon);
- }
- 
- void ProfileMenuView::MaybeBuildManageGoogleAccountButton() {
-@@ -1176,6 +1159,8 @@ void ProfileMenuView::BuildFeatureButtons() {
+@@ -1154,6 +1159,8 @@ void ProfileMenuView::BuildFeatureButtons() {
    CHECK(!profile().IsGuestSession());
    signin::IdentityManager* identity_manager =
        IdentityManagerFactory::GetForProfile(&profile());
@@ -75,7 +29,7 @@ index 45a1311ce508b..acd73dbfd1dc9 100644
    // May add the button asynchronously, order is not be guaranteed.
    MaybeBuildBatchUploadButton();
    BuildAutofillSettingsButton();
-@@ -1249,6 +1234,58 @@ void ProfileMenuView::BuildOtherProfilesSection(
+@@ -1227,6 +1234,58 @@ void ProfileMenuView::BuildOtherProfilesSection(
    }
  }
  

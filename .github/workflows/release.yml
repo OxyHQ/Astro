@@ -40,8 +40,20 @@ on:
 permissions:
   contents: write
 
-env:
-  CHROMIUM_VERSION: "146.0.7680.177"
+# No CHROMIUM_VERSION here on purpose. browser.lock.json is the single
+# declaration of what gets compiled; an env var that could disagree with it is
+# exactly the ambiguity ASTRO-NEXT-002 (#5) removes.
+
+# Every job passes its gclient target_os explicitly to tools/sync-sources.sh.
+# Leaving it implicit meant each job synced with the default (linux) and the
+# Windows, macOS and Android jobs depended on however that runner's checkout
+# had last been configured — the same "the runner decides" defect the source
+# lock exists to remove, one level down in the dependency graph.
+
+# One shared checkout per runner must not be mutated by two jobs at once.
+concurrency:
+  group: astro-sources-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -53,7 +65,7 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Checkout Astro
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -65,26 +77,32 @@ jobs:
           fi
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
-      - name: Fetch Chromium (skip if cached)
-        run: |
-          if [ ! -d "chromium/src/.git" ]; then
-            tools/fetch-chromium.sh
-          else
-            echo "Chromium source cached, skipping fetch"
-          fi
+      # A cache is an object/download cache, never source-of-truth state.
+      # The previous version skipped synchronisation whenever
+      # chromium/src/.git existed, so a runner that had ever fetched
+      # Chromium compiled whatever commit it happened to hold, forever,
+      # with nothing validating it.
+      - name: Sync sources to the locked revisions
+        run: tools/sync-sources.sh --targets "linux"
+
+      # Fails the job if anything on disk disagrees with browser.lock.json.
+      # Separate from the sync above so a sync that silently did nothing
+      # still cannot produce a build.
+      - name: Verify source revisions against the lock
+        run: tools/sync-sources.sh --verify-only --targets "linux"
 
       - name: Sync ungoogled patches
         run: tools/sync-ungoogled.sh
 
-      - name: Reset and apply patches
-        run: |
-          cd chromium/src
-          git checkout -- . 2>/dev/null || true
-          git clean -fd 2>/dev/null || true
-          cd ../..
-          tools/apply-patches.sh all
+      # tools/sync-sources.sh has already put the checkout at the locked
+      # commit and refused it if it carried state nobody can account for.
+      # The previous `git checkout -- . 2>/dev/null || true` plus
+      # `git clean -fd 2>/dev/null || true` discarded whatever it found
+      # and hid its own failures while doing so.
+      - name: Apply patches
+        run: tools/apply-patches.sh all --skip-domain-substitution
 
       - name: Build WebUI
         run: |
@@ -93,13 +111,23 @@ jobs:
               cd "webui/$page"
               bun install --frozen-lockfile
               bun run build
-              sed -i 's/ crossorigin//g' dist/index.html 2>/dev/null || true
+              sed -i 's/ crossorigin//g' dist/index.html
               cd ../..
             fi
           done
 
       - name: Build Astro (Linux)
         run: tools/build.sh Release linux
+
+      # The build's own status and the build's own log, re-derived. A job step
+      # is a wrapper like any other: it has an exit status of its own, and a
+      # `run:` block that pipes, backgrounds or notifies hands THAT status to
+      # GitHub rather than the compile's. This step reads neither — only the
+      # status recorded for the compile itself and the log that compile wrote.
+      # No record, no usable log, or a record disagreeing with its own log is
+      # `unmeasurable`, which fails.
+      - name: Verify the build outcome (Linux)
+        run: tools/verify-build-outcome.sh --require-step compile
 
       - name: Package tar.gz
         run: tools/package-linux.sh
@@ -112,7 +140,7 @@ jobs:
           ASTRO_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: astro-linux-x64
           path: |
@@ -131,7 +159,7 @@ jobs:
       DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
     steps:
       - name: Checkout Astro
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -144,29 +172,36 @@ jobs:
           fi
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
-      - name: Fetch Chromium (skip if cached)
+      # A cache is an object/download cache, never source-of-truth state.
+      # The previous version skipped synchronisation whenever
+      # chromium/src/.git existed, so a runner that had ever fetched
+      # Chromium compiled whatever commit it happened to hold, forever,
+      # with nothing validating it.
+      - name: Sync sources to the locked revisions
         shell: bash
-        run: |
-          if [ ! -d "chromium/src/.git" ]; then
-            tools/fetch-chromium.sh
-          else
-            echo "Chromium source cached, skipping fetch"
-          fi
+        run: tools/sync-sources.sh --targets "win"
+
+      # Fails the job if anything on disk disagrees with browser.lock.json.
+      # Separate from the sync above so a sync that silently did nothing
+      # still cannot produce a build.
+      - name: Verify source revisions against the lock
+        shell: bash
+        run: tools/sync-sources.sh --verify-only --targets "win"
 
       - name: Sync ungoogled patches
         shell: bash
         run: tools/sync-ungoogled.sh
 
-      - name: Reset and apply patches
+      # tools/sync-sources.sh has already put the checkout at the locked
+      # commit and refused it if it carried state nobody can account for.
+      # The previous `git checkout -- . 2>/dev/null || true` plus
+      # `git clean -fd 2>/dev/null || true` discarded whatever it found
+      # and hid its own failures while doing so.
+      - name: Apply patches
         shell: bash
-        run: |
-          cd chromium/src
-          git checkout -- . 2>/dev/null || true
-          git clean -fd 2>/dev/null || true
-          cd ../..
-          tools/apply-patches.sh all
+        run: tools/apply-patches.sh all --skip-domain-substitution
 
       - name: Build WebUI
         shell: bash
@@ -183,6 +218,17 @@ jobs:
       - name: Build Astro (Windows x64)
         shell: bash
         run: tools/build.sh Release windows
+
+      # The build's own status and the build's own log, re-derived. A job step
+      # is a wrapper like any other: it has an exit status of its own, and a
+      # `run:` block that pipes, backgrounds or notifies hands THAT status to
+      # GitHub rather than the compile's. This step reads neither — only the
+      # status recorded for the compile itself and the log that compile wrote.
+      # No record, no usable log, or a record disagreeing with its own log is
+      # `unmeasurable`, which fails.
+      - name: Verify the build outcome (Windows x64)
+        shell: bash
+        run: tools/verify-build-outcome.sh --require-step compile
 
       - name: Sign (optional)
         if: env.WINDOWS_SIGN_CERT != ''
@@ -203,7 +249,7 @@ jobs:
           ASTRO_VERSION: ${{ steps.version.outputs.version }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: astro-windows-x64
           path: releases/astro-*-windows-x64*
@@ -220,7 +266,7 @@ jobs:
       DEPOT_TOOLS_WIN_TOOLCHAIN: "0"
     steps:
       - name: Checkout Astro
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -233,29 +279,36 @@ jobs:
           fi
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
-      - name: Fetch Chromium (skip if cached)
+      # A cache is an object/download cache, never source-of-truth state.
+      # The previous version skipped synchronisation whenever
+      # chromium/src/.git existed, so a runner that had ever fetched
+      # Chromium compiled whatever commit it happened to hold, forever,
+      # with nothing validating it.
+      - name: Sync sources to the locked revisions
         shell: bash
-        run: |
-          if [ ! -d "chromium/src/.git" ]; then
-            tools/fetch-chromium.sh
-          else
-            echo "Chromium source cached, skipping fetch"
-          fi
+        run: tools/sync-sources.sh --targets "win"
+
+      # Fails the job if anything on disk disagrees with browser.lock.json.
+      # Separate from the sync above so a sync that silently did nothing
+      # still cannot produce a build.
+      - name: Verify source revisions against the lock
+        shell: bash
+        run: tools/sync-sources.sh --verify-only --targets "win"
 
       - name: Sync ungoogled patches
         shell: bash
         run: tools/sync-ungoogled.sh
 
-      - name: Reset and apply patches
+      # tools/sync-sources.sh has already put the checkout at the locked
+      # commit and refused it if it carried state nobody can account for.
+      # The previous `git checkout -- . 2>/dev/null || true` plus
+      # `git clean -fd 2>/dev/null || true` discarded whatever it found
+      # and hid its own failures while doing so.
+      - name: Apply patches
         shell: bash
-        run: |
-          cd chromium/src
-          git checkout -- . 2>/dev/null || true
-          git clean -fd 2>/dev/null || true
-          cd ../..
-          tools/apply-patches.sh all
+        run: tools/apply-patches.sh all --skip-domain-substitution
 
       - name: Build WebUI
         shell: bash
@@ -272,6 +325,17 @@ jobs:
       - name: Build Astro (Windows ARM64)
         shell: bash
         run: tools/build.sh Release windows-arm64
+
+      # The build's own status and the build's own log, re-derived. A job step
+      # is a wrapper like any other: it has an exit status of its own, and a
+      # `run:` block that pipes, backgrounds or notifies hands THAT status to
+      # GitHub rather than the compile's. This step reads neither — only the
+      # status recorded for the compile itself and the log that compile wrote.
+      # No record, no usable log, or a record disagreeing with its own log is
+      # `unmeasurable`, which fails.
+      - name: Verify the build outcome (Windows ARM64)
+        shell: bash
+        run: tools/verify-build-outcome.sh --require-step compile
 
       - name: Sign (optional)
         if: env.WINDOWS_SIGN_CERT != ''
@@ -293,7 +357,7 @@ jobs:
           tools/package-windows.sh
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: astro-windows-arm64
           path: releases/astro-*-windows-arm64*
@@ -308,7 +372,7 @@ jobs:
     timeout-minutes: 480
     steps:
       - name: Checkout Astro
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -320,26 +384,32 @@ jobs:
           fi
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
-      - name: Fetch Chromium (skip if cached)
-        run: |
-          if [ ! -d "chromium/src/.git" ]; then
-            tools/fetch-chromium.sh
-          else
-            echo "Chromium source cached, skipping fetch"
-          fi
+      # A cache is an object/download cache, never source-of-truth state.
+      # The previous version skipped synchronisation whenever
+      # chromium/src/.git existed, so a runner that had ever fetched
+      # Chromium compiled whatever commit it happened to hold, forever,
+      # with nothing validating it.
+      - name: Sync sources to the locked revisions
+        run: tools/sync-sources.sh --targets "mac"
+
+      # Fails the job if anything on disk disagrees with browser.lock.json.
+      # Separate from the sync above so a sync that silently did nothing
+      # still cannot produce a build.
+      - name: Verify source revisions against the lock
+        run: tools/sync-sources.sh --verify-only --targets "mac"
 
       - name: Sync ungoogled patches
         run: tools/sync-ungoogled.sh
 
-      - name: Reset and apply patches
-        run: |
-          cd chromium/src
-          git checkout -- . 2>/dev/null || true
-          git clean -fd 2>/dev/null || true
-          cd ../..
-          tools/apply-patches.sh all
+      # tools/sync-sources.sh has already put the checkout at the locked
+      # commit and refused it if it carried state nobody can account for.
+      # The previous `git checkout -- . 2>/dev/null || true` plus
+      # `git clean -fd 2>/dev/null || true` discarded whatever it found
+      # and hid its own failures while doing so.
+      - name: Apply patches
+        run: tools/apply-patches.sh all --skip-domain-substitution
 
       - name: Build WebUI
         run: |
@@ -348,13 +418,23 @@ jobs:
               cd "webui/$page"
               bun install --frozen-lockfile
               bun run build
-              sed -i '' 's/ crossorigin//g' dist/index.html 2>/dev/null || true
+              sed -i '' 's/ crossorigin//g' dist/index.html
               cd ../..
             fi
           done
 
       - name: Build Astro (macOS)
         run: tools/build.sh Release macos
+
+      # The build's own status and the build's own log, re-derived. A job step
+      # is a wrapper like any other: it has an exit status of its own, and a
+      # `run:` block that pipes, backgrounds or notifies hands THAT status to
+      # GitHub rather than the compile's. This step reads neither — only the
+      # status recorded for the compile itself and the log that compile wrote.
+      # No record, no usable log, or a record disagreeing with its own log is
+      # `unmeasurable`, which fails.
+      - name: Verify the build outcome (macOS)
+        run: tools/verify-build-outcome.sh --require-step compile
 
       - name: Package and sign
         run: tools/package-macos.sh
@@ -367,7 +447,7 @@ jobs:
           MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: astro-macos-arm64
           path: releases/astro-*-macos-arm64.dmg
@@ -382,7 +462,7 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Checkout Astro
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -394,15 +474,21 @@ jobs:
           fi
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
-      - name: Fetch Chromium (skip if cached)
-        run: |
-          if [ ! -d "chromium/src/.git" ]; then
-            CHROMIUM_VERSION=${{ env.CHROMIUM_VERSION }} tools/fetch-chromium.sh
-          else
-            echo "Chromium source cached, skipping fetch"
-          fi
+      # A cache is an object/download cache, never source-of-truth state.
+      # The previous version skipped synchronisation whenever
+      # chromium/src/.git existed, so a runner that had ever fetched
+      # Chromium compiled whatever commit it happened to hold, forever,
+      # with nothing validating it.
+      - name: Sync sources to the locked revisions
+        run: tools/sync-sources.sh --targets "android"
+
+      # Fails the job if anything on disk disagrees with browser.lock.json.
+      # Separate from the sync above so a sync that silently did nothing
+      # still cannot produce a build.
+      - name: Verify source revisions against the lock
+        run: tools/sync-sources.sh --verify-only --targets "android"
 
       - name: Install Android dependencies
         run: |
@@ -412,13 +498,13 @@ jobs:
       - name: Sync ungoogled patches
         run: tools/sync-ungoogled.sh
 
-      - name: Reset and apply patches
-        run: |
-          cd chromium/src
-          git checkout -- . 2>/dev/null || true
-          git clean -fd 2>/dev/null || true
-          cd ../..
-          tools/apply-patches.sh all
+      # tools/sync-sources.sh has already put the checkout at the locked
+      # commit and refused it if it carried state nobody can account for.
+      # The previous `git checkout -- . 2>/dev/null || true` plus
+      # `git clean -fd 2>/dev/null || true` discarded whatever it found
+      # and hid its own failures while doing so.
+      - name: Apply patches
+        run: tools/apply-patches.sh all --skip-domain-substitution
 
       - name: Build WebUI
         run: |
@@ -427,13 +513,23 @@ jobs:
               cd "webui/$page"
               bun install --frozen-lockfile
               bun run build
-              sed -i 's/ crossorigin//g' dist/index.html 2>/dev/null || true
+              sed -i 's/ crossorigin//g' dist/index.html
               cd ../..
             fi
           done
 
       - name: Build Astro (Android)
         run: tools/build.sh Release android
+
+      # The build's own status and the build's own log, re-derived. A job step
+      # is a wrapper like any other: it has an exit status of its own, and a
+      # `run:` block that pipes, backgrounds or notifies hands THAT status to
+      # GitHub rather than the compile's. This step reads neither — only the
+      # status recorded for the compile itself and the log that compile wrote.
+      # No record, no usable log, or a record disagreeing with its own log is
+      # `unmeasurable`, which fails.
+      - name: Verify the build outcome (Android)
+        run: tools/verify-build-outcome.sh --require-step compile
 
       - name: Package and sign
         run: tools/package-android.sh
@@ -445,7 +541,7 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: astro-android-arm64
           path: releases/astro-*-android-arm64.apk
@@ -460,7 +556,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (for VERSION file)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Determine version
         id: version
@@ -472,7 +568,7 @@ jobs:
           fi
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifacts/
 
@@ -480,7 +576,7 @@ jobs:
         run: find artifacts/ -type f | sort
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Astro v${{ steps.version.outputs.version }}

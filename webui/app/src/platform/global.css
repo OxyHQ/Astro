@@ -1,0 +1,108 @@
+/* The one stylesheet every astro:// page is drawn against.
+ *
+ * The @source lines are the part that is easy to omit and impossible to
+ * notice. On web, react-native-css emits REAL CSS classes rather than the
+ * runtime styles it produces on native, so without scanning Bloom's own lib/
+ * every flex-row, gap and items-center inside a Bloom component is a no-op --
+ * while its COLOURS still render, because Bloom applies those inline. The page
+ * then looks almost right, which is the worst way for this to fail.
+ */
+/* Tailwind, imported in THREE parts rather than as `@import "tailwindcss"`,
+ * so that the utilities land OUTSIDE a cascade layer. This is the difference
+ * between a page that lays out and one that does not, and nothing about it is
+ * visible in the markup.
+ *
+ * `@import "tailwindcss"` is shorthand for these same three files with
+ * `layer(theme)`, `layer(base)` and `layer(utilities)`. react-native-web
+ * injects its own reset at runtime as an ORDINARY, UNLAYERED stylesheet, and
+ * an unlayered declaration beats a layered one no matter what order the sheets
+ * are in or how specific the layered selector is -- that is what cascade
+ * layers are FOR. So every utility that names a property RNW's `View` reset
+ * also names loses: `flex-direction`, `flex-shrink`, `flex-basis`,
+ * `align-items`, `background-color`, `padding`, `position`, `border`.
+ *
+ * Measured on this page, same DOM, same class attribute
+ * (`css-view-g5y9jx flex-1 flex-row bg-background`), only this import changed:
+ *
+ *              @layer utilities        unlayered
+ *   direction  column                 row
+ *   flex       1 0 auto               1 1 0%
+ *   background transparent            rgb(255 239 253)
+ *
+ * `flex: 1 0 auto` is the signature worth recognising: `flex-grow` came from
+ * `.flex-1` because RNW sets no `flex-grow`, while `flex-shrink` and
+ * `flex-basis` came from RNW's longhands. A shorthand losing per-property like
+ * that is a layer conflict and cannot be anything else.
+ *
+ * The symptom is the one ~/Oxy/AGENTS.md describes for a MISSING stylesheet --
+ * layout inert, colours fine -- so it reads as unwired Tailwind. It is not:
+ * the sheet is present and the rule is in it. Do not "fix" this by adding
+ * @source globs; they are already correct below.
+ *
+ * Only the utilities leave their layer. Preflight stays in `base` so Tailwind's
+ * reset keeps LOSING to RNW's -- RNW's box model is the one these components
+ * are written against. Ordering within the unlayered group is then decided by
+ * document order, and RNW guarantees it: `createCSSStyleSheet` inserts its
+ * <style> with `head.insertBefore(element, head.firstChild)`, always first,
+ * precisely so application styles can override it.
+ */
+@layer theme, base, components;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+@import "nativewind/theme";
+
+/* Bloom's canonical tokens -- radius scale, spacing, typography, colour
+   aliases -- imported rather than hand-copied so they stay in sync with the
+   published package. Every entry reads `var(--x)`; never `hsl(var(--x))`,
+   which double-wraps an already-resolved colour into an invalid value. */
+@import "@oxyhq/bloom/design-tokens/theme.css";
+
+/* Values for those tokens, for the frame before BloomThemeProvider writes the
+   user's real theme onto the document root. Generated from Bloom, never
+   hand-edited -- see the file's header. */
+@import "./theme-fallback.css";
+
+/* The width below which the navigation rail drops its labels and keeps only
+ * its icons. Named so the number is written once and `max-rail:` reads as the
+ * intent rather than as a magic constant; the arbitrary form `max-[900px]:`
+ * compiles to exactly the same rule and was never the problem.
+ *
+ * Tailwind compiles a `max-*` variant to `@media (width < 900px)`, which is
+ * EXCLUSIVE. At a viewport of exactly 900px the wide layout applies, and the
+ * collapsed one starts at 899. Verifying the collapse at 900 therefore tests
+ * the boundary rather than the behaviour, and reads as "the rail did not
+ * respond". */
+@theme {
+  --breakpoint-rail: 900px;
+}
+
+@source "../**/*.{ts,tsx}";
+/* Tailwind skips node_modules by default, and this app renders Bloom's
+   className-styled components. `@oxyhq/services` is deliberately NOT scanned:
+   this app does not depend on it (no Oxy session runs inside the browser's own
+   chrome), so a second scan glob would be a path nothing resolves. */
+@source "../../node_modules/@oxyhq/bloom/lib/**/*.{js,jsx}";
+
+/* Bloom switches schemes by writing a `dark` class onto the document root, so
+   the dark variant has to follow the class rather than the media query. */
+@custom-variant dark (&:is(.dark *));
+
+/* The page owns its whole document, so the html/body chrome is ours to set.
+   Bloom paints the surface; this only makes the root fill the viewport. */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* The app's outermost View is `flex-1`, which needs a flex parent with a
+   height to expand into. Without this the root sizes to its content and the
+   page background stops where the content does -- a band of user-agent white
+   below the shell that reads as a rendering bug rather than a missing display
+   rule. */
+#root {
+  display: flex;
+  flex-direction: column;
+}

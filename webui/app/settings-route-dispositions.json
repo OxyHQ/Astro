@@ -1,0 +1,107 @@
+{
+  "comment": [
+    "Chromium settings routes Astro's page deliberately does NOT route, and why.",
+    "",
+    "Hand-maintained, and the ONLY hand-maintained input to the settings parity",
+    "gate. The denominator it is checked against is measured, not listed:",
+    "docs/astro-next/baseline/settings-parity.json is generated from Chromium's",
+    "own router.ts. Every route in it is either claimed by a screen in",
+    "src/pages/settings/settings-page.tsx or declared here; the gate",
+    "(tools/tests/cases/settings-parity-covers-upstream.sh) fails naming any that",
+    "is neither, and fails on an entry here for a route the page DOES route, so a",
+    "disposition cannot quietly outlive the reason for it.",
+    "",
+    "Reasons are a closed vocabulary:",
+    "  google-service   the screen exists to configure a Google service this",
+    "                   browser does not talk to. There is nothing to reimplement.",
+    "  oxy-replacement  Astro does the same job somewhere else, and that screen is",
+    "                   named in the note.",
+    "  later-issue-N    it is coming, and issue N owns it.",
+    "  chromeos-only    the route only exists in a ChromeOS build.",
+    "",
+    "A note is required and is not decoration: it is what tells a later reader",
+    "whether the disposition is still true."
+  ],
+  "routes": {
+    "ACCOUNT": {
+      "reason": "oxy-replacement",
+      "note": "Chrome's Google-account screen. Astro's identity is an Oxy account, and the You and Astro section (/identity) is where it is managed."
+    },
+    "AI": {
+      "reason": "google-service",
+      "note": "The container for Chrome's Gemini-backed features. Astro's assistant is Alia, which has its own section; nothing under this route has an Astro equivalent."
+    },
+    "AI_TAB_ORGANIZATION": {
+      "reason": "google-service",
+      "note": "Tab organiser, served by Google's model."
+    },
+    "COMPARE": {
+      "reason": "google-service",
+      "note": "Product comparison, served by Google's shopping backend."
+    },
+    "GEMINI": {
+      "reason": "google-service",
+      "note": "Gemini settings. Astro ships no Gemini integration."
+    },
+    "GLIC_SECTION": {
+      "reason": "google-service",
+      "note": "The Gemini launcher's own section. Declared in SettingsRoutes and never constructed in the locked Chromium revision, so upstream itself reaches it in no configuration this build has."
+    },
+    "GOOGLE_SERVICES": {
+      "reason": "google-service",
+      "note": "The list of Google services a signed-in profile may enable. Every one of them is removed by the ungoogled patch series."
+    },
+    "HISTORY_SEARCH": {
+      "reason": "google-service",
+      "note": "History search over Google's model."
+    },
+    "MANAGE_PROFILE": {
+      "reason": "oxy-replacement",
+      "note": "Chrome's profile name, avatar and theme editor. Name and avatar belong to the Oxy account (You and Astro); the theme is Appearance."
+    },
+    "OFFER_WRITING_HELP": {
+      "reason": "google-service",
+      "note": "Help me write, served by Google's model."
+    },
+    "PEOPLE": {
+      "reason": "oxy-replacement",
+      "note": "Chrome's sign-in and sync section. The You and Astro section (/identity) owns identity in Astro, and the fragment is routed there so a bookmark still lands."
+    },
+    "PRIVACY_GUIDE": {
+      "reason": "oxy-replacement",
+      "note": "A wizard that walks a user through the sync, ad-privacy and safe-browsing choices Astro either removes or decides by default. Walking someone through settings that no longer exist is worse than not offering the walk."
+    },
+    "PRIVACY_SANDBOX": {
+      "reason": "google-service",
+      "note": "The Privacy Sandbox ad-targeting APIs. Removed by the ungoogled patch series, so there is no state to show."
+    },
+    "PRIVACY_SANDBOX_AD_MEASUREMENT": {
+      "reason": "google-service",
+      "note": "Attribution Reporting. Part of the Privacy Sandbox set above."
+    },
+    "PRIVACY_SANDBOX_FLEDGE": {
+      "reason": "google-service",
+      "note": "Protected Audience. Part of the Privacy Sandbox set above."
+    },
+    "PRIVACY_SANDBOX_MANAGE_TOPICS": {
+      "reason": "google-service",
+      "note": "Topics API interest editor. Part of the Privacy Sandbox set above."
+    },
+    "PRIVACY_SANDBOX_TOPICS": {
+      "reason": "google-service",
+      "note": "Topics API. Part of the Privacy Sandbox set above."
+    },
+    "SIGN_OUT": {
+      "reason": "oxy-replacement",
+      "note": "Chrome's sign-out dialog. Signing out of an Oxy account happens in You and Astro (/identity)."
+    },
+    "SYNC": {
+      "reason": "later-issue-23",
+      "note": "Oxy Sync is issue #23. Until it exists there is nothing behind this screen; a stub would imply the browser syncs."
+    },
+    "SYNC_ADVANCED": {
+      "reason": "later-issue-23",
+      "note": "The per-data-type controls of the same feature. Issue #23."
+    }
+  }
+}

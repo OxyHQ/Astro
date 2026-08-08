@@ -1,0 +1,127 @@
+{
+  "_comment": [
+    "Disposition of every Astro-owned preference, for the Astro Next baseline (issue #6).",
+    "",
+    "The preference NAMES are not written here. They are parsed out of the",
+    "committed patch stack by tools/baseline/make_profile_fixtures.py, because a",
+    "hand-written list of pref names is a second copy of the registry that nothing",
+    "keeps in sync, and the first rename makes it describe a browser that no longer",
+    "exists.",
+    "",
+    "What cannot be parsed is the JUDGEMENT: whether a preference is part of the",
+    "reproducible legacy baseline, or is candidate future work that exists only in",
+    "somebody's working tree. That is what this file holds -- the same split, and",
+    "for the same reason, as patch-dispositions.json beside it.",
+    "",
+    "status:",
+    "  legacy-baseline",
+    "      Registered by the COMMITTED patch stack. It is present in the fixtures",
+    "      under test/astro-next/fixtures/, and a clean checkout regenerates those",
+    "      fixtures byte for byte.",
+    "  observed-local-only",
+    "      Registered ONLY in a working-tree copy of a patch, never at HEAD, and",
+    "      therefore NOT part of the baseline. Recorded here so the observation is",
+    "      not lost, and deliberately kept OUT of the fixtures: a fixture a clean",
+    "      checkout cannot regenerate is worse than a missing one, because it makes",
+    "      --verify fail for everybody except the machine that produced it.",
+    "",
+    "      These are candidate future preferences. The issue named in owner_issue",
+    "      decides whether each one ships, under what name, and with what default;",
+    "      when it does, the work lands as a committed patch change and the entry",
+    "      here is reclassified to legacy-baseline (or deleted).",
+    "",
+    "THE JOIN IS STRICT IN BOTH DIRECTIONS, which is what stops this file rotting:",
+    "",
+    "  * a preference the committed patches register with no entry here  -> fails",
+    "  * a preference the committed patches register whose entry says",
+    "    observed-local-only                                              -> fails",
+    "  * an entry marked legacy-baseline that the committed patches do not",
+    "    register                                                         -> fails",
+    "  * an entry marked observed-local-only that the committed patches DO",
+    "    register                                                         -> fails",
+    "",
+    "The last one is the load-bearing direction. The day the local preference work",
+    "is committed, every entry below flips from true to false at once, and the join",
+    "fails naming each one -- so this file has to be brought up to date rather than",
+    "quietly becoming a false statement about the repository. A note in prose could",
+    "not do that.",
+    "",
+    "observed_in is the patch whose working-tree copy registers the preference. It",
+    "is checked against the patch list the tool parses, so a typo names nothing",
+    "rather than pointing nowhere."
+  ],
+  "prefs": {
+    "oxy.access_token": {
+      "status": "legacy-baseline",
+      "purpose": "Oxy account access token, mirrored into the profile from the token store."
+    },
+    "oxy.refresh_token": {
+      "status": "legacy-baseline",
+      "purpose": "Oxy account refresh token, mirrored into the profile from the token store."
+    },
+    "oxy.session_id": {
+      "status": "legacy-baseline",
+      "purpose": "Identifier of the signed-in Oxy session."
+    },
+    "oxy.user_id": {
+      "status": "legacy-baseline",
+      "purpose": "Signed-in Oxy account id."
+    },
+    "oxy.username": {
+      "status": "legacy-baseline",
+      "purpose": "Signed-in Oxy account handle, as displayed in the browser UI."
+    },
+    "oxy.user_avatar": {
+      "status": "legacy-baseline",
+      "purpose": "Avatar file id for the signed-in Oxy account."
+    },
+    "oxy.token_expiry": {
+      "status": "legacy-baseline",
+      "purpose": "Expiry of the stored access token."
+    },
+    "oxy.adblock.enabled": {
+      "status": "legacy-baseline",
+      "purpose": "Master switch for the ad blocker."
+    },
+    "oxy.adblock.site_overrides": {
+      "status": "legacy-baseline",
+      "purpose": "Per-site ad blocker exceptions. Only disabled sites are stored; re-enabling a site removes its key rather than storing true."
+    },
+    "oxy.adblock.custom_rules": {
+      "status": "legacy-baseline",
+      "purpose": "User-authored filter rules, one per line, in Adblock Plus syntax."
+    },
+    "astro.ntp_show_weather": {
+      "status": "legacy-baseline",
+      "purpose": "New Tab Page widget visibility: weather."
+    },
+    "astro.ntp_show_clock": {
+      "status": "legacy-baseline",
+      "purpose": "New Tab Page widget visibility: clock."
+    },
+    "astro.ntp_show_quick_links": {
+      "status": "legacy-baseline",
+      "purpose": "New Tab Page widget visibility: quick links."
+    },
+    "astro.ntp_show_notes": {
+      "status": "legacy-baseline",
+      "purpose": "New Tab Page widget visibility: notes."
+    },
+    "astro.ntp_show_sites": {
+      "status": "legacy-baseline",
+      "purpose": "New Tab Page widget visibility: most-visited sites."
+    },
+    "astro.ntp_show_discover": {
+      "status": "legacy-baseline",
+      "purpose": "New Tab Page widget visibility: discover feed."
+    },
+    "astro.ntp_show_alia": {
+      "status": "legacy-baseline",
+      "purpose": "New Tab Page widget visibility: Alia entry point."
+    },
+    "oxy.adblock.lifetime_blocked_count": {
+      "status": "legacy-baseline",
+      "purpose": "Cumulative count of requests the ad blocker has blocked, for the shield UI."
+    }
+  }
+}

@@ -3,6 +3,8 @@
 
 #include "chrome/browser/oxy/adblock/astro_adblock_service.h"
 
+#include <limits>
+
 #include "base/base_paths.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
@@ -126,6 +128,27 @@ void AstroAdBlockService::SetSiteOverride(const GURL& site_url,
     update->Remove(site_url.host());
   } else {
     update->Set(site_url.host(), false);
+  }
+}
+
+int AstroAdBlockService::GetLifetimeBlockedCount() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!prefs_) {
+    return 0;
+  }
+  return prefs_->GetInteger(kAdBlockLifetimeBlockedCount);
+}
+
+void AstroAdBlockService::IncrementLifetimeBlockedCount() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!prefs_) {
+    return;
+  }
+  // Saturate at INT_MAX rather than overflow. Anyone hitting this should
+  // already be impressed by their block count.
+  int current = prefs_->GetInteger(kAdBlockLifetimeBlockedCount);
+  if (current < std::numeric_limits<int>::max()) {
+    prefs_->SetInteger(kAdBlockLifetimeBlockedCount, current + 1);
   }
 }
 

@@ -9,7 +9,7 @@ export default defineConfig({
     outDir: "../dist",
     emptyOutDir: true,
     minify: "terser",
-      modulePreload: { polyfill: false },
+      modulePreload: false,
     rollupOptions: {
       input: "src/index.html",
     },

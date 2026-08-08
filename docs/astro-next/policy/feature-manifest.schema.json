@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/OxyHQ/Astro/docs/astro-next/policy/feature-manifest.schema.json",
+  "title": "Astro Next feature manifest",
+  "description": [
+    "Every Chromium or Astro capability Astro must take a decision about, with that decision.",
+    "",
+    "Validated by tools/policy/manifest.py, which implements this schema directly rather than",
+    "importing a validator library: a generator that cannot run until somebody installs a package",
+    "is a generator that stops being run. The tool asserts it supports every keyword this file",
+    "uses, so an unsupported keyword fails loudly instead of becoming decorative.",
+    "",
+    "TWO STATE FIELDS, AND THE DISTINCTION IS THE POINT.",
+    "`observed_state` is what the CURRENT legacy build does, evidence-backed and citable.",
+    "`state` is the Astro Next DECISION. They are separate fields so that 'an inherited patch",
+    "disables this' can never be silently promoted into 'we decided to disable this'. A downstream",
+    "issue reading one entry can tell what it inherits from what has been chosen."
+  ],
+  "type": "object",
+  "required": ["version", "states", "features"],
+  "properties": {
+    "version": { "type": "integer" },
+    "states": {
+      "type": "object",
+      "description": "The state vocabulary, defined in this file so a reader never has to guess.",
+      "required": [
+        "KEEP",
+        "REPLACE",
+        "DISABLE_BUILD",
+        "DISABLE_RUNTIME",
+        "DORMANT",
+        "INVESTIGATE"
+      ]
+    },
+    "features": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/feature" }
+    }
+  },
+  "$defs": {
+    "state": {
+      "type": "string",
+      "enum": [
+        "KEEP",
+        "REPLACE",
+        "DISABLE_BUILD",
+        "DISABLE_RUNTIME",
+        "DORMANT",
+        "INVESTIGATE"
+      ]
+    },
+    "observed_state": {
+      "type": "string",
+      "description": [
+        "What the current legacy build does. `NOT_BUILT` is its own value and not a synonym for",
+        "DORMANT: baseline finding 1 measured that nothing links the Astro overlay into the build",
+        "graph, so every overlay capability is absent from today's binary through a build defect",
+        "(#7) rather than through anybody's decision. Recording that as DORMANT would invent a",
+        "decision nobody took.",
+        "",
+        "`DISABLED_BY_BUILD` and `DISABLED_BY_PATCH` are separate for the same reason",
+        "DISABLE_BUILD and DISABLE_RUNTIME are: a GN arg switching a component off is a",
+        "configuration anybody can read and re-apply, and a patch deleting source lines is not.",
+        "Safe Browsing is the entry that makes it concrete -- `safe_browsing_mode = 0` on all six",
+        "platform configurations.",
+        "",
+        "`NOT_MEASURED` is the honest value whenever the evidence would amount to 'the epic asked",
+        "about it'. Ten entries here carried DISABLED_BY_PATCH on that basis and were corrected:",
+        "a listing in a review set is not evidence that anything changed the capability."
+      ],
+      "enum": [
+        "PRESENT",
+        "REMOVED_BY_PATCH",
+        "DISABLED_BY_PATCH",
+        "DISABLED_BY_BUILD",
+        "UNREACHABLE",
+        "NOT_BUILT",
+        "NOT_MEASURED"
+      ]
+    },
+    "feature": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "area",
+        "observed_state",
+        "observed_evidence",
+        "state",
+        "rationale",
+        "owner_issue",
+        "upstream_component",
+        "user_surface",
+        "network",
+        "persistence",
+        "incognito",
+        "build_flags",
+        "tests"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "Stable, unique, kebab-case. Code and presubmits reference this."
+        },
+        "title": { "type": "string" },
+        "area": {
+          "type": "string",
+          "enum": [
+            "core-browser",
+            "google-provider",
+            "astro-product",
+            "inherited-privacy-patch"
+          ]
+        },
+        "observed_state": { "$ref": "#/$defs/observed_state" },
+        "observed_evidence": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": [
+            "file:line, a patch name, or a named baseline finding. Required with no exception:",
+            "an observed state with no evidence is an assertion, and this document exists to stop",
+            "assertions being cited as measurements."
+          ]
+        },
+        "state": { "$ref": "#/$defs/state" },
+        "rationale": { "type": "string" },
+        "owner_issue": { "type": "integer" },
+        "routed_to_issue": {
+          "type": "integer",
+          "description": [
+            "Set when the decision is not this manifest's to take. Security-relevant capabilities",
+            "-- Safe Browsing, certificate verification, sandboxing, update integrity -- belong to",
+            "#20; they are listed here so the matrix is complete and routed so nobody reads the",
+            "listing as a decision."
+          ]
+        },
+        "upstream_component": { "type": "string" },
+        "replacement_component": { "type": "string" },
+        "user_surface": { "type": "string" },
+        "network": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": [
+            "Endpoint ids from the endpoint manifest, or the single literal `none`. Joined",
+            "strictly in both directions: an unknown id fails, and an endpoint whose",
+            "owning_feature is not declared here fails."
+          ]
+        },
+        "persistence": { "type": "string" },
+        "incognito": {
+          "type": "string",
+          "enum": ["disabled", "same-as-normal", "isolated", "not-applicable", "undecided"]
+        },
+        "build_flags": { "type": "array", "items": { "type": "string" } },
+        "tests": { "type": "array", "items": { "type": "string" } },
+        "investigate": {
+          "type": "object",
+          "required": ["question", "answered_by"],
+          "description": [
+            "Required whenever state is INVESTIGATE. `question` is the specific thing that is not",
+            "known; `answered_by` is the command, experiment or document that settles it. An",
+            "INVESTIGATE with no way to leave it is a permanent unknown wearing a temporary label."
+          ],
+          "properties": {
+            "question": { "type": "string" },
+            "answered_by": { "type": "string" }
+          }
+        },
+        "blocks": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "description": [
+            "Issues whose design depends on THIS entry's decision -- a prerequisite edge. The",
+            "named issue cannot state its own design correctly without reading the decision here,",
+            "and getting it wrong is a defect in that issue rather than a missing reference.",
+            "",
+            "This is NOT 'the named issue reads this entry'. That relation is `inputs_to`, and the",
+            "two were conflated: ten entries declared `blocks: [11]` while carrying already-decided",
+            "states, which read as ten pending decisions #11 was waiting on when what #11 actually",
+            "needed from them was one column of data. See critical-subset-for-schemes.md."
+          ]
+        },
+        "blocks_reason": { "type": "string" },
+        "inputs_to": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "description": [
+            "Issues that READ this entry as reference data. Weaker than `blocks`: the named issue",
+            "cites the decision recorded here but does not wait on it, because the decision is",
+            "already taken. An entry may not name the same issue in both fields -- one relation or",
+            "the other, never both, or the distinction stops meaning anything."
+          ]
+        },
+        "inputs_reason": {
+          "type": "string",
+          "description": "Required with `inputs_to`: exactly what the named issue reads from this entry."
+        },
+        "webui_host": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": [
+            "The DECIDED bare host name this capability's WebUI data source registers under, or the",
+            "literal `not-determined`. Not a restatement of `user_surface`, which records today's",
+            "URL: this is the name after #11 removes the astro://-to-chrome:// alias.",
+            "",
+            "It is a manifest field because the WebUI data-source registry is a flat map keyed on",
+            "the bare host and shared across every WebUI scheme except chrome-untrusted",
+            "(content/browser/webui/url_data_manager_backend.cc:122, :149), and a later same-named",
+            "registration silently replaces the earlier one (content/public/browser/url_data_source.cc:52-54).",
+            "Two pages that agree on a name are one page, and the loser fails with ERR_INVALID_URL."
+          ]
+        },
+        "scheme_trust": {
+          "type": "string",
+          "enum": ["trusted", "untrusted", "not-applicable", "not-determined"],
+          "description": [
+            "Which of Astro's two internal schemes this page lands on. Not a style preference: a",
+            "document with WebUI bindings has its network factory revoked",
+            "(content/browser/renderer_host/render_frame_host_impl.cc:12645-12657), so a page whose",
+            "own JavaScript must reach the network cannot be bound, and therefore cannot be trusted.",
+            "`trusted` = astro://, bound, no network factory. `untrusted` = astro-untrusted://,",
+            "unbound, keeps one. Declared together with `webui_host`; see webui-scheme-trust-split."
+          ]
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

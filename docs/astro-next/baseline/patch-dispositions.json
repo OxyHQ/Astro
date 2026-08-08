@@ -1,0 +1,465 @@
+{
+  "_comment": [
+    "Disposition of every patch Astro applies, for the Astro Next baseline (issue #6).",
+    "",
+    "This is the one part of the patch inventory that cannot be generated: what a",
+    "patch is FOR, and what is meant to happen to it, is a judgement.",
+    "",
+    "tools/baseline/inventory_patches.py joins this against the two series files",
+    "and FAILS in both directions -- a patch with no disposition, or a disposition",
+    "naming a patch that does not exist -- so this file cannot drift from reality",
+    "without CI noticing.",
+    "",
+    "disposition: keep | replace | remove | investigate",
+    "  keep         survives Astro Next essentially as-is",
+    "  replace      the behaviour survives; this implementation does not",
+    "  remove       the behaviour goes away",
+    "  investigate  the disposition is genuinely not yet decided. Recorded as an",
+    "               open question rather than guessed -- a wrong 'keep' is worse",
+    "               than an honest 'investigate'.",
+    "",
+    "effect: user-visible | security/privacy | build-only | none",
+    "replacement_issue: the Astro Next issue that owns the replacement.",
+    "",
+    "'groups' entries apply to every inherited ungoogled patch under that",
+    "directory. Writing 112 individually-reasoned dispositions for patches Astro",
+    "did not author is volume without added confidence; #8 owns curating them.",
+    "A per-patch entry always wins over its group."
+  ],
+  "_removed_empty_patches": {
+    "007-oxy-auth-build-hook.patch": {
+      "owner_issue": 7,
+      "was_bytes_at_264d449": 9580
+    },
+    "035-auth-https-callback.patch": {
+      "owner_issue": 16,
+      "was_bytes": 0
+    },
+    "note": [
+      "Two files in patches/astro/ were 0 bytes and were removed from the stack:",
+      "an empty file is not a patch, and git apply rejects it outright.",
+      "",
+      "007-oxy-auth-build-hook.patch added \"//chrome/browser/oxy\" to",
+      "chrome/browser/BUILD.gn. It was 9580 bytes at 264d449 and 0 bytes from",
+      "9cc1043 onward. The previous patch runner counted its failure and carried",
+      "on, so nothing surfaced it.",
+      "",
+      "MEASURED CONSEQUENCE on a real, fully patched checkout at the locked",
+      "commit: zero references to browser/oxy in any BUILD.gn or .gni. Nothing in",
+      "the committed pipeline compiles the Astro overlay.",
+      "",
+      "035-auth-https-callback.patch was 0 bytes throughout its recorded history.",
+      "",
+      "Restoring 007 is a product change and is NOT done here: the overlay's own",
+      "BUILD.gn is under active uncommitted development, so where the target",
+      "should be declared is #7's decision, not a baseline's."
+    ]
+  },
+  "groups": {
+    "core/bromite": {
+      "disposition": "investigate",
+      "effect": "security/privacy",
+      "purpose": "Inherited Bromite patches.",
+      "replacement_issue": 8
+    },
+    "core/inox-patchset": {
+      "disposition": "investigate",
+      "effect": "security/privacy",
+      "purpose": "Inherited inox-patchset hardening: disables Google-service integrations and default extensions.",
+      "replacement_issue": 8
+    },
+    "core/iridium-browser": {
+      "disposition": "investigate",
+      "effect": "security/privacy",
+      "purpose": "Inherited Iridium patches, chiefly Safe Browsing incident reporting.",
+      "replacement_issue": 8
+    },
+    "core/ungoogled-chromium": {
+      "disposition": "investigate",
+      "effect": "security/privacy",
+      "purpose": "Inherited ungoogled-chromium core: removes Google account and sync infrastructure, hard-coded API keys, reporting and field trials.",
+      "replacement_issue": 8
+    },
+    "extra/bromite": {
+      "disposition": "investigate",
+      "effect": "security/privacy",
+      "purpose": "Inherited Bromite extras.",
+      "replacement_issue": 8
+    },
+    "extra/debian/disable": {
+      "disposition": "investigate",
+      "effect": "build-only",
+      "purpose": "Inherited Debian packaging patches.",
+      "replacement_issue": 8
+    },
+    "extra/inox-patchset": {
+      "disposition": "investigate",
+      "effect": "security/privacy",
+      "purpose": "Inherited inox-patchset extras.",
+      "replacement_issue": 8
+    },
+    "extra/iridium-browser": {
+      "disposition": "investigate",
+      "effect": "security/privacy",
+      "purpose": "Inherited Iridium extras.",
+      "replacement_issue": 8
+    },
+    "extra/ungoogled-chromium": {
+      "disposition": "investigate",
+      "effect": "security/privacy",
+      "purpose": "Inherited ungoogled-chromium extras: optional behaviour changes beyond the core set.",
+      "replacement_issue": 8
+    },
+    "upstream-fixes": {
+      "disposition": "investigate",
+      "effect": "build-only",
+      "purpose": "Upstream build fixes carried by ungoogled-chromium for this Chromium version.",
+      "replacement_issue": 8
+    }
+  },
+  "patches": {
+    "001-branding-strings.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Replaces user-facing Chromium strings with Astro in .grd resources.",
+      "replacement_issue": 9
+    },
+    "002-branding-product-name.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Sets the product name in the BRANDING file the build system reads.",
+      "replacement_issue": 9
+    },
+    "003-branding-linux-package.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Linux package metadata: package name, maintainer, description.",
+      "replacement_issue": 9
+    },
+    "004-default-search-duckduckgo.patch": {
+      "disposition": "keep",
+      "effect": "user-visible",
+      "purpose": "Makes DuckDuckGo the default search engine and curates the prepopulated list.",
+      "replacement_issue": 10
+    },
+    "005-branding-components-strings.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Astro branding in //components strings.",
+      "replacement_issue": 9
+    },
+    "006-user-agent-astro.patch": {
+      "disposition": "investigate",
+      "effect": "security/privacy",
+      "purpose": "Adds an Astro token to the User-Agent string.",
+      "replacement_issue": 20
+    },
+    "008-os-crypt-visibility.patch": {
+      "build_only": true,
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Widens OSCrypt visibility so the token store can encrypt at rest.",
+      "replacement_issue": 7
+    },
+    "009-branding-settings-strings.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Astro branding in the settings surface strings.",
+      "replacement_issue": 9
+    },
+    "010-oxy-theme-color.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Plumbs the Oxy brand colour into the theme provider.",
+      "replacement_issue": 24
+    },
+    "011-astro-url-scheme-alias.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Aliases astro:// onto chrome:// \u2014 a cosmetic alias, not a real scheme.",
+      "replacement_issue": 11
+    },
+    "012-settings-border-style.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Settings page border styling.",
+      "replacement_issue": 15
+    },
+    "013-settings-google-to-oxy.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Replaces Google references in the settings UI with Oxy.",
+      "replacement_issue": 15
+    },
+    "014-oxy-profile-menu-header.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Declares the Oxy profile-menu header.",
+      "replacement_issue": 24
+    },
+    "015-oxy-profile-menu-impl.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Implements the Oxy profile-menu header rendering.",
+      "replacement_issue": 24
+    },
+    "016-ntp-astro-logo.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Swaps the NTP logo for the Astro mark.",
+      "replacement_issue": 22
+    },
+    "017-ntp-logo-css.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "NTP logo styling.",
+      "replacement_issue": 22
+    },
+    "018-ntp-logo-ts.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "NTP logo TypeScript wiring.",
+      "replacement_issue": 22
+    },
+    "019-ntp-default-sites.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Replaces the prepopulated NTP tiles, removing the Google-owned defaults.",
+      "replacement_issue": 22
+    },
+    "020-register-oxy-prefs.patch": {
+      "disposition": "replace",
+      "effect": "none",
+      "purpose": "Registers the Oxy profile and local-state preferences.",
+      "replacement_issue": 7
+    },
+    "021-omnibox-display-astro.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Displays astro:// instead of chrome:// in the omnibox.",
+      "replacement_issue": 13
+    },
+    "022-autocomplete-astro-scheme.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Teaches autocomplete about the astro:// scheme.",
+      "replacement_issue": 13
+    },
+    "023-url-fixer-astro-scheme.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "URL fixup accepts astro:// input.",
+      "replacement_issue": 13
+    },
+    "024-astro-scheme-constant.patch": {
+      "disposition": "replace",
+      "effect": "none",
+      "purpose": "Defines the astro scheme constant.",
+      "replacement_issue": 11
+    },
+    "025-astro-scheme-register.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Registers astro:// as a known scheme.",
+      "replacement_issue": 11
+    },
+    "026-navigator-astro-rewrite.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Rewrites astro:// navigations to chrome:// in the navigator.",
+      "replacement_issue": 12
+    },
+    "027-scheme-classifier-astro.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Scheme classifier recognises astro://.",
+      "replacement_issue": 13
+    },
+    "028-security-display-astro.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Security UI treats astro:// as an internal page.",
+      "replacement_issue": 12
+    },
+    "029-copy-url-astro.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Copying an internal URL yields the astro:// form.",
+      "replacement_issue": 13
+    },
+    "030-protocol-handler-astro.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Protocol handler registration for astro://.",
+      "replacement_issue": 12
+    },
+    "031-linux-icon-name.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Uses the astro-browser icon name in the Linux integration.",
+      "replacement_issue": 9
+    },
+    "032-linux-desktop-name.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Uses the Astro .desktop entry name.",
+      "replacement_issue": 9
+    },
+    "033-shared-settings-google-to-oxy.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Same substitution in shared settings strings.",
+      "replacement_issue": 15
+    },
+    "034-profiles-google-to-oxy.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Same substitution in the profiles UI.",
+      "replacement_issue": 15
+    },
+    "036-navigator-auth-intercept.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Intercepts auth.oxy.so redirects in the navigator.",
+      "replacement_issue": 16
+    },
+    "037-builtin-provider-astro-scheme.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Builtin omnibox provider offers astro:// URLs.",
+      "replacement_issue": 13
+    },
+    "038-dino-game-astro-scheme.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Offline dino game reachable over astro://.",
+      "replacement_issue": 13
+    },
+    "039-auth-navigation-throttle-register.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Registers the Oxy auth navigation throttle.",
+      "replacement_issue": 16
+    },
+    "040-tab-hover-astro-scheme.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Tab hover card shows the astro:// form.",
+      "replacement_issue": 13
+    },
+    "041-navigation-controller-astro.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "NavigationController handling for astro:// entries.",
+      "replacement_issue": 12
+    },
+    "042-session-restore-astro.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Session restore persists and restores astro:// URLs.",
+      "replacement_issue": 13
+    },
+    "043-web-app-astro-scheme.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Web-app handling for the astro:// scheme.",
+      "replacement_issue": 12
+    },
+    "044-disable-ev-certificate-metadata.patch": {
+      "disposition": "investigate",
+      "effect": "security/privacy",
+      "purpose": "Disables the EV certificate metadata fetch, which is Google-hosted.",
+      "replacement_issue": 20
+    },
+    "045-adblock-throttle-register.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Registers the adblock URL loader throttle in the network stack.",
+      "replacement_issue": 18
+    },
+    "046-adblock-prefs.patch": {
+      "disposition": "replace",
+      "effect": "none",
+      "purpose": "Registers the ad blocker's preferences.",
+      "replacement_issue": 7
+    },
+    "047-alia-side-panel-entry-id.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Declares the Alia side-panel entry id.",
+      "replacement_issue": 17
+    },
+    "048-alia-action-id.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Declares the Alia action id.",
+      "replacement_issue": 17
+    },
+    "049-alia-browser-action.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Adds the Alia browser action.",
+      "replacement_issue": 17
+    },
+    "050-alia-side-panel-register.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Registers Alia in the side-panel registry.",
+      "replacement_issue": 17
+    },
+    "051-alia-vector-icon.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Registers the Alia vector icon.",
+      "replacement_issue": 17
+    },
+    "052-adblock-tab-helper-register.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Attaches the per-tab adblock helper.",
+      "replacement_issue": 18
+    },
+    "053-adblock-toolbar-button.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Adds the adblock shield toolbar button.",
+      "replacement_issue": 18
+    },
+    "054-adblock-webui-register.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Registers AstroAdBlockUIConfig in the WebUI config map. The overlay's whole-file copy of chrome_web_ui_configs.cc that used to revert this is no longer in the tree.",
+      "replacement_issue": 18
+    },
+    "055-ntp-webui-register.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Registers AstroNtpUIConfig in the WebUI config map.",
+      "replacement_issue": 22
+    },
+    "056-ntp-redirect-to-astro.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Redirects chrome://newtab to the Astro NTP.",
+      "replacement_issue": 22
+    },
+    "057-oxy-webui-build-edge.patch": {
+      "disposition": "replace",
+      "effect": "build-only",
+      "purpose": "Makes //chrome/browser/ui/webui:configs depend on the overlay's two WebUI targets. Without this edge nothing in the build graph reaches chrome/browser/oxy, so the whole overlay compiles to zero objects and the configs the registration patches name do not link.",
+      "replacement_issue": 7
+    },
+    "058-alia-webui-register.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Registers AstroAliaUIConfig. The Alia side panel loads chrome://alia into a WebView, so without the registration the panel renders an error page.",
+      "replacement_issue": 17
+    },
+    "059-itertools-shipping-group.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Moves itertools from Chromium's 'test' crate group to 'safe' in gnrt_config.toml. adblock 0.9 depends on it, and a testonly crate cannot be linked into the browser-process ad blocker, so without this gn gen fails outright. The content is a security classification rather than code: 'test' records that Chromium itself only used the crate in tests, not an audit verdict, and the patch header carries the unsafe audit that backs the new claim. The requirement outlives any integration model while Astro ships adblock; patching an upstream file to state it does not.",
+      "replacement_issue": 7
+    }
+  }
+}

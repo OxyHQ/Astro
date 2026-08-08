@@ -1,10 +1,9 @@
 # Copyright 2026 Oxy. All rights reserved.
 # Use of this source code is governed by a BSD-style license.
 
+# Core Oxy services (auth, tokens, cookies) — NO dependency on //chrome/browser/ui.
 source_set("oxy") {
   sources = [
-    "oxy_alia_side_panel.cc",
-    "oxy_alia_side_panel.h",
     "oxy_auth_callback_handler.cc",
     "oxy_auth_callback_handler.h",
     "oxy_auth_navigation_throttle.cc",
@@ -15,41 +14,60 @@ source_set("oxy") {
     "oxy_auth_token_store.h",
     "oxy_cookie_signin_observer.cc",
     "oxy_cookie_signin_observer.h",
-
-    # NTP WebUI (astro://newtab -> chrome://astro-ntp)
-    "webui/astro_ntp_ui.cc",
-    "webui/astro_ntp_ui.h",
-
-    # Settings WebUI (chrome://astro-settings)
-    "webui/astro_settings_ui.cc",
-    "webui/astro_settings_ui.h",
-    "webui/astro_settings_handler.cc",
-    "webui/astro_settings_handler.h",
-
-    # Alia AI WebUI (chrome://astro-alia)
-    "webui/astro_alia_ui.cc",
-    "webui/astro_alia_ui.h",
-
-    # What's New WebUI (chrome://astro-whats-new)
-    "webui/astro_whats_new_ui.cc",
-    "webui/astro_whats_new_ui.h",
-
-    # Error page WebUI (chrome://astro-error)
-    "webui/astro_error_ui.cc",
-    "webui/astro_error_ui.h",
+    "oxy_cookie_signin_observer_factory.cc",
+    "oxy_cookie_signin_observer_factory.h",
   ]
 
   deps = [
     "//base",
     "//chrome/browser/profiles",
-    "//chrome/browser/ui",
+    "//components/keyed_service/content",
     "//components/keyed_service/core",
     "//components/os_crypt/sync",
     "//components/prefs",
     "//content/public/browser",
-    "//mojo/public/cpp/bindings",
     "//net",
     "//services/network/public/cpp",
+    "//services/network/public/mojom",
+    "//url",
+  ]
+}
+
+# Oxy WebUI controllers (NTP, Settings, Alia, etc.) — CAN depend on
+# //chrome/browser/ui because they live alongside other WebUI controllers.
+# This matches how Chrome does it: WebUI controllers are part of the UI layer.
+source_set("webui_controllers") {
+  sources = [
+    "oxy_alia_side_panel.cc",
+    "oxy_alia_side_panel.h",
+
+    # NTP WebUI (astro://newtab -> chrome://astro-ntp)
+    "webui/astro_ntp_ui.cc",
+    "webui/astro_ntp_ui.h",
+
+
+    # Alia AI WebUI (chrome://alia)
+    "webui/astro_alia_ui.cc",
+    "webui/astro_alia_ui.h",
+
+    # What's New WebUI (chrome://whats-new)
+    "webui/astro_whats_new_ui.cc",
+    "webui/astro_whats_new_ui.h",
+
+  ]
+
+  deps = [
+    ":oxy",
+    "//base",
+    "//chrome/browser/profiles",
+    "//chrome/browser:shell_integration",
+    "//chrome/browser/themes",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui/views/side_panel",
+    "//components/prefs",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//net",
     "//services/network/public/mojom",
     "//ui/views",
     "//ui/views/controls/webview",

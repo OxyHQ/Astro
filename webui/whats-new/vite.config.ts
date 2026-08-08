@@ -9,7 +9,7 @@ export default defineConfig({
     outDir: "../dist",
     emptyOutDir: true,
     minify: true,
-      modulePreload: { polyfill: false },
+      modulePreload: false,
     rollupOptions: {
       input: "src/index.html",
     },

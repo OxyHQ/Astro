@@ -5,9 +5,19 @@ depot_tools/
 
 # Build artifacts
 releases/
+win-sdk/
+.xwin/
+.xwin-cache/
+# Machine-readable reports written by tools/apply-patches.sh and
+# tools/sync-overlay.sh (patch-report.json, overlay-manifest.json).
+build/
 *.tar.gz
 *.deb
 *.rpm
+
+# Python bytecode from the baseline generators
+__pycache__/
+*.pyc
 
 # OS files
 .DS_Store
@@ -19,3 +29,6 @@ Thumbs.db
 *.swp
 *.swo
 ~/.config/
+
+# Agent-local worktree bookkeeping, not product state.
+.claude/

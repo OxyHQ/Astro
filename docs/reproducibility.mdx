@@ -1,0 +1,281 @@
+---
+title: Reproducibility
+description: The source lock, deterministic sync, and build provenance.
+---
+
+# Reproducibility
+
+Every Astro build starts from an explicitly declared set of source revisions.
+A cached runner never decides which Chromium gets compiled.
+
+Two files carry it:
+
+| File | Role |
+|---|---|
+| [`browser.lock.json`](https://github.com/OxyHQ/Astro/blob/master/browser.lock.json) | What *should* be built — declared, reviewed, committed |
+| `build/reports/provenance.json` | What *was* built — measured from the trees on disk |
+
+They are deliberately produced from different sources. Provenance generated
+from the lock could only ever restate the lock, and would certify a stale
+runner's build as correct.
+
+## The lock
+
+```json
+{
+  "lockfile_version": 1,
+  "chromium": {
+    "version": "146.0.7680.177",
+    "commit": "ae03f7fb2cf1215853896d6a4c15fdceee2badb7",
+    "url": "https://chromium.googlesource.com/chromium/src.git",
+    "ref": "refs/tags/146.0.7680.177"
+  },
+  "depot_tools": { "commit": "…", "url": "…" },
+  "ungoogled_chromium": { "version": "…", "commit": "…", "url": "…", "legacy": true }
+}
+```
+
+`commit` is authoritative. `version` and `ref` are recorded for humans and for
+update tooling; nothing selects a checkout from them, so a moved or retagged
+ref cannot change a build.
+
+Validation is against [`browser.lock.schema.json`](https://github.com/OxyHQ/Astro/blob/master/browser.lock.schema.json):
+
+```sh
+python3 tools/lib/lock.py --validate       # schema + revision listing
+python3 tools/lib/lock.py --check-remote   # do the refs still resolve? (network)
+python3 tools/lib/lock.py --get chromium.commit
+```
+
+Rejected, each with the reason named: abbreviated SHAs, uppercase SHAs, branch
+names, tag names, unknown fields, an unknown `lockfile_version`, and an
+unpinned third-party entry with no stated reason. All of those still *look*
+like revisions, which is why they are worth rejecting explicitly.
+
+<Note>
+**`depot_tools` is pinned, and pinned first.** It provides `gclient`, `gn` and
+`autoninja`, so it resolves what every other pin means. The previous
+implementation ran `cd depot_tools && git pull` on every fetch.
+</Note>
+
+### Two deliberate deviations
+
+**The Astro commit is not in the lock.** A file cannot contain the hash of the
+commit that contains it — the value would be wrong the moment it was written.
+Astro's own revision is resolved at build time and recorded in provenance,
+which is where a self-referential fact belongs.
+
+**`third_party.adblock_rust` is recorded as `"pinned": false`, with a reason.**
+`tools/vendor-adblock-rust.sh` appends an `adblock` dependency at a caret range
+to Chromium's `chromium_crates_io/Cargo.toml` and lets `gnrt` resolve it, so
+there is no revision to record. The schema *requires* a `reason` on any
+unpinned entry, so the gap is declared and greppable rather than absent and
+invisible.
+
+## Synchronising
+
+```sh
+tools/sync-sources.sh                # bring every tree to the locked revision
+tools/sync-sources.sh --verify-only  # never writes; differences are fatal (CI)
+tools/sync-sources.sh --dry-run      # print the plan
+tools/sync-sources.sh --no-deps      # checkout only; skip `gclient sync`
+```
+
+This is the **one** synchronisation command: documentation and CI both run it,
+so there is no second implementation to drift from the documented one.
+`tools/fetch-chromium.sh` is a thin deprecated wrapper that delegates here.
+
+What it guarantees:
+
+- **depot_tools is pinned before anything invokes `gclient`, `gn` or `autoninja`.**
+- **Fetching never changes the selected commit.** Refs are updated; the
+  checkout moves only in an explicit `checkout --detach`.
+- **The checkout is detached at the locked commit.** A branch at the right
+  commit is not enough — a branch can be advanced afterwards, by a stray
+  `git pull`, another job, or gclient, with nothing noticing. A fresh `git
+  clone` lands on a branch, so this is corrected even when the commit is
+  already right.
+- **`.gclient` is rendered from [`tools/gclient.template`](https://github.com/OxyHQ/Astro/blob/master/tools/gclient.template)**,
+  committed configuration rather than a string built per invocation.
+- **`gclient sync` is anchored** with `--revision src@<locked-sha>`, and HEAD
+  is re-verified afterwards in case the sync moved it.
+- **DEPS-resolved revisions are recorded** to `build/reports/deps-revinfo.json`.
+- **A second invocation does no work beyond verification**, and says so.
+
+### Bounding the first fetch
+
+**A failed fetch is not resumable.** Git streams a fetch into a temporary pack
+and discards it when the transfer fails, so every attempt genuinely starts over.
+Measured here: five consecutive failed attempts left `.git` at 120 KB. On a link
+that dropped four times inside the first 220 MB, what made the bootstrap complete
+was bounding what has to arrive in one go — not retrying harder.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `ASTRO_FETCH_DEPTH` | `1` | Fetch the locked commit without its history — one commit's tree instead of tens of gigabytes |
+| `ASTRO_FETCH_FILTER` | `blob:none` | Partial clone: file contents arrive as small on-demand batches during checkout, each failing and retrying independently |
+| `ASTRO_FETCH_ATTEMPTS` | `5` | Bounded, announced retries; the final failure is fatal, not swallowed |
+
+Depth and filter apply only to the **first network fetch into a still-empty
+repository, and only for an `http(s)` origin**. A local `file://` fixture has no
+history worth truncating, and shallow-copying one silently loses the older
+commits a test needs to move between. Deepening an existing checkout is a
+separate operation and is never done implicitly.
+
+Both costs are real, and are stated at the setting rather than discovered later:
+
+- A depth-limited checkout has **no local ancestry**. The commit checked out is
+  still exactly the one the lock names, so nothing about reproducibility changes.
+  `ASTRO_FETCH_DEPTH=` (empty) fetches the full history, which
+  `git fetch --unshallow` can also add later.
+- A blobless checkout **needs network access during the build** to fetch contents
+  it has not seen. `ASTRO_FETCH_FILTER=` (empty) makes the local copy complete.
+
+<Note>
+**Measured on the first real bootstrap.** With the defaults above the checkout
+completed at 6.6 GB with HEAD at `ae03f7fb2cf1215853896d6a4c15fdceee2badb7` — the
+commit `browser.lock.json` names — and
+`tools/sync-sources.sh --verify-only --no-deps` exits 0 against it.
+</Note>
+
+### What it refuses
+
+`--verify-only` is what CI runs before every build, and it fails on:
+
+| State | Why it matters |
+|---|---|
+| Wrong commit | The stale-runner case: a cached checkout compiling an undeclared commit |
+| On a branch | Right commit, but able to move afterwards |
+| Uncommitted changes | The build would include work nobody declared |
+| Untracked `.rej` / `.orig` | A partial patch application survived. Only *untracked* ones count: Chromium ships 181 tracked `.orig` files. See [Recovery](/recovery) |
+| Linked worktrees | Two jobs mutating one shared checkout |
+| `.gclient` ≠ template | Configured differently from what the repository says |
+
+`ASTRO_ALLOW_DIRTY_CHROMIUM=1` overrides the dirty-checkout guard in the
+default mode only. It has **no effect under `--verify-only`** — a CI gate that
+an environment variable can wave through is not a gate — and CI asserts it is
+never set.
+
+## Provenance
+
+`tools/build.sh` generates `build/reports/provenance.json` after every build,
+and the packaging scripts ship it inside every release artifact.
+
+It records: the Chromium commit and version, the Astro commit, depot_tools,
+ungoogled-chromium, third-party revisions, the GN args (literally *and* by
+hash), target platform and build type, host OS and architecture, and the
+compiler path and version. If `GITHUB_RUN_ID` is set it also records the
+workflow, run id, attempt, SHA and ref.
+
+```sh
+tools/generate-provenance.sh --gn-args gn_args/linux.gn --platform linux \
+                             --build-type Release
+tools/generate-provenance.sh --require-match     # release builds
+```
+
+Two fields exist to be read by a human who is suspicious:
+
+- **`drift`** — every source whose on-disk revision differs from the lock.
+- **`dirty_worktrees`** — every source with uncommitted changes.
+
+`reproducible` is true only when both are empty. `--require-match` turns either
+into a non-zero exit, which is what a release build uses: an artifact must
+record revisions somebody can check out again.
+
+<Note>
+**No wall-clock timestamp is recorded as a build input** (`timestamp_policy:
+"excluded-from-build-inputs"`). Embedding one makes two builds of identical
+sources differ, defeating the reproducibility the file exists to record. CI's
+own run metadata carries the "when".
+</Note>
+
+## Changing the Chromium version
+
+```sh
+tools/update-chromium.sh 147.0.7710.20            # propose
+tools/update-chromium.sh 147.0.7710.20 --apply    # propose and sync
+```
+
+It resolves the version to exactly one commit at the origin, checks the
+tag/commit relationship is consistent, updates the lock, and writes a change
+report to `build/reports/`. The default is proposal-only: an update changes
+what the whole project compiles, so it lands as a reviewable lock diff rather
+than as a side effect.
+
+<Warning>
+**No nearby version is ever substituted.** A version with no exact tag fails.
+
+The previous implementation tried the exact tag, then
+`git tag -l "$MAJOR.*" | tail -1`, then `master` — printing a warning and
+exiting **zero**. A "successful" update could therefore build against a patch
+set written for a different Chromium major, and the only trace was a line of
+console output.
+</Warning>
+
+`ungoogled_chromium` is **not** updated automatically. Its tag for a new
+Chromium version is published separately and is not derivable from the Chromium
+version, so guessing it is the same defect in a different place. The command
+warns, and you update the lock deliberately.
+
+### Selecting a security update
+
+1. Identify the release from the [Chrome releases blog](https://chromereleases.googleblog.com/)
+   or [chromiumdash](https://chromiumdash.appspot.com/releases), and note the
+   exact four-part version.
+2. `tools/update-chromium.sh <version>` — resolves it to a commit, updates the
+   lock, writes the report. Review the lock diff.
+3. Update `ungoogled_chromium` in the lock to the matching tag, and confirm the
+   tag exists.
+4. `tools/sync-sources.sh`, then `tools/apply-patches.sh`. Patches that no
+   longer apply exactly stop the run and are named in
+   `build/reports/patch-report.json`; resolve them by regenerating the patch,
+   never by loosening the application. See [Recovery](/recovery).
+5. Open the PR with the lock diff and the change report. The lock diff *is* the
+   review: it is the complete statement of what changed about the sources.
+
+## CI
+
+Every job runs the same two steps, in this order:
+
+```yaml
+- name: Sync sources to the locked revisions
+  run: tools/sync-sources.sh
+
+- name: Verify source revisions against the lock
+  run: tools/sync-sources.sh --verify-only
+```
+
+They are separate on purpose: a sync that silently did nothing still cannot
+produce a build.
+
+Caches are object/download caches only. The previous workflow decided whether
+to synchronise by testing whether `chromium/src/.git` existed —
+
+```yaml
+if [ ! -d "chromium/src/.git" ]; then
+  tools/sync-sources.sh
+else
+  echo "Chromium source cached, skipping fetch"
+fi
+```
+
+— so a self-hosted runner that had ever fetched Chromium compiled whatever
+commit it happened to hold, forever, with nothing validating it. That shape is
+now rejected by `tools/tests/lib/scan-shell-patterns.py`, which scans the
+workflow files as well as the scripts.
+
+A `concurrency` group per workflow and ref prevents two jobs mutating one
+runner's shared checkout at the same time.
+
+## Recovering a local checkout
+
+If your checkout predates the lock:
+
+```sh
+git -C chromium/src status          # review anything you want to keep
+tools/sync-sources.sh               # detaches at the locked commit
+tools/sync-sources.sh --verify-only # confirm
+```
+
+If it refuses because of local changes, that is deliberate — keep or discard
+them, then re-run. [Recovery](/recovery) covers the rest.

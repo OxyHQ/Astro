@@ -4,12 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>New Tab</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- No external font links - chrome:// pages can't load https:// sub-resources.
+         Inter is specified in CSS with system font fallback. -->
     <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome" />
     <link rel="stylesheet" href="./style.css" />
   </head>
@@ -350,6 +346,7 @@
                             class="relative flex min-h-full w-full items-center justify-center p-3 sm:p-4 md:p-lg"
                           >
                             <div
+                              id="widget-grid"
                               class="relative grid w-full grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4"
                             >
                               <!-- Search bar (full width) -->
@@ -506,6 +503,7 @@
                               <!-- Weather widget card -->
                               <div
                                 id="weather-widget"
+                                data-widget-id="weather-widget"
                                 class="relative isolate col-span-1"
                               >
                                 <div
@@ -579,6 +577,7 @@
                               <!-- Clock widget card -->
                               <div
                                 id="clock-widget"
+                                data-widget-id="clock-widget"
                                 class="relative isolate col-span-1"
                               >
                                 <div
@@ -616,6 +615,7 @@
                               <!-- Quick Links widget -->
                               <div
                                 id="quick-links-widget"
+                                data-widget-id="quick-links-widget"
                                 class="relative isolate col-span-1"
                               >
                                 <div
@@ -655,6 +655,7 @@
                               <!-- Notes widget card -->
                               <div
                                 id="notes-widget"
+                                data-widget-id="notes-widget"
                                 class="relative isolate col-span-1"
                               >
                                 <div
@@ -692,6 +693,7 @@
                               <!-- Discover / News card (with background image) -->
                               <div
                                 id="discover-widget"
+                                data-widget-id="discover-widget"
                                 class="relative isolate col-span-1"
                               >
                                 <div
@@ -758,6 +760,7 @@
                               <!-- Alia quick prompt card -->
                               <div
                                 id="alia-widget"
+                                data-widget-id="alia-widget"
                                 class="relative isolate col-span-1"
                               >
                                 <div
@@ -1011,13 +1014,5 @@
     </div>
 
     <script type="module" src="./main.ts"></script>
-    <script type="module">
-      try {
-        const {ColorChangeUpdater} = await import(
-          'chrome://resources/cr_components/color_change_listener/colors_css_updater.js'
-        );
-        ColorChangeUpdater.forDocument().start();
-      } catch {}
-    </script>
   </body>
 </html>

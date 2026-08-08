@@ -1,0 +1,94 @@
+name: Build safety
+
+# Enforces the build-pipeline guarantees from ASTRO-NEXT-001 (#4):
+# the overlay step deletes nothing, patches never apply fuzzily or through a
+# merge fallback, required failures exit non-zero, dry-run changes nothing, and
+# unrelated work in the Chromium checkout is refused rather than overwritten.
+#
+# The suite needs no Chromium checkout: it drives synthetic fixtures, so it
+# runs in about a minute on a standard runner and gates every pull request.
+
+on:
+  pull_request:
+    paths:
+      - 'tools/**'
+      - 'patches/**'
+      - 'src/**'
+      - 'browser.lock.json'
+      - 'browser.lock.schema.json'
+      - 'docs/astro-next/**'
+      - 'gn_args/**'
+      - '.github/workflows/**'
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-safety:
+    name: Build-pipeline safety suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # ShellCheck is a required part of the gate, not an optional extra:
+      # every defect this suite guards against parses cleanly, so `bash -n`
+      # alone proves nothing. The suite fails rather than skips without it.
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Report tool versions
+        run: |
+          bash --version | head -1
+          python3 --version
+          shellcheck --version | grep version:
+          git --version
+
+      - name: Validate the source lock
+        run: python3 tools/lib/lock.py --validate
+
+      # The baseline is what later issues cite as their compatibility
+      # reference, so a stale document is worse than a missing one.
+      - name: Check the Astro Next baseline is current
+        run: tools/baseline/generate-all.sh --check
+
+      - name: Run the build-safety suite
+        run: tools/tests/run.sh
+
+      # A green suite run against a WORKING TREE proves nothing about the
+      # commit, because an untracked file on disk satisfies every test that
+      # needs it. This has happened four times here, in both directions, with
+      # the local suite green throughout. The gate materialises a tree holding
+      # only the files tracked at the commit, runs the suite inside it, and
+      # requires the verdicts to match.
+      #
+      # In CI the checkout already IS the commit, so the comparison agrees by
+      # construction and it is the clean run that carries the information. The
+      # comparison earns its place on a developer's machine; running it here
+      # keeps the mechanism from rotting, and the static converse — every path
+      # a committed script names must itself be tracked — is a suite case above.
+      - name: Verify the commit stands on its own
+        run: tools/verify-clean-head.sh
+
+      # These are developer-only escape hatches: one waves through a Chromium
+      # checkout carrying unrelated local changes, the other waves through an
+      # overlay that does not match the commit being built. If either ever
+      # appears in CI configuration, the guard it bypasses stops being a gate.
+      # The prefix match also covers ASTRO_ALLOW_DIRTY_OVERLAY_PACKAGE, which
+      # would let CI publish an artifact no revision reproduces.
+      - name: Assert no override is set in CI
+        run: |
+          for override in ASTRO_ALLOW_DIRTY_CHROMIUM ASTRO_ALLOW_DIRTY_OVERLAY; do
+            if [ -n "${!override:-}" ]; then
+              echo "$override is set in CI; it is developer-only." >&2
+              exit 1
+            fi
+            if grep -rn "$override" .github/workflows/ \
+                | grep -v 'build-safety.yml'; then
+              echo "A workflow sets $override." >&2
+              exit 1
+            fi
+          done
+          echo "No override set."

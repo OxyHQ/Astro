@@ -1,0 +1,27 @@
+{
+  "_comment": [
+    "Expected `gn check` error count per platform, for the LEGACY patch base.",
+    "",
+    "`gn check` is advisory — Chromium's own build does not consume it — but the",
+    "count must not drift unwatched, so tools/build.sh treats a mismatch in",
+    "EITHER direction as fatal: more errors is a regression to attribute, fewer",
+    "means this file is stale and must be lowered in the change that fixed them.",
+    "",
+    "These are NOT a clean bill of health. They cannot currently be attributed by",
+    "differencing against an unpatched tree, because the committed GN args do not",
+    "configure one (docs/astro-next/baseline/findings.md, findings 7 and 8).",
+    "Curating them belongs to https://github.com/OxyHQ/Astro/issues/8.",
+    "",
+    "A platform with no entry here is a hard failure, not a pass — an unmeasured",
+    "platform must not look like a clean one."
+  ],
+  "measured_against": {
+    "chromium": "ae03f7fb2cf1215853896d6a4c15fdceee2badb7",
+    "chromium_version": "146.0.7680.177",
+    "ungoogled": "ecd0ec03e0d8b1ec59d3b32f3145575ada937490",
+    "ungoogled_version": "146.0.7680.177-1"
+  },
+  "platforms": {
+    "linux": 26
+  }
+}

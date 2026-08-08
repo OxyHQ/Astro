@@ -1,45 +1,46 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-ASTRO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ASTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export ASTRO_ROOT
+# shellcheck source=tools/lib/astro-common.sh
+source "$ASTRO_ROOT/tools/lib/astro-common.sh"
 UNGOOGLED_DIR="$ASTRO_ROOT/.ungoogled-chromium"
 PATCHES_DIR="$ASTRO_ROOT/patches/ungoogled"
 
-# Match this to the Chromium version we're building against
-CHROMIUM_VERSION="${CHROMIUM_VERSION:-146.0.7680.177}"
-UNGOOGLED_BRANCH="master"
+# The ungoogled-chromium revision is selected by browser.lock.json, never by
+# searching for a tag that looks close enough.
+#
+# The previous implementation tried the exact tag, then `git tag -l
+# "$MAJOR.*" | tail -1`, then master with a printed warning and a ZERO exit —
+# so a version bump could silently build against a patch set written for a
+# different Chromium, and the only trace was a line of console output. That is
+# the "no exact-version lookup falls back to a merely similar version" rule in
+# epic #3, and it is now enforced by tools/sync-sources.sh, which checks out
+# the locked commit or fails.
 
-echo "=== Syncing ungoogled-chromium patches ==="
+astro::info "=== Syncing ungoogled-chromium patches ==="
 
-# Clone or update ungoogled-chromium
-if [ ! -d "$UNGOOGLED_DIR" ]; then
-    echo ">>> Cloning ungoogled-chromium..."
-    git clone https://github.com/ungoogled-software/ungoogled-chromium.git "$UNGOOGLED_DIR"
-else
-    echo ">>> Updating ungoogled-chromium..."
-    cd "$UNGOOGLED_DIR" && git fetch origin && git checkout "$UNGOOGLED_BRANCH" && git pull
+astro::require_file "$ASTRO_ROOT/browser.lock.json" "lock file"
+LOCKED_UNGOOGLED="$(python3 "$ASTRO_ROOT/tools/lib/lock.py" --get ungoogled_chromium.commit)"
+LOCKED_VERSION="$(python3 "$ASTRO_ROOT/tools/lib/lock.py" --get ungoogled_chromium.version)"
+
+if [ ! -d "$UNGOOGLED_DIR/.git" ]; then
+    astro::die_with_hint \
+        "ungoogled-chromium checkout not found at $UNGOOGLED_DIR" \
+        "Run tools/sync-sources.sh, which checks it out at the locked commit."
 fi
 
+CURRENT="$(git -C "$UNGOOGLED_DIR" rev-parse HEAD)"
+if [ "$CURRENT" != "$LOCKED_UNGOOGLED" ]; then
+    astro::die_with_hint \
+        "ungoogled-chromium is not at the locked commit." \
+        "  on disk: $CURRENT" \
+        "  locked:  $LOCKED_UNGOOGLED ($LOCKED_VERSION)" \
+        "" \
+        "Nothing nearby is substituted. Run tools/sync-sources.sh."
+fi
+
+astro::info ">>> Using ungoogled-chromium $LOCKED_VERSION ($LOCKED_UNGOOGLED)"
 cd "$UNGOOGLED_DIR"
-
-# Find the closest matching version tag
-echo ""
-echo ">>> Looking for patches matching Chromium $CHROMIUM_VERSION..."
-MAJOR_VERSION=$(echo "$CHROMIUM_VERSION" | cut -d. -f1)
-
-# Try exact tag first, then closest major version
-MATCHING_TAG=$(git tag -l "${CHROMIUM_VERSION}-*" | sort -V | tail -1)
-if [ -z "$MATCHING_TAG" ]; then
-    MATCHING_TAG=$(git tag -l "${MAJOR_VERSION}.*" | sort -V | tail -1)
-fi
-
-if [ -n "$MATCHING_TAG" ]; then
-    echo "  Found matching tag: $MATCHING_TAG"
-    git checkout "$MATCHING_TAG"
-else
-    echo "  No exact match found, using latest $UNGOOGLED_BRANCH"
-    echo "  WARNING: Patches may not apply cleanly to Chromium $CHROMIUM_VERSION"
-fi
 
 # Copy patches to our patches directory
 echo ""
@@ -49,13 +50,14 @@ echo ">>> Copying patches..."
 rm -rf "$PATCHES_DIR/core" "$PATCHES_DIR/extra"
 mkdir -p "$PATCHES_DIR/core" "$PATCHES_DIR/extra"
 
-if [ -d "patches/core" ]; then
-    cp -r patches/core/* "$PATCHES_DIR/core/" 2>/dev/null || true
-fi
+# These copies are load-bearing: the patch stack Astro applies IS this
+# content. A failure here previously left an empty or partial patch directory
+# and the script still reported a successful sync.
+astro::require_dir "patches/core" "ungoogled core patches"
+cp -r patches/core/. "$PATCHES_DIR/core/"
 
-if [ -d "patches/extra" ]; then
-    cp -r patches/extra/* "$PATCHES_DIR/extra/" 2>/dev/null || true
-fi
+astro::require_dir "patches/extra" "ungoogled extra patches"
+cp -r patches/extra/. "$PATCHES_DIR/extra/"
 
 # Also copy domain substitution and pruning configs
 if [ -f "domain_regex.list" ]; then
@@ -68,8 +70,12 @@ if [ -f "pruning.list" ]; then
     cp pruning.list "$PATCHES_DIR/"
 fi
 
-CORE_COUNT=$(find "$PATCHES_DIR/core" -name "*.patch" 2>/dev/null | wc -l)
-EXTRA_COUNT=$(find "$PATCHES_DIR/extra" -name "*.patch" 2>/dev/null | wc -l)
+CORE_COUNT="$(find "$PATCHES_DIR/core" -name "*.patch" | wc -l | tr -d '[:space:]')"
+EXTRA_COUNT="$(find "$PATCHES_DIR/extra" -name "*.patch" | wc -l | tr -d '[:space:]')"
+
+if [ "$CORE_COUNT" -eq 0 ]; then
+    astro::die "Sync produced no core patches; the patch stack would be empty."
+fi
 
 echo ""
 echo "=== Sync complete ==="
