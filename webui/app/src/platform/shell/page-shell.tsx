@@ -88,7 +88,14 @@ function RailRow({
   return (
     <Pressable
       accessibilityRole="tab"
-      accessibilityState={{selected}}
+      // `aria-selected` DIRECTLY, not `accessibilityState={{selected}}`:
+      // react-native-web emits `role="tab"` for the role and then drops the
+      // state, so every rail row announced as an unselected tab. Measured in
+      // the rendered DOM, which is the only place it shows -- the props read as
+      // correct. It matters more since the selected row stopped being marked by
+      // colour: the pill is a background, which assistive technology cannot see
+      // at all, so this attribute is now the whole of the non-visual cue.
+      aria-selected={selected}
       accessibilityLabel={entry.title}
       onPress={onPress}
       className={
@@ -165,7 +172,12 @@ export function PageShell<Id extends string>({
             past. Measured at 768px against a declared 256 -- the rail's own
             width plus half the row's free space, which looks like the width was
             ignored rather than outgrown. */}
+        {/* The rows are tabs, so something has to be their tablist -- a `tab`
+            with no owning `tablist` is malformed ARIA, and the "N of M"
+            position a screen reader announces comes from the container, not
+            from the rows. */}
         <ScrollView
+          accessibilityRole="tablist"
           className="w-64 flex-none max-rail:w-16"
           contentContainerClassName="gap-1 p-3"
         >
