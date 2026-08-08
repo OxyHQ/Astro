@@ -834,16 +834,19 @@
       "area": "core-browser",
       "observed_state": "PRESENT",
       "observed_evidence": [
-        "src/chrome/browser/oxy/webui/astro_settings_handler.cc:64-65 maps Astro settings ids to the real prefs dns_over_https.mode and dns_over_https.templates",
-        "webui/settings/src/sections.ts:188-192 offers Cloudflare (as the default value), Quad9 and NextDNS"
+        "patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform in services/network/public/cpp/features.cc",
+        "the same patch deletes only the Google and GoogleDns64 entries from net/dns/public/doh_provider_entry.cc; of the 23 providers upstream carries at the locked commit ae03f7fb2c, 21 survive and 4 are shown globally \u2014 Cloudflare, Quad9, OpenDNS and CleanBrowsing (Family Filter), whose doh.cleanbrowsing.org template no committed Astro text names, so the seed cannot see it and this manifest carries the other three only",
+        "Astro ships no provider list of its own: the Secure DNS control in webui/app/src/pages/settings/sections/privacy-security.tsx:142 consumes the real SecureDnsHandler through its `secure-dns-setting-changed` event, and webui/app/src/pages/settings/sections/privacy.fixtures.ts:32-34 is a DEV-ONLY stand-in for it, absent from both production build modes of webui/app"
       ],
       "state": "INVESTIGATE",
-      "rationale": "Astro exposes a DoH provider selector wired to real Chromium prefs. Whether DoH is ON by default decides between 'no default DNS provider' and 'every hostname the user resolves goes to one company'.",
+      "rationale": "The Secure DNS surface is upstream's, wired to the real dns_over_https prefs; Astro's only contribution today is ungoogled's inherited default of kOff. Whether DoH is ON by default decides between 'the operating system's resolver sees every hostname the user resolves' and 'one company does'.",
       "owner_issue": 10,
       "upstream_component": "//net/dns",
-      "user_surface": "Astro settings, Privacy & Security",
+      "user_surface": "Settings, Privacy and security, Secure DNS \u2014 upstream's control",
       "network": [
-        "none"
+        "doh-cloudflare",
+        "doh-opendns",
+        "doh-quad9"
       ],
       "persistence": "profile prefs dns_over_https.mode / .templates",
       "incognito": "undecided",
@@ -853,8 +856,8 @@
       ],
       "routed_to_issue": 20,
       "investigate": {
-        "question": "Is DoH enabled by default, with which template? The settings UI defaults the template to Cloudflare; the mode's registered default is not established.",
-        "answered_by": "Read the registered default for dns_over_https.mode in a built profile, then decide within #20's transport baseline."
+        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing \u2014 the difference between the operating system's resolver seeing every lookup and one company seeing it.",
+        "answered_by": "#20's transport-security decision on the shipped value of dns_over_https.mode, then a measured trace from tools/baseline/capture-network.sh, which is blocked until an Astro binary exists (baseline finding 1)."
       }
     },
     {
@@ -1803,7 +1806,7 @@
       "observed_state": "PRESENT",
       "observed_evidence": [
         "patches/astro/038-dino-game-astro-scheme.patch rewrites kRedirectLoopLearnMoreUrl to https://support.9oo91e.qjz9zk/chrome?p=rl_error in components/error_page/common/localized_error.cc \u2014 and that patch APPLIES",
-        "webui/settings/src/sections.ts:450 hard-codes https://astrobrowser.org"
+        "webui/settings/src/sections.ts:450 hard-coded https://astrobrowser.org until c9c4383 deleted that settings app; no committed text names the host now and it is not an upstream endpoint either, so its manifest entry is gone and patch 038's substituted link is the only hard-coded product URL left that cannot resolve"
       ],
       "state": "REPLACE",
       "rationale": "Help destinations are product constants #9 generates from one source of truth. Today they are hard-coded in patch text and frontend source, and at least one shipped link points at a hostname that cannot resolve.",
@@ -1811,7 +1814,6 @@
       "upstream_component": "//chrome/app strings and //components/error_page",
       "user_surface": "settings links, error pages, menus",
       "network": [
-        "astro-website",
         "help-developer-chrome",
         "help-developers-google",
         "help-google-support",

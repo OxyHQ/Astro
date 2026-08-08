@@ -46,7 +46,7 @@ it cannot be derived. This is the same shape `patch-dispositions.json` and
 | Source | What it reads | Why |
 |---|---|---|
 | `baseline-inventory` | `src/**/*.{cc,h,mojom,rs}` and `patches/**/*.patch` | Issue #6's generator, imported |
-| `webui-scan` | `webui/*/src/**` | The baseline generator does **not** read these. 18 hosts live only here |
+| `webui-scan` | `webui/*/src/**` | The baseline generator does **not** read these. 21 hosts live only here |
 | `declared` | nothing | An endpoint that exists anyway; each says why it cannot be derived |
 
 **The `webui-scan` gap is worth stating plainly**, because it is not a defect in
@@ -54,9 +54,23 @@ it cannot be derived. This is the same shape `patch-dispositions.json` and
 scans `src/` for C++ and Rust suffixes only, so it never sees the frontend
 sources those controllers serve. Of the hosts found only there, one is the New
 Tab Page's weather service, two are its wallpaper CDNs, three are the DNS-over-HTTPS
-providers Astro's settings offer, and one is the API host the Alia panel actually
-calls — which is not the host Alia's own CSP permits. Extending that generator is
-#6's call; this manifest reports the gap rather than quietly patching around it.
+resolvers the settings page's Secure DNS control offers, and one is the API host
+the Alia panel actually calls — which is not the host Alia's own CSP permits.
+Extending that generator is #6's call; this manifest reports the gap rather than
+quietly patching around it.
+
+**Four of the twenty-one are the settings app's own dev fixtures**, and they are
+a category the `reference_kind` enum did not previously have. `webui/app` renders
+every settings screen against a fixture when the real browser API is absent, and
+those fixtures contain hosts (`mention.earth` as a startup page,
+`issues.chromium.org` as a search engine, two RFC 2606 `.example` origins) that
+the product has no endpoint for at all. Rounding them off as `documentation`
+would have said "a comment somewhere mentions this", which is not what they are:
+they are executable data that models a browser API's payload. They carry
+`reference_kind: dev-fixture`, and `state: DISABLE_BUILD` — the one state whose
+test is artefact absence, which here is `import.meta.env.DEV` dead-branch
+elimination, measured against both of `webui/app`'s production build modes rather
+than taken from the comment in `platform/browser/env.ts` that promises it.
 
 **The larger gap is upstream, and no scan here closes it.** The baseline
 inventory reads Astro's overlay and patch text. It never reads the Chromium tree,

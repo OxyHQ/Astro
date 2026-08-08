@@ -330,38 +330,6 @@
       "test_fixture": "assert the host is absent from the built default_popular_sites resources"
     },
     {
-      "host": "astrobrowser.org",
-      "id": "astro-website",
-      "observed_state": "PRESENT",
-      "state": "INVESTIGATE",
-      "rationale": "Linked from the Astro settings page (webui/settings/src/sections.ts:450). Every other Astro-owned host in this manifest is under oxy.so.",
-      "owning_feature": "product-help-links",
-      "owner_issue": 9,
-      "reference_kind": "help-link",
-      "contact": "user-initiated",
-      "environment": "production",
-      "investigate": {
-        "question": "Does Oxy own astrobrowser.org? A product help link to a domain the project does not control is a hijack waiting to happen, and #9 generates product constants from one source of truth \u2014 this one is hard-coded in frontend source instead.",
-        "answered_by": "Confirm registration with the domain owner; then either record it as an Astro product constant in #9's single source or replace the link."
-      },
-      "scheme": "https",
-      "path_pattern": "/",
-      "methods": [
-        "GET"
-      ],
-      "trigger": "user clicks the link in settings",
-      "cadence": "per click",
-      "data_categories": [
-        "none beyond the navigation"
-      ],
-      "auth": "none",
-      "cookies": "none",
-      "response_purpose": "product website",
-      "user_control": "user-initiated",
-      "incognito": "same-as-normal",
-      "test_fixture": "not-captured"
-    },
-    {
       "host": "auth.oxy.so",
       "id": "oxy-auth",
       "observed_state": "NOT_BUILT",
@@ -629,6 +597,40 @@
       "test_fixture": "assert the host is absent from the built default_popular_sites resources"
     },
     {
+      "host": "chrome.cloudflare-dns.com",
+      "id": "doh-cloudflare",
+      "observed_state": "PRESENT",
+      "state": "INVESTIGATE",
+      "rationale": "Cloudflare's DNS-over-HTTPS resolver, reachable through the Secure DNS control on the settings Privacy and security screen. The provider list is upstream's, not Astro's: net::DohProviderEntry carries this template at the locked commit ae03f7fb2c (net/dns/public/doh_provider_entry.cc:115), and patches/ungoogled/core/ungoogled-chromium/doh-changes.patch deletes only the two Google entries from that table, so this one survives the series. Astro's own committed reference is webui/app/src/pages/settings/sections/privacy.fixtures.ts:32, a DEV-ONLY fixture standing in for what SecureDnsHandler pushes to the page \u2014 that fixture is absent from both production build modes of webui/app, so it is the upstream table, not the fixture, that makes this endpoint reachable. Selecting the provider writes this template into dns_over_https.templates, after which every hostname the browser resolves goes to one third party.",
+      "owning_feature": "dns-over-https",
+      "owner_issue": 10,
+      "routed_to_issue": 20,
+      "reference_kind": "default-content",
+      "contact": "unknown",
+      "environment": "production",
+      "investigate": {
+        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing \u2014 the difference between the operating system's resolver seeing every lookup and one company seeing it.",
+        "answered_by": "#20's transport-security decision on the shipped value of dns_over_https.mode, then a measured trace from tools/baseline/capture-network.sh, which is blocked until an Astro binary exists (baseline finding 1)."
+      },
+      "scheme": "https",
+      "path_pattern": "/dns-query",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "trigger": "every DNS resolution while DoH is active",
+      "cadence": "continuous",
+      "data_categories": [
+        "every hostname the browser resolves"
+      ],
+      "auth": "none",
+      "cookies": "none",
+      "response_purpose": "DNS answers",
+      "user_control": "Secure DNS provider selector on the settings Privacy and security screen",
+      "incognito": "same-as-normal",
+      "test_fixture": "not-captured"
+    },
+    {
       "host": "chrome.google.com",
       "id": "google-chrome-host",
       "observed_state": "RUNTIME_BLOCKED",
@@ -827,41 +829,6 @@
       "user_control": "none",
       "incognito": "not-applicable",
       "test_fixture": "not-captured"
-    },
-    {
-      "host": "cloudflare-dns.com",
-      "id": "doh-cloudflare",
-      "observed_state": "NOT_BUILT",
-      "state": "INVESTIGATE",
-      "rationale": "DoH template offered by Astro settings \u2014 Cloudflare, and the DEFAULT (sections.ts:192). The settings handler maps this to the real Chromium prefs `dns_over_https.mode` and `dns_over_https.templates` (src/chrome/browser/oxy/webui/astro_settings_handler.cc:64-65), so a shipped default sends every DNS query the browser makes to one third party.",
-      "owning_feature": "dns-over-https",
-      "owner_issue": 10,
-      "routed_to_issue": 20,
-      "reference_kind": "default-content",
-      "contact": "unknown",
-      "environment": "production",
-      "investigate": {
-        "question": "Does Astro ship a DoH provider ON by default, and if so which? The settings UI offers Cloudflare as the default value, but whether `dns_over_https.mode` is `secure`/`automatic` out of the box is not established, and the difference is between 'no default DNS provider' and 'every lookup goes to Cloudflare'.",
-        "answered_by": "Read the registered default for `dns_over_https.mode` in the built profile, then decide as part of #20's transport-security baseline. Astro registers no default for it in the committed patch stack \u2014 020-register-oxy-prefs.patch does not appear in docs/astro-next/baseline/pref-dispositions.json for these keys."
-      },
-      "scheme": "https",
-      "path_pattern": "/dns-query",
-      "methods": [
-        "GET",
-        "POST"
-      ],
-      "trigger": "every DNS resolution while DoH is active",
-      "cadence": "continuous",
-      "data_categories": [
-        "every hostname the browser resolves"
-      ],
-      "auth": "none",
-      "cookies": "none",
-      "response_purpose": "DNS answers",
-      "user_control": "provider selector in Astro settings",
-      "incognito": "same-as-normal",
-      "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "codereview.chromium.org",
@@ -1099,46 +1066,11 @@
       "test_fixture": "not-captured"
     },
     {
-      "host": "dns.nextdns.io",
-      "id": "doh-nextdns",
-      "observed_state": "NOT_BUILT",
-      "state": "INVESTIGATE",
-      "rationale": "DoH template offered by Astro settings \u2014 NextDNS, user-selectable. The settings handler maps this to the real Chromium prefs `dns_over_https.mode` and `dns_over_https.templates` (src/chrome/browser/oxy/webui/astro_settings_handler.cc:64-65), so a shipped default sends every DNS query the browser makes to one third party.",
-      "owning_feature": "dns-over-https",
-      "owner_issue": 10,
-      "routed_to_issue": 20,
-      "reference_kind": "default-content",
-      "contact": "unknown",
-      "environment": "production",
-      "investigate": {
-        "question": "Does Astro ship a DoH provider ON by default, and if so which? The settings UI offers Cloudflare as the default value, but whether `dns_over_https.mode` is `secure`/`automatic` out of the box is not established, and the difference is between 'no default DNS provider' and 'every lookup goes to Cloudflare'.",
-        "answered_by": "Read the registered default for `dns_over_https.mode` in the built profile, then decide as part of #20's transport-security baseline. Astro registers no default for it in the committed patch stack \u2014 020-register-oxy-prefs.patch does not appear in docs/astro-next/baseline/pref-dispositions.json for these keys."
-      },
-      "scheme": "https",
-      "path_pattern": "/dns-query",
-      "methods": [
-        "GET",
-        "POST"
-      ],
-      "trigger": "every DNS resolution while DoH is active",
-      "cadence": "continuous",
-      "data_categories": [
-        "every hostname the browser resolves"
-      ],
-      "auth": "none",
-      "cookies": "none",
-      "response_purpose": "DNS answers",
-      "user_control": "provider selector in Astro settings",
-      "incognito": "same-as-normal",
-      "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
-    },
-    {
       "host": "dns.quad9.net",
       "id": "doh-quad9",
-      "observed_state": "NOT_BUILT",
+      "observed_state": "PRESENT",
       "state": "INVESTIGATE",
-      "rationale": "DoH template offered by Astro settings \u2014 Quad9, user-selectable. The settings handler maps this to the real Chromium prefs `dns_over_https.mode` and `dns_over_https.templates` (src/chrome/browser/oxy/webui/astro_settings_handler.cc:64-65), so a shipped default sends every DNS query the browser makes to one third party.",
+      "rationale": "Quad9's DNS-over-HTTPS resolver, reachable through the Secure DNS control on the settings Privacy and security screen. The provider list is upstream's, not Astro's: net::DohProviderEntry carries this template at the locked commit ae03f7fb2c (net/dns/public/doh_provider_entry.cc:316), and patches/ungoogled/core/ungoogled-chromium/doh-changes.patch deletes only the two Google entries from that table, so this one survives the series. Astro's own committed reference is webui/app/src/pages/settings/sections/privacy.fixtures.ts:33, a DEV-ONLY fixture standing in for what SecureDnsHandler pushes to the page \u2014 that fixture is absent from both production build modes of webui/app, so it is the upstream table, not the fixture, that makes this endpoint reachable. Selecting the provider writes this template into dns_over_https.templates, after which every hostname the browser resolves goes to one third party.",
       "owning_feature": "dns-over-https",
       "owner_issue": 10,
       "routed_to_issue": 20,
@@ -1146,8 +1078,8 @@
       "contact": "unknown",
       "environment": "production",
       "investigate": {
-        "question": "Does Astro ship a DoH provider ON by default, and if so which? The settings UI offers Cloudflare as the default value, but whether `dns_over_https.mode` is `secure`/`automatic` out of the box is not established, and the difference is between 'no default DNS provider' and 'every lookup goes to Cloudflare'.",
-        "answered_by": "Read the registered default for `dns_over_https.mode` in the built profile, then decide as part of #20's transport-security baseline. Astro registers no default for it in the committed patch stack \u2014 020-register-oxy-prefs.patch does not appear in docs/astro-next/baseline/pref-dispositions.json for these keys."
+        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing \u2014 the difference between the operating system's resolver seeing every lookup and one company seeing it.",
+        "answered_by": "#20's transport-security decision on the shipped value of dns_over_https.mode, then a measured trace from tools/baseline/capture-network.sh, which is blocked until an Astro binary exists (baseline finding 1)."
       },
       "scheme": "https",
       "path_pattern": "/dns-query",
@@ -1163,10 +1095,9 @@
       "auth": "none",
       "cookies": "none",
       "response_purpose": "DNS answers",
-      "user_control": "provider selector in Astro settings",
+      "user_control": "Secure DNS provider selector on the settings Privacy and security screen",
       "incognito": "same-as-normal",
-      "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "test_fixture": "not-captured"
     },
     {
       "host": "dns64.dns.google",
@@ -1189,6 +1120,40 @@
       "response_purpose": "none",
       "user_control": "not-applicable",
       "incognito": "not-applicable",
+      "test_fixture": "not-captured"
+    },
+    {
+      "host": "doh.opendns.com",
+      "id": "doh-opendns",
+      "observed_state": "PRESENT",
+      "state": "INVESTIGATE",
+      "rationale": "OpenDNS's DNS-over-HTTPS resolver, reachable through the Secure DNS control on the settings Privacy and security screen. The provider list is upstream's, not Astro's: net::DohProviderEntry carries this template at the locked commit ae03f7fb2c (net/dns/public/doh_provider_entry.cc:270), and patches/ungoogled/core/ungoogled-chromium/doh-changes.patch deletes only the two Google entries from that table, so this one survives the series. Astro's own committed reference is webui/app/src/pages/settings/sections/privacy.fixtures.ts:34, a DEV-ONLY fixture standing in for what SecureDnsHandler pushes to the page \u2014 that fixture is absent from both production build modes of webui/app, so it is the upstream table, not the fixture, that makes this endpoint reachable. Selecting the provider writes this template into dns_over_https.templates, after which every hostname the browser resolves goes to one third party.",
+      "owning_feature": "dns-over-https",
+      "owner_issue": 10,
+      "routed_to_issue": 20,
+      "reference_kind": "default-content",
+      "contact": "unknown",
+      "environment": "production",
+      "investigate": {
+        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing \u2014 the difference between the operating system's resolver seeing every lookup and one company seeing it.",
+        "answered_by": "#20's transport-security decision on the shipped value of dns_over_https.mode, then a measured trace from tools/baseline/capture-network.sh, which is blocked until an Astro binary exists (baseline finding 1)."
+      },
+      "scheme": "https",
+      "path_pattern": "/dns-query",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "trigger": "every DNS resolution while DoH is active",
+      "cadence": "continuous",
+      "data_categories": [
+        "every hostname the browser resolves"
+      ],
+      "auth": "none",
+      "cookies": "none",
+      "response_purpose": "DNS answers",
+      "user_control": "Secure DNS provider selector on the settings Privacy and security screen",
+      "incognito": "same-as-normal",
       "test_fixture": "not-captured"
     },
     {
@@ -1687,6 +1652,29 @@
       "test_fixture": "assert the host is absent from the built default_popular_sites resources"
     },
     {
+      "host": "issues.chromium.org",
+      "id": "dev-fixture-chromium-issues",
+      "observed_state": "NOT_AN_ENDPOINT",
+      "state": "DISABLE_BUILD",
+      "rationale": "A row in the dev browser's search-engine table (webui/app/src/pages/settings/sections/search.fixtures.ts:99), standing in for what SearchEnginesHandler pushes to the settings page. Astro ships no such engine. The fixture is reached only through webui/app/src/platform/browser/mock/, imported from inside an import.meta.env.DEV branch Vite eliminates, and the literal is absent from both production build modes of webui/app (65 built files, checked against a positive control that IS present).",
+      "owning_feature": "none",
+      "owner_issue": 10,
+      "reference_kind": "dev-fixture",
+      "contact": "never",
+      "environment": "none",
+      "scheme": "none",
+      "methods": [],
+      "trigger": "none",
+      "cadence": "none",
+      "data_categories": [],
+      "auth": "none",
+      "cookies": "none",
+      "response_purpose": "none",
+      "user_control": "not-applicable",
+      "incognito": "not-applicable",
+      "test_fixture": "not-captured"
+    },
+    {
       "host": "localization.9oo91e.qjz9zk",
       "id": "doc-sub-localization",
       "observed_state": "NOT_AN_ENDPOINT",
@@ -1850,6 +1838,52 @@
       "user_control": "not-applicable",
       "incognito": "not-applicable",
       "test_fixture": "assert the host is absent from the built default_popular_sites resources"
+    },
+    {
+      "host": "maps.example",
+      "id": "dev-fixture-permission-maps",
+      "observed_state": "NOT_AN_ENDPOINT",
+      "state": "DISABLE_BUILD",
+      "rationale": "An origin in the dev browser's revoked-permissions fixture (webui/app/src/pages/settings/sections/privacy.fixtures.ts:45). `.example` is an RFC 2606 reserved TLD that can never resolve, which is why the fixture uses it. The fixture is reached only through webui/app/src/platform/browser/mock/, imported from inside an import.meta.env.DEV branch Vite eliminates, and the literal is absent from both production build modes of webui/app (65 built files, checked against a positive control that IS present).",
+      "owning_feature": "none",
+      "owner_issue": 10,
+      "reference_kind": "dev-fixture",
+      "contact": "never",
+      "environment": "none",
+      "scheme": "none",
+      "methods": [],
+      "trigger": "none",
+      "cadence": "none",
+      "data_categories": [],
+      "auth": "none",
+      "cookies": "none",
+      "response_purpose": "none",
+      "user_control": "not-applicable",
+      "incognito": "not-applicable",
+      "test_fixture": "not-captured"
+    },
+    {
+      "host": "mention.earth",
+      "id": "dev-fixture-startup-mention",
+      "observed_state": "NOT_AN_ENDPOINT",
+      "state": "DISABLE_BUILD",
+      "rationale": "A row in the dev browser's startup-pages list (webui/app/src/pages/settings/sections/on-startup.fixtures.ts:33), standing in for what StartupPagesHandler pushes to the settings page. Astro ships no default startup page. The fixture is reached only through webui/app/src/platform/browser/mock/, imported from inside an import.meta.env.DEV branch Vite eliminates, and the literal is absent from both production build modes of webui/app (65 built files, checked against a positive control that IS present).",
+      "owning_feature": "none",
+      "owner_issue": 10,
+      "reference_kind": "dev-fixture",
+      "contact": "never",
+      "environment": "none",
+      "scheme": "none",
+      "methods": [],
+      "trigger": "none",
+      "cadence": "none",
+      "data_categories": [],
+      "auth": "none",
+      "cookies": "none",
+      "response_purpose": "none",
+      "user_control": "not-applicable",
+      "incognito": "not-applicable",
+      "test_fixture": "not-captured"
     },
     {
       "host": "mikewest.org",
@@ -2043,6 +2077,29 @@
       "traffic_annotation": "not-captured",
       "test_fixture": "not-captured \u2014 #19 owns the updater's fixtures",
       "notes": "List updates are profile-independent, so incognito does not change them. NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+    },
+    {
+      "host": "recorder.example",
+      "id": "dev-fixture-permission-recorder",
+      "observed_state": "NOT_AN_ENDPOINT",
+      "state": "DISABLE_BUILD",
+      "rationale": "An origin in the dev browser's revoked-permissions fixture (webui/app/src/pages/settings/sections/privacy.fixtures.ts:46). `.example` is an RFC 2606 reserved TLD that can never resolve, which is why the fixture uses it. The fixture is reached only through webui/app/src/platform/browser/mock/, imported from inside an import.meta.env.DEV branch Vite eliminates, and the literal is absent from both production build modes of webui/app (65 built files, checked against a positive control that IS present).",
+      "owning_feature": "none",
+      "owner_issue": 10,
+      "reference_kind": "dev-fixture",
+      "contact": "never",
+      "environment": "none",
+      "scheme": "none",
+      "methods": [],
+      "trigger": "none",
+      "cadence": "none",
+      "data_categories": [],
+      "auth": "none",
+      "cookies": "none",
+      "response_purpose": "none",
+      "user_control": "not-applicable",
+      "incognito": "not-applicable",
+      "test_fixture": "not-captured"
     },
     {
       "host": "reddit.com",

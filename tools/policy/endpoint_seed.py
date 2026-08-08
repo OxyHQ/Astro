@@ -15,9 +15,11 @@ attributed in the output so nobody mistakes one for another:
                        `patches/`.
   webui-scan           `webui/*/src/`, which the baseline generator does NOT
                        read — it scans `src/` for `.cc/.h/.mojom/.rs` only.
-                       Measured: 18 hosts live only there, including the two
-                       the New Tab Page fetches from directly and the DoH
-                       provider list Astro's settings offer. A manifest seeded from the baseline alone would
+                       Measured: 21 hosts live only there, including the two
+                       the New Tab Page fetches from directly, the three DoH
+                       resolvers the settings page's Secure DNS control offers,
+                       and four that exist only in the settings app's dev
+                       fixtures. A manifest seeded from the baseline alone would
                        declare a browser quieter than the one this repository
                        builds. Reported as a gap in the baseline, not as a fault
                        in it: extending that generator is #6's call.
