@@ -44,7 +44,7 @@ index 868bfe1564db3..cfa7e8c2da8d7 100644
  
  #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
    PlatformAuthPolicyObserver::RegisterPrefs(registry);
-@@ -1720,6 +1713,15 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
+@@ -1720,6 +1713,24 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
    enterprise_connectors::RegisterProfilePrefs(registry);
    enterprise_promotion::RegisterProfilePrefs(registry);
    enterprise_reporting::RegisterProfilePrefs(registry);
@@ -56,6 +56,15 @@ index 868bfe1564db3..cfa7e8c2da8d7 100644
 +  registry->RegisterStringPref("oxy.username", "");
 +  registry->RegisterStringPref("oxy.user_avatar", "");
 +  registry->RegisterStringPref("oxy.token_expiry", "");
++
++  // Oxy NTP widget visibility prefs
++  registry->RegisterBooleanPref("astro.ntp_show_weather", true);
++  registry->RegisterBooleanPref("astro.ntp_show_clock", true);
++  registry->RegisterBooleanPref("astro.ntp_show_quick_links", true);
++  registry->RegisterBooleanPref("astro.ntp_show_notes", true);
++  registry->RegisterBooleanPref("astro.ntp_show_sites", true);
++  registry->RegisterBooleanPref("astro.ntp_show_discover", true);
++  registry->RegisterBooleanPref("astro.ntp_show_alia", true);
 +
    dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
    DownloadPrefs::RegisterProfilePrefs(registry);

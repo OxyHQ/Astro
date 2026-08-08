@@ -29,3 +29,6 @@ Thumbs.db
 *.swp
 *.swo
 ~/.config/
+
+# Agent-local worktree bookkeeping, not product state.
+.claude/

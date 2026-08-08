@@ -38,10 +38,23 @@ Nine properties, in both directions. The ones that are easy to miss:
 Usage:
     scheme_constants.py --check [--manifest P] [--schema P] [--header P]
                                [--legacy-root P] [--common-dir P]
+    scheme_constants.py --check-product
+
+`--check` runs against whatever paths it is given, reading the filesystem. That
+is right for a checker somebody points at a tree, and it is what the test suite
+drives fixtures with.
+
+`--check-product` runs against the product's own paths and asks GIT, not the
+filesystem, whether //astro/common/url_constants.h is part of the commit — the
+header is #11's deliverable and does not exist in every commit that carries
+this checker. When it is absent, this REFUSES with its own exit status rather
+than skipping, because a skip that reads as a pass is the failure mode the
+build-safety suite exists to prevent.
 
 Exit 0 when everything agrees, 1 when it does not, naming the offending file
 and field. Exit 2 when it could not measure something it was supposed to
-measure — an empty parse must never read as a pass.
+measure — an empty parse must never read as a pass. Exit 3 only from
+`--check-product`, and only for the one reason above.
 """
 
 from __future__ import annotations
@@ -49,6 +62,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -65,6 +79,19 @@ DEFAULT_MANIFEST = ASTRO_ROOT / "docs/astro-next/architecture/product.example.js
 DEFAULT_SCHEMA = ASTRO_ROOT / "docs/astro-next/architecture/product.schema.json"
 DEFAULT_COMMON = ASTRO_ROOT / "common"
 DEFAULT_HEADER = DEFAULT_COMMON / "url_constants.h"
+
+# The product's own header, and the issue that lands it.
+#
+# Declared here, beside the checker that reads it, rather than spelled again in
+# the test case: the case asks THIS module where the product header is, so the
+# path exists in one place and the case cannot drift from it.
+#
+# It is NOT part of every commit, and that is a fact about the issue ordering
+# rather than an accident. #9 owns the manifest, the schema and this checker;
+# #11 owns //astro/common. `--check-product` below is what makes the gap
+# visible instead of certifying across it — see check_product().
+PRODUCT_HEADER = DEFAULT_HEADER
+PRODUCT_HEADER_ISSUE = 11
 
 # Manifest field under `schemes` -> the C++ constant that must carry its value.
 #
@@ -413,17 +440,101 @@ def check(
     return 0
 
 
+def tracked_at_head(relative: str) -> bool | None:
+    """Is `relative` part of the commit? None when the question cannot be asked.
+
+    The COMMIT, deliberately, not the disk. `check()` reads the filesystem, and
+    that is right for a checker somebody points at a tree — but it is the wrong
+    question for `--check-product`, because the defect this repository has
+    produced four times is a file that is present on every developer's disk and
+    in no commit. A filesystem test gives one answer in a working tree and
+    another in a clean checkout of the same commit, which is precisely the
+    disagreement tools/verify-clean-head.sh exists to refuse.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(ASTRO_ROOT), "ls-tree", "-r", "--name-only",
+             "-z", "HEAD", "--", relative],
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    return bool(result.stdout.strip("\0").strip())
+
+
+def check_product() -> int:
+    """The join against the PRODUCT's own header, or a refusal to certify one.
+
+    //astro/common/url_constants.h is not part of every commit — it is #11's
+    deliverable and arrives with it, while the manifest, the schema and this
+    checker are #9's and are here already. That is a legitimate state for a
+    commit to be in, and it is NOT a legitimate state to certify the product's
+    scheme constants from.
+
+    So this refuses, loudly and with its own exit status, rather than skipping.
+    A skip that reads as a pass is the failure mode the whole build-safety suite
+    is built against; a refusal cannot be mistaken for agreement.
+
+    The case that calls this asserts exit 3 EXACTLY, which is what arms the
+    other direction: the moment the header is committed this returns the real
+    verdict instead, the assertion fails, and whoever landed the header has to
+    replace it with the join. There is no branch here to leave un-taken.
+    """
+    relative = str(PRODUCT_HEADER.relative_to(ASTRO_ROOT))
+    tracked = tracked_at_head(relative)
+
+    if tracked is None:
+        print(
+            f"ERROR: cannot ask git whether {relative} is part of this commit. "
+            f"{ASTRO_ROOT} has to be a git work tree for this question to have "
+            f"an answer; a filesystem test would give a different one in a "
+            f"working tree than in a clean checkout of the same commit.",
+            file=sys.stderr,
+        )
+        return 2
+
+    if not tracked:
+        print(
+            f"REFUSED: {relative} is not part of this commit, so the product's "
+            f"scheme constants were NOT checked against the manifest.\n"
+            f"  It is issue #{PRODUCT_HEADER_ISSUE}'s deliverable and lands with "
+            f"it. Until then this reports a refusal rather than agreement: the "
+            f"manifest is checked, the checker is checked against fixtures, and "
+            f"the join is the one thing nothing here can say anything about.\n"
+            f"  Note that the file may well be on disk — an untracked working "
+            f"copy satisfies every filesystem test and is in no commit, which is "
+            f"the defect this repository has produced four times.",
+            file=sys.stderr,
+        )
+        return 3
+
+    return check(DEFAULT_MANIFEST, DEFAULT_SCHEMA, PRODUCT_HEADER, ASTRO_ROOT, DEFAULT_COMMON)
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--check", action="store_true", required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--check", action="store_true")
+    mode.add_argument(
+        "--check-product",
+        action="store_true",
+        help="check the product tree, refusing (exit 3) when the header is not "
+             "in this commit. Takes no path overrides: the product's paths are "
+             "the point.",
+    )
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--schema", type=Path, default=DEFAULT_SCHEMA)
     parser.add_argument("--header", type=Path, default=DEFAULT_HEADER)
     parser.add_argument("--legacy-root", type=Path, default=ASTRO_ROOT)
     parser.add_argument("--common-dir", type=Path, default=DEFAULT_COMMON)
     args = parser.parse_args(argv)
+    if args.check_product:
+        return check_product()
     return check(
         args.manifest, args.schema, args.header, args.legacy_root, args.common_dir
     )

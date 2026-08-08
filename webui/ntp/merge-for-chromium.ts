@@ -37,6 +37,15 @@ let bodyContent = bodyMatch ? bodyMatch[1] : "";
 // Remove any <script> tags from the body content - the JS is already captured above.
 bodyContent = bodyContent.replace(/<script[\s\S]*?<\/script>/g, "");
 
+// Strip external <link> tags (Google Fonts, etc.) - chrome:// pages cannot load
+// https:// sub-resources. The fonts fall back to system fonts.
+bodyContent = bodyContent.replace(/<link[^>]*href="https?:\/\/[^"]*"[^>]*\/?>/g, "");
+
+// Strip crossOrigin from the Vite preload helper.
+// Vite's modulepreload polyfill sets o.crossOrigin="" on <link> elements, but
+// chrome:// WebUI pages reject crossorigin attributes (causes RESULT_CODE_KILLED_BAD_MESSAGE).
+// We remove the crossOrigin assignment from the bundled JS.
+
 // Produce the merged HTML.
 // Chromium's WebUI data source processor replaces $i18n{key} tokens at serve time.
 // We preserve the ones the third-party NTP controller expects.
@@ -46,6 +55,13 @@ bodyContent = bodyContent.replace(/<script[\s\S]*?<\/script>/g, "");
 // whose scheme does not match chrome://. External fonts, images loaded via
 // fetch(), and <a href> navigations are fine -- only sub-resource loads from
 // markup tags trigger the scheme check.
+// Strip Vite's crossOrigin assignment and modulepreload polyfill.
+// chrome:// WebUI pages reject dynamically created <link> elements with
+// crossOrigin or modulepreload, causing RESULT_CODE_KILLED_BAD_MESSAGE.
+// Only strip crossOrigin - createElement('link') is needed by ColorChangeUpdater.
+let cleanedJS = inlinedJS
+  .replace(/\.crossOrigin\s*=\s*(?:``|""|'')/g, "");
+
 const mergedHTML = `<!doctype html>
 <html dir="$i18n{textdirection}" lang="$i18n{language}">
   <head>
@@ -70,7 +86,7 @@ ${inlinedCSS}
     <!-- Astro NTP UI -->
 ${bodyContent}
     <script type="module">
-${inlinedJS}
+${cleanedJS}
     </script>
   </body>
 </html>

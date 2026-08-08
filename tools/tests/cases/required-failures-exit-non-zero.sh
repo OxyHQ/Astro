@@ -411,21 +411,46 @@ harness::register_failure "build with missing ad blocker filter lists" \
     run_build_missing_adblock_resources \
     "ad blocker filter lists"
 
-harness::register_failure "build outcome detector is missing" \
-    run_build_missing_outcome_detector \
-    "Required build outcome detector not found" "build_outcome.py"
-harness::register_failure "build outcome verifier is missing" \
-    run_build_missing_outcome_verifier \
-    "Required build outcome verifier not found" "verify-build-outcome.sh"
+# The two build-outcome rows are registered only where build.sh declares those
+# inputs. Which inputs it requires is read from build.sh itself, never assumed:
+# the gate and the two files it needs are newer than this table, so at a layer
+# that has neither, a row asserting the refusal fails with "expected a non-zero
+# exit, got 0" — a red that says nothing about the guarantee and everything
+# about which branch you are on. Measured, not foreseen: it happened.
+#
+# This is the same derivation harness::make_build_root uses to decide what to
+# copy into the fixture, so the fixture and the table can never disagree about
+# what this build.sh requires.
+build_requires() {
+    local path="$1"
+    grep -qE "astro::require_file \"[^\"]*/tools/${path//./\\.}\"" "$TOOLS/build.sh"
+}
+
+MINIMUM_ROWS=15
+
+if build_requires "lib/build_outcome.py"; then
+    harness::register_failure "build outcome detector is missing" \
+        run_build_missing_outcome_detector \
+        "Required build outcome detector not found" "build_outcome.py"
+    MINIMUM_ROWS=$((MINIMUM_ROWS + 1))
+fi
+if build_requires "verify-build-outcome.sh"; then
+    harness::register_failure "build outcome verifier is missing" \
+        run_build_missing_outcome_verifier \
+        "Required build outcome verifier not found" "verify-build-outcome.sh"
+    MINIMUM_ROWS=$((MINIMUM_ROWS + 1))
+fi
 # ==========================================================================
 # Property 1: every required failure exits non-zero, and says why
 #
-# The floor is this case's own: 15 rows are registered above, and a truncated
-# table, a mis-registered row or a broken loop would otherwise report a green
-# case having asserted almost nothing.
+# The floor is this case's own, and it is EXACT at every layer rather than set
+# to the smallest layer's count: 15 rows are unconditional, and each row above
+# that build.sh's own declarations enable raised it by one as it was
+# registered. A floor pinned at 15 would have let a later layer silently lose
+# its two extra rows; a floor pinned at 17 is the red this pass just removed.
 # ==========================================================================
 
-harness::run_failure_table 17
+harness::run_failure_table "$MINIMUM_ROWS"
 
 # ==========================================================================
 # Property 2: the modified-tree summary is visible in the logs

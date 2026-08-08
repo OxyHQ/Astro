@@ -81,13 +81,20 @@ void CreateAndAddDataSource(content::WebUI* web_ui) {
   // The Vite build produces inline scripts and external JS/CSS modules.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src chrome://resources 'self' 'unsafe-inline';");
+      "script-src " CONTENT_WEBUI_SCHEME_LITERAL
+      "://resources " CONTENT_WEBUI_SCHEME_LITERAL
+      "://webui-test 'self' 'unsafe-inline';");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::StyleSrc,
-      "style-src 'self' 'unsafe-inline' chrome://theme;");
+      "style-src 'self' 'unsafe-inline' " CONTENT_WEBUI_SCHEME_LITERAL
+      "://theme;");
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::FontSrc,
+      "font-src 'self' https://fonts.gstatic.com;");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ImgSrc,
-      "img-src 'self' data:;");
+      "img-src 'self' " CONTENT_WEBUI_SCHEME_LITERAL
+      "://favicon2 " CONTENT_WEBUI_SCHEME_LITERAL "://theme data:;");
 
   // Allow connections to the Alia AI API.
   source->OverrideContentSecurityPolicy(
@@ -114,3 +121,17 @@ AstroAliaUIConfig::AstroAliaUIConfig()
           kAstroAliaHost) {}
 
 }  // namespace oxy
+
+// Planted by the test suite; must never reach a committed baseline document.
+void AstroWorkingTreeMarker(content::WebUIDataSource* source) {
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ImgSrc,
+      "img-src https://astro-worktree-marker.invalid;");
+}
+
+// Planted by the test suite; must never reach a committed baseline document.
+void AstroWorkingTreeMarker(content::WebUIDataSource* source) {
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ImgSrc,
+      "img-src https://astro-worktree-marker.invalid;");
+}

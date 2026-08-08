@@ -57,6 +57,21 @@ jobs:
       - name: Run the build-safety suite
         run: tools/tests/run.sh
 
+      # A green suite run against a WORKING TREE proves nothing about the
+      # commit, because an untracked file on disk satisfies every test that
+      # needs it. This has happened four times here, in both directions, with
+      # the local suite green throughout. The gate materialises a tree holding
+      # only the files tracked at the commit, runs the suite inside it, and
+      # requires the verdicts to match.
+      #
+      # In CI the checkout already IS the commit, so the comparison agrees by
+      # construction and it is the clean run that carries the information. The
+      # comparison earns its place on a developer's machine; running it here
+      # keeps the mechanism from rotting, and the static converse — every path
+      # a committed script names must itself be tracked — is a suite case above.
+      - name: Verify the commit stands on its own
+        run: tools/verify-clean-head.sh
+
       # These are developer-only escape hatches: one waves through a Chromium
       # checkout carrying unrelated local changes, the other waves through an
       # overlay that does not match the commit being built. If either ever

@@ -40,7 +40,7 @@ harness::setup
 CHECKER="$ASTRO_ROOT/tools/lib/scheme_constants.py"
 MANIFEST="$ASTRO_ROOT/docs/astro-next/architecture/product.example.json"
 SCHEMA="$ASTRO_ROOT/docs/astro-next/architecture/product.schema.json"
-COMMON="$ASTRO_ROOT/common"
+COMMON="$ASTRO_ROOT/tools/tests/fixtures/scheme-constants/common"
 HEADER="$COMMON/url_constants.h"
 
 harness::assert_file_exists "$CHECKER"
@@ -48,29 +48,53 @@ harness::assert_file_exists "$MANIFEST"
 harness::assert_file_exists "$SCHEMA"
 harness::assert_file_exists "$HEADER"
 
-# --- The repository's own files agree ----------------------------------------
-
-harness::run python3 "$CHECKER" --check
-harness::assert_status 0 "the repository's manifest and header"
-harness::assert_output_contains "kAstroUIScheme" "the trusted scheme's C++ constant"
-harness::assert_output_contains "2 scheme constants agree" "both schemes were measured"
-harness::assert_output_contains "legacy spelling of schemes.trusted" \
-    "the pre-existing overlay spellings are gated too, not just documented"
-harness::assert_output_contains "none collides" "rule 9 ran against real fields"
-
-# The names themselves are the deliverable, so assert them rather than only
-# asserting that two files match each other. Two files can agree on the wrong
-# value.
-harness::assert_output_contains "schemes.trusted    = astro " "the trusted scheme is astro"
-harness::assert_output_contains "schemes.untrusted  = astro-untrusted" \
-    "the untrusted scheme is astro-untrusted"
+# --- The product tree, which this commit cannot certify ----------------------
+#
+# //astro/common/url_constants.h is #11's deliverable and is not in this commit,
+# while the manifest, the schema and the checker are #9's and are. That is a
+# legitimate state for a commit to be in; certifying the product's scheme
+# constants from it is not.
+#
+# So this asserts a REFUSAL, not a skip. Two properties make the difference:
+#
+#   * The checker asks GIT whether the header is part of the commit, never the
+#     filesystem. An untracked working copy — which is exactly what a developer
+#     has here today — satisfies every filesystem test and is in no commit, so a
+#     filesystem test would pass in a working tree and fail in a clean checkout
+#     of the same commit. That disagreement is what tools/verify-clean-head.sh
+#     refuses, and it is how this case came to be written this way.
+#   * The expected status is asserted EXACTLY, and 3 is a status the checker
+#     produces for one reason only. The moment #11 commits the header, this run
+#     returns the real verdict, this assertion goes red, and whoever landed the
+#     header has to replace it with the join below. There is no branch here to
+#     leave un-taken and no way to reach the absent-header expectation with the
+#     file present.
+harness::run python3 "$CHECKER" --check-product
+harness::assert_status 3 "the product header is not part of this commit"
+harness::assert_output_contains "REFUSED" "it refuses rather than reporting agreement"
+harness::assert_output_contains "common/url_constants.h" "it names the absent header"
+harness::assert_output_contains "issue #11" "it names the issue that lands it"
+harness::assert_output_contains "NOT checked against the manifest" \
+    "it says plainly which property went unchecked"
 
 # --- Fixtures ----------------------------------------------------------------
 #
 # Each mutation gets its own copy of everything the checker reads, so no case can
 # be affected by the one before it, and the repository is never written to.
+#
+# The manifest, the schema and the legacy spellings in every fixture below are
+# the REPOSITORY'S OWN files, copied. Only the header and the common/ directory
+# come from a fixture, because the product's are not in this commit — so the
+# real manifest is genuinely under test here, and what is stubbed is the one
+# artifact that could not be.
 
 TMP="$(harness::tmpdir)"
+
+# Recorded before the first fixture is built, and compared at the end. Every
+# file the fixtures copy FROM is in this set.
+SOURCES_BEFORE="$(sha256sum "$MANIFEST" "$SCHEMA" "$HEADER" \
+    "$ASTRO_ROOT/src/chrome/browser/oxy/oxy_auth_service.h" \
+    "$ASTRO_ROOT/src/chrome/browser/oxy/oxy_auth_callback_handler.cc")"
 
 # fixture <name> -> prints the directory holding a pristine copy
 fixture() {
@@ -104,6 +128,24 @@ check_fixture() {
 control="$(fixture control)"
 check_fixture "$control"
 harness::assert_status 0 "an unmutated fixture"
+
+# And it passed having MEASURED the repository's own manifest, not just having
+# agreed with itself. Every assertion here is about a real committed file: the
+# names are read out of docs/astro-next/architecture/product.example.json, rule
+# 9 walks that document's own platform blocks, and the legacy spellings are the
+# two files under src/chrome/browser/oxy/ that spell a scheme literally.
+#
+# The names themselves are the deliverable, so they are asserted rather than
+# only asserting that two files match each other. Two files can agree on the
+# wrong value.
+harness::assert_output_contains "schemes.trusted    = astro " "the trusted scheme is astro"
+harness::assert_output_contains "schemes.untrusted  = astro-untrusted" \
+    "the untrusted scheme is astro-untrusted"
+harness::assert_output_contains "kAstroUIScheme" "the trusted scheme's C++ constant"
+harness::assert_output_contains "2 scheme constants agree" "both schemes were measured"
+harness::assert_output_contains "legacy spelling of schemes.trusted" \
+    "the pre-existing overlay spellings are gated too, not just documented"
+harness::assert_output_contains "none collides" "rule 9 ran against real fields"
 
 # --- The header drifts from the manifest -------------------------------------
 
@@ -373,8 +415,26 @@ harness::assert_output_contains "delete the entry in the same change" \
 #
 # Every mutation above is a copy. If one of them ever addressed the real file,
 # this suite would start reporting whatever the last case left behind.
+#
+# Asked directly rather than by re-running the checker: a second clean run would
+# only prove the checker still agrees with itself, while a content manifest of
+# the files the fixtures COPY FROM proves the specific thing at stake. The
+# fixture header is in that set, so a mutation that reached back through the
+# copy would be named here.
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+sources_after="$(sha256sum "$MANIFEST" "$SCHEMA" "$HEADER" \
+    "$ASTRO_ROOT/src/chrome/browser/oxy/oxy_auth_service.h" \
+    "$ASTRO_ROOT/src/chrome/browser/oxy/oxy_auth_callback_handler.cc")"
+if [ "$sources_after" != "$SOURCES_BEFORE" ]; then
+    printf -- '--- before ---\n%s\n--- after ---\n%s\n' \
+        "$SOURCES_BEFORE" "$sources_after" >&2
+    harness::fail "a fixture mutation reached the repository's own files"
+fi
 
-harness::run python3 "$CHECKER" --check
-harness::assert_status 0 "the repository's files, after every fixture mutation"
+# And the product refusal is unchanged by any of it: no fixture created a
+# common/ directory in the repository, and none of them made the checker start
+# certifying the header it just said it could not see.
+harness::run python3 "$CHECKER" --check-product
+harness::assert_status 3 "the product refusal, after every fixture mutation"
 
 harness::pass

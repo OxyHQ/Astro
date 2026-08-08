@@ -7,9 +7,16 @@
 # declaration, and refuses on:
 #
 #   * a modified Chromium-owned file with no allowlist entry;
-#   * ANY line removed from a Chromium-owned file by the integration;
+#   * any line removed from a Chromium-owned file that no `remove` or
+#     `substitute` record in the allowlist declares — and a `substitute`
+#     declares one only by PAIRING it with its recomposed form among the added
+#     lines, so a removal that simply deleted the line is refused exactly as it
+#     was before those records existed;
+#   * a removal declaration naming a line the integration no longer removes, or
+#     a substitution that pairs nothing;
 #   * additions beyond a file's declared cap;
-#   * added lines that do not have the shape the entry declares;
+#   * added lines that do not have the shape the entry declares, or a shape that
+#     requires a //astro reference and has none anywhere in its delta;
 #   * a `planned` entry whose file has started to change;
 #   * an allowlist entry that no longer modifies anything;
 #   * a file deleted from the tree that the pruning list does not declare;

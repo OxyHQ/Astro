@@ -30,17 +30,24 @@
 #                 include_rules only; no other key may change.
 #
 #   call-hook     A .cc/.h that gains #include lines for astro/ headers and
-#                 calls into the astro:: namespace. Every added line must name
-#                 the //astro module, and no line may be REMOVED.
+#                 calls into the astro:: namespace. At least one added line
+#                 must name the //astro module; the rest may only be the
+#                 scaffolding that call requires — punctuation, a `return` of a
+#                 literal, or a fragment of a function signature. No statement,
+#                 no condition, no string literal, no call into anything but
+#                 astro::. The rule is on the BLOCK rather than on every line
+#                 because an override of an upstream virtual cannot satisfy a
+#                 per-line rule: the signature upstream dictates names no Astro
+#                 symbol and never can.
 #
-#   embedder-hook A content/-layer file that gains a generic embedder
-#                 extension point, or whose hard-coded literal is replaced by
-#                 an embedder-supplied value. This is the ONLY shape whose
-#                 added lines are not required to name //astro, because the
-#                 whole point of the shape is that the upstream code stays
-#                 Astro-agnostic. It is therefore the weakest shape, bounded
-#                 by max-added and by the removal rule alone — never grant it
-#                 to a file that a call-hook would fit.
+#   embedder-hook A file that gains a generic embedder extension point, whose
+#                 hard-coded literal is replaced by an embedder-supplied value,
+#                 or that declares or implements the override of such a point.
+#                 This is the ONLY shape whose added lines are not required to
+#                 name //astro, because the whole point of the shape is that
+#                 the upstream code stays Astro-agnostic. It is therefore the
+#                 weakest shape, bounded by max-added and by the removal rule
+#                 alone — never grant it to a file that a call-hook would fit.
 #
 #   planned       A hook a later issue WILL need, declared here so its cap is
 #                 reviewed once rather than invented under pressure. It grants
@@ -63,18 +70,72 @@
 # shifts them. The report prints the count so the exclusion is visible rather
 # than silent.
 #
+# A LINE COMMENT — `#` in GN, `//` in C++ — is exempt from a shape's syntax
+# check and from its module-reference requirement, for the same reason, but it
+# still COUNTS against max-added: commentary in an upstream file is surface
+# somebody maintains, and the cap is what bounds surface. Because comments are
+# exempt from the per-line rule, every shape that requires a module reference
+# also requires at least ONE added line to name //astro, so an entry whose
+# whole delta is commentary cannot pass the shape check having hooked nothing.
+#
+# ---------------------------------------------------------------------------
+# REMOVING AN UPSTREAM LINE
+# ---------------------------------------------------------------------------
+#
 # There is deliberately NO shape that permits removing an upstream line, and no
-# attribute that can grant one. The single historic exception is on record:
+# attribute that can grant one. The historic reason is on record:
 # 007-oxy-auth-build-hook.patch was 7 added lines against 36 REMOVED, and the
 # removals stripped Safe Browsing notification content detection, accessibility,
 # Screen AI, the preloading model, enterprise interstitials and the
 # dangerous-download UI — under a patch named "build hook". See
-# docs/astro-next/baseline/findings.md section 1. A removal is not a hook, and
-# this file cannot express one. If a removal is genuinely required, it is a
-# reviewed change to the gate, not an attribute somebody adds in a hurry.
+# docs/astro-next/baseline/findings.md section 1. A removal is not a hook.
 #
-# Comments and blank lines are ignored. Paths are relative to the Chromium
-# source root and must not contain "..".
+# What the two directives below add is not a relaxation of that rule but a way
+# to state its exceptions ONE LINE AT A TIME, so that an UNDECLARED removal
+# still fails exactly as it did before. The product rule they enforce is that
+# no Chromium behaviour is removed unless the change is strictly a refactor
+# extracting a generic extension point with behaviour preserved.
+#
+#   substitute <path> issue=<n> reason=<slug>
+#       from  |<literal>
+#       to    |<literal>
+#       guard |<the #define that gives the macro its default>
+#
+#                 The stronger of the two, and the one to reach for first,
+#                 because it BLESSES NOTHING. It accounts for a removed line
+#                 only when replacing `from` with `to` in that line yields a
+#                 line that is actually present among the ADDED lines — the
+#                 removal is paired with its recomposed form, and a removal
+#                 that merely deleted the literal matches nothing and is
+#                 reported exactly as if no record existed. `guard` must appear
+#                 among the added lines too, which is what separates "the
+#                 literal moved behind a macro that still expands to it" from
+#                 "the literal left the file and the macro comes from somewhere
+#                 else". A paired addition does not count against max-added: a
+#                 recomposed upstream line is the same line, not new surface.
+#
+#   remove <path> issue=<n> reason=<slug> |<the exact upstream line>
+#
+#                 The weaker one, for a removal no substitution can pair: an
+#                 assertion or a literal branch REPLACED by a generic test.
+#                 One record per removed line, matched on exact content, in a
+#                 multiset — declaring a line once permits removing it once.
+#                 There is no pattern form and no count form on purpose: both
+#                 would let one declaration cover a family of similar lines,
+#                 and "similar" is the judgement this file exists to take away
+#                 from whoever is in a hurry.
+#
+# Everything after the first `|` is the upstream line byte for byte: no comment
+# stripping, no trimming. Both directives are joined in BOTH directions — a
+# declaration naming a line the integration no longer removes is stale and
+# fails, and a substitution that pairs nothing fails, so neither can rot into a
+# standing permission. Both require a LIVE entry for the same path, because a
+# removal is only reviewable beside the entry that caps and owns the file's
+# additions.
+#
+# Comments and blank lines are ignored, except inside a `remove` or
+# `substitute` record where `#` is upstream content. Paths are relative to the
+# Chromium source root and must not contain "..".
 
 # --- #7: the minimum needed to build and reach //astro -----------------------
 
@@ -124,6 +185,103 @@ include-rule  chrome/common/DEPS                            owner=oxy-browser is
 # policy decision lives behind the call in //astro rather than here.
 call-hook     chrome/common/chrome_content_client.cc        owner=oxy-browser issue=11 max-added=2
 
+# chrome/browser/chrome_content_browser_client.h — the chrome/-side DECLARATION
+# of the two embedder extension points content/ gained below.
+#
+# `embedder-hook` rather than `call-hook` because an override declaration names
+# no Astro symbol and never can: it is upstream's own virtual, spelled as
+# upstream spells it. There is nothing here for a call-hook's block rule to
+# find, which is the case that shape's guidance means by "never grant it to a
+# file that a call-hook would fit" — a call-hook does not fit.
+#
+# Cap arithmetic: 2 methods x 2 declaration lines = 4. 6 leaves room for a
+# third trust level's declaration without ratifying an unreviewed comment
+# block; the reasoning for WHY the two lists are separate lives on the content/
+# declaration, not on this override.
+embedder-hook chrome/browser/chrome_content_browser_client.h owner=oxy-browser issue=11 max-added=6
+
+# chrome/browser/chrome_content_browser_client.cc — the chrome/-side
+# IMPLEMENTATION, which is where the answer comes from //astro.
+#
+# This one IS a call-hook: its whole body is three calls into astro::, and the
+# lines that are not are the signature upstream's virtual dictates and the
+# braces closing it.
+#
+# Cap arithmetic: 2 new overrides x (2 signature lines + 1 astro:: call + 1
+# closing brace) = 8, plus the #include and the astro:: call added to the
+# existing GetAdditionalWebUISchemes = 10. 12 gives that ~15% headroom.
+call-hook     chrome/browser/chrome_content_browser_client.cc owner=oxy-browser issue=11 max-added=12
+
+# chrome/browser/profiles/profile_io_data.cc — IsHandledProtocol.
+#
+# Not routing, and the comment in the tree is the reason this is not a
+# one-liner: the FALSE branch of this question is an escape hatch.
+# ChildProcessSecurityPolicyImpl::CanRequestURL ends with `return
+# !GetContentClient()->browser()->IsHandledURL(url)`, permitting a URL
+# precisely BECAUSE an unhandled one is assumed destined for an external
+# application. An unknown astro:// HOST must therefore still be a handled
+# SCHEME, and fail inside the browser rather than reaching ShellExecute.
+#
+# Cap arithmetic: one #include, one `if (astro::IsAstroScheme(scheme))` and the
+# two lines closing it = 4, plus a comment budget of 10 for the escape-hatch
+# reasoning above = 14.
+call-hook     chrome/browser/profiles/profile_io_data.cc     owner=oxy-browser issue=11 max-added=14
+
+# --- #11: the internal URL scheme composed from one macro ---------------------
+
+# build/config/BUILDCONFIG.gn — the config that carries the scheme define to
+# every target.
+#
+# Scoping it to one target does not work: ~2,057 call sites across chrome/
+# include chrome/common/webui_url_constants.h, so a narrower define produces a
+# binary where some constants say astro:// and others still say chrome://.
+#
+# Cap arithmetic: one config label. 9 covers it plus the comment recording why
+# the define cannot be scoped narrowly, which is the kind of thing that gets
+# "simplified" by the next person to read this file.
+gn-append     build/config/BUILDCONFIG.gn                    owner=oxy-browser issue=11 max-added=9
+
+# chrome/common/webui_url_constants.h — 177 hand-spelled scheme literals
+# replaced by composition from one macro.
+#
+# This is the largest entry in the file by raw diff and the smallest by
+# reviewed surface, and the difference is the whole point of the `substitute`
+# records below. 175 upstream lines are removed and 175 recomposed lines take
+# their place; each pair is proved mechanically, so what remains against the
+# cap is the macro block and its commentary — 33 lines.
+#
+# `embedder-hook`: the extension point IS the macro. An embedder overrides
+# CHROME_UI_SCHEME_LITERAL and every constant follows; adjacent string literals
+# concatenate at compile time, so the constants keep their names, their types
+# and their default values, and none of the ~2,057 call sites changes.
+#
+# Cap arithmetic: 2 `#if !defined` guards x 3 lines = 6, 4 prefix `#define`s
+# plus one line continuation = 5, and a comment budget of 25 for the
+# measured-symptom record = 36. 40 gives that ~10% headroom.
+embedder-hook chrome/common/webui_url_constants.h            owner=oxy-browser issue=11 max-added=40
+
+# The three substitutions that account for all 175 removals. A fourth —
+# u"chrome-untrusted:// — was written and deleted again: the file has no
+# UTF-16 untrusted constant, so the record paired nothing and the gate refused
+# it as stale. That is the mechanism working, and it is why these are not
+# written from the design.
+#
+# Behaviour preservation is what each `guard` states: with the default
+# CHROME_UI_SCHEME_LITERAL the composed constants read exactly what they read
+# before, verified in the browser — chrome://settings/ still loads.
+substitute chrome/common/webui_url_constants.h issue=11 reason=scheme-literal-composed
+    from  |"chrome://
+    to    |CHROME_UI_URL_PREFIX "
+    guard |#define CHROME_UI_URL_PREFIX CHROME_UI_SCHEME_LITERAL "://"
+substitute chrome/common/webui_url_constants.h issue=11 reason=scheme-literal-composed
+    from  |"chrome-untrusted://
+    to    |CHROME_UI_UNTRUSTED_URL_PREFIX "
+    guard |#define CHROME_UI_UNTRUSTED_URL_PREFIX CHROME_UI_UNTRUSTED_SCHEME_LITERAL "://"
+substitute chrome/common/webui_url_constants.h issue=11 reason=scheme-literal-composed
+    from  |u"chrome://
+    to    |CHROME_UI_URL_PREFIX16 u"
+    guard |#define CHROME_UI_URL_PREFIX16 u"" CHROME_UI_SCHEME_LITERAL u"://"
+
 # --- #11/#12: the trusted/untrusted WebUI scheme split, content/-side --------
 #
 # These two are `embedder-hook`, the weakest shape, and the reason is stated
@@ -157,46 +315,119 @@ embedder-hook content/public/browser/content_browser_client.h owner=oxy-browser 
 # (2) + 3 call-site replacements (7) + the doc comment carrying the security
 # rationale (20) = 63. 72 gives that shape ~15% headroom.
 #
-# NOTE, and it is the first thing this gate found: the change in the tree also
-# REMOVES 4 upstream lines — the two `CHECK_EQ(config->scheme(), ...)`
-# assertions and the two-line scheme test in GetConfig. No shape here can
-# express that, deliberately, so this file FAILS the gate until #11's owner
-# resolves it. Reading the diff, the four lines are REPLACED by strictly
-# stronger checks rather than stripped, which is very likely fine — but "very
-# likely fine" decided by whoever runs the build next is exactly what the 007
-# record exists to prevent. It is a review, and the gate is what forces it.
 embedder-hook content/public/browser/webui_config_map.cc     owner=oxy-browser issue=11 max-added=72
+
+# The 4 removals, and this file is the reason the `remove` directive exists.
+# The gate found them before anything else did, and refused — correctly, because
+# "these are replaced by something stronger" is a claim, and the 007 record is
+# what a claim decided by whoever runs the build next costs.
+#
+# The claim, now stated where it can be checked: each of these four hard-codes
+# the identity of a WebUI scheme, and each is replaced by membership in the
+# trusted or untrusted set the embedder supplies. The check is not weakened —
+# with the embedder supplying nothing, the sets hold exactly {chrome} and
+# {chrome-untrusted} and the assertions fire on exactly the same inputs. What
+# changes is that a second trusted scheme is now expressible, which is the whole
+# of #11.
+remove content/public/browser/webui_config_map.cc issue=11 reason=scheme-set-membership |  CHECK_EQ(config->scheme(), kChromeUIScheme);
+remove content/public/browser/webui_config_map.cc issue=11 reason=scheme-set-membership |  CHECK_EQ(config->scheme(), kChromeUIUntrustedScheme);
+remove content/public/browser/webui_config_map.cc issue=11 reason=scheme-set-membership |  if (url.GetScheme() != kChromeUIScheme &&
+remove content/public/browser/webui_config_map.cc issue=11 reason=scheme-set-membership |      url.GetScheme() != kChromeUIUntrustedScheme) {
+
+# --- #11: the content/-layer hooks that have now landed ----------------------
+#
+# These three were `planned` and are promoted here, which is what `planned` is
+# for: the cap was reviewed in the calm and is being confirmed, not invented at
+# the moment the hook landed. Where the arithmetic has changed, the new
+# arithmetic is shown rather than the number quietly raised.
+
+# §2.5 / §2.12 — the origin-keyed data-source lookup tested the untrusted
+# scheme literally, and every other scheme fell through to a bare-HOST lookup.
+# With more than one WebUI scheme that is not a shortcut but a security
+# collapse: astro://test/ and astro-untrusted://test/ both reduce to the key
+# "test", so one data source answers for two principals that exist precisely to
+# be separate. Origin is now tried first, host second.
+# Cap arithmetic, unchanged from the planned entry: the origin-keyed lookup
+# rewritten across both scheme sets (~14) plus the comment recording the
+# collapse (~12) = 26; 30 gives that ~15% headroom.
+embedder-hook content/browser/webui/url_data_manager_backend.cc owner=oxy-browser issue=11 max-added=30
+
+# The 5 removals: the literal untrusted branch and the host-only lookup body it
+# guarded, replaced by an origin-first lookup that falls back to host. The
+# chrome:// sources that were host-registered still resolve by host, so no
+# existing source changes behaviour; what changes is that an origin-registered
+# source is no longer reachable under another scheme's key.
+remove content/browser/webui/url_data_manager_backend.cc issue=11 reason=origin-before-host |  // chrome-untrusted:// sources keys are of the form "chrome-untrusted://host".
+remove content/browser/webui/url_data_manager_backend.cc issue=11 reason=origin-before-host |  if (url.GetScheme() == kChromeUIUntrustedScheme) {
+remove content/browser/webui/url_data_manager_backend.cc issue=11 reason=origin-before-host |    if (i == data_sources_.end())
+remove content/browser/webui/url_data_manager_backend.cc issue=11 reason=origin-before-host |      return nullptr;
+remove content/browser/webui/url_data_manager_backend.cc issue=11 reason=origin-before-host |    return i->second.get();
+
+# §2.5 / §2.9 — WebUIDataSourceImpl::GetOrigin CHECKed that a source name which
+# parses as a URL is chrome-untrusted://, so an astro-untrusted:// source name
+# crashed. The origin now comes from the scheme the name actually carries.
+# Cap arithmetic, unchanged: ~8 lines of logic plus the comment recording which
+# list is authoritative. 20.
+embedder-hook content/browser/webui/web_ui_data_source_impl.cc owner=oxy-browser issue=11 max-added=20
+
+# The 3 removals: the CHECK pinning the name form to one scheme, and the two
+# comment lines asserting that form. The CHECK that the resulting origin is not
+# opaque — which is what actually has to hold — is still there.
+remove content/browser/webui/web_ui_data_source_impl.cc issue=11 reason=origin-from-source-name |    // |source_name_| must be of the form "chrome-untrusted://some-host/",
+remove content/browser/webui/web_ui_data_source_impl.cc issue=11 reason=origin-from-source-name |    // which means it serves URLs of the form "chrome-untrusted://some-host/".
+remove content/browser/webui/web_ui_data_source_impl.cc issue=11 reason=origin-from-source-name |    CHECK(url.SchemeIs(kChromeUIUntrustedScheme));
+
+# §2.5 — WebUIImpl's requestable-scheme set was the literal pair
+# {kChromeUIScheme, file}. That silently became "shared WebUI assets are
+# reachable only from Chromium's own scheme" once an embedder could register
+# another one, and the symptom is not a permission error anybody would
+# recognise: the page navigates, commits and renders BLANK, because every
+# chrome://resources/... import it makes is refused as cross-origin.
+#
+# Cap arithmetic, RAISED from the planned 12, which assumed one predicate
+# replacement: the set is derived by a helper instead, because the value is
+# needed in a member initialiser list where a predicate cannot go. Helper
+# signature, 3 body lines and its brace = 5, the anonymous namespace around it
+# = 2, the initialiser-list replacement = 1, so 8 code lines against the 1
+# planned. Comment budget 24 for the blank-page symptom and for the sentence
+# limiting this to SUBRESOURCE access — it says nothing about bindings — = 32.
+# 34 gives that ~6% headroom.
+embedder-hook content/browser/webui/web_ui_impl.cc            owner=oxy-browser issue=11 max-added=34
+
+# The 1 removal: the literal pair, replaced by the registered WebUI schemes
+# plus file. With the embedder supplying nothing the set is {chrome, file},
+# which is what it was.
+remove content/browser/webui/web_ui_impl.cc issue=11 reason=registered-webui-schemes |    : requestable_schemes_({kChromeUIScheme, url::kFileScheme}),
+
+# content/public/browser/url_data_source.cc — URLDataSource::ShouldServiceRequest
+# tested a hardcoded three-scheme list. That was correct while chrome and
+# chrome-untrusted were the only WebUI schemes a browser could have; with an
+# embedder able to add one it became a rule that upstream data sources serve
+# ONLY Chromium's schemes, and a WebUI reused under an embedder scheme
+# registers fine, constructs fine, then fails at load with ERR_INVALID_URL.
+#
+# This does NOT widen trust: the list is the one used for LOADER ROUTING
+# (URLDataManagerBackend::GetWebUISchemes, built from
+# ContentBrowserClient::GetAdditionalWebUISchemes). Whether a scheme may hold
+# privileged bindings is the separate question the two sets in WebUIConfigMap
+# answer.
+#
+# Cap arithmetic: 4 includes + the devtools early return (3) + the membership
+# test (3) = 10, plus a comment budget of 20 for the ERR_INVALID_URL symptom
+# and the does-not-widen-trust paragraph = 30. 32 gives that ~7% headroom.
+embedder-hook content/public/browser/url_data_source.cc      owner=oxy-browser issue=11 max-added=32
+
+# The 2 removals: the hardcoded disjunction, now the devtools scheme tested
+# separately plus membership in the registered WebUI schemes.
+remove content/public/browser/url_data_source.cc issue=11 reason=registered-webui-schemes |  return url.SchemeIs(kChromeDevToolsScheme) || url.SchemeIs(kChromeUIScheme) ||
+remove content/public/browser/url_data_source.cc issue=11 reason=registered-webui-schemes |         url.SchemeIs(kChromeUIUntrustedScheme);
 
 # --- Planned: declared, capped, and granting nothing -------------------------
 #
-# The remaining content/-layer hooks astro-scheme-hooks.md identifies. Each is
+# The remaining content/-layer hook astro-scheme-hooks.md identifies. It is
 # declared now so its cap is reviewed in the calm rather than invented at the
-# moment it lands; each FAILS the gate the instant its file starts to change,
-# and the fix is to promote the entry to a live shape by review.
-
-# §2.5 / §2.12 — URLDataManagerBackend::GetWebUISchemes is `{chrome,
-# chrome-untrusted} + GetAdditionalWebUISchemes`, memoised in a NoDestructor
-# static, and the origin-keyed data-source lookup tests the untrusted scheme
-# literally. Both need the same generalisation as webui_config_map.cc.
-# Cap arithmetic: the origin-keyed lookup rewritten across both scheme sets
-# (~14) plus the comment recording why a bare-host fallback collapses two
-# principals into one key once more than one WebUI scheme exists (~12) = 26.
-# 30 gives that ~15% headroom.
-planned       content/browser/webui/url_data_manager_backend.cc owner=oxy-browser issue=11 max-added=30
-
-# §2.5 / §2.9 — WebUIDataSourceImpl::GetOrigin CHECKs that a source name which
-# parses as a URL is chrome-untrusted://, so an astro-untrusted:// source name
-# crashes. The fix derives the origin from the scheme actually present,
-# validated against the embedder's WebUI-scheme list.
-# Cap arithmetic: the predicate is the same `Contains` shape as
-# webui_config_map.cc's, applied at one site — ~8 lines of logic plus a comment
-# recording which of the two lists is authoritative. 20.
-planned       content/browser/webui/web_ui_data_source_impl.cc owner=oxy-browser issue=11 max-added=20
-
-# §2.5 — WebUIImpl::ShouldIncludeDataSource hard-codes
-# `origin.scheme() != kChromeUIScheme`; same predicate, one site.
-# Cap arithmetic: one predicate replacement plus its comment. 12.
-planned       content/browser/webui/web_ui_impl.cc            owner=oxy-browser issue=11 max-added=12
+# moment it lands; it FAILS the gate the instant its file starts to change, and
+# the fix is to promote the entry to a live shape by review.
 
 # §2.6 — IsWebUIScheme / HasWebUIScheme / HasWebUIOrigin: a three-element
 # literal with NO embedder hook at all, and 25+ call sites including the

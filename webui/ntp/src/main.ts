@@ -1,12 +1,47 @@
 // ── Astro New Tab Page ──
 // Comet-style NTP with Oxy/Astro branding
 
+// ── cr.webUIListenerCallback polyfill ──
+// Chrome's WebUI C++ uses FireWebUIListener which calls cr.webUIListenerCallback.
+// Since our Vite-built NTP doesn't include chrome://resources/js/cr.js, we
+// provide a minimal implementation so C++ → JS callbacks work.
+{
+  const g = globalThis as Record<string, unknown>;
+  const listeners = new Map<string, Array<(...args: unknown[]) => void>>();
+  if (!g.cr) g.cr = {};
+  const cr = g.cr as Record<string, unknown>;
+  cr.addWebUIListener = (event: string, callback: (...args: unknown[]) => void) => {
+    if (!listeners.has(event)) listeners.set(event, []);
+    listeners.get(event)!.push(callback);
+  };
+  cr.webUIListenerCallback = (event: string, ...args: unknown[]) => {
+    for (const cb of listeners.get(event) ?? []) cb(...args);
+  };
+}
+
 // ── Types ──
 
 interface QuickLink {
   title: string;
   url: string;
 }
+
+type WidgetId =
+  | "weather-widget"
+  | "clock-widget"
+  | "quick-links-widget"
+  | "notes-widget"
+  | "discover-widget"
+  | "alia-widget";
+
+const REORDERABLE_WIDGETS: readonly WidgetId[] = [
+  "weather-widget",
+  "clock-widget",
+  "quick-links-widget",
+  "notes-widget",
+  "discover-widget",
+  "alia-widget",
+];
 
 interface NTPSettings {
   wallpaperUrl: string;
@@ -21,6 +56,7 @@ interface NTPSettings {
     alia: boolean;
     sites: boolean;
   };
+  widgetOrder: WidgetId[];
   quickLinks: QuickLink[];
 }
 
@@ -130,6 +166,7 @@ const DEFAULT_SETTINGS: NTPSettings = {
     alia: true,
     sites: true,
   },
+  widgetOrder: [...REORDERABLE_WIDGETS],
   quickLinks: DEFAULT_QUICK_LINKS,
 };
 
@@ -185,6 +222,7 @@ const discoverTime = $<HTMLDivElement>("discover-time");
 const discoverTitle = $<HTMLDivElement>("discover-title");
 const aliaWidget = $<HTMLDivElement>("alia-widget");
 const sitesContainer = $<HTMLDivElement>("sites-container");
+const widgetGrid = $<HTMLDivElement>("widget-grid");
 
 const customizeChromeBtn = $<HTMLButtonElement>("customize-chrome-btn");
 
@@ -208,6 +246,16 @@ const blockedCount = $<HTMLDivElement>("blocked-count");
 
 // ── Settings Persistence ──
 
+/** Reconcile a saved widget order with the canonical list (handles added/removed widgets). */
+function reconcileWidgetOrder(saved: WidgetId[]): WidgetId[] {
+  const valid = new Set<WidgetId>(REORDERABLE_WIDGETS);
+  const order = saved.filter((id) => valid.has(id));
+  for (const id of REORDERABLE_WIDGETS) {
+    if (!order.includes(id)) order.push(id);
+  }
+  return order;
+}
+
 function loadSettings(): NTPSettings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -217,6 +265,7 @@ function loadSettings(): NTPSettings {
         ...DEFAULT_SETTINGS,
         ...parsed,
         widgets: { ...DEFAULT_SETTINGS.widgets, ...parsed.widgets },
+        widgetOrder: reconcileWidgetOrder(parsed.widgetOrder ?? []),
         quickLinks:
           parsed.quickLinks && parsed.quickLinks.length > 0
             ? parsed.quickLinks
@@ -226,11 +275,84 @@ function loadSettings(): NTPSettings {
   } catch {
     // Corrupted storage, use defaults
   }
-  return { ...DEFAULT_SETTINGS, quickLinks: [...DEFAULT_QUICK_LINKS] };
+  return { ...DEFAULT_SETTINGS, quickLinks: [...DEFAULT_QUICK_LINKS], widgetOrder: [...REORDERABLE_WIDGETS] };
 }
 
 function saveSettings(): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
+// ── Mojo connection to the browser ──
+// The C++ NewTabPageThirdPartyUI controller exposes a Mojo PageHandlerFactory.
+// We connect to it to receive theme updates pushed by PageHandler::SetTheme().
+
+interface NtpTheme {
+  colorBackground: string;
+  hasCustomBackground: boolean;
+}
+
+interface NtpMojoModule {
+  PageCallbackRouter: new () => NtpCallbackRouter;
+  PageHandlerRemote: new () => NtpPageHandler;
+  PageHandlerFactory: { getRemote(): NtpPageHandlerFactory };
+}
+
+interface NtpCallbackRouter {
+  $: { bindNewPipeAndPassRemote(): unknown };
+  setTheme: { addListener(cb: (theme: NtpTheme) => void): void };
+}
+
+interface NtpPageHandler {
+  $: { bindNewPipeAndPassReceiver(): unknown };
+  updateTheme(): void;
+}
+
+interface NtpPageHandlerFactory {
+  createPageHandler(remote: unknown, receiver: unknown): void;
+}
+
+async function initNtpMojo(): Promise<boolean> {
+  try {
+    const mod: NtpMojoModule = await import(
+      /* @vite-ignore */
+      "chrome://new-tab-page-third-party/new_tab_page_third_party.mojom-webui.js"
+    );
+    const callbackRouter = new mod.PageCallbackRouter();
+    const handler = new mod.PageHandlerRemote();
+    const factory = mod.PageHandlerFactory.getRemote();
+    factory.createPageHandler(
+      callbackRouter.$.bindNewPipeAndPassRemote(),
+      handler.$.bindNewPipeAndPassReceiver()
+    );
+
+    // Listen for theme changes pushed by the browser
+    callbackRouter.setTheme.addListener((theme: NtpTheme) => {
+      document.documentElement.style.backgroundColor = theme.colorBackground;
+      document.documentElement.toggleAttribute(
+        "has-custom-background",
+        theme.hasCustomBackground
+      );
+      // Reload colors.css to pick up new ColorProvider values
+      const old = document.querySelector<HTMLLinkElement>(
+        'link[href*="colors.css"]'
+      );
+      if (old) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href =
+          "chrome://theme/colors.css?sets=ui,chrome&v=" + Date.now();
+        old.parentNode?.insertBefore(link, old);
+        link.onload = () => old.remove();
+      }
+    });
+
+    // Ask the browser for the current theme
+    handler.updateTheme();
+    return true;
+  } catch {
+    // Not running inside the browser (e.g. Vite dev server) -- degrade gracefully
+    return false;
+  }
 }
 
 // ── Clock ──
@@ -263,23 +385,10 @@ function isDark(): boolean {
 }
 
 function openCustomizeChrome(): void {
-  const chrome = (globalThis as Record<string, unknown>).chrome as
-    | {
-        send?: (command: string) => void;
-      }
-    | undefined;
-
-  // Open Chrome's native Customize side panel.
-  // The .top-chrome URL is handled by the browser to open as a side panel.
-  if (chrome?.send) {
-    try {
-      chrome.send("openCustomizeChrome");
-      return;
-    } catch {
-      // Fall through
-    }
+  // Open Chrome's native Customize side panel via SidePanelUI::Show().
+  if ((globalThis as any).chrome?.send) {
+    (globalThis as any).chrome.send("openCustomizeChrome");
   }
-  window.open("chrome://customize-chrome-side-panel.top-chrome/");
 }
 
 // ── Search Engine ──
@@ -701,6 +810,106 @@ function applyWidgetVisibility(): void {
   }
 }
 
+// ── Widget Drag Reorder ──
+
+let draggedWidgetId: WidgetId | null = null;
+
+/** Reorder widget DOM elements to match settings.widgetOrder. */
+function applyWidgetOrder(): void {
+  for (const id of settings.widgetOrder) {
+    const el = document.getElementById(id);
+    if (el) widgetGrid.insertBefore(el, sitesContainer);
+  }
+}
+
+/** Set draggable attribute on all reorderable widgets. */
+function initWidgetDrag(): void {
+  for (const id of REORDERABLE_WIDGETS) {
+    const el = document.getElementById(id);
+    if (el) el.draggable = true;
+  }
+
+  widgetGrid.addEventListener("dragstart", onWidgetDragStart);
+  widgetGrid.addEventListener("dragend", onWidgetDragEnd);
+  widgetGrid.addEventListener("dragover", onWidgetDragOver);
+  widgetGrid.addEventListener("dragleave", onWidgetDragLeave);
+  widgetGrid.addEventListener("drop", onWidgetDrop);
+}
+
+function onWidgetDragStart(e: DragEvent): void {
+  // Don't initiate widget drag from interactive elements
+  const origin = document.elementFromPoint(e.clientX, e.clientY);
+  if (origin?.closest("textarea, input, select, [contenteditable]")) {
+    e.preventDefault();
+    return;
+  }
+
+  const widget = (e.target as HTMLElement).closest<HTMLDivElement>("[data-widget-id]");
+  if (!widget?.dataset.widgetId || !e.dataTransfer) return;
+
+  draggedWidgetId = widget.dataset.widgetId as WidgetId;
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", draggedWidgetId);
+
+  requestAnimationFrame(() => widget.classList.add("widget-dragging"));
+}
+
+function onWidgetDragEnd(e: DragEvent): void {
+  const widget = (e.target as HTMLElement).closest<HTMLDivElement>("[data-widget-id]");
+  widget?.classList.remove("widget-dragging");
+
+  for (const id of REORDERABLE_WIDGETS) {
+    document.getElementById(id)?.classList.remove("widget-drag-over");
+  }
+  draggedWidgetId = null;
+}
+
+function onWidgetDragOver(e: DragEvent): void {
+  if (!draggedWidgetId) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+
+  const target = (e.target as HTMLElement).closest<HTMLDivElement>("[data-widget-id]");
+  if (!target || target.dataset.widgetId === draggedWidgetId) return;
+
+  // Highlight only the current drop target
+  for (const id of REORDERABLE_WIDGETS) {
+    const el = document.getElementById(id);
+    if (el && el !== target) el.classList.remove("widget-drag-over");
+  }
+  target.classList.add("widget-drag-over");
+}
+
+function onWidgetDragLeave(e: DragEvent): void {
+  const target = (e.target as HTMLElement).closest<HTMLDivElement>("[data-widget-id]");
+  if (target && !target.contains(e.relatedTarget as Node)) {
+    target.classList.remove("widget-drag-over");
+  }
+}
+
+function onWidgetDrop(e: DragEvent): void {
+  e.preventDefault();
+  const target = (e.target as HTMLElement).closest<HTMLDivElement>("[data-widget-id]");
+  if (!target || !draggedWidgetId) return;
+
+  const targetId = target.dataset.widgetId as WidgetId;
+  if (targetId === draggedWidgetId) return;
+
+  const order = [...settings.widgetOrder];
+  const fromIdx = order.indexOf(draggedWidgetId);
+  const toIdx = order.indexOf(targetId);
+  if (fromIdx === -1 || toIdx === -1) return;
+
+  // Move the dragged widget to the target's position
+  order.splice(fromIdx, 1);
+  order.splice(toIdx, 0, draggedWidgetId);
+
+  settings.widgetOrder = order;
+  saveSettings();
+  applyWidgetOrder();
+  target.classList.remove("widget-drag-over");
+}
+
 function syncToggleSwitches(): void {
   const toggles = document.querySelectorAll<HTMLDivElement>(".toggle-switch");
   for (const toggle of toggles) {
@@ -829,45 +1038,135 @@ function handleKeyboard(e: KeyboardEvent): void {
 // ── Alia Integration ──
 
 function openAlia(): void {
-  const chrome = (globalThis as Record<string, unknown>).chrome as
-    | {
-        runtime?: {
-          sendMessage(msg: unknown): void;
-        };
-      }
-    | undefined;
-
-  // Open Alia AI side panel via browser's SidePanelUI
-  const cr = (globalThis as Record<string, unknown>).chrome as
-    | { send?: (command: string) => void }
-    | undefined;
-  if (cr?.send) {
-    cr.send("openAliaSidePanel");
+  // Open Alia AI side panel via SidePanelUI::Show().
+  if ((globalThis as any).chrome?.send) {
+    (globalThis as any).chrome.send("openAliaSidePanel");
   }
 }
 
 // ── Blocked Count ──
+//
+// The lifetime count of ads/trackers blocked by Astro's built-in ad blocker
+// is stored in PrefService (oxy.adblock.lifetime_blocked_count) and pushed
+// to the NTP via chrome.send + cr.addWebUIListener. The C++ side is in
+// src/chrome/browser/oxy/webui/astro_ntp_ui.cc (AstroNtpHandler::
+// HandleGetBlockedCount / OnBlockedCountChanged).
 
-function updateBlockedCount(): void {
-  const count = parseInt(
-    localStorage.getItem("astro-blocked-count") || "0",
-    10,
-  );
-  if (blockedCount) {
-    blockedCount.textContent = `${count.toLocaleString()} ads and trackers blocked`;
+function renderBlockedCount(count: number): void {
+  if (!blockedCount) return;
+  blockedCount.textContent =
+    `${count.toLocaleString()} ads and trackers blocked`;
+}
+
+function requestBlockedCount(): void {
+  const g = globalThis as Record<string, unknown>;
+  const cr = g.cr as {
+    addWebUIListener?: (
+      event: string,
+      callback: (...args: unknown[]) => void,
+    ) => void;
+  } | undefined;
+  if (cr?.addWebUIListener) {
+    cr.addWebUIListener("onBlockedCount", (count: unknown) => {
+      if (typeof count === "number") {
+        renderBlockedCount(count);
+      }
+    });
+  }
+  const chrome = g.chrome as { send?: (msg: string) => void } | undefined;
+  if (chrome?.send) {
+    chrome.send("getBlockedCount");
+  } else {
+    // Vite dev fallback: no browser bridge available, render zero.
+    renderBlockedCount(0);
+  }
+}
+
+// ── Widget Prefs from PrefService ──
+// The NTP and Settings pages run on different origins (chrome://astro-ntp vs
+// chrome://settings), so localStorage isn't shared. Widget visibility prefs
+// are the source of truth in PrefService. We request them via chrome.send()
+// and the C++ AstroNtpHandler calls back via onWidgetPrefs().
+
+interface WidgetPrefs {
+  weather: boolean;
+  clock: boolean;
+  quickLinks: boolean;
+  notes: boolean;
+  sites: boolean;
+  discover: boolean;
+  alia: boolean;
+}
+
+function onWidgetPrefs(prefs: WidgetPrefs): void {
+  settings.widgets.weather = prefs.weather;
+  settings.widgets.clock = prefs.clock;
+  settings.widgets["quick-links"] = prefs.quickLinks;
+  settings.widgets.notes = prefs.notes;
+  settings.widgets.sites = prefs.sites;
+  settings.widgets.discover = prefs.discover;
+  settings.widgets.alia = prefs.alia;
+
+  applyWidgetVisibility();
+  syncToggleSwitches();
+
+  // If weather was just enabled and we haven't fetched yet, fetch now
+  if (prefs.weather && weatherTemp.textContent === "") {
+    fetchWeather();
+  }
+}
+
+function requestWidgetPrefs(): void {
+  // 1. Read initial prefs injected by C++ into the HTML data attribute.
+  const raw = document.documentElement.dataset.ntpPrefs;
+  if (raw) {
+    try {
+      onWidgetPrefs(JSON.parse(raw) as WidgetPrefs);
+    } catch {
+      // Invalid JSON — use defaults
+    }
+  }
+
+  // 2. Listen for live updates when prefs change (e.g., user toggles in settings).
+  //    Uses the cr.webUIListenerCallback polyfill we set up above.
+  const g = globalThis as Record<string, unknown>;
+  const cr = g.cr as {
+    addWebUIListener?: (event: string, callback: (...args: unknown[]) => void) => void;
+  } | undefined;
+  if (cr?.addWebUIListener) {
+    cr.addWebUIListener("onWidgetPrefs",
+      (weather: boolean, clock: boolean, quickLinks: boolean,
+       notes: boolean, sites: boolean, discover: boolean, alia: boolean) => {
+        onWidgetPrefs({ weather, clock, quickLinks, notes, sites, discover, alia });
+      });
+  }
+
+  // 3. Trigger chrome.send to activate the pref watcher + get initial values.
+  const chrome = g.chrome as { send?: (msg: string) => void } | undefined;
+  if (chrome?.send) {
+    chrome.send("getWidgetPrefs");
   }
 }
 
 // ── Init ──
 
+// Connect to the browser's Mojo PageHandler for theme updates.
+// Fire-and-forget: the NTP renders fine without it (e.g. during Vite dev).
+initNtpMojo();
+
+// Request widget visibility prefs from PrefService (overrides localStorage).
+requestWidgetPrefs();
+
+applyWidgetOrder();
+initWidgetDrag();
 updateClock();
 applySearchEngine();
-applyWidgetVisibility();
+// Widget visibility is applied by requestWidgetPrefs() above.
 loadNotes();
 renderQuickLinks();
 loadSites();
 loadDiscover();
-updateBlockedCount();
+requestBlockedCount();
 
 if (settings.widgets.weather) {
   fetchWeather();
@@ -875,7 +1174,6 @@ if (settings.widgets.weather) {
 
 // Update timers
 setInterval(updateClock, 10_000);
-setInterval(updateBlockedCount, 5_000);
 
 // ── Event Listeners ──
 

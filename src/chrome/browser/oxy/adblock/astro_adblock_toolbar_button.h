@@ -9,6 +9,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 
 namespace oxy::adblock {
 
@@ -21,6 +22,7 @@ class AstroAdBlockToolbarButton
     : public ToolbarButton,
       public AstroAdBlockTabHelper::Observer,
       public TabStripModelObserver {
+  METADATA_HEADER(AstroAdBlockToolbarButton, ToolbarButton)
  public:
   explicit AstroAdBlockToolbarButton(Browser* browser);
   ~AstroAdBlockToolbarButton() override;

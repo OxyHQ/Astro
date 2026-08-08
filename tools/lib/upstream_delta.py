@@ -43,6 +43,27 @@ excluded from caps and from the removal rule. Patch application legitimately
 shifts blank lines when hunks abut, and a blank line can neither express a hook
 nor strip a feature. The counts are printed so the exclusion is visible.
 
+REMOVED LINES, AND THE TWO WAYS ONE MAY BE ACCOUNTED FOR
+--------------------------------------------------------
+No shape permits removing an upstream line and no attribute can grant one; that
+is unchanged. What the allowlist can now carry is a declaration of the
+exception, one line at a time:
+
+* `substitute` declares a literal and the macro it was recomposed into. It
+  accounts for a removed line only when applying that replacement yields a line
+  ACTUALLY PRESENT among the added lines, so it pairs a removal with its
+  recomposed form rather than blessing it — a removal that merely deleted the
+  literal matches nothing and is refused exactly as before. Its `guard` line,
+  the `#define` giving the macro its default, must be among the additions too.
+  A paired addition does not count against max-added: a recomposed upstream
+  line is the same line, not new surface.
+* `remove` blesses one exact line, matched on content in a multiset, for the
+  removals no substitution can pair — an assertion or a literal branch replaced
+  by a generic test.
+
+Both are joined in both directions, so neither can rot into a permission nobody
+is using, and both require a live entry for the same path.
+
 The one permissive edge of content matching, stated rather than left to be
 discovered: if a DECLARED patch is not actually applied, and the integration
 independently adds a line byte-identical to one that patch declares for the same
@@ -95,6 +116,29 @@ LIVE_SHAPES = {
 PLANNED_SHAPE = "planned"
 REQUIRED_ATTRIBUTES = ("owner", "issue", "max-added")
 
+# The two directives that DECLARE a removal, and the attributes each requires.
+#
+# A removal is the one thing no shape may express, and that stays true: these do
+# not relax the rule, they name the exceptions one line at a time so that an
+# UNDECLARED removal still fails. `remove` blesses one exact upstream line;
+# `substitute` blesses none, and instead PROVES that every line it accounts for
+# reappears among the added lines with a literal replaced by a macro — a
+# mechanical behaviour-preservation argument rather than an asserted one.
+REMOVE_DIRECTIVE = "remove"
+SUBSTITUTE_DIRECTIVE = "substitute"
+DIRECTIVES = (REMOVE_DIRECTIVE, SUBSTITUTE_DIRECTIVE)
+
+# Everything after the first `|` on a directive line is the upstream line, byte
+# for byte: no comment stripping, no whitespace trimming. Upstream C++ contains
+# `#`, `"`, leading indentation and trailing `;`, and a declaration that cannot
+# hold them exactly is a declaration that matches the wrong line.
+VERBATIM_MARKER = "|"
+
+# The continuation lines a `substitute` record carries, in this order. Fixed
+# rather than free-form so a record cannot be half-written: a `from` with no
+# `to` would substitute a literal for nothing.
+SUBSTITUTE_FIELDS = ("from", "to", "guard")
+
 # A reference to the //astro module, in any of the four syntaxes the hooks use:
 # a GN label (//astro:x or //astro/x), a C++ include path ("astro/...), a call
 # into the astro:: namespace, and a checkdeps include rule ("+astro").
@@ -118,11 +162,51 @@ SHAPE_SYNTAX = {
     "include-rule": re.compile(r'^\s*"\+[A-Za-z0-9_./-]+",?\s*$'),
     # A GN list element, or the import()/list syntax around one.
     "gn-append": re.compile(r'^\s*(?:"[^"]*",?|import\("[^"]*"\)|\S+\s*\+?=\s*\[|\]\s*,?)\s*$'),
-    # An include of an astro/ header, or a statement naming the astro::
-    # namespace. Checked in addition to the module-reference requirement, so a
-    # call-hook cannot smuggle in a GN label that happens to say //astro.
-    "call-hook": re.compile(r'^\s*(?:#include\s+"astro/[^"]*"|.*\bastro::.*)$'),
 }
+
+# A LINE COMMENT, per shape's own language. Exempt from the syntax check and
+# from the per-line module-reference requirement, for the same reason a
+# whitespace-only line is exempt from the cap: a comment can neither express a
+# hook nor strip a feature. Unlike whitespace it still COUNTS against
+# max-added, because 200 lines of commentary in an upstream file is surface
+# somebody has to maintain, and the cap is what bounds surface.
+#
+# Written per shape rather than as one pattern because C++'s `#` is the
+# PREPROCESSOR: a single `^\s*#` rule would classify `#include "astro/..."` —
+# the most load-bearing line a call-hook has — as a comment and stop checking
+# it. GN has no preprocessor, so `#` there is unambiguous.
+SHAPE_COMMENT = {
+    "include-rule": re.compile(r"^\s*#"),
+    "gn-append": re.compile(r"^\s*#"),
+    "call-hook": re.compile(r"^\s*//"),
+    "embedder-hook": re.compile(r"^\s*//"),
+}
+
+# What a `call-hook` may add besides a reference to //astro.
+#
+# The per-line "every added line must name //astro" rule fitted the two-line
+# hook it was written for — an #include plus a call — and nothing else. An
+# override of an upstream virtual cannot satisfy it: the signature upstream
+# dictates, the parameter it takes and the brace that closes it name no Astro
+# symbol, and never can. Declaring such a file `embedder-hook` to escape the
+# rule would be worse, because that shape has no per-line rule at all.
+#
+# So the rule moves from every line to the BLOCK — at least one added line must
+# name //astro, which is checked separately and is what stops a `call-hook`
+# from becoming a licence to add scaffolding to a Chromium file — and the
+# remaining lines must be scaffolding in this narrow sense: punctuation, a
+# `return` of a literal, or a fragment of a function signature. Deliberately no
+# statement, no condition, no call, no string literal; `LOG(WARNING) << "..."`,
+# `std::string all;` and `if (i != data_sources_.end())` are all rejected by it,
+# which was checked rather than assumed.
+CALL_HOOK_SCAFFOLD = re.compile(
+    r"^\s*(?:"
+    r"[{}()\[\];,]+"                                    # punctuation alone
+    r"|return\s+(?:true|false|nullptr);"                # the value a hook returns
+    r"|(?:[A-Za-z_][\w:]*[\s*&]+)*[A-Za-z_][\w:]*\("    # `void Class::Method(`
+    r"|[A-Za-z_][\w:<>,*&\[\]\s]*\)\s*(?:const\s*)?(?:override\s*)?[;{]"  # `Type* p) override;`
+    r")\s*$"
+)
 
 
 class DeltaError(Exception):
@@ -396,7 +480,214 @@ class Entry:
         return LIVE_SHAPES.get(self.shape, False)
 
 
-def load_allowlist(path: Path) -> dict[str, Entry]:
+class Removal:
+    """One exact upstream line the integration is permitted to remove.
+
+    The line is held verbatim and matched by exact content, in a multiset:
+    declaring a line once permits it to be removed once. Anything else would
+    let one declaration cover a whole family of similar lines, and "similar" is
+    precisely the judgement this file exists to take away from whoever is in a
+    hurry.
+    """
+
+    def __init__(self, path: str, line: str, attributes: dict[str, str], number: int):
+        self.path = path
+        self.line = line
+        self.reason = attributes["reason"]
+        self.issue = attributes["issue"]
+        self.number = number
+
+
+class Substitution:
+    """A literal replaced by a macro, and the proof that nothing else changed.
+
+    `from` and `to` are held verbatim. A removed line is accounted for by this
+    record only when replacing `from` with `to` in it yields a line that is
+    ACTUALLY PRESENT among the added lines — so the record cannot bless a
+    removal on its own, only pair one with its recomposed form.
+
+    `guard` is the `#define` that gives the macro its default. It must appear
+    among the added lines, which is what separates "the literal moved behind a
+    macro that still expands to it" from "the literal left the file and the
+    macro is supplied from somewhere else entirely".
+    """
+
+    def __init__(
+        self, path: str, fields: dict[str, str], attributes: dict[str, str], number: int
+    ):
+        self.path = path
+        self.source = fields["from"]
+        self.target = fields["to"]
+        self.guard = fields["guard"]
+        self.reason = attributes["reason"]
+        self.issue = attributes["issue"]
+        self.number = number
+        self.matched = 0
+
+    @property
+    def macro(self) -> str:
+        """The macro name `to` introduces, for reporting."""
+        return self.target.strip().split()[0] if self.target.strip() else self.target
+
+
+class Allowlist:
+    """tools/upstream.allowlist, parsed: entries plus the removal declarations."""
+
+    def __init__(self) -> None:
+        self.entries: dict[str, Entry] = {}
+        self.removals: dict[str, list[Removal]] = collections.defaultdict(list)
+        self.substitutions: dict[str, list[Substitution]] = collections.defaultdict(list)
+
+    def substitutions_for(self, path: str) -> list[Substitution]:
+        """Longest `from` first, so overlapping literals cannot mis-apply.
+
+        `u"chrome://` and `"chrome://` both match the same text; applying the
+        shorter one first turns `u"chrome://about/"` into
+        `uCHROME_UI_URL_PREFIX "about/"`, which matches no added line and would
+        report a real refactor as an undeclared removal. Length order makes the
+        result independent of the order somebody wrote the records in.
+        """
+        return sorted(
+            self.substitutions.get(path, []), key=lambda item: -len(item.source)
+        )
+
+    def substitute(self, path: str, line: str) -> str:
+        for substitution in self.substitutions_for(path):
+            line = line.replace(substitution.source, substitution.target)
+        return line
+
+
+def parse_verbatim(path: Path, number: int, raw: str) -> tuple[list[str], str]:
+    """Split a directive line into its tokens and its verbatim tail.
+
+    Comments are NOT stripped here, and the tail is not trimmed. The tail is an
+    upstream source line; `#`, quotes, indentation and trailing semicolons are
+    its content, not syntax this file gets to interpret.
+    """
+    if VERBATIM_MARKER not in raw:
+        raise DeltaError(
+            "{}:{}: a {} record needs a '{}' followed by the exact upstream "
+            "line".format(path, number, raw.split()[0], VERBATIM_MARKER)
+        )
+    head, _, tail = raw.partition(VERBATIM_MARKER)
+    return head.split(), tail
+
+
+def parse_attributes(
+    path: Path, number: int, label: str, tokens: list[str], required: tuple[str, ...]
+) -> dict[str, str]:
+    """Parse `key=value` tokens, naming the record's own kind on failure.
+
+    `label` is the shape or directive the line declares. It is in the message
+    because "entries require owner=" tells the reader which line to look at in a
+    file where four different record kinds require different attributes.
+    """
+    attributes: dict[str, str] = {}
+    for token in tokens:
+        if "=" not in token:
+            raise DeltaError(
+                "{}:{}: attribute '{}' is not key=value".format(path, number, token)
+            )
+        key, value = token.split("=", 1)
+        attributes[key] = value
+    for name in required:
+        if not attributes.get(name):
+            raise DeltaError(
+                "{}:{}: {} entries require {}=<value>".format(
+                    path, number, label, name
+                )
+            )
+    return attributes
+
+
+def parse_directive(
+    path: Path, number: int, lines: list[str], allowlist: Allowlist
+) -> int:
+    """Read one `remove` or `substitute` record. Returns the next line index.
+
+    `number` is the record's own 1-based line number, which is also the 0-based
+    index of the line after it — the continuation lines a `substitute` record
+    needs are read from there.
+    """
+    raw = lines[number - 1]
+    # A `remove` record carries the upstream line on this same line; a
+    # `substitute` header carries none, because its literals need three lines of
+    # their own. Only the first is read verbatim, so a header that has acquired
+    # a stray `|` is a parse error rather than a silently truncated record.
+    if raw.strip().split(" ", 1)[0] == REMOVE_DIRECTIVE:
+        tokens, verbatim = parse_verbatim(path, number, raw)
+    else:
+        tokens, verbatim = raw.split(), ""
+    directive, target, rest = tokens[0], (tokens[1] if len(tokens) > 1 else ""), tokens[2:]
+
+    if not target or target.startswith("/") or ".." in target.split("/"):
+        raise DeltaError(
+            "{}:{}: {} needs a relative path free of '..', got {!r}".format(
+                path, number, directive, target
+            )
+        )
+
+    if directive == REMOVE_DIRECTIVE:
+        attributes = parse_attributes(path, number, directive, rest, ("issue", "reason"))
+        if not verbatim.strip():
+            raise DeltaError(
+                "{}:{}: this remove record declares a blank line. Whitespace is "
+                "already excluded from the removal rule; a record for it would "
+                "match nothing and go stale immediately.".format(path, number)
+            )
+        allowlist.removals[target].append(
+            Removal(target, verbatim, attributes, number)
+        )
+        return number
+
+    attributes = parse_attributes(path, number, directive, rest, ("issue", "reason"))
+    if VERBATIM_MARKER in raw:
+        raise DeltaError(
+            "{}:{}: a substitute header carries no verbatim text; its literals "
+            "go on the {} continuation lines below it.".format(
+                path, number, "/".join(SUBSTITUTE_FIELDS)
+            )
+        )
+
+    fields: dict[str, str] = {}
+    index = number
+    for expected in SUBSTITUTE_FIELDS:
+        if index >= len(lines):
+            raise DeltaError(
+                "{}:{}: the substitute record ends before its `{}` line".format(
+                    path, number, expected
+                )
+            )
+        continuation = lines[index]
+        index += 1
+        keyword = continuation.strip().split(VERBATIM_MARKER, 1)[0].strip()
+        if keyword != expected:
+            raise DeltaError(
+                "{}:{}: expected a `{}` line here, got {!r}. A substitute record "
+                "is {} in this order, so a half-written one cannot parse.".format(
+                    path, index, expected, continuation.strip()[:60],
+                    "/".join(SUBSTITUTE_FIELDS),
+                )
+            )
+        _, literal = parse_verbatim(path, index, continuation)
+        if not literal:
+            raise DeltaError(
+                "{}:{}: the `{}` literal is empty".format(path, index, expected)
+            )
+        fields[expected] = literal
+
+    if fields["from"] == fields["to"]:
+        raise DeltaError(
+            "{}:{}: this substitution replaces a literal with itself, so it "
+            "proves nothing".format(path, number)
+        )
+    allowlist.substitutions[target].append(
+        Substitution(target, fields, attributes, number)
+    )
+    return index
+
+
+def load_allowlist(path: Path) -> Allowlist:
     """Parse tools/upstream.allowlist, or die naming the offending line.
 
     Every rejection here is one the overlay allowlist's parser already makes,
@@ -407,8 +698,21 @@ def load_allowlist(path: Path) -> dict[str, Entry]:
     if not path.is_file():
         raise DeltaError("upstream allowlist not found: {}".format(path))
 
-    entries: dict[str, Entry] = {}
-    for number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    allowlist = Allowlist()
+    entries = allowlist.entries
+    lines = path.read_text(encoding="utf-8").splitlines()
+    number = 0
+    while number < len(lines):
+        raw = lines[number]
+        number += 1
+
+        # Directive lines are read BEFORE comment stripping, because their tail
+        # is an upstream source line and `#` is content there.
+        directive = raw.strip().split(" ", 1)[0] if raw.strip() else ""
+        if directive in DIRECTIVES:
+            number = parse_directive(path, number, lines, allowlist)
+            continue
+
         line = raw.split("#", 1)[0].strip()
         if not line:
             continue
@@ -436,21 +740,7 @@ def load_allowlist(path: Path) -> dict[str, Entry]:
                 )
             )
 
-        attributes: dict[str, str] = {}
-        for token in rest:
-            if "=" not in token:
-                raise DeltaError(
-                    "{}:{}: attribute '{}' is not key=value".format(path, number, token)
-                )
-            key, value = token.split("=", 1)
-            attributes[key] = value
-        for required in REQUIRED_ATTRIBUTES:
-            if not attributes.get(required):
-                raise DeltaError(
-                    "{}:{}: {} entries require {}=<value>".format(
-                        path, number, shape, required
-                    )
-                )
+        attributes = parse_attributes(path, number, shape, rest, REQUIRED_ATTRIBUTES)
         if not attributes["max-added"].isdigit():
             raise DeltaError(
                 "{}:{}: max-added must be a non-negative integer, got '{}'".format(
@@ -465,7 +755,43 @@ def load_allowlist(path: Path) -> dict[str, Entry]:
             "permissive default: without this the gate reports 'no violations' "
             "for a file it never managed to read.".format(path)
         )
-    return entries
+
+    # A removal declaration attached to nothing is how the mechanism would
+    # become a second, weaker allowlist: it would permit a removal in a file
+    # whose additions nobody capped, whose owner nobody named and whose shape
+    # nobody reviewed. So it must sit beside a LIVE entry for the same path.
+    for declarations in (allowlist.removals, allowlist.substitutions):
+        for target, records in declarations.items():
+            entry = entries.get(target)
+            if entry is None or entry.planned:
+                raise DeltaError(
+                    "{}:{}: {} declares a removal in {}, which has {} in this "
+                    "file. A removal is only reviewable beside the entry that "
+                    "caps and owns the file's additions.".format(
+                        path,
+                        records[0].number,
+                        records[0].__class__.__name__.lower(),
+                        target,
+                        "no entry" if entry is None else "only a `planned` entry",
+                    )
+                )
+
+    # A substitution whose replacement contains another's pattern would make
+    # the result depend on the order the two were applied in, and the order is
+    # not something a reader of this file should have to simulate.
+    for target, records in allowlist.substitutions.items():
+        for record in records:
+            for other in records:
+                if other.source and other.source in record.target:
+                    raise DeltaError(
+                        "{}:{}: the replacement for {!r} contains {!r}, which "
+                        "another substitution for {} also replaces. Substitution "
+                        "would not be confluent.".format(
+                            path, record.number, record.source, other.source, target
+                        )
+                    )
+
+    return allowlist
 
 
 # ---------------------------------------------------------------------------
@@ -480,6 +806,12 @@ class FileDelta:
         self.removed: list[str] = []
         self.whitespace_added = 0
         self.whitespace_removed = 0
+        # Filled in by judge(): the lines a declared substitution paired off,
+        # which are excluded from the cap because a recomposed upstream line is
+        # the SAME line, not new surface. Reported so the exclusion is visible
+        # rather than silent, exactly as the whitespace counts are.
+        self.substituted = 0
+        self.counted_added = len(self.added)
 
     @property
     def has_delta(self) -> bool:
@@ -490,6 +822,8 @@ class FileDelta:
             "path": self.path,
             "added": len(self.added),
             "removed": len(self.removed),
+            "counted_added": self.counted_added,
+            "substituted": self.substituted,
             "whitespace_added": self.whitespace_added,
             "whitespace_removed": self.whitespace_removed,
             "added_lines": self.added,
@@ -621,9 +955,9 @@ class Violation:
 # Every floor names the failure it exists for. A check whose pass and whose
 # nothing-was-measured look identical is worse than no check: `gn gen` failing
 # and `gn check` then reporting "0 errors" is the same shape, and is finding §7.
-def vacuity_floors(measurement: Measurement, entries: dict[str, Entry]) -> list[Violation]:
+def vacuity_floors(measurement: Measurement, allowlist: Allowlist) -> list[Violation]:
     violations: list[Violation] = []
-    live = [entry for entry in entries.values() if not entry.planned]
+    live = [entry for entry in allowlist.entries.values() if not entry.planned]
 
     if not live:
         violations.append(
@@ -678,8 +1012,74 @@ def vacuity_floors(measurement: Measurement, entries: dict[str, Entry]) -> list[
     return violations
 
 
-def judge(measurement: Measurement, entries: dict[str, Entry]) -> list[Violation]:
-    violations = vacuity_floors(measurement, entries)
+def pair_substitutions(
+    allowlist: Allowlist, delta: FileDelta
+) -> tuple[list[str], collections.Counter, list[Substitution]]:
+    """Pair each removed line with its recomposed form among the added lines.
+
+    Returns the removals nothing accounted for, the added lines that were NOT
+    the image of one, and the substitutions that fired.
+
+    The pairing is what makes this a proof rather than a permission. A record
+    accounts for a removal only when the substituted line is present as an
+    addition, so a removal that simply DELETED the literal — the shape the
+    whole rule exists to catch — matches nothing and is reported exactly as if
+    no record existed.
+    """
+    records = allowlist.substitutions_for(delta.path)
+    available = collections.Counter(delta.added)
+    unpaired: list[str] = []
+    fired: list[Substitution] = []
+
+    for line in delta.removed:
+        image = line
+        used: list[Substitution] = []
+        for record in records:
+            if record.source in image:
+                image = image.replace(record.source, record.target)
+                used.append(record)
+        if used and image != line and available[image] > 0:
+            available[image] -= 1
+            for record in used:
+                record.matched += 1
+                if record not in fired:
+                    fired.append(record)
+        else:
+            unpaired.append(line)
+
+    return unpaired, available, fired
+
+
+def offending_added_lines(entry: Entry, added: list[str]) -> list[str]:
+    """Added lines that do not have the shape the entry declares.
+
+    Line comments are exempt (they express nothing), and `call-hook` judges the
+    block rather than each line — see CALL_HOOK_SCAFFOLD for why an override of
+    an upstream virtual cannot satisfy a per-line rule.
+    """
+    comment = SHAPE_COMMENT.get(entry.shape)
+    syntax = SHAPE_SYNTAX.get(entry.shape)
+    offending: list[str] = []
+
+    for line in added:
+        if comment is not None and comment.match(line):
+            continue
+        if entry.shape == "call-hook":
+            if ASTRO_MODULE_REFERENCE.search(line) or CALL_HOOK_SCAFFOLD.match(line):
+                continue
+            offending.append(line)
+            continue
+        if entry.requires_module_reference and not ASTRO_MODULE_REFERENCE.search(line):
+            offending.append(line)
+            continue
+        if syntax is not None and syntax.match(line) is None:
+            offending.append(line)
+    return offending
+
+
+def judge(measurement: Measurement, allowlist: Allowlist) -> list[Violation]:
+    entries = allowlist.entries
+    violations = vacuity_floors(measurement, allowlist)
 
     for path, delta in sorted(measurement.deltas.items()):
         entry = entries.get(path)
@@ -722,33 +1122,120 @@ def judge(measurement: Measurement, entries: dict[str, Entry]) -> list[Violation
             )
             continue
 
-        # A removal is never permitted, by any shape, and no attribute can
-        # grant one. 007-oxy-auth-build-hook.patch was 7 added lines against 36
+        # A removal is never permitted by a SHAPE, and no attribute can grant
+        # one. 007-oxy-auth-build-hook.patch was 7 added lines against 36
         # removed, and what those 36 removed was Safe Browsing notification
         # content detection, accessibility, Screen AI and the dangerous-download
         # UI. It would have passed a path-only allowlist without comment.
-        if delta.removed:
+        #
+        # The two ways a removal may be accounted for are declarations of the
+        # exact line, one at a time, reviewed beside the entry that owns the
+        # file: `substitute`, which pairs the removal with its recomposed form
+        # among the additions, and `remove`, which blesses one line outright.
+        # Neither widens a shape; both are subtracted here and whatever is left
+        # is the same refusal as before.
+        unpaired, remaining_added, fired = pair_substitutions(allowlist, delta)
+        delta.substituted = len(delta.removed) - len(unpaired)
+        counted_added = sorted(remaining_added.elements())
+        delta.counted_added = len(counted_added)
+
+        declared = collections.Counter(
+            record.line for record in allowlist.removals.get(path, [])
+        )
+        undeclared_removed = sorted((collections.Counter(unpaired) - declared).elements())
+        unused_declarations = collections.Counter(declared) - collections.Counter(unpaired)
+
+        if undeclared_removed:
             violations.append(
                 Violation(
                     "removal",
                     path,
                     [
-                        "{} upstream line(s) removed. No shape permits this, and "
-                        "no attribute can grant it.".format(len(delta.removed)),
+                        "{} upstream line(s) removed that nothing declares. No "
+                        "shape permits this, and no attribute can grant it.".format(
+                            len(undeclared_removed)
+                        ),
                         "Owner: {}, issue #{}.".format(entry.owner, entry.issue),
+                        "Declare each one in tools/upstream.allowlist with a "
+                        "`remove` record carrying its reason, or with a "
+                        "`substitute` record that pairs it with the line it was "
+                        "recomposed into.",
                     ]
-                    + ["  - " + line for line in delta.removed],
+                    + ["  - " + line for line in undeclared_removed],
                 )
             )
 
-        if len(delta.added) > entry.max_added:
+        # The other direction. A removal declaration whose line is no longer
+        # removed is a standing permission nobody is using, and it would silently
+        # pre-authorise that line's removal for whoever touches the file next.
+        if unused_declarations:
+            violations.append(
+                Violation(
+                    "stale-removal",
+                    path,
+                    [
+                        "{} `remove` declaration(s) name a line the integration "
+                        "no longer removes:".format(sum(unused_declarations.values())),
+                    ]
+                    + ["  - " + line for line in sorted(unused_declarations.elements())]
+                    + [
+                        "Delete the declaration in the same change that stopped "
+                        "removing the line."
+                    ],
+                )
+            )
+
+        for record in allowlist.substitutions.get(path, []):
+            if record not in fired:
+                violations.append(
+                    Violation(
+                        "stale-substitution",
+                        path,
+                        [
+                            "the substitution declared at "
+                            "tools/upstream.allowlist:{} paired nothing.".format(
+                                record.number
+                            ),
+                            "  from |{}".format(record.source),
+                            "  to   |{}".format(record.target),
+                            "Either the refactor was undone, or the recomposed "
+                            "lines are not in the file it names. A record that "
+                            "matches nothing checks nothing.",
+                        ],
+                    )
+                )
+                continue
+            if record.guard not in delta.added:
+                violations.append(
+                    Violation(
+                        "substitution-guard",
+                        path,
+                        [
+                            "{} accounted for {} removed line(s), but the "
+                            "`#define` giving {} its default is not among the "
+                            "added lines:".format(
+                                "the substitution at tools/upstream.allowlist:{}".format(
+                                    record.number
+                                ),
+                                record.matched,
+                                record.macro,
+                            ),
+                            "  guard |{}".format(record.guard),
+                            "Without it the literal has left the file and the "
+                            "macro is supplied from somewhere else entirely, "
+                            "which is a behaviour change and not a refactor.",
+                        ],
+                    )
+                )
+
+        if delta.counted_added > entry.max_added:
             violations.append(
                 Violation(
                     "cap",
                     path,
                     [
                         "{} added line(s) against a declared max-added of {}.".format(
-                            len(delta.added), entry.max_added
+                            delta.counted_added, entry.max_added
                         ),
                         "Owner: {}, issue #{}, declared at "
                         "tools/upstream.allowlist:{}.".format(
@@ -759,19 +1246,29 @@ def judge(measurement: Measurement, entries: dict[str, Entry]) -> list[Violation
                 )
             )
 
-        offending = [
-            line
-            for line in delta.added
-            if entry.requires_module_reference
-            and not ASTRO_MODULE_REFERENCE.search(line)
-        ]
-        syntax = SHAPE_SYNTAX.get(entry.shape)
-        if syntax is not None:
-            offending += [
-                line
-                for line in delta.added
-                if syntax.match(line) is None and line not in offending
-            ]
+        # The block-level floor, and it is new. Every shape that claims to bound
+        # a hook must actually contain one: comments are exempt from the
+        # per-line rule below, so without this an entry whose whole delta is
+        # commentary — or, for a call-hook, scaffolding — passes the shape check
+        # having referenced //astro nowhere.
+        if entry.requires_module_reference and counted_added and not any(
+            ASTRO_MODULE_REFERENCE.search(line) for line in counted_added
+        ):
+            violations.append(
+                Violation(
+                    "shape",
+                    path,
+                    [
+                        "declared `{}`, but not one of its {} added line(s) names "
+                        "the //astro module.".format(entry.shape, len(counted_added)),
+                        "A hook that references nothing is not a hook, and this "
+                        "shape exists to bound one.",
+                    ]
+                    + ["  + " + line for line in counted_added[:8]],
+                )
+            )
+
+        offending = offending_added_lines(entry, counted_added)
         if offending:
             violations.append(
                 Violation(
@@ -850,7 +1347,8 @@ def judge(measurement: Measurement, entries: dict[str, Entry]) -> list[Violation
 # ---------------------------------------------------------------------------
 
 
-def render(measurement: Measurement, entries: dict[str, Entry], violations: list[Violation]) -> str:
+def render(measurement: Measurement, allowlist: Allowlist, violations: list[Violation]) -> str:
+    entries = allowlist.entries
     out: list[str] = []
     out.append("=== Astro downstream delta ===")
     out.append("Chromium checkout : {}".format(measurement.chromium_src))
@@ -876,14 +1374,19 @@ def render(measurement: Measurement, entries: dict[str, Entry], violations: list
 
     out.append("//astro integration delta — what no declaration accounts for:")
     out.append("")
-    out.append("  {:<52} {:>7} {:>7}  {:<14} {:<12} {}".format(
-        "FILE", "+", "-", "SHAPE", "OWNER", "CAP"))
+    # `+` is what the cap judges — added lines that are not the recomposed form
+    # of a removed one. `~` is how many removals a declared substitution paired
+    # off. Showing the raw addition count in the capped column would report a
+    # file as enormous for lines that are the same lines it also removed.
+    out.append("  {:<52} {:>7} {:>7} {:>5}  {:<14} {:<12} {}".format(
+        "FILE", "+", "-", "~", "SHAPE", "OWNER", "CAP"))
     for path, delta in sorted(measurement.deltas.items()):
         entry = entries.get(path)
-        out.append("  {:<52} {:>7} {:>7}  {:<14} {:<12} {}".format(
+        out.append("  {:<52} {:>7} {:>7} {:>5}  {:<14} {:<12} {}".format(
             path,
-            len(delta.added),
+            delta.counted_added,
             len(delta.removed),
+            delta.substituted,
             entry.shape if entry else "UNDECLARED",
             entry.owner if entry else "-",
             entry.max_added if entry else "-",
@@ -896,6 +1399,13 @@ def render(measurement: Measurement, entries: dict[str, Entry], violations: list
         len(measurement.deltas), added, removed))
     out.append("  whitespace-only lines excluded from caps and the removal rule: {}".format(
         whitespace))
+    # Printed unconditionally, including as zero: a reader must be able to see
+    # that nothing was excused rather than infer it from the absence of a line.
+    out.append("  removals paired with their recomposed line by a declared "
+               "substitution: {}".format(
+                   sum(delta.substituted for delta in measurement.deltas.values())))
+    out.append("  removals blessed one line at a time by a `remove` record: {}".format(
+        sum(len(records) for records in allowlist.removals.values())))
 
     planned = [entry for entry in entries.values() if entry.planned]
     if planned:
@@ -934,7 +1444,7 @@ def main(argv: list[str]) -> int:
     arguments = parser.parse_args(argv)
 
     try:
-        entries = load_allowlist(Path(arguments.allowlist))
+        allowlist = load_allowlist(Path(arguments.allowlist))
         measurement = measure(
             Path(arguments.chromium_src),
             arguments.base,
@@ -945,8 +1455,8 @@ def main(argv: list[str]) -> int:
         sys.stderr.write("unmeasurable: {}\n".format(error))
         return 2
 
-    violations = judge(measurement, entries)
-    sys.stdout.write(render(measurement, entries, violations) + "\n")
+    violations = judge(measurement, allowlist)
+    sys.stdout.write(render(measurement, allowlist, violations) + "\n")
 
     if arguments.json:
         document = {

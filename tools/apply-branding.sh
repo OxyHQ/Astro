@@ -329,6 +329,91 @@ if [[ "$ui_installed" -eq 0 ]]; then
 fi
 echo ""
 
+# --- 2c-bis. The DARK-mode WebUI logo -------------------------------------
+#
+# A third logo, on a third mechanism, and the one 2b and 2c both miss.
+#
+# cr-toolbar renders the product mark as a <picture>: the <img> pulls the
+# theme PNG that 2c replaces, but a <source media="(prefers-color-scheme:
+# dark)"> overrides it with a plain SVG file. So a browser branded by the two
+# sections above shows Astro's mark in light mode and Chromium's in dark --
+# measured, in the settings header, on a build where every other logo was
+# already correct. A screenshot in one colour scheme cannot see it.
+echo "=== Installing dark-mode WebUI logo ==="
+
+DARK_LOGO_SRC="$ASTRO_ROOT/branding/astro-logo-dark.svg"
+DARK_LOGO_DEST="$CHROMIUM_SRC/ui/webui/resources/images/chrome_logo_dark.svg"
+
+if [[ ! -f "$DARK_LOGO_SRC" ]]; then
+    echo "  ERROR: missing branding/astro-logo-dark.svg" >&2
+    exit 1
+fi
+# Refuse to invent the destination. A file written where nothing reads it looks
+# installed and renders nowhere -- the same failure 2c exists to document.
+if [[ ! -f "$DARK_LOGO_DEST" ]]; then
+    echo "  ERROR: no upstream file at ui/webui/resources/images/chrome_logo_dark.svg" >&2
+    echo "         cr-toolbar's dark-mode source has moved; find where it now" >&2
+    echo "         reads from rather than creating this path." >&2
+    exit 1
+fi
+if $DRY_RUN; then
+    echo "  [WOULD REPLACE] ui/webui/resources/images/chrome_logo_dark.svg"
+else
+    cp "$DARK_LOGO_SRC" "$DARK_LOGO_DEST"
+    echo "  Replaced ui/webui/resources/images/chrome_logo_dark.svg"
+fi
+echo ""
+
+# --- 2d. Desktop identity: window class and icon name ----------------------
+#
+# What a desktop shows in the task switcher and the dock does not come from any
+# string this script has renamed. It comes from two functions compiled into the
+# binary:
+#
+#   chrome::GetDesktopName()          -> "chromium-browser.desktop"
+#   shell_integration_linux::GetIconName() -> "chromium-browser"
+#
+# The first becomes the window's WM_CLASS, which is why the window manager
+# labels the running browser "Chromium-browser" however thoroughly the .grd
+# files have been rebranded. The second is the icon name the desktop looks up,
+# so the new icon is installed and never used.
+#
+# Both are hard-coded defaults in Chromium's non-branded build, with no build
+# argument to override them -- checked, not assumed.
+echo "=== Updating desktop identity ==="
+
+DESKTOP_ID="${PACKAGE_NAME:-astro-browser}"
+
+CHANNEL_INFO="$CHROMIUM_SRC/chrome/common/channel_info_posix.cc"
+SHELL_INTEGRATION="$CHROMIUM_SRC/chrome/browser/shell_integration_linux.cc"
+
+for f in "$CHANNEL_INFO" "$SHELL_INTEGRATION"; do
+    if [[ ! -f "$f" ]]; then
+        echo "  ERROR: expected source not found: $f" >&2
+        echo "         The desktop identity would silently stay Chromium's." >&2
+        exit 1
+    fi
+done
+
+apply_sed "$CHANNEL_INFO" "s|return \"chromium-browser.desktop\";|return \"${DESKTOP_ID}.desktop\";|"
+apply_sed "$SHELL_INTEGRATION" "s|return \"chromium-browser\";|return \"${DESKTOP_ID}\";|"
+
+if ! $DRY_RUN; then
+    # A sed that matched nothing leaves the browser identifying as Chromium and
+    # reports success, which is exactly the state this section exists to end.
+    for pair in "$CHANNEL_INFO:${DESKTOP_ID}.desktop" "$SHELL_INTEGRATION:${DESKTOP_ID}"; do
+        file="${pair%%:*}"; want="${pair##*:}"
+        if ! grep -q "\"${want}\"" "$file"; then
+            echo "  ERROR: ${file##*/} still does not name ${want}." >&2
+            echo "         Chromium's default has moved; re-read it rather than" >&2
+            echo "         assuming the substitution worked." >&2
+            exit 1
+        fi
+    done
+    echo "  Window class and icon name are now ${DESKTOP_ID}"
+fi
+echo ""
+
 # --- 3. Update Linux package metadata ---
 echo "=== Updating Linux package metadata ==="
 

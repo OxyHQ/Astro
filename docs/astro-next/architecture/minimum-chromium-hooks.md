@@ -115,11 +115,19 @@ to draw.
 GN loads a directory's `BUILD.gn` only when a label *in that directory* is
 referenced. `//astro/browser` refers to the directory `astro/browser`, so it
 loads `astro/browser/BUILD.gn` and **never opens `astro/BUILD.gn` at all**.
-Measured against the synced tree at `out/AstroModule`: `gn ls "//astro/*"`
-returns `//astro/browser:browser`, `//astro/common:astro_schemes` and
-`//astro/common:url_constants`, while `gn ls "//astro:*"` returns **no rows** —
-same command, same build directory, so it discriminates rather than merely
-failing. The module's own roll-up groups do not exist in the graph.
+
+Measured twice against the synced tree at `out/AstroModule`, and **both rows are
+kept on purpose** — the first is no longer true, and deleting it would hide that
+a conclusion's premise expired underneath it:
+
+| When | `gn ls "//astro:*"` | State |
+|---|---|---|
+| before `chrome/browser/BUILD.gn` was modified at 09:54:47 | **no rows** | `astro/BUILD.gn` unloaded; its roll-up groups did not exist |
+| after | `//astro:astro`, `//astro:browser` | loaded; groups exist |
+
+`gn ls "//astro/*"` returned `//astro/browser:browser`,
+`//astro/common:astro_schemes` and `//astro/common:url_constants` throughout, so
+the empty result was a real discrimination and not a broken query.
 
 Two consequences, the second of which is the sharper one:
 
@@ -153,6 +161,29 @@ with the target directly in the graph, so they were vacuous for that question
 and their results were discarded rather than reported. The recommendation above
 rests on upstream precedent plus the silent-acceptance risk, not on a
 demonstration that the group form breaks.
+
+**The resulting duplication in `deps` is load-bearing — do not simplify it.**
+The shape now in the tree lists *both* labels:
+
+```gn
+  allow_circular_includes_from = [ "//astro/browser", ... ]   # :1532
+  deps = [ "//astro:browser", "//astro/browser", ... ]        # :1737-1738
+```
+
+This reads like a redundant edge — `//astro:browser` is a group whose
+`public_deps` already reach `//astro/browser:browser` — and it is not. **GN
+requires every `allow_circular_includes_from` entry to also appear in `deps`.**
+Measured in both directions: with the entry absent from `deps`, `gn gen` exits
+**1** (`targets present in the deps`); with it present, exit **0**. So the
+concrete label is mandatory at this site for as long as the circular allowance
+names it, and the roll-up is what loads `astro/BUILD.gn`. Each line pays for a
+different thing.
+
+Removing either one fails differently, and only one of the two failures is
+loud: dropping `//astro/browser` breaks `gn gen` immediately, while dropping
+`//astro:browser` still builds and silently returns `astro/BUILD.gn` to the
+never-parsed state in the table above. That asymmetry is why this is written
+down rather than left to be re-derived.
 
 ### A2. `chrome/browser/DEPS` — the include rule
 

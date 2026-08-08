@@ -415,6 +415,36 @@ assert_file_contains "$TOOLS/build.sh" 'astro::run_build_step "gn-gen"' \
     "tools/build.sh must record gn gen too; a failed gen writes no build graph"
 assert_file_contains "$TOOLS/build.sh" "tools/verify-build-outcome.sh" \
     "tools/build.sh must re-derive the outcome before it reports completion"
+
+# INVOCATION and DECLARATION are different lines, and the assertion above only
+# covers the first. `tools/verify-build-outcome.sh` appears twice in build.sh —
+# once as an `astro::require_file` gate among the required inputs, once as the
+# command run after the compile — so deleting the gate leaves the substring
+# behind and the assertion above still passes. Measured: with both
+# `astro::require_file` lines removed and the invocation left intact, this whole
+# case exited 0.
+#
+# Nothing else covers it either. The two required-input tables derive their rows
+# from these very lines, so removing a line removes its row rather than failing
+# it — correct for a case that has to follow build.sh across layers, and exactly
+# why the hard-coded half belongs here instead.
+#
+# What is lost without the gate is the fail-fast diagnosis, not the guarantee:
+# astro-common.sh runs under `set -Eeuo pipefail` (unlike harness.sh, which
+# omits -e) and astro::require_build_outcome re-checks the detector at use time,
+# so a missing verifier still stops the build — at exit 127 mid-run rather than
+# a named refusal in the first second.
+# The needles carry no literal `$`: a linter reads one inside single quotes as a
+# failed expansion (SC2016). Pinning the path together with the human-readable
+# label instead is the stronger check anyway — it is the label the two
+# required-input tables assert on, so a label edited on one side and not the
+# other fails here rather than silently making their needles unmatchable.
+assert_file_contains "$TOOLS/build.sh" \
+    '/tools/lib/build_outcome.py" "build outcome detector"' \
+    "tools/build.sh must DECLARE the detector as a required input, not merely use it"
+assert_file_contains "$TOOLS/build.sh" \
+    '/tools/verify-build-outcome.sh" "build outcome verifier"' \
+    "tools/build.sh must DECLARE the verifier as a required input, not merely invoke it"
 assert_file_contains "$TOOLS/install-local.sh" "astro::run_build_step" \
     "tools/install-local.sh recompiles and then prints 'installed successfully'"
 assert_file_contains "$TOOLS/fetch-cross-deps.sh" "astro::run_build_step" \

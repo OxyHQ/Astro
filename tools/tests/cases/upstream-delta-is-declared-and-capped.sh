@@ -42,7 +42,8 @@ build_fixture() {
 
     harness::make_chromium_fixture "$src"
 
-    mkdir -p "$src/chrome/browser" "$src/base/test/data" "$src/content/public/common"
+    mkdir -p "$src/chrome/browser" "$src/base/test/data" "$src/content/public/common" \
+             "$src/content/public/browser" "$src/chrome/common"
 
     cat > "$src/chrome/browser/BUILD.gn" <<'EOF'
 static_library("browser") {
@@ -87,6 +88,22 @@ bool IsWebUIScheme(const std::string& scheme) {
 }
 EOF
 
+    # The two files the removal declarations are about. One hard-codes a
+    # scheme's identity in an assertion, which only a `remove` record can
+    # account for; the other spells the scheme inside its literals, which a
+    # `substitute` record can pair off mechanically.
+    cat > "$src/content/public/browser/scheme_map.cc" <<'EOF'
+void Register(WebUIConfig* config) {
+  CHECK_EQ(config->scheme(), kChromeUIScheme);
+  Insert(config);
+}
+EOF
+
+    cat > "$src/chrome/common/url_literals.h" <<'EOF'
+inline constexpr char kAboutURL[] = "chrome://about/";
+inline constexpr char kFlagsURL[] = "chrome://flags/";
+EOF
+
     printf 'BINARY TEST DATA\n' > "$src/base/test/data/binary.bin"
     # Genuinely binary, NUL byte and all: git reports a modified binary file as
     # `M` in --name-status and then emits "Binary files ... differ" with no
@@ -128,11 +145,23 @@ EOF
 dir chrome/browser/oxy
 EOF
 
+    # The `remove` line's tail is upstream C++ and is read verbatim, `#` and
+    # quotes included, so the heredoc delimiter is quoted and nothing in it is
+    # expanded or comment-stripped.
     cat > "$root/upstream.allowlist" <<'EOF'
 gn-append    chrome/browser/BUILD.gn               owner=test issue=7  max-added=4
 include-rule chrome/browser/DEPS                   owner=test issue=7  max-added=1
 call-hook    chrome/browser/chrome_browser_main.cc owner=test issue=7  max-added=2
 planned      content/public/common/url_utils.cc    owner=test issue=12 max-added=40
+
+embedder-hook content/public/browser/scheme_map.cc owner=test issue=11 max-added=2
+remove content/public/browser/scheme_map.cc issue=11 reason=scheme-set-membership |  CHECK_EQ(config->scheme(), kChromeUIScheme);
+
+embedder-hook chrome/common/url_literals.h         owner=test issue=11 max-added=2
+substitute chrome/common/url_literals.h issue=11 reason=scheme-literal-composed
+    from  |"chrome://
+    to    |CHROME_UI_URL_PREFIX "
+    guard |#define CHROME_UI_URL_PREFIX CHROME_UI_SCHEME_LITERAL "://"
 EOF
 
     # --- the working tree: what the integration actually did ------------
@@ -185,6 +214,23 @@ EOF
 
     # A new file a declared patch creates.
     printf '// created by a declared patch\n' > "$src/chrome/browser/astro_created.h"
+
+    # The declared removal: the assertion's hard-coded scheme identity replaced
+    # by membership in an embedder-supplied set.
+    cat > "$src/content/public/browser/scheme_map.cc" <<'EOF'
+void Register(WebUIConfig* config) {
+  CHECK(Contains(TrustedSchemes(), config->scheme()));
+  Insert(config);
+}
+EOF
+
+    # The declared substitution: both literals recomposed from a macro whose
+    # default expands to exactly what they used to spell.
+    cat > "$src/chrome/common/url_literals.h" <<'EOF'
+#define CHROME_UI_URL_PREFIX CHROME_UI_SCHEME_LITERAL "://"
+inline constexpr char kAboutURL[] = CHROME_UI_URL_PREFIX "about/";
+inline constexpr char kFlagsURL[] = CHROME_UI_URL_PREFIX "flags/";
+EOF
 }
 
 run_gate() {
@@ -225,6 +271,16 @@ harness::assert_output_contains "chrome/browser/BUILD.gn" "gn-append hook measur
 harness::assert_output_contains "chrome/browser/DEPS" "include-rule hook measured"
 harness::assert_output_contains "chrome/browser/chrome_browser_main.cc" "call-hook measured"
 
+# And the two removal declarations were measured, not merely present. Both
+# counts are printed unconditionally, so a reader can tell "nothing was excused"
+# from "the excusing was never applied".
+harness::assert_output_contains \
+    "removals paired with their recomposed line by a declared substitution: 2" \
+    "the substitution paired both recomposed literals"
+harness::assert_output_contains \
+    "removals blessed one line at a time by a \`remove\` record: 1" \
+    "the one declared removal is reported as such"
+
 # And the patch-attributed change, the pruned file and the patch-created file
 # were subtracted rather than reported. If the subtraction broke, these would
 # appear as violations.
@@ -239,14 +295,25 @@ document = json.load(open(sys.argv[1]))
 assert document["verdict"] == "clean", document["verdict"]
 delta = {row["path"]: row for row in document["integration_delta"]}
 expected = {
-    "chrome/browser/BUILD.gn": (3, 0),
-    "chrome/browser/DEPS": (1, 0),
-    "chrome/browser/chrome_browser_main.cc": (2, 0),
+    # path: (counted_added, removed, substituted)
+    #
+    # counted_added is what the cap judges. url_literals.h adds three lines and
+    # only ONE of them counts: the other two are the recomposed forms of the two
+    # lines it removes, which is the whole claim the substitution record makes.
+    "chrome/browser/BUILD.gn": (3, 0, 0),
+    "chrome/browser/DEPS": (1, 0, 0),
+    "chrome/browser/chrome_browser_main.cc": (2, 0, 0),
+    "content/public/browser/scheme_map.cc": (1, 1, 0),
+    "chrome/common/url_literals.h": (1, 2, 2),
 }
 assert set(delta) == set(expected), sorted(delta)
-for path, (added, removed) in expected.items():
-    got = (delta[path]["added"], delta[path]["removed"])
-    assert got == (added, removed), (path, got, (added, removed))
+for path, (added, removed, substituted) in expected.items():
+    got = (delta[path]["counted_added"], delta[path]["removed"], delta[path]["substituted"])
+    assert got == (added, removed, substituted), (path, got, (added, removed, substituted))
+
+# The raw addition count is unchanged by any of this, so a reader can still see
+# how large the diff actually is.
+assert delta["chrome/common/url_literals.h"]["added"] == 3, delta["chrome/common/url_literals.h"]
 PY
 
 # --------------------------------------------------------------------------
@@ -314,6 +381,158 @@ EOF
 harness::register_failure "added lines that do not have the declared shape" \
     row_shape "[shape]" "chrome/browser/DEPS" "declared \`include-rule\`"
 
+# --- The removal declarations, in both directions ---------------------------
+#
+# A declared removal is the one mechanism in this file that makes the gate more
+# permissive, so every row below is a shape that must still be REFUSED with the
+# declarations in place. The clean run above is their positive control.
+
+# The shape the whole `substitute` design exists to keep failing: the literal is
+# DELETED rather than recomposed. The record matches the removal's text and
+# still cannot account for it, because the substituted line is nowhere among the
+# additions — which is exactly the difference between a refactor and a deletion.
+row_substitution_not_recomposed() {
+    local root="$TMP/subst-deleted"
+    build_fixture "$root" >/dev/null
+    cat > "$root/chromium-src/chrome/common/url_literals.h" <<'EOF'
+#define CHROME_UI_URL_PREFIX CHROME_UI_SCHEME_LITERAL "://"
+inline constexpr char kAboutURL[] = CHROME_UI_URL_PREFIX "about/";
+EOF
+    run_gate "$root"
+}
+harness::register_failure "a removal a substitution names but does not recompose" \
+    row_substitution_not_recomposed "[removal]" "chrome/common/url_literals.h" \
+    "kFlagsURL" "removed that nothing declares"
+
+# The macro is used but never defined with a default, so the literal has left
+# the file and the value comes from somewhere else entirely. Every removal still
+# pairs, which is why this needs its own rule rather than falling out of the
+# pairing.
+row_substitution_guard_missing() {
+    local root="$TMP/subst-guard"
+    build_fixture "$root" >/dev/null
+    cat > "$root/chromium-src/chrome/common/url_literals.h" <<'EOF'
+inline constexpr char kAboutURL[] = CHROME_UI_URL_PREFIX "about/";
+inline constexpr char kFlagsURL[] = CHROME_UI_URL_PREFIX "flags/";
+EOF
+    run_gate "$root"
+}
+harness::register_failure "a substitution whose macro has no declared default" \
+    row_substitution_guard_missing "[substitution-guard]" "chrome/common/url_literals.h" \
+    "CHROME_UI_URL_PREFIX"
+
+# A substitution that pairs nothing checks nothing, and would sit in the file
+# reading like a reviewed permission. This is the direction that caught a real
+# fourth record for chrome/common/webui_url_constants.h — the file has no UTF-16
+# untrusted constant, so the record was deleted rather than committed.
+row_substitution_stale() {
+    local root="$TMP/subst-stale"
+    build_fixture "$root" >/dev/null
+    python3 - "$root/upstream.allowlist" <<'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+path.write_text(path.read_text().replace('from  |"chrome://', 'from  |"never-spelled://'))
+PY
+    run_gate "$root"
+}
+harness::register_failure "a substitution that pairs nothing" \
+    row_substitution_stale "[stale-substitution]" "chrome/common/url_literals.h" \
+    "paired nothing"
+
+# The same direction for `remove`: the line is no longer removed, so the record
+# is a standing permission for whoever edits the file next.
+row_removal_stale() {
+    local root="$TMP/remove-stale"
+    build_fixture "$root" >/dev/null
+    cat > "$root/chromium-src/content/public/browser/scheme_map.cc" <<'EOF'
+void Register(WebUIConfig* config) {
+  CHECK_EQ(config->scheme(), kChromeUIScheme);
+  CHECK(Contains(TrustedSchemes(), config->scheme()));
+  Insert(config);
+}
+EOF
+    run_gate "$root"
+}
+harness::register_failure "a remove record naming a line that is still there" \
+    row_removal_stale "[stale-removal]" "content/public/browser/scheme_map.cc" \
+    "no longer removes"
+
+# A removal declaration must sit beside the entry that caps and owns the file,
+# or it becomes a second, weaker allowlist: permission to remove from a file
+# whose additions nobody bounded.
+row_removal_without_entry() {
+    local root="$TMP/remove-orphan"
+    build_fixture "$root" >/dev/null
+    printf 'remove chrome/browser/about_flags.cc issue=7 reason=orphan |const FeatureEntry kFeatureEntries[] = {\n' \
+        >> "$root/upstream.allowlist"
+    run_gate "$root"
+}
+harness::register_failure "a remove record for a file with no live entry" \
+    row_removal_without_entry "unmeasurable" "only reviewable beside the entry"
+
+# A half-written substitute record would substitute a literal for nothing, so
+# the three continuation lines are mandatory and ordered.
+row_substitution_truncated() {
+    local root="$TMP/subst-truncated"
+    build_fixture "$root" >/dev/null
+    python3 - "$root/upstream.allowlist" <<'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+# Renamed rather than deleted: a deleted last line reports "the record ends
+# before its `guard` line", which is a different branch. A misspelt field is
+# the likelier mistake and is the one that must not be read as "no guard
+# needed".
+path.write_text(path.read_text().replace("    guard |", "    note  |"))
+PY
+    run_gate "$root"
+}
+harness::register_failure "a substitute record whose guard line is misspelt" \
+    row_substitution_truncated "unmeasurable" "expected a \`guard\` line here"
+
+# --- The shape rules the comment exemption relaxed --------------------------
+#
+# Comments are exempt from a shape's per-line rule, and a call-hook now judges
+# the block rather than each line. Both are relaxations, so both need the row
+# that shows what they did NOT relax.
+
+# A call-hook whose added lines are a real statement. Not a comment, not
+# scaffolding, not a reference to //astro — the shape still refuses it.
+row_call_hook_statement() {
+    local root="$TMP/callhook-statement"
+    build_fixture "$root" >/dev/null
+    cat > "$root/chromium-src/chrome/browser/chrome_browser_main.cc" <<'EOF'
+#include "astro/browser/astro_browser_main_extra_parts.h"
+#include "chrome/browser/browser_process.h"
+
+void Create() {
+  chrome::AddMetricsExtraParts(main_parts.get());
+  LOG(WARNING) << "astro-stage: main";
+  main_parts->AddParts(astro::CreateExtraParts());
+}
+EOF
+    run_gate "$root"
+}
+harness::register_failure "a call-hook that adds a statement of its own" \
+    row_call_hook_statement "[shape]" "chrome/browser/chrome_browser_main.cc" \
+    "astro-stage: main"
+
+# The block-level floor. Every added line is a comment, so the per-line rule has
+# nothing to object to — and the entry has hooked nothing at all.
+row_hook_references_nothing() {
+    local root="$TMP/hook-vacuous"
+    build_fixture "$root" >/dev/null
+    cat > "$root/chromium-src/chrome/browser/DEPS" <<'EOF'
+include_rules = [
+  # a rule somebody meant to add
+  "+apps",
+]
+EOF
+    run_gate "$root"
+}
+harness::register_failure "an entry whose whole delta is commentary" \
+    row_hook_references_nothing "[shape]" "chrome/browser/DEPS" \
+    "names the //astro module"
+
 # A `planned` entry grants nothing: the moment its file changes, it fails.
 row_planned() {
     local root="$TMP/planned"
@@ -372,8 +591,12 @@ row_vacuity_no_delta() {
     local root="$TMP/vacuous"
     build_fixture "$root" >/dev/null
     local src="$root/chromium-src"
+    # Every integration-owned file, not just the three hooks: with any one of
+    # them still modified the delta is non-empty and this floor cannot fire, so
+    # the row would go red for the wrong reason.
     git -C "$src" checkout -- chrome/browser/BUILD.gn chrome/browser/DEPS \
-        chrome/browser/chrome_browser_main.cc
+        chrome/browser/chrome_browser_main.cc \
+        content/public/browser/scheme_map.cc chrome/common/url_literals.h
     run_gate "$root"
 }
 harness::register_failure "an integration delta covering zero files" \
@@ -484,7 +707,7 @@ row_capless_entry() {
 harness::register_failure "an entry with no cap" \
     row_capless_entry "unmeasurable" "entries require max-added="
 
-harness::run_failure_table 17
+harness::run_failure_table 25
 
 # --------------------------------------------------------------------------
 # 3. --report lists without rejecting
@@ -578,7 +801,8 @@ spec = importlib.util.spec_from_file_location("upstream_delta", driver)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
-entries = module.load_allowlist(Path(allowlist))
+parsed = module.load_allowlist(Path(allowlist))
+entries = parsed.entries
 live = {path for path, entry in entries.items() if not entry.planned}
 
 # A vacuity floor on the assertion itself: a parser that silently returned an
@@ -593,6 +817,20 @@ for required in (
 for entry in entries.values():
     assert entry.owner and entry.issue, entry.path
     assert entry.max_added >= 1, entry.path
+
+# The removal declarations parse too, and every one of them names a file that
+# has a live entry. This is the repository-level half of the check the parser
+# makes; without it a committed record could be orphaned by deleting its entry
+# and nothing here would notice until the 55 GB checkout was present.
+assert parsed.removals or parsed.substitutions, "no removal declarations parsed"
+for path, records in list(parsed.removals.items()) + list(parsed.substitutions.items()):
+    assert path in live, path
+    for record in records:
+        assert record.reason and record.issue, path
+for records in parsed.substitutions.values():
+    for record in records:
+        assert record.source and record.target and record.guard, record.path
+        assert record.source != record.target, record.path
 PY
 
 harness::pass

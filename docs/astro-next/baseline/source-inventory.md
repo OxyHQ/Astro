@@ -39,8 +39,8 @@ larger half of Astro's delta.
 
 | | |
 |---|---|
-| Overlay files (committed) | 61 |
-| Overlay bytes (committed) | 3,973,982 |
+| Overlay files (committed) | 55 |
+| Overlay bytes (committed) | 3,949,276 |
 
 Counts and byte sizes are read from committed content, not from the
 working tree. A working tree may carry uncommitted overlay files, or
@@ -57,15 +57,8 @@ Every path the overlay is permitted to write, from `tools/overlay.allowlist`.
 |---|---|---|
 | `dir` | `chrome/browser/oxy` | — |
 | `file` | `chrome/app/vector_icons/alia_spark.icon` | — |
-| `overwrite` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | `owner=oxy-browser`, `issue=7`, `conflicts-with=054-adblock-webui-register.patch,055-ntp-webui-register.patch,disable-ai.patch,first-run-page.patch` |
 
-### Whole-file overwrites of Chromium-owned files (1)
+### Whole-file overwrites of Chromium-owned files (0)
 
-Each of these replaces an upstream file wholesale. The epic's definition
-of done requires that no source-copy overlay remain, so every one is a
-temporary, owned exception with a removal issue.
-
-| Destination | Owner | Removal issue | Conflicts with |
-|---|---|---|---|
-| `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | oxy-browser | #7 | 054-adblock-webui-register.patch, 055-ntp-webui-register.patch, disable-ai.patch, first-run-page.patch |
+None.
 

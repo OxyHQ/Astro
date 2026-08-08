@@ -4,12 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>What's New in Astro</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome" />
     <link rel="stylesheet" href="./style.css" />
   </head>
@@ -255,13 +249,5 @@
     </main>
 
     <script type="module" src="./main.ts"></script>
-    <script type="module">
-      try {
-        const {ColorChangeUpdater} = await import(
-          'chrome://resources/cr_components/color_change_listener/colors_css_updater.js'
-        );
-        ColorChangeUpdater.forDocument().start();
-      } catch {}
-    </script>
   </body>
 </html>

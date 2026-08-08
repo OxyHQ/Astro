@@ -137,22 +137,35 @@ gate_missing_case() {
     mv "$stash/$(basename "$path")" "$path"
 }
 
-gate_missing_case "$fake_root/tools/lib/gn_args_drift.py" \
-    "missing GN args drift reporter" "GN args drift reporter"
-gate_missing_case "$fake_root/tools/lib/gn_check_baseline.py" \
-    "missing gn check ratchet" "gn check ratchet"
-gate_missing_case "$fake_root/tools/gn-check-baseline.json" \
-    "missing committed gn check baseline" "committed gn check baseline"
+# The set of gates is READ OUT OF build.sh rather than listed here, and each
+# entry carries the very words build.sh will print, because
+# astro::require_file's message is "Required <what> not found: <path>". So the
+# needle cannot drift from the message, and a gate added to build.sh is
+# exercised here the day it is added rather than the day someone remembers.
+#
+# It also keeps this case layer-following, which a written list cannot be when
+# the same file ships across layers: a build.sh with no build-outcome gate
+# simply yields no row for it, instead of failing a row that asserts a refusal
+# its build.sh never makes. That is not a hypothetical — a hand-written pair of
+# rows for those two inputs turned this case red at the earliest layer, where
+# neither the verifier nor its detector exists.
+gates=0
+while IFS=' ' read -r gate_path gate_what; do
+    [ -n "$gate_path" ] || continue
+    gate_missing_case "$fake_root/tools/$gate_path" "missing $gate_what" "$gate_what"
+    gates=$((gates + 1))
+done < <(grep -oE 'astro::require_file "[^"]*/tools/[^"]+" "[^"]+"' \
+             "$fake_root/tools/build.sh" \
+         | sed -E 's|.*/tools/([^"]+)" "([^"]+)"|\1 \2|')
 
-# The build-outcome gate, for the same reason and with a sharper edge. Without
-# it the compile's status is whatever the caller says it is — and the caller is
-# the thing under suspicion, since a wrapper exiting 0 around a failed build is
-# what this gate exists for. A build.sh that silently skipped it would report
-# success on exactly the evidence that was already shown to be worthless.
-gate_missing_case "$fake_root/tools/lib/build_outcome.py" \
-    "missing build outcome detector" "build outcome detector"
-gate_missing_case "$fake_root/tools/verify-build-outcome.sh" \
-    "missing build outcome verifier" "build outcome verifier"
+# A derivation that matched nothing would assert nothing while still reaching
+# harness::pass with the rest of the case's assertions intact. Every build.sh
+# requires at least the GN args drift reporter, the gn check ratchet and the
+# committed baseline.
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if [ "$gates" -lt 3 ]; then
+    harness::fail "only $gates build gate(s) derived from build.sh; expected at least 3"
+fi
 
 # Restoring them has to be verified, or every assertion after this point could
 # be passing for a reason that was introduced here rather than by the case.

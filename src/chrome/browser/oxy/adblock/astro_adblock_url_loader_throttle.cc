@@ -4,7 +4,9 @@
 #include "chrome/browser/oxy/adblock/astro_adblock_url_loader_throttle.h"
 
 #include "chrome/browser/oxy/adblock/astro_adblock_service.h"
+#include "chrome/browser/oxy/adblock/astro_adblock_service_factory.h"
 #include "chrome/browser/oxy/adblock/astro_adblock_tab_helper.h"
+#include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/net_errors.h"
@@ -26,7 +28,8 @@ AstroAdBlockURLLoaderThrottle::MaybeCreate(
     return nullptr;
   }
 
-  // Create a callback that posts blocked URL notifications to the tab helper.
+  // Create a callback that posts blocked URL notifications to the tab helper
+  // and increments the profile-wide lifetime counter on the UI thread.
   OnResourceBlockedCallback on_blocked;
   if (wc_getter) {
     on_blocked = base::BindRepeating(
@@ -38,14 +41,26 @@ AstroAdBlockURLLoaderThrottle::MaybeCreate(
                   [](base::RepeatingCallback<content::WebContents*()> g,
                      const GURL& url) {
                     auto* wc = g.Run();
-                    if (!wc) return;
-                    auto* helper =
-                        AstroAdBlockTabHelper::FromWebContents(wc);
-                    if (helper) {
+                    if (!wc) {
+                      return;
+                    }
+                    // Per-tab counter (resets on navigation, used by the
+                    // toolbar bubble).
+                    if (auto* helper =
+                            AstroAdBlockTabHelper::FromWebContents(wc)) {
                       helper->OnResourceBlocked(url);
                     }
+                    // Profile-wide lifetime counter (used by the NTP badge,
+                    // persisted in PrefService).
+                    auto* profile = Profile::FromBrowserContext(
+                        wc->GetBrowserContext());
+                    if (auto* svc =
+                            AstroAdBlockServiceFactory::GetForProfile(
+                                profile)) {
+                      svc->IncrementLifetimeBlockedCount();
+                    }
                   },
-                  g, blocked_url));
+                  getter, blocked_url));
         },
         wc_getter);
   }

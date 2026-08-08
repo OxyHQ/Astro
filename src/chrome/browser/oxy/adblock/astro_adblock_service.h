@@ -31,6 +31,8 @@ class AstroAdBlockFilterListUpdater;
 inline constexpr char kAdBlockEnabled[] = "oxy.adblock.enabled";
 inline constexpr char kAdBlockSiteOverrides[] = "oxy.adblock.site_overrides";
 inline constexpr char kAdBlockCustomRules[] = "oxy.adblock.custom_rules";
+inline constexpr char kAdBlockLifetimeBlockedCount[] =
+    "oxy.adblock.lifetime_blocked_count";
 
 // Per-profile service that manages the ad block engine.
 // Loads filter lists on startup, caches the compiled engine,
@@ -63,6 +65,15 @@ class AstroAdBlockService : public KeyedService {
 
   // Toggles ad blocking for a specific site.
   void SetSiteOverride(const GURL& site_url, bool enabled);
+
+  // Returns the lifetime count of ads/trackers blocked across this profile.
+  // Backed by the kAdBlockLifetimeBlockedCount pref so the value survives
+  // browser restarts and is visible to UI surfaces (e.g. the NTP badge).
+  int GetLifetimeBlockedCount() const;
+
+  // Increments the lifetime blocked count by one. Called by the URL loader
+  // throttle every time a sub-resource request is cancelled.
+  void IncrementLifetimeBlockedCount();
 
   // Rebuilds the engine from filter lists in the given directory.
   // Called by the updater after downloading new lists.

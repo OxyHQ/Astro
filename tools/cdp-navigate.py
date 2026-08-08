@@ -245,6 +245,12 @@ async def run(binary: str, urls: list[str], marker: str) -> list[dict]:
             "--no-first-run",
             "--no-default-browser-check",
             "--disable-session-crashed-bubble",
+            # Headless refuses to navigate to the browser's own internal scheme
+            # without this, and says so only in a WARNING on the browser's
+            # stderr -- which this harness does not read. The measurement that
+            # came back was an error page indistinguishable from a host that
+            # does not exist.
+            "--allow-chrome-scheme-url",
             "about:blank",
         ],
         stdout=subprocess.DEVNULL,

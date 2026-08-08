@@ -333,37 +333,62 @@ one layer `//chrome/browser` sees through `allow_circular_includes_from`. Note
 that **nothing runs checkdeps today**; it is in neither `tools/build.sh` nor the
 build-safety suite, so this is a declared rule and not yet an enforced one.
 
-**No entry is needed in the module's root `BUILD.gn`.** An earlier revision of
-this section said `group("astro")` should gain `"//astro/common"`. That was
-wrong twice over, and the second reason is only visible by measuring rather than
-reasoning — so it is recorded here with the command that produced it.
+**No entry is needed in the module's root `BUILD.gn`**, because a real consumer
+already provides the edge: `gn refs //astro/common:url_constants` answers
+`//astro/common:astro_schemes`, which is #11's registration target and the file
+that actually includes the header. That is how a leaf is supposed to arrive, and
+it is the one statement here that has held under every version of the tree.
 
-Measured against a configured build directory carrying the module
-(`gn ls out/AstroModule "//astro/*"`, `gn refs`), the graph is:
+An earlier revision said `group("astro")` should gain `"//astro/common"`. It
+should not — but the *reason* moved twice while this was being written, and both
+the reason and the movement are worth recording, because the second one is a
+lesson about measuring a tree other people are editing.
 
-| Target | Reached from |
-|---|---|
-| `//astro/browser:browser` | `//chrome/browser:browser` |
-| `//astro/common:astro_schemes` | `//chrome/common:common_lib` |
-| `//astro/common:url_constants` | `//astro/common:astro_schemes` |
-| `//astro:astro`, `//astro:browser` | **nothing — `gn ls "//astro:*"` is empty** |
+**GN loads a directory's `BUILD.gn` only when a label in *that* directory is
+referenced.** `//astro/browser` refers to the directory `astro/browser`; it does
+not load `astro/BUILD.gn`. So whether the root file has any effect at all depends
+on whether anything names `//astro:*` — and that changed underneath the
+measurement:
 
-Two conclusions, neither of which the design argument would have reached:
+| `chrome/browser/BUILD.gn` `deps` | `astro/BUILD.gn` | `gn ls "//astro:*"` |
+|---|---|---|
+| `"//astro/browser"` only | never loaded | empty — the groups do not exist |
+| …plus `"//astro:browser"` (landed 09:54) | loaded | `//astro:astro`, `//astro:browser` |
 
-1. **The module's root groups are not in the build at all.** Both Chromium hooks
-   name a leaf target directly — `chrome/browser/BUILD.gn:1532,1737` says
-   `"//astro/browser"` — so `group("astro")` is unreachable and an entry added to
-   it compiles nothing and is checked by nothing. `gn desc out/AstroModule
-   //astro:astro` answers "matches no targets, configs or files".
-2. **`//astro/common:url_constants` is already in the graph anyway**, pulled by
-   #11's `astro_schemes`, which is exactly how a leaf is supposed to arrive. The
-   concern that motivated the question — that `gn check` would never see the
-   layer — does not apply.
+Both rows were measured against `out/AstroModule`, forty minutes apart, on a
+tree several people were editing. **The first is no longer true**; it is kept
+because a conclusion whose premise silently expired is exactly the failure this
+repository keeps writing gates against, and because the mechanism it demonstrates
+is what makes the second row make sense.
 
-`//astro/browser` should **not** take the edge either: it uses no scheme, and
-asserting a coupling before it exists is a claim about the code that is not
-true. The consumer that legitimately depends on `url_constants` is the one that
-includes the header, and that is `//astro/common:astro_schemes`.
+The mechanism was contested, so it was settled with a fixture rather than by
+argument — a four-target GN project under the real `gn`, with a control:
+
+| Root `BUILD.gn` references | `//sub/BUILD.gn` | `//sub/other` defined? |
+|---|---|---|
+| `//sub/leaf` only | never loaded | **no** — 2 targets from 4 files |
+| `//sub/leaf` *and* `//sub:rollup` | loaded | yes — 5 targets from 6 files |
+
+Both halves are true and neither implies the other: a roll-up group nothing
+depends on **does** still pull its `deps` in (row 2), but only once the file
+declaring it is read (row 1). The distinction is between a group that is
+*orphaned* and a file that is *unloaded*, and only the first is recoverable by
+adding an edge.
+
+> **Resolved, and recorded because the resolution is easy to undo.** While
+> `astro/BUILD.gn` was unreferenced its contents were never parsed: the same
+> fixture shows `gn gen` exiting **0** on a deliberately malformed unreferenced
+> `BUILD.gn`, and exiting **1** naming the file once a label in it is referenced.
+> The module's root build file could have been malformed with no build saying so.
+> `chrome/browser/BUILD.gn:1737` now names `"//astro:browser"` in `deps`, which
+> loads the file and closes this. Note the asymmetry if anyone revisits the hook:
+> `deps` may name the roll-up group, but `allow_circular_includes_from`
+> (`:1531-1532`) should keep naming the concrete `//astro/browser:browser` — GN
+> accepts a group there silently, and none of Chromium's own 79 entries is one.
+
+`//astro/browser` should **not** take a dependency on `//astro/common` either: it
+uses no scheme, and asserting a coupling before it exists is a claim about the
+code that is not true.
 
 ### What spells a scheme today
 
@@ -716,12 +741,18 @@ is a natural one to make twice.
 
 Release safety (`--check-release CHANNEL`, additionally):
 
-9. No identifier reachable from that channel may be `declared: false`.
-10. No URL anywhere in the manifest may resolve to `localhost`, `127.0.0.0/8`,
+10. No identifier reachable from that channel may be `declared: false`.
+11. No URL anywhere in the manifest may resolve to `localhost`, `127.0.0.0/8`,
     `::1`, a `.local` or `.internal` host, or use a scheme other than `https`.
-11. `platforms.macos.team_id` must be declared before a macOS release channel
+12. `platforms.macos.team_id` must be declared before a macOS release channel
     may build.
-12. The channel must have `is_release: true`.
+13. The channel must have `is_release: true`.
+
+The release rules are numbered from 10 because the structural list now ends
+at 9. They previously restarted at 9, so "rule 9" named two different rules —
+and one of them is cited by `tools/lib/scheme_constants.py` in the message a
+person reads when the check fires. A rules list whose numbers are ambiguous is
+worse than an unnumbered one, because the citation looks precise.
 
 The eleven-mutation exercise behind rule 1 is worth keeping: each mutation was
 applied to the example manifest and re-validated with `tools/lib/lock.py`'s

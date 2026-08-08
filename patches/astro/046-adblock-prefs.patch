@@ -8,6 +8,7 @@ diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browse
 +  registry->RegisterBooleanPref("oxy.adblock.enabled", true);
 +  registry->RegisterDictionaryPref("oxy.adblock.site_overrides");
 +  registry->RegisterStringPref("oxy.adblock.custom_rules", "");
++  registry->RegisterIntegerPref("oxy.adblock.lifetime_blocked_count", 0);
 +
    dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
    DownloadPrefs::RegisterProfilePrefs(registry);

@@ -185,3 +185,12 @@ initTimelineProgress();
 getStartedBtn.addEventListener("click", handleGetStarted);
 document.addEventListener("keydown", handleKeyboard);
 
+
+// Live theme color updates via Chrome's Mojo color listener.
+try {
+  const { ColorChangeUpdater } = await import(
+    /* @vite-ignore */
+    "chrome://resources/cr_components/color_change_listener/colors_css_updater.js"
+  );
+  ColorChangeUpdater.forDocument().start();
+} catch {}

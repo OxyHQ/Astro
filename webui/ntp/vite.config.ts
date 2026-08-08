@@ -10,7 +10,7 @@ export default defineConfig({
     outDir: "../dist",
     emptyOutDir: true,
     minify: true,
-    modulePreload: { polyfill: false },
+    modulePreload: false,
     cssCodeSplit: false,
     assetsInlineLimit: 1_000_000,
     rollupOptions: {

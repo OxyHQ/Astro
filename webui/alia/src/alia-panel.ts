@@ -823,3 +823,12 @@ document.addEventListener("DOMContentLoaded", () => {
   window.parent?.postMessage({ type: "alia-panel-ready" }, "*");
 });
 
+
+// Live theme color updates via Chrome's Mojo color listener.
+try {
+  const { ColorChangeUpdater } = await import(
+    /* @vite-ignore */
+    "chrome://resources/cr_components/color_change_listener/colors_css_updater.js"
+  );
+  ColorChangeUpdater.forDocument().start();
+} catch {}

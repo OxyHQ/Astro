@@ -6,23 +6,9 @@
     <title>Alia - AI Assistant</title>
     <link rel="stylesheet" href="chrome://theme/colors.css?sets=ui,chrome" />
     <link rel="stylesheet" href="./style.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
   </head>
   <body>
     <div id="app" class="h-full flex flex-col"></div>
     <script type="module" src="./alia-panel.ts"></script>
-    <script type="module">
-      try {
-        const {ColorChangeUpdater} = await import(
-          'chrome://resources/cr_components/color_change_listener/colors_css_updater.js'
-        );
-        ColorChangeUpdater.forDocument().start();
-      } catch {}
-    </script>
   </body>
 </html>
