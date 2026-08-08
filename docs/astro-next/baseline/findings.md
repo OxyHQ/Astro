@@ -243,13 +243,52 @@ gitlink records, changes the verdict on twelve patches:
   ungoogled patches that only now apply: the first three with `remove-uneeded-ui`,
   `015` with `remove-unused-preferences-fields`. Skipping each ungoogled patch
   makes its victims apply, which is how the attribution was established rather
-  than inferred. These four are measured, not repaired.
+  than inferred. These four were measured there, not repaired.
 
 Two checks keep this from being a story about the harness rather than the tree.
 The 13 replayed subrepo files come out **byte-identical** to the real checkout on
 disk, where an earlier run had already applied these patches. And a synthetic
 superproject confirms `git apply --check` does reach inside a gitlink — the
 behaviour `apply-patches.sh` depends on and had never stated.
+
+**The whole series applies.** Those last four are repaired, and the replay now
+reports **168 of 168 patches applying in declared order** — 112 ungoogled and 56
+Astro — with `git apply --check --whitespace=nowarn` as the acceptance test. No
+fuzz, no `--3way`, no `--recount`. `apply-patches.sh` no longer has a first
+failure to stop at, and `non_applying_patches` in
+`docs/astro-next/policy/endpoints.json` is an empty list.
+
+All four had the origin the previous five had, and the proof is one line: **all
+four apply to the PRISTINE file.** A patch written against the locked revision
+cannot do that and also collide with an ungoogled patch — applying to pristine is
+what a diff of pristine against an *already-ungoogled* tree looks like. Each had
+therefore adopted its collider's edits as its own:
+
+| Patch | What it had adopted | From |
+|---|---|---|
+| `009` | three `<ph>Learn more</ph>` help links deleted from performance strings | `remove-uneeded-ui` |
+| `012` | the settings subpage help button rewritten to `if="[[false]]"` | `remove-uneeded-ui` |
+| `013` | three more `<ph>Learn more</ph>` help links | `remove-uneeded-ui` |
+| `015` | the `signin_pref_names.h` include, the `kSigninAllowed` test behind the account-settings button, and the whole body of `MaybeBuildGoogleServicesSettingsButton()` | `remove-unused-preferences-fields` |
+
+Each is regenerated mechanically, as the difference between the in-series base
+and the original patch's own result, so nothing is authored by hand. `009`'s
+three blocks survive as pure `Chromium`→`Astro` renames on the line ungoogled
+leaves behind; `013`'s three vanish entirely, because they changed nothing but
+the link; `012` is left with the two CSS rules it is named for; `015` with the
+`url/gurl.h` include, the two Oxy includes, the `BuildOxySignInButton()` call and
+the three method bodies. Before differencing, every fragment of text the
+ungoogled patch deletes is isolated and asserted absent from the patch's own
+result — otherwise the difference would silently *revert* an ungoogled edit the
+patch had failed to adopt.
+
+The coupling this creates is measured by skipping the collider, not reasoned:
+only `009` now **requires** `remove-uneeded-ui`, because its three renames land on
+lines that patch rewrites. `012`, `013` and `015` apply with or without theirs. No
+Astro patch is coupled to another: of the five files involved, one has no other
+writer and each of the other four has exactly one Astro and one ungoogled writer.
+`046`'s independence from `020`, established in `76466c6`, is re-measured and
+holds — skipping `020` still leaves 167 of 167 applying.
 
 `docs/astro-next/policy/endpoints.json` carries the measured list and the method.
 
@@ -429,8 +468,10 @@ mistaken for repository state, after the five phantom GN findings and the
 
 The tree was returned to what the **committed** stack produces for that one file
 — upstream plus `disable-ai.patch` and `first-run-page.patch`, zero Astro
-includes. `054` and `055` do not apply (finding 3), which is consistent. The
-untracked overlay copy in the Astro repository was not touched.
+includes. `054` and `055` did not apply when that run was made (finding 3), which
+is consistent; both have since been repaired, so a run made today would carry
+their registrations. The untracked overlay copy in the Astro repository was not
+touched.
 
 **Still open:** `sync-overlay.sh` copies uncommitted overlay files into the
 Chromium tree and says nothing about it, so any build made through

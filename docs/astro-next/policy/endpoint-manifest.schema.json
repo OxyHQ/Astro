@@ -22,12 +22,15 @@
     "non_applying_patches": {
       "type": "object",
       "description": [
-        "DECLARED, not measured here. Baseline finding 3 records nine Astro patches that do not",
-        "apply to the locked Chromium revision, so a host their text ADDS is in no tree today.",
-        "Measuring it needs a Chromium checkout and a patch run; this module deliberately needs",
-        "neither. The validator checks only that each named patch still exists in the series, so a",
-        "rename fails loudly -- a patch whose apply status CHANGES will not, and that limit is",
-        "stated here rather than left for a reader to discover."
+        "Astro patches that do not apply to the locked Chromium revision, so a host their text",
+        "ADDS is in no tree today. The list is currently EMPTY: all 168 patches in both declared",
+        "series apply, in declared order. See the comment on the list itself in endpoints.json",
+        "for the measurement and how it emptied.",
+        "Measuring apply status needs a Chromium checkout and a patch run; this module",
+        "deliberately needs neither. The validator checks only that each named patch still",
+        "exists in the series, so a rename fails loudly -- a patch whose apply status CHANGES",
+        "will not, and with the list empty the rule examines zero entries and cannot fail at",
+        "all. That limit is stated here rather than left for a reader to discover."
       ]
     },
     "hosts": {

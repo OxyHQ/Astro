@@ -24,10 +24,10 @@ exists, fails generation. This inventory therefore cannot silently rot.
 | 8 | `009-branding-settings-strings.patch` | `chrome/app/settings_chromium_strings.grdp` | 4 | **replace** | Astro branding in the settings surface strings. |
 | 9 | `010-oxy-theme-color.patch` | `chrome/browser/themes/theme_properties.cc` | 2 | **replace** | Plumbs the Oxy brand colour into the theme provider. |
 | 10 | `011-astro-url-scheme-alias.patch` | `chrome/browser/browser_about_handler.cc` | 2 | **replace** | Aliases astro:// onto chrome:// — a cosmetic alias, not a real scheme. |
-| 11 | `012-settings-border-style.patch` | `chrome/browser/resources/settings/settings_page/settings_section.html`<br>`chrome/browser/resources/settings/settings_page/settings_subpage.html` | 3 | **replace** | Settings page border styling. |
-| 12 | `013-settings-google-to-oxy.patch` | `chrome/app/settings_strings.grdp` | 66 | **replace** | Replaces Google references in the settings UI with Oxy. |
+| 11 | `012-settings-border-style.patch` | `chrome/browser/resources/settings/settings_page/settings_section.html`<br>`chrome/browser/resources/settings/settings_page/settings_subpage.html` | 2 | **replace** | Settings page border styling. |
+| 12 | `013-settings-google-to-oxy.patch` | `chrome/app/settings_strings.grdp` | 63 | **replace** | Replaces Google references in the settings UI with Oxy. |
 | 13 | `014-oxy-profile-menu-header.patch` | `chrome/browser/ui/views/profiles/profile_menu_view.h` | 1 | **replace** | Declares the Oxy profile-menu header. |
-| 14 | `015-oxy-profile-menu-impl.patch` | `chrome/browser/ui/views/profiles/profile_menu_view.cc` | 7 | **replace** | Implements the Oxy profile-menu header rendering. |
+| 14 | `015-oxy-profile-menu-impl.patch` | `chrome/browser/ui/views/profiles/profile_menu_view.cc` | 4 | **replace** | Implements the Oxy profile-menu header rendering. |
 | 15 | `016-ntp-astro-logo.patch` | `chrome/browser/resources/new_tab_page/icons/google_logo.svg` | 1 | **replace** | Swaps the NTP logo for the Astro mark. |
 | 16 | `017-ntp-logo-css.patch` | `chrome/browser/resources/new_tab_page/logo.css` | 1 | **replace** | NTP logo styling. |
 | 17 | `018-ntp-logo-ts.patch` | `chrome/browser/resources/new_tab_page/logo.ts` | 2 | **replace** | NTP logo TypeScript wiring. |

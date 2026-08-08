@@ -65,7 +65,7 @@
       "observed_state": "NOT_BUILT",
       "observed_evidence": [
         "src/chrome/browser/oxy/adblock/ \u2014 engine, service, tab helper, throttle, Rust FFI",
-        "patches/astro/045 (throttle), 052 (tab helper) and 053 (toolbar button) are all structurally malformed and do not apply (baseline finding 3)",
+        "patches/astro/045 (throttle), 052 (tab helper) and 053 (toolbar button) were structurally malformed and had applied nowhere; repaired in 76466c6, and all three now apply. 053 still assigns to an `adblock_button_` that nothing declares, so it applies and cannot compile.",
         "Baseline finding 1: the overlay is not in the build graph"
       ],
       "state": "REPLACE",
@@ -153,7 +153,7 @@
       "observed_state": "UNREACHABLE",
       "observed_evidence": [
         "src/chrome/browser/oxy/adblock/webui/astro_adblock_ui.cc is committed",
-        "patches/astro/054-adblock-webui-register.patch is structurally malformed and does not apply (baseline finding 3), AND a whole-file overlay copy of chrome_web_ui_configs.cc reverts it \u2014 declared defect 2 in AGENTS.md, reaching a compiler for the first time in baseline finding 9"
+        "patches/astro/054-adblock-webui-register.patch was structurally malformed; repaired in 7bb07f4 and it now applies. The page is unreachable regardless, because a whole-file overlay copy of chrome_web_ui_configs.cc reverts it \u2014 declared defect 2 in AGENTS.md, reaching a compiler for the first time in baseline finding 9"
       ],
       "state": "REPLACE",
       "rationale": "The page exists and is registered by nothing. This is the clearest DORMANT-shaped capability in the repository \u2014 and it is not DORMANT, because two known defects cause it rather than a design. Recording it as dormant would hide #7's work.",
@@ -245,7 +245,7 @@
       "observed_evidence": [
         "patches/astro/011-astro-url-scheme-alias.patch \u2014 described in docs/astro-next/baseline/patch-inventory.md as 'a cosmetic alias, not a real scheme'",
         "Twelve further patches (021-030, 037, 040-043) carry the alias through the omnibox, URL fixer, session restore, navigation controller and web-app code",
-        "Four of them do not apply at the locked revision: 023, 027 (baseline finding 3)"
+        "Two of them, 023 and 027, did not apply at the locked revision; repaired in 3310e14. Every patch in both declared series now applies (endpoints.json non_applying_patches)"
       ],
       "state": "REPLACE",
       "rationale": "Today astro:// is a display alias rewritten to chrome:// at navigation time. The epic requires a real URL, origin, SiteURL, NavigationEntry and process-lock scheme, plus a separate astro-untrusted:// for isolated content. That is a clean cut: the alias goes entirely, and #13 migrates persisted legacy URLs.",
@@ -303,7 +303,7 @@
       "observed_state": "NOT_BUILT",
       "observed_evidence": [
         "src/chrome/browser/oxy/webui/astro_ntp_ui.cc",
-        "patches/astro/055-ntp-webui-register.patch and 056-ntp-redirect-to-astro.patch are both structurally malformed and do not apply (baseline finding 3)",
+        "patches/astro/055-ntp-webui-register.patch and 056-ntp-redirect-to-astro.patch were both structurally malformed; repaired in 7bb07f4 and 76466c6 respectively, and both now apply",
         "Baseline finding 1: nothing in the committed patch stack links src/chrome/browser/oxy into the build graph, so no Astro WebUI controller is compiled into any binary built from committed source."
       ],
       "state": "REPLACE",
@@ -1649,7 +1649,7 @@
       "observed_evidence": [
         "src/chrome/browser/oxy/oxy_auth_service.{h,cc}, oxy_auth_callback_handler.cc, oxy_auth_navigation_throttle.cc, oxy_auth_token_store.cc, oxy_cookie_signin_observer.cc",
         "In committed state nothing constructs OxyCookieSigninObserver: `git grep -l` at HEAD matches only its own two files. Its factory is untracked working-tree content.",
-        "patches/astro/035-auth-https-callback.patch is a 0-byte file; 036 and 039, which intercept the callback and register the throttle, do not apply (baseline finding 3)",
+        "patches/astro/035-auth-https-callback.patch was a 0-byte file and was deleted in 51842d8; 036 and 039, which intercept the callback and register the throttle, did not apply and were repaired in 3310e14",
         "Baseline finding 1: the overlay is not in the build graph"
       ],
       "state": "REPLACE",

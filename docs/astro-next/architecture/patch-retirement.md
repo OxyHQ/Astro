@@ -20,6 +20,30 @@ document this file cites it rather than restating it.
 `patch-retirement.json` beside this file carries the same decisions
 machine-readably, one entry per patch.
 
+> **Measured before the patch repairs; every quoted `@@` header below is a
+> pre-repair one.** This document was written against a patch stack in which
+> seven files were structurally malformed and nine carried edits belonging to an
+> ungoogled patch or to domain substitution. §4.2's diagnosis of the second group
+> — *"they were diffed from an already-patched tree"* — was correct, and all
+> fourteen have since been repaired on exactly that reading (`7bb07f4`,
+> `76466c6`, `3310e14`, and the commit adding this note). Every patch in both
+> declared series now applies, 168 of 168.
+>
+> What that changes here, and nothing else: the ungoogled content this file
+> attributes to an Astro patch is no longer in that patch. Concretely, §1.3 and
+> §4.2's "carries ungoogled deletions" set is now empty — `015`'s two hunks
+> (`@@ -1017,9 +1021,7 @@`, `@@ -1041,25 +1043,6 @@`), `020`'s seven and `039`'s
+> one are gone from those patches, and the deletions belong to
+> `remove-unused-preferences-fields` and `fix-building-without-safebrowsing`
+> alone. So are the six "Learn more" help-link deletions of §7 (`009` ×3, `013`
+> ×3) and `012`'s `if="[[false]]"` hunk, which are `remove-uneeded-ui`'s. Line
+> numbers in `015`'s surviving `@@` headers shifted with the re-anchoring. Every
+> retirement **decision**, bucket and owner in this file is unaffected: what a
+> patch is for did not change, only which lines are actually its own. The current
+> apply status is `docs/astro-next/policy/endpoints.json`'s
+> `non_applying_patches` and baseline finding 3; read those rather than this file
+> for it.
+
 ## Scope, and what this document deliberately does not do
 
 - **Analysis only.** Nothing under `patches/`, `src/`, `webui/` or `gn_args/`
