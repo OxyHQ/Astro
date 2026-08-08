@@ -150,43 +150,68 @@ do not let a build imply they are resolved:
 - The Oxy overlay compiled to zero objects because no `BUILD.gn` outside
   `chrome/browser/oxy/` declared a dependency on it. Patch
   `057-oxy-webui-build-edge.patch` adds that edge to
-  `//chrome/browser/ui/webui:configs`. The edge has been verified to APPLY,
-  not to LINK — no `gn gen` has been run against it, so a dependency cycle
-  through `//chrome/browser/ui` remains possible and unmeasured. Owned by #7.
-- **Patches are not verified to apply, and at least two silently did not.**
-  `docs/astro-next/policy/endpoints.json` declares nine non-applying patches,
-  but that list was declared rather than measured, and it warns in its own
-  comment that a change of apply status will not fail loudly. Measured on
-  2026-08-08: `054` and `055` also did not apply to the locked revision —
-  written against a Chromium where `RegisterChromeWebUIConfigs()` sat near
-  line 150, since moved to 232 — and neither was on the list. Both have been
-  regenerated against the locked revision and verified with `git apply
-  --check`, which is the acceptance test `apply-patches.sh` itself uses.
+  `//chrome/browser/ui/webui:configs`. Measured on 2026-08-08 against the
+  applied series: GN now LOADS the overlay, and there is **no dependency
+  cycle** through `//chrome/browser/ui` — the cycle this entry used to warn
+  about does not exist. Owned by #7.
+- **`gn gen` fails, and the cause is a crate-privilege collision, not
+  anything in `patches/` or the overlay.** The first thing the new build edge
+  does is pull the ad blocker's Rust target into the graph, and that target
+  fails the test-only rule:
 
-  The declared nine were then measured too, by replaying BOTH series in
-  declared order against a scratch tree holding the pristine version of every
-  file any patch names (759 of them, read out of `chromium/src` at the locked
-  commit — no checkout is mutated, and the acceptance test is the same `git
-  apply --check`). The list is wrong in both directions, so do not cite it:
-  - Five Astro patches are MALFORMED and nothing had noticed. `045`, `046`,
-    `052`, `053` and `056` carry hunk headers whose line counts disagree with
-    their bodies — blank context lines written with the leading space stripped
-    — so `git apply` rejects each with `corrupt patch at line N` no matter what
-    tree it is pointed at. `--recount` parses them, which is how the cause was
-    identified; it is not a fix, and `apply-patches.sh` must never adopt it.
-    All five have been that way since they were written in `4513abb`.
-  - Four of the declared nine — `009`, `012`, `013`, `015` — applied cleanly in
-    that replay. Treat this as weaker than the point above: four ungoogled
-    patches fail and four more target `gclient`-fetched DEPS subrepos that are
-    absent from `chromium/src`'s own git tree, so the replayed tree is not
-    byte-identical to what a real run produces.
-  - `020`, `023`, `027`, `036` and `039` did fail, as declared. `020` is worth
-    knowing about: it applies perfectly to pristine upstream ON ITS OWN and
-    fails only after the ungoogled series has edited `browser_prefs.cc`. A
-    per-patch check against a pristine tree would have called it healthy.
+  ```
+  //chrome/browser/oxy/adblock/rs:adblock_engine_ffi_cxx_generated
+  which is NOT marked testonly can't depend on
+  //third_party/rust/adblock/v0_9:lib which is marked testonly.
+  ```
 
-  `apply-patches.sh` still dies partway, so the patch pipeline does not reach
-  the end of the series today.
+  `adblock` 0.9 depends on `itertools`, which Chromium classifies
+  `group = 'test'` in `third_party/rust/chromium_crates_io/gnrt_config.toml`,
+  and gnrt propagates the least privilege of every dependency. Do not try to
+  fix it with `[crate.adblock] group = 'safe'`: a self-declared group replaces
+  only ANCESTORS, and the final privilege is the minimum of that and every
+  dependency, so the crate stays test-only. The two real options are
+  reclassifying `itertools` — a Chromium policy edit that puts a crate
+  Chromium has not cleared for shipping into the browser process, so it wants
+  a reviewed patch and an `upstream.allowlist` entry — or patching `adblock`
+  to drop the dependency.
+
+  With that one line temporarily set to `'safe'` and then reverted, the same
+  tree generated `Done. Made 29928 targets from 4409 files`, so this is the
+  only thing between the committed configuration and a full build graph.
+- **Nothing fails when a patch stops applying — the whole series applying is
+  a measurement, never an assumption.** All 168 apply today (112 ungoogled +
+  56 Astro, `applied_count: 168`, `failed_count: 0` in
+  `build/reports/patch-report.json`), and
+  `docs/astro-next/policy/endpoints.json` declares the non-applying list
+  EMPTY, with the replay that emptied it and the three waves of repairs
+  written up there. Read it there rather than here; what belongs here is the
+  part that has not changed:
+
+  - The declared list is checked only for "is this name in
+    `patches/astro/series`". It has never been able to detect a change of
+    apply STATUS, and an empty list makes that sharper, not milder — with
+    nothing named, the validator examines zero entries and cannot fail.
+  - What keeps the list honest is a replay of both series in declared order
+    against a scratch tree holding the pristine version of every file any
+    patch names, with `git apply --check --whitespace=nowarn` as the
+    acceptance test — the same test `apply-patches.sh` uses. No fuzz, no
+    `--3way`, no `--recount`. It needs a Chromium checkout, so no gate runs
+    it automatically.
+  - The replay must read pristine input from TWO places. Thirteen of the
+    files the series touches live inside `gclient`-fetched DEPS subrepos
+    recorded as gitlinks, so `git show HEAD:<path>` cannot read them and a
+    replay that skips them reports failures that are its own blindness — that
+    mistake once produced eight phantom ungoogled failures from a single
+    root cause.
+  - Two failure shapes recur and look nothing alike. A MALFORMED patch (hunk
+    headers whose line counts disagree with their bodies) is rejected against
+    any tree at all, so it has never applied anywhere; `--recount` parses it,
+    which identifies the cause and is not a fix. A patch generated by diffing
+    an ALREADY-PATCHED tree against pristine carries edits belonging to
+    somebody else's patch, so it applies to the pristine file and fails in
+    series. A per-patch check against a pristine tree calls the second kind
+    healthy, which is why the replay runs the series in order.
 - Every WebUI page serves its assets by reading a directory next to the
   executable at runtime (`base::DIR_EXE` + `resources/astro-<page>`) rather
   than from a `.pak`, so none of them carries Chromium's resource-bundling
@@ -246,6 +271,10 @@ src/chrome/browser/oxy/
 │   ├── astro_adblock_resource_type.* # Resource type classification
 │   ├── webui/astro_adblock_ui.*     # chrome://adblock controller + handler
 │   └── rs/                          # Rust source + BUILD.gn
+├── ui/astro_color_tokens.h          # GENERATED from Bloom's tokens.json by
+│                                    #   tools/generate-color-mixer.py. Never
+│                                    #   hand-edit: a build-safety case
+│                                    #   regenerates it and compares.
 └── webui/                           # WebUI page controllers
     ├── astro_ntp_ui.*               # chrome://astro-ntp controller
     ├── astro_alia_ui.*              # chrome://alia controller
@@ -256,10 +285,19 @@ src/chrome/browser/oxy/
 
 ```
 webui/
+├── app/           # WHERE NEW WORK GOES. One Vite + Tailwind v4 + Bloom
+│                  #   application serving every astro:// surface, one entry
+│                  #   per WebUI host (each host is a separate origin, so the
+│                  #   entry is chosen from location.hostname). Not yet served
+│                  #   by any controller and not in build.sh's staging list —
+│                  #   the GN/grit/pak wiring is #14.
 ├── ntp/           # New Tab Page (Vite + Tailwind v4)
 ├── alia/          # Alia AI Panel
 └── whats-new/     # What's New Page
 ```
+
+The three legacy pages keep their current from-disk serving until the app
+absorbs them; do not start a fourth one beside them.
 
 ### Other directories
 
@@ -301,13 +339,29 @@ documented here until it exists.
 
 2. **Add to BUILD.gn** in `src/chrome/browser/oxy/webui/BUILD.gn`
 
-3. **Register the config** in the Chromium WebUI config registration site (requires a patch to `chrome_web_ui_configs.cc` or similar)
+3. **Register the config** with a numbered patch to
+   `chrome/browser/ui/webui/chrome_web_ui_configs.cc`, following
+   `patches/astro/05{4,5,8}-*-webui-register.patch`. If upstream already
+   registers the host, the patch must SWAP its line, never add one beside it —
+   `WebUIConfigMap::AddWebUIConfigImpl` CHECKs on a duplicate origin and the
+   browser dies at startup. A whole-file overlay copy is not an option: that
+   was defect #7.
 
-4. **Create the frontend** in `webui/foo/`:
-   - Standard Vite + Tailwind v4 setup (`bun create vite` then add Tailwind)
-   - Build output goes to a `dist/` directory
+4. **Add the build edge.** A `BUILD.gn` under `chrome/browser/oxy/` that
+   nothing depends on compiles to nothing, silently — the overlay sat in that
+   state until `057-oxy-webui-build-edge.patch`. Check the target is reachable
+   from `//chrome/browser/ui/webui:configs`.
 
-5. **Wire the build** so the Vite output is copied to the correct resources directory during `tools/build.sh`
+5. **Create the frontend** as an entry in `webui/app/` (see above), not as a
+   new top-level `webui/foo/`.
+
+6. **Wire the assets.** Today the controllers read
+   `<DIR_EXE>/resources/astro-<page>/`, `tools/build.sh` stages
+   `webui/<page>/dist` to exactly that path, and the page name must be in
+   `REQUIRED_WEBUI_PAGES` or nothing stages it. Those three have to agree, and
+   nothing checks that they do: when the controllers read one path and
+   build.sh wrote another, every page rendered blank and the build reported
+   success. Removing `DIR_EXE` in favour of a `.pak` is #14.
 
 ## WebUI Page URLs
 
@@ -416,17 +470,30 @@ Rules that follow:
 - C++ code follows Chromium style guide (Google C++ style with Chromium extensions).
 - All Oxy integrations in self-contained files under `src/chrome/browser/oxy/`.
 - Minimal patches to existing Chromium files — surgical hooks, includes, and registrations only.
-- After any Mojo/IPC changes, do a clean rebuild of affected targets rather than incremental.
+- Astro defines no Mojo interface of its own: there is no `.mojom` under
+  `src/`, at this or any past revision. The overlay only CONSUMES Chromium's
+  (`network::mojom` and friends). When the first Astro `.mojom` lands, rebuild
+  affected targets clean rather than incrementally — generated bindings are a
+  classic stale-artifact source.
 
 ## Development Workflow
 
 ### WebUI pages (hot reload)
 
 ```bash
-cd webui/ntp && bun run dev          # http://localhost:5173
-cd webui/alia && bun run dev         # http://localhost:5174
-cd webui/whats-new && bun run dev    # http://localhost:5176
+cd webui/app && bun run dev          # http://localhost:5178  (strictPort)
+cd webui/ntp && bun run dev          # Vite default: 5173, or the next free port
+cd webui/alia && bun run dev
+cd webui/whats-new && bun run dev
 ```
+
+Only `webui/app` pins a port, and the two reasons are worth carrying: 5173 is
+taken by `~/Oxy/website`'s dev server on this machine, and Vite's default
+behaviour on a busy port is to silently take the next one — which already
+produced a session that curled another project's app and read its HTML as this
+one's. The other three set no port at all, so their numbers depend on start
+order. Read the port Vite prints; do not trust a number written down anywhere,
+including here.
 
 ### Chromium incremental build
 
