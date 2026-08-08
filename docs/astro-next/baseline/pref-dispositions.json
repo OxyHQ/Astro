@@ -92,52 +92,35 @@
       "purpose": "User-authored filter rules, one per line, in Adblock Plus syntax."
     },
     "astro.ntp_show_weather": {
-      "status": "observed-local-only",
-      "owner_issue": 22,
-      "observed_in": "patches/astro/020-register-oxy-prefs.patch",
+      "status": "legacy-baseline",
       "purpose": "New Tab Page widget visibility: weather."
     },
     "astro.ntp_show_clock": {
-      "status": "observed-local-only",
-      "owner_issue": 22,
-      "observed_in": "patches/astro/020-register-oxy-prefs.patch",
+      "status": "legacy-baseline",
       "purpose": "New Tab Page widget visibility: clock."
     },
     "astro.ntp_show_quick_links": {
-      "status": "observed-local-only",
-      "owner_issue": 22,
-      "observed_in": "patches/astro/020-register-oxy-prefs.patch",
+      "status": "legacy-baseline",
       "purpose": "New Tab Page widget visibility: quick links."
     },
     "astro.ntp_show_notes": {
-      "status": "observed-local-only",
-      "owner_issue": 22,
-      "observed_in": "patches/astro/020-register-oxy-prefs.patch",
+      "status": "legacy-baseline",
       "purpose": "New Tab Page widget visibility: notes."
     },
     "astro.ntp_show_sites": {
-      "status": "observed-local-only",
-      "owner_issue": 22,
-      "observed_in": "patches/astro/020-register-oxy-prefs.patch",
+      "status": "legacy-baseline",
       "purpose": "New Tab Page widget visibility: most-visited sites."
     },
     "astro.ntp_show_discover": {
-      "status": "observed-local-only",
-      "owner_issue": 22,
-      "observed_in": "patches/astro/020-register-oxy-prefs.patch",
+      "status": "legacy-baseline",
       "purpose": "New Tab Page widget visibility: discover feed."
     },
     "astro.ntp_show_alia": {
-      "status": "observed-local-only",
-      "owner_issue": 22,
-      "observed_in": "patches/astro/020-register-oxy-prefs.patch",
+      "status": "legacy-baseline",
       "purpose": "New Tab Page widget visibility: Alia entry point."
     },
     "oxy.adblock.lifetime_blocked_count": {
-      "status": "observed-local-only",
-      "owner_issue": 18,
-      "also_owned_by": [19],
-      "observed_in": "patches/astro/046-adblock-prefs.patch",
+      "status": "legacy-baseline",
       "purpose": "Cumulative count of requests the ad blocker has blocked, for the shield UI."
     }
   }

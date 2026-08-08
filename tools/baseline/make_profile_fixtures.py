@@ -74,7 +74,6 @@ PREF_PATCHES = (
     "patches/astro/020-register-oxy-prefs.patch",
     "patches/astro/046-adblock-prefs.patch",
 )
-SETTINGS_HANDLER = "src/chrome/browser/oxy/webui/astro_settings_handler.cc"
 WEBUI_DIR = "src/chrome/browser/oxy/webui"
 FILTER_CATALOG = "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc"
 ADBLOCK_SERVICE = "src/chrome/browser/oxy/adblock/astro_adblock_service.cc"
@@ -93,7 +92,6 @@ VALID_PREF_STATUSES = ("legacy-baseline", "observed-local-only")
 DERIVED_FROM = (
     *PREF_PATCHES,
     PREF_DISPOSITIONS,
-    SETTINGS_HANDLER,
     WEBUI_DIR,
     FILTER_CATALOG,
     ADBLOCK_SERVICE,
@@ -144,7 +142,6 @@ PREF_RE = re.compile(
     r"(?:\s*,\s*(?P<default>.*?))?\s*\)\s*;",
     re.DOTALL,
 )
-MAPPING_RE = re.compile(r'\{\s*"([A-Za-z0-9_-]+)"\s*,\s*"([A-Za-z0-9_.]+)"\s*\}')
 HOST_RE = re.compile(r'inline constexpr char kAstro(\w+)Host\[\]\s*=\s*"([^"]+)"\s*;')
 CATALOG_RE = re.compile(
     r'\.id = "(?P<id>[^"]+)".*?\.default_enabled = (?P<enabled>true|false)', re.DOTALL
@@ -167,7 +164,6 @@ CATALOG_RE = re.compile(
 # Keep them loose. Narrowing one to match its strict partner more closely
 # quietly disables the check it exists to perform.
 PREF_CALL_SITE_RE = re.compile(r"Register\w*Pref\s*\(")
-MAPPING_SITE_RE = re.compile(r'\{\s*"[^"]*"\s*,\s*"[^"]*"\s*\}')
 HOST_SITE_RE = re.compile(r"kAstro\w*Host\s*\[\s*\]")
 CATALOG_SITE_RE = re.compile(r'\.id\s*=\s*"')
 
@@ -588,47 +584,6 @@ def worktree_pref_names(source: str) -> list[str]:
     return names
 
 
-def parse_settings_surface() -> tuple[dict[str, list[dict]], int]:
-    """The settings page's pref map: which pref each control reads and writes.
-
-    These paths are recorded by NAME only. Their types belong to Chromium, and
-    inventing a value for a pref whose type you guessed produces a profile the
-    browser rejects — the same "looks right, is not" failure the deferred
-    entries exist to avoid. So the fixture carries the Astro-owned values and a
-    checklist of the Chromium-owned prefs a captured profile has to contain.
-    """
-    text = read_text(SETTINGS_HANDLER)
-    surface: dict[str, list[dict]] = {}
-    detected = 0
-    for array, service in (
-        ("kProfilePrefMappings", "profile"),
-        ("kLocalStatePrefMappings", "local_state"),
-    ):
-        start = text.find(f"{array}[] = {{")
-        if start < 0:
-            raise SystemExit(f"ERROR {array}[] not found in {Path(SETTINGS_HANDLER).name}")
-        end = text.find("\n};", start)
-        if end < 0:
-            raise SystemExit(f"ERROR {array}[] is not terminated in {Path(SETTINGS_HANDLER).name}")
-        # The slice, not the whole file: a mapping-shaped brace pair elsewhere in
-        # the handler is not a mapping, and the loose recogniser would count it.
-        table = text[start:end]
-        detected += assert_parse_is_lossless(
-            f"{array} entry",
-            f"{SETTINGS_HANDLER} ({array})",
-            table,
-            MAPPING_SITE_RE,
-            list(MAPPING_RE.finditer(table)),
-        )
-        entries = [
-            {"settings_id": settings_id, "pref_path": pref_path, "service": service}
-            for settings_id, pref_path in MAPPING_RE.findall(table)
-        ]
-        surface[service] = sorted(entries, key=lambda entry: entry["settings_id"])
-
-    return surface, detected
-
-
 def parse_webui_hosts() -> tuple[list[dict], int]:
     """The internal hosts, read from the WebUI controllers that define them."""
     hosts: list[dict] = []
@@ -890,11 +845,12 @@ def build_preferences(profile: str, prefs: list[dict], version: str) -> dict:
     signed_in = profile == "Default"
 
     # Chromium-owned preferences the issue names explicitly: startup, the
-    # default search engine, content permissions, pinned tabs. Unlike the
-    # settings surface above, these few have well-known shapes and the issue
-    # requires them present, so they are stated here rather than guessed per
-    # pref. Everything else Chromium owns is listed by name in
-    # settings-surface-prefs.json or captured from a real browser.
+    # default search engine, content permissions, pinned tabs. These few have
+    # well-known shapes and the issue requires them present, so they are stated
+    # here rather than guessed per pref. Everything else Chromium owns comes
+    # from a captured profile: its prefs are Chromium's, there is no Astro-side
+    # list of them to enumerate, and inventing a value for a pref whose type was
+    # guessed produces a profile the browser rejects.
     chromium_shaped = {
         "bookmark_bar.show_on_all_tabs": True,
         "browser.show_home_button": True,
@@ -1254,7 +1210,6 @@ def as_json(document: object) -> bytes:
 def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
     """Every fixture entry, the bytes of the generated ones, and the metadata."""
     prefs, prefs_detected = parse_registered_prefs()
-    surface, mappings_detected = parse_settings_surface()
     hosts, hosts_detected = parse_webui_hosts()
     catalog, catalog_detected = parse_filter_catalog()
     adblock = parse_adblock_layout()
@@ -1275,7 +1230,6 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
     # tool has no business asserting.
     for label, parsed, where in (
         ("preference registrations", len(prefs), " and ".join(PREF_PATCHES)),
-        ("settings pref mappings", mappings_detected, SETTINGS_HANDLER),
         ("WebUI host constants", len(hosts), WEBUI_DIR),
         ("filter list entries", len(catalog), FILTER_CATALOG),
     ):
@@ -1287,16 +1241,9 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
                 f"      moved, or the declaration idiom changed entirely."
             )
 
-    # `represented`, the third count, for the two surfaces that do not pass
-    # through a per-profile document. Both are looking for a COLLAPSE: two
+    # `represented`, the third count, for the one surface that does not pass
+    # through a per-profile document. It is looking for a COLLAPSE: two
     # declarations normalising to one key, which no upstream count can see.
-    assert_represented(
-        "settings pref mappings",
-        mappings_detected,
-        len({entry["settings_id"] for entry in surface["profile"] + surface["local_state"]}),
-        "Two controls share a settings_id, so the frontend cannot tell which pref "
-        "a change is meant to write.",
-    )
     assert_represented(
         "WebUI host constants",
         len(hosts),
@@ -1493,18 +1440,17 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
     )
 
     generated(
-        "settings-surface-prefs.json",
+        "astro-owned-prefs.json",
         as_json(
             {
                 "_generated_by": "tools/baseline/make_profile_fixtures.py",
                 "note": (
-                    "Preferences the Astro settings page reads and writes, by NAME "
-                    "only. The Chromium-owned ones carry no fixture value: inventing "
-                    "a value for a pref whose type was guessed produces a profile the "
-                    "browser rejects. A captured profile must contain these."
+                    "Every preference Astro itself registers, by name and kind, read "
+                    "out of the patches that register them. Chromium's own preferences "
+                    "are not listed: they belong to Chromium, they are not enumerable "
+                    "from anything Astro owns, and the profiles that carry them are "
+                    "captured from a real browser rather than synthesised."
                 ),
-                "profile": surface["profile"],
-                "local_state": surface["local_state"],
                 "astro_owned": [
                     {"name": pref["name"], "kind": pref["kind"], "registered_in": pref["source"]}
                     for pref in prefs
@@ -1532,8 +1478,8 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
                 },
             }
         ),
-        ["settings-page pref surface", "Astro-owned prefs excluded from the baseline"],
-        [SETTINGS_HANDLER, PREF_DISPOSITIONS],
+        ["the Astro-owned pref registry", "Astro-owned prefs excluded from the baseline"],
+        [*pref_sources, PREF_DISPOSITIONS],
     )
 
     generated(
@@ -1675,10 +1621,6 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
     # them was enforced above, at the point each one could still be explained.
     invariant = {
         "preference registrations": (prefs_detected, len(prefs)),
-        "settings pref mappings": (
-            mappings_detected,
-            len(surface["profile"]) + len(surface["local_state"]),
-        ),
         "WebUI host constants": (hosts_detected, len(hosts)),
         "filter list entries": (catalog_detected, len(catalog)),
     }

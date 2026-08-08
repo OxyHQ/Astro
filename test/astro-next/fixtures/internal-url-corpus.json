@@ -11,19 +11,9 @@
       "host": "alia"
     },
     {
-      "constant": "kAstroErrorHost",
-      "defined_in": "src/chrome/browser/oxy/webui/astro_error_ui.h",
-      "host": "astro-error"
-    },
-    {
       "constant": "kAstroNtpHost",
       "defined_in": "src/chrome/browser/oxy/webui/astro_ntp_ui.h",
       "host": "astro-ntp"
-    },
-    {
-      "constant": "kAstroSettingsHost",
-      "defined_in": "src/chrome/browser/oxy/webui/astro_settings_ui.h",
-      "host": "settings"
     },
     {
       "constant": "kAstroWhatsNewHost",
@@ -41,12 +31,6 @@
       "url": "astro://alia/"
     },
     {
-      "host": "astro-error",
-      "scheme": "astro",
-      "style": "astro-scheme",
-      "url": "astro://astro-error/"
-    },
-    {
       "host": "astro-ntp",
       "scheme": "astro",
       "style": "astro-scheme",
@@ -57,12 +41,6 @@
       "scheme": "astro",
       "style": "astro-scheme",
       "url": "astro://newtab/"
-    },
-    {
-      "host": "settings",
-      "scheme": "astro",
-      "style": "astro-scheme",
-      "url": "astro://settings/"
     },
     {
       "host": "whats-new",
@@ -77,12 +55,6 @@
       "url": "chrome://alia/"
     },
     {
-      "host": "astro-error",
-      "scheme": "chrome",
-      "style": "legacy-chrome-scheme",
-      "url": "chrome://astro-error/"
-    },
-    {
       "host": "astro-ntp",
       "scheme": "chrome",
       "style": "legacy-chrome-scheme",
@@ -93,12 +65,6 @@
       "scheme": "chrome",
       "style": "legacy-chrome-scheme",
       "url": "chrome://newtab/"
-    },
-    {
-      "host": "settings",
-      "scheme": "chrome",
-      "style": "legacy-chrome-scheme",
-      "url": "chrome://settings/"
     },
     {
       "host": "whats-new",

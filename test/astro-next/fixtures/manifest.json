@@ -26,32 +26,31 @@
     },
     {
       "covers": [
+        "the Astro-owned pref registry",
+        "Astro-owned prefs excluded from the baseline"
+      ],
+      "derived_from": [
+        "patches/astro/020-register-oxy-prefs.patch",
+        "patches/astro/046-adblock-prefs.patch",
+        "docs/astro-next/baseline/pref-dispositions.json"
+      ],
+      "kind": "file",
+      "owner": "astro",
+      "path": "astro-owned-prefs.json",
+      "provenance": "generated"
+    },
+    {
+      "covers": [
         "legacy chrome://astro-* and astro:// URLs"
       ],
       "derived_from": [
         "src/chrome/browser/oxy/webui/astro_alia_ui.h",
-        "src/chrome/browser/oxy/webui/astro_error_ui.h",
         "src/chrome/browser/oxy/webui/astro_ntp_ui.h",
-        "src/chrome/browser/oxy/webui/astro_settings_ui.h",
         "src/chrome/browser/oxy/webui/astro_whats_new_ui.h"
       ],
       "kind": "file",
       "owner": "astro",
       "path": "internal-url-corpus.json",
-      "provenance": "generated"
-    },
-    {
-      "covers": [
-        "settings-page pref surface",
-        "Astro-owned prefs excluded from the baseline"
-      ],
-      "derived_from": [
-        "src/chrome/browser/oxy/webui/astro_settings_handler.cc",
-        "docs/astro-next/baseline/pref-dispositions.json"
-      ],
-      "kind": "file",
-      "owner": "astro",
-      "path": "settings-surface-prefs.json",
       "provenance": "generated"
     },
     {
@@ -377,25 +376,21 @@
   ],
   "fixture_version": 1,
   "issue": "https://github.com/OxyHQ/Astro/issues/6",
-  "observed_local_only_pref_count": 8,
+  "observed_local_only_pref_count": 0,
   "parse_invariant": {
     "note": "'detected' comes from a deliberately loose recogniser and 'parsed' from the strict parser, measured by different rules so they can disagree; generation fails unless they pair one-to-one and unless the same number reaches the generated fixtures. There is no minimum: the only floor is zero, which would satisfy the identity while describing nothing.",
     "surfaces": {
       "WebUI host constants": {
-        "detected": 5,
-        "parsed": 5
+        "detected": 3,
+        "parsed": 3
       },
       "filter list entries": {
         "detected": 11,
         "parsed": 11
       },
       "preference registrations": {
-        "detected": 10,
-        "parsed": 10
-      },
-      "settings pref mappings": {
-        "detected": 34,
-        "parsed": 34
+        "detected": 18,
+        "parsed": 18
       }
     }
   },
@@ -403,7 +398,7 @@
     "Default",
     "Profile 1"
   ],
-  "registered_pref_count": 10,
+  "registered_pref_count": 18,
   "revision_authority": "browser.lock.json",
   "tool": "tools/baseline/make_profile_fixtures.py"
 }

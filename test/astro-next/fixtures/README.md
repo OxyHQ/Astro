@@ -26,7 +26,7 @@ the same way: regenerate and review the diff.
 15 file(s) are **generated**. Their values come from parsing
 the code that defines them - the preference registrations in
 `patches/astro/020-register-oxy-prefs.patch` and
-`patches/astro/046-adblock-prefs.patch` (10 preferences), the WebUI
+`patches/astro/046-adblock-prefs.patch` (18 preferences), the WebUI
 host constants, the adblock filter catalog and the token store - so they
 cannot drift from the browser without `--verify` noticing.
 
@@ -59,7 +59,7 @@ what stops a hand-filled database from passing as a capture.
 
 ## Astro preferences deliberately NOT in this baseline
 
-8 Astro-owned preference(s) are registered only in a
+0 Astro-owned preference(s) are registered only in a
 working-tree copy of a patch, never at `HEAD`. They are **candidate future
 preferences**, not part of the legacy baseline, and they are excluded from
 these fixtures on purpose: the baseline is what a clean checkout can
@@ -75,22 +75,14 @@ the record below from quietly becoming untrue.
 
 | Preference | Decided by | Observed in |
 |---|---|---|
-| `astro.ntp_show_alia` | [#22](https://github.com/OxyHQ/Astro/issues/22) | `patches/astro/020-register-oxy-prefs.patch` |
-| `astro.ntp_show_clock` | [#22](https://github.com/OxyHQ/Astro/issues/22) | `patches/astro/020-register-oxy-prefs.patch` |
-| `astro.ntp_show_discover` | [#22](https://github.com/OxyHQ/Astro/issues/22) | `patches/astro/020-register-oxy-prefs.patch` |
-| `astro.ntp_show_notes` | [#22](https://github.com/OxyHQ/Astro/issues/22) | `patches/astro/020-register-oxy-prefs.patch` |
-| `astro.ntp_show_quick_links` | [#22](https://github.com/OxyHQ/Astro/issues/22) | `patches/astro/020-register-oxy-prefs.patch` |
-| `astro.ntp_show_sites` | [#22](https://github.com/OxyHQ/Astro/issues/22) | `patches/astro/020-register-oxy-prefs.patch` |
-| `astro.ntp_show_weather` | [#22](https://github.com/OxyHQ/Astro/issues/22) | `patches/astro/020-register-oxy-prefs.patch` |
-| `oxy.adblock.lifetime_blocked_count` | [#18](https://github.com/OxyHQ/Astro/issues/18), [#19](https://github.com/OxyHQ/Astro/issues/19) | `patches/astro/046-adblock-prefs.patch` |
 
 ## Contents
 
 | Path | Provenance | Covers |
 |---|---|---|
 | `README.md` | generated | how these fixtures are generated from scratch |
+| `astro-owned-prefs.json` | generated | the Astro-owned pref registry, Astro-owned prefs excluded from the baseline |
 | `internal-url-corpus.json` | generated | legacy chrome://astro-* and astro:// URLs |
-| `settings-surface-prefs.json` | generated | settings-page pref surface, Astro-owned prefs excluded from the baseline |
 | `token-store-layout.json` | generated | token-store layout with non-production dummy values |
 | `user-data/Default/AstroAdBlock/engine_cache.bin` | requires-browser-capture | adblock engine cache |
 | `user-data/Default/AstroAdBlock/filterlists/easylist.txt` | generated | adblock filter lists |
