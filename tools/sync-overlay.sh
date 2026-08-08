@@ -551,7 +551,8 @@ esac
 astro::require_attributable_chromium \
     "$CHROMIUM_SRC" \
     "$ALLOWLIST" \
-    "$ASTRO_REPORT_DIR/patch-report.json"
+    "$ASTRO_REPORT_DIR/patch-report.json" \
+    "$ASTRO_REPORT_DIR/vendor-report.json"
 
 # --------------------------------------------------------------------------
 # Copy

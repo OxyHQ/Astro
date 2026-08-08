@@ -530,10 +530,29 @@ harness::make_build_root() {
     local root="$1" chromium="$2"
 
     harness::make_chromium_fixture "$chromium"
+
+    # The vendored Rust crate the overlay's ad blocker links against. build.sh
+    # requires it as an input, so a fixture without it would fail every build
+    # case for a reason none of them is asserting — and one WITH it but with no
+    # overlay-side dependency to derive would make that check vacuous, passing
+    # whether or not the crate is there. Both halves are therefore present, and
+    # the case that owns this check removes one of them to prove it fires.
+    #
+    # Committed rather than left untracked, unlike the real thing, so the
+    # fixture checkout stays clean for the attribution guard; what is being
+    # exercised here is build.sh's input check, not the attribution layer.
+    mkdir -p "$chromium/third_party/rust/adblock/v0_9"
+    printf 'rust_static_library("lib") {\n  crate_name = "adblock"\n}\n' \
+        > "$chromium/third_party/rust/adblock/v0_9/BUILD.gn"
+    harness::setup_run git -C "$chromium" add -A
+    harness::setup_run git -C "$chromium" commit --quiet -m "vendored rust crate fixture"
     harness::setup_run git -C "$chromium" checkout --quiet --detach HEAD
 
     mkdir -p "$root/tools/lib" "$root/gn_args" "$root/depot_tools" "$root/patches" \
-             "$root/src/chrome/browser/oxy/adblock/resources"
+             "$root/src/chrome/browser/oxy/adblock/resources" \
+             "$root/src/chrome/browser/oxy/adblock/rs"
+    printf 'rust_static_library("adblock_engine_ffi") {\n  deps = [\n    "//third_party/rust/adblock/v0_9:lib",\n  ]\n}\n' \
+        > "$root/src/chrome/browser/oxy/adblock/rs/BUILD.gn"
     # What build.sh runs rather than requires, so it cannot be derived below.
     harness::setup_run cp "$ASTRO_ROOT/tools/build.sh" \
        "$ASTRO_ROOT/tools/sync-overlay.sh" \

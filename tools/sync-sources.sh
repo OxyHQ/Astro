@@ -152,7 +152,8 @@ assert_checkout_is_clean_enough() {
             astro::require_attributable_chromium \
                 "$dir" "$ASTRO_ROOT/tools/overlay.allowlist" \
                 "$ASTRO_REPORT_DIR/patch-report.json" \
-                "$ASTRO_REPORT_DIR/overlay-manifest.json"
+                "$ASTRO_REPORT_DIR/overlay-manifest.json" \
+                "$ASTRO_REPORT_DIR/vendor-report.json"
         else
             problems="$problems
   $count uncommitted change(s) or untracked file(s), and no patch report to attribute them to"

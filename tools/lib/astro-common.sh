@@ -799,7 +799,7 @@ astro::require_pristine_chromium() {
     astro::die_with_hint \
         "Chromium checkout has $count local modification(s) and must be pristine for this step." \
         "First 20:" \
-        "$(printf '%s\n' "$dirty" | head -20 | sed 's/^/  /')" \
+        "$(printf '%s\n' "$dirty" | sed -n '1,20 s/^/  /p')" \
         "" \
         "Astro will not patch on top of an unknown tree: the result would be neither" \
         "the reviewed patch set nor upstream." \
@@ -925,12 +925,73 @@ PY
     astro::die_with_hint \
         "Chromium checkout has $unattributed_count modified path(s) Astro did not write." \
         "First 20:" \
-        "$(printf '%s\n' "$unattributed" | head -20 | sed 's/^/  /')" \
+        "$(printf '%s\n' "$unattributed" | sed -n '1,20 s/^/  /p')" \
         "" \
         "These are unrelated local changes. Astro preserves developer work by default" \
         "and will not build on top of a tree it cannot account for." \
         "" \
         "To override: ASTRO_ALLOW_DIRTY_CHROMIUM=1 (developer-only; never set in CI)"
+}
+
+# astro::require_vendored_rust_deps <chromium-src> <overlay-source>
+#
+# The overlay's Rust targets depend on crates that live in the Chromium tree but
+# are NOT part of a Chromium checkout: `tools/vendor-adblock-rust.sh` fetches
+# them and asks gnrt to generate their BUILD.gn files. A checkout that has never
+# been vendored into — or one that was reset, since everything vendoring writes
+# is untracked — therefore has a hole in the build graph.
+#
+# Until the overlay had a build edge nothing noticed, because GN never loaded
+# the overlay's BUILD.gn files at all. With the edge in place the hole surfaces
+# as a `gn gen` failure naming a file nobody wrote:
+#
+#     ERROR at //chrome/browser/oxy/adblock/rs/BUILD.gn:25:5: Unable to load
+#     ".../third_party/rust/adblock/v0_9/BUILD.gn".
+#
+# which reads as a defect in the overlay rather than as a missing pipeline step.
+# The labels are derived from the overlay's own BUILD.gn files rather than
+# listed here, so a new Rust dependency is covered the day it is added.
+astro::require_vendored_rust_deps() {
+    local src="$1" overlay="$2"
+    astro::require_dir "$src" "Chromium checkout"
+    astro::require_dir "$overlay" "overlay source"
+
+    # The directory is required above, so the only way this pipeline fails is
+    # grep matching nothing — an overlay with no Rust dependency, which is a
+    # legitimate empty result rather than a swallowed failure. Written as an
+    # `if` for exactly that reason: `|| true` would also hide a real error.
+    local labels
+    if ! labels="$(grep -rhoE '"//third_party/rust/[A-Za-z0-9_]+/v[0-9_]+:' "$overlay" \
+                       | sed 's/^"//; s/:$//' | sort -u)"; then
+        labels=""
+    fi
+
+    local -a missing=()
+    local label crate_path
+    while IFS= read -r label; do
+        [ -n "$label" ] || continue
+        crate_path="${label#//}"
+        if [ ! -f "$src/$crate_path/BUILD.gn" ]; then
+            missing+=("$crate_path")
+        fi
+    done <<< "$labels"
+
+    if [ "${#missing[@]}" -eq 0 ]; then
+        return 0
+    fi
+
+    astro::die_with_hint \
+        "The Chromium checkout is missing ${#missing[@]} vendored Rust crate(s) the overlay depends on:" \
+        "$(printf '  %s\n' "${missing[@]}")" \
+        "" \
+        "Nothing in a Chromium checkout provides these — they are vendored from" \
+        "crates.io and their BUILD.gn files are generated. Everything that step" \
+        "writes is untracked, so a reset checkout loses all of it." \
+        "" \
+        "Run:  tools/vendor-adblock-rust.sh" \
+        "" \
+        "Without it gn gen fails hours later with 'Unable to load', which reads as" \
+        "a defect in the overlay rather than as a step that was never run."
 }
 
 # Prints the modified-tree summary required before build generation, so both

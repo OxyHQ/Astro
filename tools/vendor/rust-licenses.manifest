@@ -1,0 +1,132 @@
+# rust-licenses.manifest — the licence files Astro supplies to vendored Rust
+# crates whose published crates.io tarball ships none.
+#
+# WHY THIS FILE EXISTS
+#
+# `tools/vendor-adblock-rust.sh` adds an `adblock` dependency to Chromium's
+# `third_party/rust/chromium_crates_io/Cargo.toml` and asks Chromium's own
+# `gnrt` to vendor it and generate the `BUILD.gn` files the build needs.
+# `gnrt gen` writes a `README.chromium` for every vendored crate, and refuses —
+# for the whole run, not just that crate — when it cannot find a licence file
+# in the crate's vendor directory:
+#
+#     License file not found for crate `convert_case-0.4.0`.
+#
+# Thirteen of the fifty-five crates the adblock dependency pulls in declare a
+# licence in their `Cargo.toml` and ship no licence FILE in the tarball
+# published to crates.io. That is a defect in those releases, not in gnrt: the
+# text is present in each project's own repository and was simply not included
+# in the packaged artifact.
+#
+# So the file is taken from the project's own repository, at a pinned commit,
+# and installed into the vendor directory after `gnrt vendor` and before
+# `gnrt gen`. Nothing is composed, edited or reformatted — each `source` below
+# is a byte-exact copy, and its `sha256` is verified on every run, so a
+# corrupted or substituted text stops the vendoring instead of reaching a
+# `README.chromium` that would then misstate the terms.
+#
+# WHAT THIS FILE MUST NEVER DO
+#
+# Invent attribution. A licence text carrying a copyright line names a real
+# person or organisation, and writing one that upstream did not write is a
+# false claim shipped to every user. Every `source` here is therefore either
+#
+#   * a file that exists in the crate's upstream repository, taken verbatim at
+#     the commit named in its `origin`; or
+#   * the verbatim, unmodified text of the licence the crate's own Cargo.toml
+#     declares, from the body that publishes it — used ONLY where upstream has
+#     never had a licence file to take. The Apache-2.0 document names nobody
+#     (its appendix is a bracketed template), so installing it asserts the
+#     terms the crate itself declares and attributes nothing to anyone.
+#
+# HOW GNRT FINDS THE FILE
+#
+# `tools/crates/gnrt/lib/readme.rs` resolves the crate's SPDX expression to one
+# `LicenseKind` — `Apache-2.0` wins over `MIT` in a dual expression, which is
+# why the two dual-licensed crates below get the Apache text — and then tries a
+# fixed list of filenames in the vendor directory: `LICENSE-<Kind>`, then
+# `LICENSE-<KIND>`, then a bare `LICENSE`, each with an optional `.md`/`.txt`
+# and a `LICENCE` spelling. The `dest` column below is a name from that list,
+# so no `gnrt_config.toml` override is needed and Chromium's own tracked file
+# is not touched.
+#
+# FORMAT
+#
+#   source  <path under tools/vendor/licenses/>  <sha256>  <origin URL>
+#   install <vendor directory name>  <dest filename>  <source path>
+#
+# The join is strict in both directions and `tools/lib/vendor_licenses.py`
+# enforces it: an `install` naming an undeclared `source` fails, a `source` no
+# `install` uses fails, a `sha256` that does not match the file on disk fails,
+# and an `install` whose vendor directory is absent from the checkout fails as
+# a stale declaration rather than being skipped. A crate that starts shipping
+# its own licence therefore surfaces as a stale record to delete, which is the
+# only way this file gets smaller.
+#
+# ADDING ONE
+#
+# Do not write the text. Fetch it from the crate's `repository` URL at a commit
+# you can name, check that commit predates or matches the vendored release,
+# record the sha256 you actually measured, and add both records.
+
+# ---------------------------------------------------------------------------
+# Sources
+# ---------------------------------------------------------------------------
+
+# convert_case 0.4.0 — MIT. The crate's `authors` field is
+# `David Purdum <purdum41@gmail.com>`, which is who this text names; the
+# repository's later copy (commit e58d5ae, 2025) renames the holder to
+# "rutrum" and is the wrong artifact for a 2021 release. The pinned commit is
+# the one that added the file in 2020 and is what the repository held when
+# 0.4.0 was published.
+source  convert-case/LICENSE  797087750c4103075e96bb7a60202a040812f8679ae2f7263148a1cc0b298d28  https://raw.githubusercontent.com/rutrum/convert-case/f72ca63c9d579fbab22e361c76e39d31d1e86a2e/LICENSE
+
+# rust-phf — MIT, one repository for all eight vendored phf crates. Pinned at
+# the 2016 revision rather than the current one: the file was next touched in
+# July 2022 ("Update copyright year", which also adds a second holder), and
+# both vendored releases — 0.8.0 (2019) and 0.10.x (2021) — predate that.
+source  rust-phf/LICENSE  d8870d5e2ab20fc50915b711c5aa7588131c9abcc1bcb980da1efd7486522a46  https://raw.githubusercontent.com/rust-phf/rust-phf/e7cffb04585e5fa25b81b58d3b1b1605a239f253/LICENSE
+
+# seahash 3.0.7 — MIT. Upstream is GitLab, not GitHub. The licence file was
+# added in 2023 ("fix: add missing MIT license text"), after the 3.0.7 release
+# that is vendored here, and is the only licence text the project has ever
+# published; there is no earlier revision to prefer.
+source  seahash/LICENSE  23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3  https://gitlab.redox-os.org/redox-os/seahash/-/raw/3088c5c912b70b586d27bf553fbe964e025a2c89/LICENSE
+
+# selectors 0.24.0 — MPL-2.0. The crate is published out of the Servo
+# monorepo, whose root LICENSE is the MPL 2.0 text; it has not changed since
+# 2018, well before the vendored release.
+source  servo/LICENSE  1af2d2b02d9c86030d29ed77117ca7a1b0e4b6ff35bcf8eeb124867d0f5cb59e  https://raw.githubusercontent.com/servo/servo/f5ab95786f9cbbf5804d87f265812325fc80ad7b/LICENSE
+
+# The Apache License 2.0, verbatim from the Apache Software Foundation, for the
+# two dual-licensed crates gnrt resolves to Apache-2.0.
+#
+# fxhash 0.2.1 declares `Apache-2.0/MIT` and its repository has never contained
+# a licence file of any kind, so there is no upstream artifact to take and the
+# canonical document is the only truthful option. rust-siphash does now publish
+# `LICENSE-APACHE` (added June 2026, after the vendored 0.3.11), and that file
+# is BYTE-IDENTICAL to this one — verified, same sha256 — so one copy serves
+# both rather than two identical files pretending to be different evidence.
+source  apache-2.0/LICENSE-APACHE  cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30  https://www.apache.org/licenses/LICENSE-2.0.txt
+
+# ---------------------------------------------------------------------------
+# Installs
+# ---------------------------------------------------------------------------
+
+install  convert_case-v0_4      LICENSE         convert-case/LICENSE
+
+install  phf-v0_8               LICENSE         rust-phf/LICENSE
+install  phf-v0_10              LICENSE         rust-phf/LICENSE
+install  phf_codegen-v0_8       LICENSE         rust-phf/LICENSE
+install  phf_generator-v0_8     LICENSE         rust-phf/LICENSE
+install  phf_generator-v0_10    LICENSE         rust-phf/LICENSE
+install  phf_macros-v0_10       LICENSE         rust-phf/LICENSE
+install  phf_shared-v0_8        LICENSE         rust-phf/LICENSE
+install  phf_shared-v0_10       LICENSE         rust-phf/LICENSE
+
+install  seahash-v3             LICENSE         seahash/LICENSE
+
+install  selectors-v0_24        LICENSE         servo/LICENSE
+
+install  fxhash-v0_2            LICENSE-APACHE  apache-2.0/LICENSE-APACHE
+install  siphasher-v0_3         LICENSE-APACHE  apache-2.0/LICENSE-APACHE

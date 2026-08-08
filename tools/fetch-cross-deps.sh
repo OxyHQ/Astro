@@ -114,7 +114,8 @@ git -C "$CHROMIUM_SRC" --no-pager log -1 --format='    %H %s'
 astro::require_attributable_chromium \
     "$CHROMIUM_SRC" \
     "$ASTRO_ROOT/tools/overlay.allowlist" \
-    "$ASTRO_REPORT_DIR/patch-report.json"
+    "$ASTRO_REPORT_DIR/patch-report.json" \
+    "$ASTRO_REPORT_DIR/vendor-report.json"
 
 git -C "$CHROMIUM_SRC" checkout -- .
 

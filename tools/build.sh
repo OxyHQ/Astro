@@ -174,6 +174,16 @@ astro::info "    all ${#REQUIRED_WEBUI_PAGES[@]} bundles present"
 ADBLOCK_RESOURCES="$ASTRO_ROOT/src/chrome/browser/oxy/adblock/resources"
 astro::require_dir "$ADBLOCK_RESOURCES" "ad blocker filter lists"
 
+# The vendored Rust crates the ad blocker's engine links against. Same class of
+# defect as the WebUI bundles above and checked for the same reason: the input
+# is produced by a separate step, everything that step writes is UNTRACKED, and
+# a reset checkout therefore loses all of it while looking perfectly healthy.
+# Unchecked, the absence surfaces as `gn gen` failing to load a BUILD.gn nobody
+# wrote — a report about the overlay, for a step that was never run.
+astro::info ">>> Checking vendored Rust dependencies..."
+astro::require_vendored_rust_deps "$CHROMIUM_SRC" "$ASTRO_ROOT/src/chrome/browser/oxy"
+astro::info "    every vendored Rust crate the overlay depends on is present"
+
 # --------------------------------------------------------------------------
 # Overlay
 # --------------------------------------------------------------------------
