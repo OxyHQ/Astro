@@ -54,11 +54,46 @@ export type {
 
 export {setPref, usePref} from './browser/pref-store.ts';
 
+// Lane 1 of the transport contract, alongside settingsPrivate: purpose-typed
+// Chromium APIs the browser grants this host by URL pattern. Each facade
+// exposes only the operations a screen calls -- never the API object -- so the
+// surface a page can reach is the surface someone chose to give it.
+export {removeAddress, removePaymentsEntity, usePersonalData} from './browser/autofill-store.ts';
+export type {
+  AutofillMetadata,
+  PersonalData,
+  SavedAddress,
+  SavedCard,
+  SavedIban,
+} from './browser/autofill-private.ts';
+
+export {
+  addCustomWord,
+  disableLanguage,
+  enableLanguage,
+  moveLanguage,
+  removeCustomWord,
+  useCustomWords,
+  useDictionaryStatuses,
+  useLanguages,
+} from './browser/language-store.ts';
+export type {
+  DictionaryStatus,
+  LanguageInfo,
+  LanguageMove,
+} from './browser/language-settings-private.ts';
+
 // Type-only, and erased at build: the shape a settings section declares its dev
 // fixtures in. Exported here rather than imported from `browser/mock/` by each
 // section, so the mock directory stays reachable from exactly one place and a
 // section cannot accidentally pull a fixture VALUE into a shipped bundle.
-export type {HandlerAction, HandlerReply, SectionFixtures} from './browser/mock/fixtures.ts';
+export type {
+  AutofillFixtures,
+  HandlerAction,
+  HandlerReply,
+  LanguageFixtures,
+  SectionFixtures,
+} from './browser/mock/fixtures.ts';
 
 export {setMode, setPreset, useThemeState} from './browser/theme-store.ts';
 export type {RawTheme, ThemeMode, ThemeSource, ThemeState} from './browser/theme-store.ts';

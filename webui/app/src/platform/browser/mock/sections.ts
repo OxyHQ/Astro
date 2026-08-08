@@ -9,7 +9,15 @@
 // contribution costs an import; a MISSING one costs a section whose fixtures
 // were written, committed, and silently never loaded.
 
-import {mergeUnique, type HandlerAction, type HandlerReply, type SectionFixtures} from './fixtures.ts';
+import {
+  mergeUnique,
+  soleContribution,
+  type AutofillFixtures,
+  type HandlerAction,
+  type HandlerReply,
+  type LanguageFixtures,
+  type SectionFixtures,
+} from './fixtures.ts';
 import type {Pref} from '../settings-private.ts';
 
 import {aboutFixtures} from '../../../pages/settings/sections/about.fixtures.ts';
@@ -90,5 +98,25 @@ export function fixtureActions(): Record<string, HandlerAction> {
   return mergeUnique(
     'handler message',
     CONTRIBUTIONS.map(([section, fixtures]) => [section, fixtures.actions ?? {}] as const),
+  );
+}
+
+/** The saved addresses and payment methods the dev browser holds. */
+export function fixtureAutofill(): AutofillFixtures {
+  return (
+    soleContribution(
+      'the saved-info dataset',
+      CONTRIBUTIONS.map(([section, fixtures]) => [section, fixtures.autofill] as const),
+    ) ?? {}
+  );
+}
+
+/** The languages and spell-check state the dev browser holds. */
+export function fixtureLanguages(): LanguageFixtures {
+  return (
+    soleContribution(
+      'the language dataset',
+      CONTRIBUTIONS.map(([section, fixtures]) => [section, fixtures.languages] as const),
+    ) ?? {}
   );
 }

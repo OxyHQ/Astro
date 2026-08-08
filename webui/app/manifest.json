@@ -25,6 +25,7 @@
         "astro-webui-autofill-payments.js",
         "astro-webui-autofill-travel.js",
         "astro-webui-autofill.js",
+        "astro-webui-collapsible-group.js",
         "astro-webui-default-browser.js",
         "astro-webui-downloads.js",
         "astro-webui-index.web.js",

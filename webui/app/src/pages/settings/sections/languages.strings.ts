@@ -22,9 +22,8 @@ export const languagesStrings = {
   'settings.languages.preferred.sublabel':
     'Sent to websites in the Accept-Language header, best first.',
   'settings.languages.preferred.footer':
-    'Reported rather than edited. Adding, removing and reordering a language ' +
-    'goes through chrome.languageSettingsPrivate, which is granted to this ' +
-    'host but is not part of the browser API layer this page is built on yet.',
+    'Websites are offered these in order, best first. Astro also checks your ' +
+    'spelling in the ones that have a dictionary.',
 
   'settings.languages.group.more': 'More',
   'settings.languages.spellCheck.link': 'Spell check',
@@ -51,6 +50,38 @@ export const languagesStrings = {
     'to a Google service. Astro does not: the service needs an API key this ' +
     'browser deliberately ships without, and Chromium itself compiles that ' +
     'control out of any build that is not Google Chrome.',
+  'settings.languages.primary': 'Preferred',
+  'settings.languages.moveUp': 'Move up',
+  'settings.languages.remove': 'Remove',
+  'settings.languages.preferred.locked':
+    'Your organisation has fixed the languages this profile accepts, so they ' +
+    'cannot be added, removed or reordered here.',
+  'settings.languages.add': 'Add a language',
+  'settings.languages.add.filter': 'Filter languages',
+  'settings.languages.add.action': 'Add',
+  'settings.languages.add.narrow':
+    'Only the first 40 are shown. Type above to narrow the list.',
+  'settings.languages.editDictionary.description':
+    'Words you added are never underlined as misspelled, in any language.',
+  'settings.languages.editDictionary.add': 'Add a word',
+  'settings.languages.editDictionary.addAction': 'Add',
+  'settings.languages.editDictionary.remove': 'Remove',
+  'settings.languages.editDictionary.duplicate': '"{word}" is already in the dictionary.',
+  'settings.languages.editDictionary.empty':
+    'Nothing here yet. Words you add from a page\u2019s right-click menu show up ' +
+    'in this list too.',
+  'settings.languages.editDictionary.footer':
+    'These words are stored on this device only. Astro never sends them ' +
+    'anywhere.',
+  'settings.languages.editDictionary.inert':
+    'Spell check is currently off, so nothing is being underlined and these ' +
+    'words are not in use. They are kept for when you turn it back on.',
+  'settings.languages.spellCheck.dictionary': 'Dictionary',
+  'settings.languages.spellCheck.downloads': 'Dictionaries still arriving',
+  'settings.languages.spellCheck.dictionary.downloading': 'downloading',
+  'settings.languages.spellCheck.dictionary.notReady': 'not on this device yet',
+  'settings.languages.spellCheck.dictionary.failed':
+    'could not be downloaded \u2014 spell check will skip this language',
   'settings.languages.editDictionary.link': 'Custom dictionary',
   'settings.languages.editDictionary.link.sublabel':
     'The words you told Astro to stop underlining.',
@@ -62,12 +93,15 @@ export const languagesStrings = {
  * The spell-check SUBPAGE's controls are listed too. The search field opens the
  * section a hit belongs to, and a setting that could not be found because it is
  * one row further in would be a setting the page has and cannot surface. The
- * custom dictionary is NOT listed: that screen is still pending, so finding it
- * would promise an editor the page does not draw.
+ * The custom dictionary's own controls are listed now that the screen draws
+ * them; its TITLE is indexed separately by the registry, which routes a hit to
+ * the subpage's own fragment.
  */
 export const languagesControls = [
   'settings.languages.preferred',
   'settings.languages.spellCheck.link',
   'settings.languages.spellCheck.enabled',
   'settings.languages.spellCheck.dictionaries',
+  'settings.languages.add',
+  'settings.languages.editDictionary.add',
 ] as const;

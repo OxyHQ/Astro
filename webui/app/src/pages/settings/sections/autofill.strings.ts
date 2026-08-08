@@ -36,6 +36,38 @@ export const autofillStrings = {
     'reading one needs an API this page does not reach yet. The switches above ' +
     'decide whether Astro adds to them; the screens below will show what is in ' +
     'them once they are built.',
+  'settings.autofill.remove': 'Remove',
+  'settings.autofill.inAccount': 'In your account',
+  'settings.autofill.addresses.description':
+    'Addresses Astro offers to fill in for you.',
+  'settings.autofill.addresses.empty':
+    'No saved addresses. Astro offers to save one the first time you fill an ' +
+    'address form.',
+  'settings.autofill.addresses.unnamed': 'Saved address',
+  'settings.autofill.addresses.footer':
+    'Stored on this device. Removing one here does not change anything you ' +
+    'have already submitted to a site.',
+  'settings.autofill.addresses.locked':
+    'Your organisation has switched address filling off, so these cannot be ' +
+    'removed here.',
+  'settings.autofill.addresses.noEditor':
+    'Adding and editing an address is not built into this page yet. Astro ' +
+    'still offers to save one when you fill an address form.',
+  'settings.autofill.payments.description':
+    'Cards and account numbers Astro offers to fill in for you.',
+  'settings.autofill.payments.cards': 'Cards',
+  'settings.autofill.payments.ibans': 'Account numbers',
+  'settings.autofill.payments.empty':
+    'No saved payment methods. Astro offers to save one the first time you ' +
+    'pay on a site.',
+  'settings.autofill.payments.unnamedCard': 'Saved card',
+  'settings.autofill.payments.expires': 'Expires {month}/{year}',
+  'settings.autofill.payments.locked':
+    'Your organisation has switched card filling off, so these cannot be ' +
+    'removed here.',
+  'settings.autofill.payments.noEditor':
+    'Adding and editing a payment method is not built into this page yet, and ' +
+    'card numbers are deliberately never shown here.',
 } as const;
 
 /**
