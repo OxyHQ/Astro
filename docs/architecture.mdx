@@ -1,6 +1,6 @@
 ---
 title: Architecture
-description: Patch model, source overlay, Mojo IPC pipeline, WebUI controllers, and the Rust adblock engine.
+description: Patch model, source overlay, WebUI controllers, and the Rust adblock engine.
 order: 2
 ---
 
@@ -14,7 +14,7 @@ Astro keeps a strict separation between upstream Chromium and Oxy code. There ar
 
 Everything else is stock Chromium, checked out at the exact commit `browser.lock.json` declares by `tools/sync-sources.sh`. This makes Chromium version bumps tractable — patches rebase cleanly because they are small and the overlay is self-contained — and makes each bump a reviewable lock diff. See [Reproducibility](/reproducibility).
 
-<Badge>Brave-style overlay</Badge> <Badge>Mojo IPC</Badge> <Badge>Rust adblock FFI</Badge>
+<Badge>Brave-style overlay</Badge> <Badge>Rust adblock FFI</Badge>
 
 ## Patch model
 
@@ -55,6 +55,7 @@ Ungoogled patches handle the heavy lifting of removing Google services (sync, ha
 | `047-051` | Alia AI side panel registration (entry id, action id, browser action, vector icon, registration) |
 | `052-054` | Adblock tab helper + toolbar button + WebUI registration |
 | `055-056` | NTP WebUI registration and `chrome://newtab` redirect |
+| `057-058` | Overlay build edge into `//chrome/browser/ui/webui:configs`, Alia WebUI registration |
 
 Every patch is named after what it does. Inspection is encouraged before any version bump — most patches are a handful of lines.
 
@@ -83,15 +84,13 @@ src/chrome/browser/oxy/
 │   ├── astro_adblock_resource_type.{h,cc}       # Resource type classification
 │   ├── adblock_domain_resolver.{h,cc}    # Domain matching
 │   └── rs/                               # Rust source + BUILD.gn
-└── webui/                                # WebUI controllers + Mojo handlers
+├── ui/
+│   └── astro_color_tokens.h             # GENERATED from Bloom's tokens.json
+└── webui/                                # WebUI controllers
     ├── BUILD.gn
-    ├── astro_settings.mojom              # Mojo interface for settings IPC
-    ├── astro_settings_ui.{h,cc}          # PageHandlerFactory (MojoWebUIController)
-    ├── astro_settings_handler.{h,cc}     # PageHandler impl + pref mappings
     ├── astro_ntp_ui.{h,cc}               # chrome://astro-ntp
     ├── astro_alia_ui.{h,cc}              # chrome://alia
-    ├── astro_whats_new_ui.{h,cc}         # chrome://whats-new
-    └── astro_error_ui.{h,cc}             # chrome://astro-error
+    └── astro_whats_new_ui.{h,cc}         # chrome://whats-new
 ```
 
 Naming is consistent: `oxy_*` for ecosystem-wide services (auth, Alia, cookies) and `astro_*` for browser-specific UI (WebUI controllers, ad blocker integration).
@@ -101,10 +100,11 @@ Naming is consistent: `oxy_*` for ecosystem-wide services (auth, Alia, cookies) 
 `tools/sync-overlay.sh` copies it, and only to destinations declared in
 `tools/overlay.allowlist`. Anything else is refused before a byte is written.
 
+The whole file, as it stands — two entries, and no `overwrite` among them:
+
 ```
 dir       chrome/browser/oxy                          # Astro owns it entirely
 file      chrome/app/vector_icons/alia_spark.icon     # new file, Chromium-owned dir
-overwrite chrome/browser/ui/webui/chrome_web_ui_configs.cc  owner=… issue=…
 ```
 
 The script never deletes, verifies the destination is a real Chromium checkout
@@ -113,126 +113,94 @@ first, refuses to clobber an upstream-tracked file that is not declared as an
 `build/reports/overlay-manifest.json`.
 
 <Warning>
-**The overlay is copied *after* patches are applied, so an `overwrite` of a file
-a patch also modifies silently reverts that patch.** One such collision is known:
-a whole-file copy of `chrome/browser/ui/webui/chrome_web_ui_configs.cc` reverts
-four patches, including `054-adblock-webui-register.patch`, so
-`AstroAdBlockUIConfig` is never registered in the resulting build.
+**The overlay is copied *after* patches are applied, so an `overwrite` of a
+file a patch also modifies silently reverts that patch.** That is not a
+hypothetical: a whole-file copy of
+`chrome/browser/ui/webui/chrome_web_ui_configs.cc` once reverted four patches,
+including `054-adblock-webui-register.patch`, so `AstroAdBlockUIConfig` was
+never registered in the resulting build. It is [issue
+#7](https://github.com/OxyHQ/Astro/issues/7).
 
-That copy is currently untracked working-tree content rather than committed
-repository state, so a fresh clone does not carry it. The allowlist declares it
-regardless, with `conflicts-with=`, so any checkout that does have the file
-behaves identically and says so loudly — and so a future committed copy is
-covered the moment it lands. Any *new* collision of this shape fails the sync
-outright.
+The copy is gone — deleted in `c9c4383` along with the settings page that was
+its only reason to exist — and with it the `overwrite` entry, which was the
+only one the allowlist has ever carried. Registration is a patch again.
 
-Replacing the whole-file copy with a minimal integration hook is tracked by
-[issue #7](https://github.com/OxyHQ/Astro/issues/7).
+The warning stays because the shape is what is dangerous, not that one file:
+any *new* collision of this kind fails the sync outright, and it should stay
+that way. Prefer a numbered patch over an `overwrite` every time.
 </Warning>
 
-## Mojo IPC pipeline (settings page)
+## There is no Mojo IPC pipeline
 
-The settings page is the most heavily wired internal page. It uses Chromium's standard Mojo IPC to talk to the browser process — the same pattern Chrome uses for `chrome://settings`, `chrome://history`, etc.
+This section used to describe one, in detail: an `astro_settings.mojom` with
+three interfaces, an `astro_settings_handler.cc` with two pref-mapping arrays,
+a `PrefChangeRegistrar` pushing live updates to the page, and a three-step
+recipe for adding a setting. None of it existed. **No `.mojom` has ever been
+committed to this repository** — `git log --all --diff-filter=A -- '*.mojom'`
+returns nothing at any revision — and the settings page those interfaces were
+supposed to serve was deleted in `c9c4383`. What that commit actually removed
+was a generic `chrome.send` handler carrying six messages and thirty-four
+prefs.
 
-```
-+----------------------------+      Mojo IPC      +-----------------------------+
-| webui/settings/  (TS+Vite) | <----------------> | astro_settings_handler.cc    |
-| BrowserProxy singleton     |                    | PageHandler impl             |
-|                            |                    |                              |
-| - getAllPrefs()            |  --> PageHandler   | - kProfilePrefMappings[]     |
-| - setPref(key, value)      |      method calls  | - kLocalStatePrefMappings[]  |
-| - setTheme(scheme)         |                    | - PrefChangeRegistrar        |
-| - clearBrowsingData()      |                    |                              |
-|                            |                    |                              |
-| onPrefChanged(key, value)  |  <-- Page method   | OnPrefChanged() push         |
-+----------------------------+      push          +-----------------------------+
-```
+Documentation that invents a file is worse than documentation that omits one:
+it sends the reader looking for something to edit, and it survives every
+review that only reads code.
 
-### Interface (`astro_settings.mojom`)
+What is true today: `astro://settings` is served by upstream Chromium's own
+`settings::SettingsUIConfig`, and the Astro overlay consumes Chromium's mojom
+types (`network::mojom` and friends) without defining any of its own.
 
-Three interfaces:
-
-```cpp
-// Bootstrapping. WebUI calls this when the page loads.
-interface PageHandlerFactory {
-  CreatePageHandler(pending_remote<Page>, pending_receiver<PageHandler>);
-};
-
-// Browser-side handler. Called by the WebUI page.
-interface PageHandler {
-  GetAllPrefs() => (map<string, PrefValue> prefs);
-  SetPref(string key, PrefValue value);
-  SetTheme(int32 scheme);          // 0 = System, 1 = Light, 2 = Dark
-  ClearBrowsingData();
-  OpenPage(string path);
-  ResetPrefsToDefaults();
-  SetDefaultBrowser();
-  OpenChromeUrl(string url);
-};
-
-// WebUI-side handler. Called by the browser when a pref changes.
-interface Page {
-  OnPrefChanged(string key, PrefValue value);
-};
-```
-
-`PrefValue` is a Mojo union of `bool | int32 | double | string` — the four pref types Chromium's `PrefService` supports.
-
-### Mapping table
-
-`astro_settings_handler.cc` contains two static arrays that define the entire surface of supported prefs:
-
-```cpp
-constexpr PrefMapping kProfilePrefMappings[] = {
-  {"autofill-passwords",      "credentials_enable_service"},
-  {"autofill-addresses",      "autofill.profile_enabled"},
-  {"ntp-widget-clock",        "oxy.ntp.widget.clock.enabled"},
-  // ...
-};
-
-constexpr PrefMapping kLocalStatePrefMappings[] = {
-  {"memory-saver",            "performance_tuning.high_efficiency_mode.state"},
-  {"energy-saver",            "performance_tuning.battery_saver_mode.state"},
-  // ...
-};
-```
-
-Each entry maps a `settings_id` (string baked into the HTML via `data-toggle-id` / `data-select-id` / `data-slider-id`) to a Chromium `PrefService` path. `PrefChangeRegistrar` watches every mapped path; when one changes (from any source — another tab, command line, programmatic write), the handler pushes the new value back to the WebUI via `Page::OnPrefChanged()`.
-
-### Adding a new setting
-
-1. Register the pref in patch `020-register-oxy-prefs.patch` (or wherever it belongs in upstream Chromium).
-2. Add the mapping in `astro_settings_handler.cc` to `kProfilePrefMappings[]` or `kLocalStatePrefMappings[]`.
-3. Add the control to `webui/settings/` with `data-toggle-id="..."` matching the mapping key.
-
-The Mojo plumbing, pref watching, and live sync all happen automatically.
+The direction — one Vite + Tailwind + Bloom application behind every
+`astro://` surface, with narrow typed Mojo per domain rather than a generic
+`SetPref(string, value)` — is issues #15 (as amended 2026-08-08), #14, #22,
+#17 and #24. It will be documented here when it exists, and not before.
 
 ## WebUI controllers
 
-Each of the five internal pages has a controller in `src/chrome/browser/oxy/webui/`. The pattern is identical:
+Three internal pages have a controller in `src/chrome/browser/oxy/webui/` —
+NTP, Alia and What's New — plus the ad blocker's under `adblock/webui/`. All
+inherit `content::WebUIController` directly; none uses Mojo.
 
 ```cpp
-class AstroFooUI : public ui::MojoWebUIController {
+class AstroNtpUI : public content::WebUIController {
  public:
-  explicit AstroFooUI(content::WebUI* web_ui)
-      : MojoWebUIController(web_ui, /*enable_chrome_send=*/false) {
+  explicit AstroNtpUI(content::WebUI* web_ui) : WebUIController(web_ui) {
     auto* source = content::WebUIDataSource::CreateAndAdd(
-        Profile::FromWebUI(web_ui), kAstroFooHost);
-    // Serve the Vite-built dist/ from disk
-    SetupAssetsFromDist(source, "chrome/browser/oxy/resources/foo/");
+        web_ui->GetWebContents()->GetBrowserContext(), kAstroNtpHost);
+    // Serves the Vite-built dist/ by reading it off disk at request time.
+    // See the warning below.
   }
 };
 
-class AstroFooUIConfig : public content::DefaultWebUIConfig<AstroFooUI> {
+class AstroNtpUIConfig : public content::DefaultWebUIConfig<AstroNtpUI> {
  public:
-  AstroFooUIConfig()
-      : DefaultWebUIConfig(content::kChromeUIScheme, kAstroFooHost) {}
+  AstroNtpUIConfig()
+      : DefaultWebUIConfig(content::kChromeUIScheme, kAstroNtpHost) {}
 };
 ```
 
-Pages that need IPC (only settings does today) inherit `MojoWebUIController` and implement a `PageHandlerFactory` to wire up the Mojo bindings. The rest inherit `WebUIController` directly.
+<Warning>
+These pages read their assets from a directory beside the executable at
+runtime (`base::DIR_EXE` + `resources/astro-<page>/`) rather than from a
+`.pak`. They therefore carry none of Chromium's resource-bundling guarantees
+and render blank, with no error, if the directory was not staged. Three things
+have to agree — the path the controller reads, the path `tools/build.sh`
+stages to, and the page's presence in `REQUIRED_WEBUI_PAGES` — and nothing
+checks that they do. Removing `DIR_EXE` in favour of a real `.pak` is #14.
+</Warning>
 
-`UIConfig` registration happens in the patched `chrome_web_ui_configs.cc` (patch `054-adblock-webui-register.patch`, `055-ntp-webui-register.patch`, etc. — one patch per page type).
+`UIConfig` registration happens in the patched `chrome_web_ui_configs.cc`, one
+numbered patch per page: `054-adblock-webui-register`, `055-ntp-webui-register`,
+`058-alia-webui-register`. What's New is deliberately absent — its host string
+is byte-identical to upstream's, and `WebUIConfigMap::AddWebUIConfigImpl`
+CHECKs on a duplicate origin, so registering beside upstream crashes the
+browser at startup. Taking a host upstream already owns means SWAPPING its
+registration line, never adding one.
+
+Registration alone is not enough: a `BUILD.gn` under `chrome/browser/oxy/`
+that nothing depends on compiles to nothing, silently. The edge that makes the
+overlay reachable is `057-oxy-webui-build-edge.patch`, into
+`//chrome/browser/ui/webui:configs`.
 
 ## Rust ad blocker
 
