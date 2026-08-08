@@ -93,11 +93,20 @@ PROBE
 harness::run bash "$tmp/pipefail-hazard.sh" "$big"
 harness::assert_nonzero_status "find piped into head, over a tree larger than the pipe buffer"
 
-# 141 = 128 + SIGPIPE(13). Asserting the exact status is what makes this a proof
-# of the mechanism rather than of some unrelated failure in the probe.
+# The hazard has TWO manifestations, decided by the findutils build, and both
+# are the same mechanism: head closes the pipe, find cannot write. Older find
+# dies of the signal — 141 = 128 + SIGPIPE(13). Newer GNU findutils handles
+# EPIPE itself and exits 1 after printing "write error" (measured on the CI
+# runner, 2026-08-08, while the same probe exits 141 on Debian 13). Accepting
+# exit 1 ONLY alongside find's own write-error diagnostic is what keeps this a
+# proof of the mechanism rather than of some unrelated failure in the probe.
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-if [ "$RUN_STATUS" != "141" ]; then
-    harness::fail "expected SIGPIPE (exit 141) from find; got $RUN_STATUS"
+if [ "$RUN_STATUS" = "141" ]; then
+    : # killed by SIGPIPE — the classic shape
+elif [ "$RUN_STATUS" = "1" ] && grep -q "write error" "$RUN_STDERR"; then
+    : # findutils caught EPIPE itself — same hazard, reported by find instead
+else
+    harness::fail "expected the find|head hazard (exit 141, or exit 1 with find's 'write error'); got $RUN_STATUS with stderr: $(sed -n '1p' "$RUN_STDERR")"
 fi
 
 cat > "$tmp/pipefail-safe.sh" <<'PROBE'
