@@ -10,11 +10,11 @@ Dispositions live in `patch-dispositions.json` and are joined in strictly:
 a patch with no disposition, or a disposition for a patch that no longer
 exists, fails generation. This inventory therefore cannot silently rot.
 
-## `patches/astro` — 54 patches
+## `patches/astro` — 56 patches
 
 | # | Patch | Files | Hunks | Disposition | Purpose |
 |---|---|---|---|---|---|
-| 1 | `001-branding-strings.patch` | `chrome/app/chromium_strings.grd` | 43 | **replace** | Replaces user-facing Chromium strings with Astro in .grd resources. |
+| 1 | `001-branding-strings.patch` | `chrome/app/chromium_strings.grd` | 45 | **replace** | Replaces user-facing Chromium strings with Astro in .grd resources. |
 | 2 | `002-branding-product-name.patch` | `chrome/app/theme/chromium/BRANDING` | 1 | **replace** | Sets the product name in the BRANDING file the build system reads. |
 | 3 | `003-branding-linux-package.patch` | `chrome/installer/linux/common/chromium-browser.info` | 1 | **replace** | Linux package metadata: package name, maintainer, description. |
 | 4 | `004-default-search-duckduckgo.patch` | `components/search_engines/template_url_prepopulate_data.cc` | 1 | **keep** | Makes DuckDuckGo the default search engine and curates the prepopulated list. |
@@ -65,9 +65,11 @@ exists, fails generation. This inventory therefore cannot silently rot.
 | 49 | `051-alia-vector-icon.patch` | `chrome/app/vector_icons/BUILD.gn` | 1 | **replace** | Registers the Alia vector icon. |
 | 50 | `052-adblock-tab-helper-register.patch` | `chrome/browser/ui/tab_helpers.cc` | 2 | **replace** | Attaches the per-tab adblock helper. |
 | 51 | `053-adblock-toolbar-button.patch` | `chrome/browser/ui/views/toolbar/toolbar_view.cc` | 2 | **replace** | Adds the adblock shield toolbar button. |
-| 52 | `054-adblock-webui-register.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 2 | **investigate** | Registers AstroAdBlockUIConfig. KNOWN DEFECT: reverted by the overlay's whole-file copy of chrome_web_ui_configs.cc, so the adblock WebUI is never registered (issue #4). |
+| 52 | `054-adblock-webui-register.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 2 | **replace** | Registers AstroAdBlockUIConfig in the WebUI config map. The overlay's whole-file copy of chrome_web_ui_configs.cc that used to revert this is no longer in the tree. |
 | 53 | `055-ntp-webui-register.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 2 | **replace** | Registers AstroNtpUIConfig in the WebUI config map. |
 | 54 | `056-ntp-redirect-to-astro.patch` | `chrome/browser/search/search.cc` | 3 | **replace** | Redirects chrome://newtab to the Astro NTP. |
+| 55 | `057-oxy-webui-build-edge.patch` | `chrome/browser/ui/webui/BUILD.gn` | 1 | **replace** | Makes //chrome/browser/ui/webui:configs depend on the overlay's two WebUI targets. Without this edge nothing in the build graph reaches chrome/browser/oxy, so the whole overlay compiles to zero objects and the configs the registration patches name do not link. |
+| 56 | `058-alia-webui-register.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 2 | **replace** | Registers AstroAliaUIConfig. The Alia side panel loads chrome://alia into a WebView, so without the registration the panel renders an error page. |
 
 ### Overlapping patches (3)
 
@@ -79,7 +81,7 @@ a candidate list rather than a verdict.
 |---|---|
 | `chrome/browser/prefs/browser_prefs.cc` | `020-register-oxy-prefs.patch`, `046-adblock-prefs.patch` |
 | `chrome/browser/ui/browser_navigator.cc` | `026-navigator-astro-rewrite.patch`, `036-navigator-auth-intercept.patch` |
-| `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | `054-adblock-webui-register.patch`, `055-ntp-webui-register.patch` |
+| `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | `054-adblock-webui-register.patch`, `055-ntp-webui-register.patch`, `058-alia-webui-register.patch` |
 
 ## `patches/ungoogled` — 112 patches
 

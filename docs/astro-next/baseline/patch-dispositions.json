@@ -426,10 +426,10 @@
       "replacement_issue": 18
     },
     "054-adblock-webui-register.patch": {
-      "disposition": "investigate",
+      "disposition": "replace",
       "effect": "user-visible",
-      "purpose": "Registers AstroAdBlockUIConfig. KNOWN DEFECT: reverted by the overlay's whole-file copy of chrome_web_ui_configs.cc, so the adblock WebUI is never registered (issue #4).",
-      "replacement_issue": 7
+      "purpose": "Registers AstroAdBlockUIConfig in the WebUI config map. The overlay's whole-file copy of chrome_web_ui_configs.cc that used to revert this is no longer in the tree.",
+      "replacement_issue": 18
     },
     "055-ntp-webui-register.patch": {
       "disposition": "replace",

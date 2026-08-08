@@ -17,10 +17,10 @@ grep would report two epic-rule violations that do not exist.
 
 | Rule | Source | Controllers |
 |---|---|---|
-| No privileged WebUI loading remote scripts, styles or fonts | epic #3, non-negotiable rules | `astro_alia_ui.cc`, `astro_ntp_ui.cc` |
+| No privileged WebUI loading remote scripts, styles or fonts | epic #3, non-negotiable rules | `astro_alia_ui.cc`, `astro_ntp_ui.cc`, `astro_whats_new_ui.cc` |
 | No privileged WebUI reads mutable application files from beside the executable | epic #3, global definition of done | `astro_alia_ui.cc`, `astro_ntp_ui.cc`, `astro_whats_new_ui.cc` |
 | No blanket disabling of Trusted Types | epic #3, non-negotiable rules | `astro_alia_ui.cc`, `astro_ntp_ui.cc`, `astro_whats_new_ui.cc` |
-| No `unsafe-inline` unless a narrowly documented temporary exception has an owner and removal issue | epic #3, non-negotiable rules | `astro_adblock_ui.cc`, `astro_alia_ui.cc`, `astro_ntp_ui.cc`, `astro_whats_new_ui.cc` |
+| No `unsafe-inline` unless a narrowly documented temporary exception has an owner and removal issue | epic #3, non-negotiable rules | `astro_adblock_ui.cc` |
 
 None of these is a new finding introduced by this baseline — they are the
 current state, recorded so that later issues can show they were fixed
@@ -49,15 +49,13 @@ CSP and Trusted Types is
 | Directive | Value |
 |---|---|
 | `ConnectSrc` | `connect-src 'self' https://api.alia.oxy.so;` |
-| `ImgSrc` | `img-src 'self' data:;` |
-| `ScriptSrc` | `script-src chrome://resources 'self' 'unsafe-inline';` |
-| `StyleSrc` | `style-src 'self' 'unsafe-inline' chrome://theme;` |
+| `FontSrc` | `font-src 'self' https://fonts.gstatic.com;` |
 
 | Property | Value |
 |---|---|
 | Trusted Types enforced | **no** — `DisableTrustedTypesCSP()` |
-| Remote origins allowed | `https://api.alia.oxy.so` |
-| Unsafe CSP tokens | `'unsafe-inline'` |
+| Remote origins allowed | `https://api.alia.oxy.so`, `https://fonts.gstatic.com` |
+| Unsafe CSP tokens | none |
 | Serves resources from `DIR_EXE` | **yes** — mutable files beside the executable |
 
 ### `src/chrome/browser/oxy/webui/astro_ntp_ui.cc`
@@ -65,30 +63,25 @@ CSP and Trusted Types is
 | Directive | Value |
 |---|---|
 | `FontSrc` | `font-src 'self' https://fonts.gstatic.com;` |
-| `ImgSrc` | `img-src 'self' data:;` |
-| `ScriptSrc` | `script-src chrome://resources 'self' 'unsafe-inline';` |
-| `StyleSrc` | `style-src 'self' 'unsafe-inline' chrome://theme https://fonts.googleapis.com;` |
 
 | Property | Value |
 |---|---|
 | Trusted Types enforced | **no** — `DisableTrustedTypesCSP()` |
-| Remote origins allowed | `https://fonts.googleapis.com`, `https://fonts.gstatic.com` |
-| Unsafe CSP tokens | `'unsafe-inline'` |
+| Remote origins allowed | `https://fonts.gstatic.com` |
+| Unsafe CSP tokens | none |
 | Serves resources from `DIR_EXE` | **yes** — mutable files beside the executable |
 
 ### `src/chrome/browser/oxy/webui/astro_whats_new_ui.cc`
 
 | Directive | Value |
 |---|---|
-| `ImgSrc` | `img-src 'self' data:;` |
-| `ScriptSrc` | `script-src chrome://resources 'self' 'unsafe-inline';` |
-| `StyleSrc` | `style-src 'self' 'unsafe-inline' chrome://theme;` |
+| `FontSrc` | `font-src 'self' https://fonts.gstatic.com;` |
 
 | Property | Value |
 |---|---|
 | Trusted Types enforced | **no** — `DisableTrustedTypesCSP()` |
-| Remote origins allowed | none |
-| Unsafe CSP tokens | `'unsafe-inline'` |
+| Remote origins allowed | `https://fonts.gstatic.com` |
+| Unsafe CSP tokens | none |
 | Serves resources from `DIR_EXE` | **yes** — mutable files beside the executable |
 
 ## Not captured here
