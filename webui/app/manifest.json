@@ -34,6 +34,7 @@
         "astro-webui-languages-spell-check.js",
         "astro-webui-languages.js",
         "astro-webui-link-row.js",
+        "astro-webui-mojo.js",
         "astro-webui-native-driver.js",
         "astro-webui-on-startup.js",
         "astro-webui-pending-screen.js",
@@ -77,6 +78,7 @@
       "out_dir": "dist/platform",
       "entry": "platform.js",
       "files": [
+        "platform-mojo.js",
         "platform.css",
         "platform.js"
       ]

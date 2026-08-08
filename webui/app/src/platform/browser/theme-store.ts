@@ -5,9 +5,12 @@
 // settings -- and chrome.settingsPrivate is granted per host, so a theme built
 // on it would light up exactly one page. Its own pref is also absent from that
 // API's allowlist (see pref-ids.ts), so even on settings the read would return
-// nothing. The transport is a narrow typed Mojo interface bound by every Astro
-// page controller: `GetTheme()`, `SetThemeMode()`, `SetColorPreset()` and an
-// `OnThemeChanged` observer.
+// nothing. The transport is two narrow typed Mojo interfaces: reading is
+// `astro.mojom.ThemeProvider` (`GetTheme()` and an `OnThemeChanged` observer),
+// which every Astro page controller binds, and writing is
+// `astro.settings.mojom.PageHandler` (`SetThemeMode()`, `SetColorPreset()`),
+// which only the settings page's controller does. This store is the one place
+// the two are joined; ./mojo/index.ts is where each half is bound.
 //
 // The observer is what makes the theming LIVE: the browser echoes a change
 // back, this store publishes a new snapshot, and the BloomThemeProvider at the
@@ -50,7 +53,9 @@ export interface ThemeState {
 /** What the browser side of the theme provides. */
 export interface ThemeSource {
   getTheme(): Promise<RawTheme>;
+  /** Resolves as soon as the change is sent; the echo is the confirmation. */
   setMode(mode: ThemeMode): Promise<void>;
+  /** Rejects when the browser refused the name, having stored nothing. */
   setPreset(preset: AppColorName): Promise<void>;
   /** Returns the unsubscribe. */
   onThemeChanged(listener: (theme: RawTheme) => void): () => void;
@@ -93,18 +98,23 @@ function publish(next: RawTheme): void {
 
 function themeSource(): Promise<ThemeSource> {
   resolved ??= (async () => {
-    // The real binding lands with the //astro module's astro_theme.mojom
-    // target; see ./mojo/index.ts for how its generated bindings reach this
-    // bundle. Until then a browser-served page has no theme transport and says
-    // so, rather than rendering in a colour nobody chose.
+    // `Mojo` is the global a renderer installs for a page whose controller
+    // enabled Mojo bindings (ui::MojoWebUIController, which every Astro page
+    // controller is). Feature-detected rather than inferred from the URL, the
+    // build mode or the user agent: those say where the page came from, this
+    // says whether there is a pipe to bind.
+    if ('Mojo' in globalThis) {
+      const {createThemeSource} = await import('./mojo/index.ts');
+      return createThemeSource();
+    }
     if (import.meta.env.DEV) {
       const {createThemeMock} = await import('./mock/theme.ts');
       return createThemeMock();
     }
     throw new MissingBrowserApiError(
       'astro_theme.mojom',
-      'The interface is bound by the page\'s C++ controller; this page was ' +
-        'served by one that does not bind it.',
+      'Mojo bindings are not enabled on this page, so no interface its C++ ' +
+        'controller binds can be reached from it.',
     );
   })();
   return resolved;
