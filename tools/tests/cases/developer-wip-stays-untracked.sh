@@ -22,8 +22,13 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/harness.sh"
 harness::setup
 
 # Each entry: a path, and the reason it stays out of the repository.
+#
+# A path here may be a directory, in which case `ls-files --error-unmatch`
+# answers for its whole subtree — which is what `common` needs, since the
+# question is about a module rather than about one of its files.
 UNTRACKED_BY_DECISION=(
     "tools/setup-win-sdk.sh|developer WIP; recorded as deliberately not committed in PR #31"
+    "common|the Astro module is issue #11's deliverable and lands on its branch, which carries a divergent copy"
 )
 
 for entry in "${UNTRACKED_BY_DECISION[@]}"; do
