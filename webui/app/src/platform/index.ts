@@ -54,6 +54,12 @@ export type {
 
 export {setPref, usePref} from './browser/pref-store.ts';
 
+// Type-only, and erased at build: the shape a settings section declares its dev
+// fixtures in. Exported here rather than imported from `browser/mock/` by each
+// section, so the mock directory stays reachable from exactly one place and a
+// section cannot accidentally pull a fixture VALUE into a shipped bundle.
+export type {HandlerAction, HandlerReply, SectionFixtures} from './browser/mock/fixtures.ts';
+
 export {setMode, setPreset, useThemeState} from './browser/theme-store.ts';
 export type {RawTheme, ThemeMode, ThemeSource, ThemeState} from './browser/theme-store.ts';
 

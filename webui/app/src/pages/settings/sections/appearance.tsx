@@ -7,7 +7,6 @@
 
 import {SegmentedControl, SegmentedControlItem, SegmentedControlItemText} from '@oxyhq/bloom';
 import {APP_COLOR_PRESETS, FREE_COLOR_NAMES, type AppColorName} from '@oxyhq/bloom/color-presets';
-import {Text} from '@oxyhq/bloom/typography';
 import {Pressable, View} from 'react-native';
 
 import {
@@ -19,6 +18,8 @@ import {
   type MessageId,
   type ThemeMode,
 } from '@astro/platform';
+
+import {SectionHeader} from '../components/section-header.tsx';
 
 const MODES: readonly {readonly id: ThemeMode; readonly label: MessageId}[] = [
   {id: 'system', label: 'settings.appearance.mode.system'},
@@ -73,7 +74,7 @@ export function AppearanceSection() {
 
   return (
     <>
-      <Text className="text-sectionTitle text-foreground">{t('settings.appearance.title')}</Text>
+      <SectionHeader title="settings.appearance.title" />
 
       <SectionCard title={t('settings.appearance.mode')}>
         <SegmentedControl

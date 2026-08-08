@@ -25,9 +25,26 @@ interface ChromeSend {
   send(message: string, args?: unknown[]): void;
 }
 
-function bridge(): ChromeSend {
-  const api = (globalThis as {chrome?: ChromeSend}).chrome;
-  if (!api?.send) {
+let resolvedBridge: Promise<ChromeSend> | undefined;
+
+/**
+ * The transport, resolved once.
+ *
+ * Same three-step rule as every other API in this directory (see ./env.ts), and
+ * the dynamic import sits literally inside the `import.meta.env.DEV` branch for
+ * the same reason: Vite replaces that expression with `false` in a build, the
+ * branch is eliminated, and the dev fixtures are never emitted.
+ */
+function bridge(): Promise<ChromeSend> {
+  resolvedBridge ??= (async () => {
+    const api = (globalThis as {chrome?: ChromeSend}).chrome;
+    if (api?.send) {
+      return api;
+    }
+    if (import.meta.env.DEV) {
+      const {createSendMock} = await import('./mock/handlers.ts');
+      return createSendMock();
+    }
     // Not a soft failure. Without chrome.send every handler-backed screen
     // renders empty, which reads as "the browser has no search engines"
     // rather than "this page was served without its handlers".
@@ -35,8 +52,8 @@ function bridge(): ChromeSend {
       'chrome.send is unavailable: this page was not served by a WebUI ' +
         'controller that installs the handlers it is calling.',
     );
-  }
-  return api;
+  })();
+  return resolvedBridge;
 }
 
 interface PendingCall {
@@ -85,17 +102,19 @@ let nextId = 0;
 export function sendWithPromise<T>(message: string, ...args: unknown[]): Promise<T> {
   install();
   const id = `astro-${message}-${nextId++}`;
+  // Registered BEFORE the call goes out: the browser can answer as soon as it
+  // has been asked, and a pending entry created afterwards would miss the reply.
   const reply = new Promise<T>((resolve, reject) => {
     pending.set(id, {resolve: resolve as (value: unknown) => void, reject});
   });
-  bridge().send(message, [id, ...args]);
+  void bridge().then(api => api.send(message, [id, ...args]));
   return reply;
 }
 
 /** Call a handler that does not reply. */
 export function send(message: string, ...args: unknown[]): void {
   install();
-  bridge().send(message, args);
+  void bridge().then(api => api.send(message, args));
 }
 
 /** Subscribe to a handler's push updates. Returns the unsubscribe. */

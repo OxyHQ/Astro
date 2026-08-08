@@ -7,27 +7,24 @@
 // from that allowlist is invisible to the API however correctly it is spelled,
 // which is why the list is not a place to improvise.
 
-import {SettingsListGroup} from '@oxyhq/bloom';
-import {Text} from '@oxyhq/bloom/typography';
-
-import {t} from '@astro/platform';
-
-import {PrefSwitchRow} from '../pref-switch-row.tsx';
+import {RowGroup} from '../components/row-group.tsx';
+import {SectionHeader} from '../components/section-header.tsx';
+import {ToggleRow} from '../components/toggle-row.tsx';
 
 export function PrivacySection() {
   return (
     <>
-      <Text className="text-sectionTitle text-foreground">{t('settings.privacy.title')}</Text>
+      <SectionHeader title="settings.privacy.title" />
 
-      <SettingsListGroup>
-        <PrefSwitchRow prefKey="enable_do_not_track" label="settings.privacy.doNotTrack" />
-        <PrefSwitchRow
+      <RowGroup>
+        <ToggleRow prefKey="enable_do_not_track" label="settings.privacy.doNotTrack" />
+        <ToggleRow
           prefKey="profile.password_manager_leak_detection"
           label="settings.privacy.leakDetection"
         />
-        <PrefSwitchRow prefKey="https_only_mode_enabled" label="settings.privacy.httpsOnly" />
-        <PrefSwitchRow prefKey="search.suggest_enabled" label="settings.privacy.searchSuggest" />
-      </SettingsListGroup>
+        <ToggleRow prefKey="https_only_mode_enabled" label="settings.privacy.httpsOnly" />
+        <ToggleRow prefKey="search.suggest_enabled" label="settings.privacy.searchSuggest" />
+      </RowGroup>
     </>
   );
 }
