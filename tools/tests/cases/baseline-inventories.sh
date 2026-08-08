@@ -19,11 +19,11 @@ tmp="$(harness::tmpdir)"
 
 harness::run python3 "$BASELINE/inventory_patches.py" --verify
 harness::assert_status 0 "patch inventory over the real patch stack"
-# 54, not 56: two files in patches/astro/ were 0 bytes and were removed from
-# the stack. An empty file is not a patch — `git apply` rejects it outright —
-# and one of them (007-oxy-auth-build-hook) is why nothing in the committed
-# pipeline compiles the Astro overlay. See patch-dispositions.json.
-harness::assert_output_contains "astro 54" "every Astro patch is covered"
+# 56 files, but the series numbers them to 058: two files in patches/astro/
+# were 0 bytes and were removed from the stack. An empty file is not a patch —
+# `git apply` rejects it outright. See patch-dispositions.json, which still
+# records both by name and byte size.
+harness::assert_output_contains "astro 56" "every Astro patch is covered"
 harness::assert_output_contains "ungoogled 112" "every inherited patch is covered"
 
 harness::run python3 "$BASELINE/inventory_patches.py" --json "$tmp/patches.json"
