@@ -4,7 +4,10 @@
 
 #include <memory>
 
+#include "astro/browser/ui/color/astro_color_mixer.h"
 #include "astro/browser/webui/astro_web_ui_configs.h"
+#include "base/functional/bind.h"
+#include "ui/color/color_provider_manager.h"
 #include "base/logging.h"
 #include "chrome/browser/chrome_browser_main_extra_parts.h"
 
@@ -73,6 +76,14 @@ class AstroBrowserMainExtraParts : public ChromeBrowserMainExtraParts {
   // that will be deleted by someone who reads it as redundant.
   void PreBrowserStart() override {
     RegisterAstroWebUIConfigs();
+
+    // Astro's palette for the native UI, appended AFTER Chromium's own mixers
+    // so it wins. ToolkitInitialized() adds the components and chrome mixers
+    // and runs earlier than this hook; a mixer appended before them would be
+    // overwritten and the browser would look untouched with nothing saying
+    // why.
+    ui::ColorProviderManager::Get().AppendColorProviderInitializer(
+        base::BindRepeating(&AddAstroColorMixers));
     RegisterAstroUntrustedWebUIConfigs();
   }
 };

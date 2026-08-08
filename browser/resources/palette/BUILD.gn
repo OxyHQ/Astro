@@ -1,0 +1,32 @@
+# Copyright 2026 Oxy. Astro product module.
+
+import("//astro/build/product.gni")
+
+# Astro's palette, generated once and consumed by both surfaces.
+#
+# Chromium paints its native UI from a C++ ColorProvider and its WebUI pages
+# from CSS custom properties; the two share nothing in Chromium's own design.
+# Deriving Bloom's palette separately for each is how a browser frame and a
+# settings card end up almost the same colour, so both artefacts come out of one
+# call to Bloom's getPresetVars.
+action("palette") {
+  script = "//astro/build/run_bun.py"
+
+  inputs = [ "generate.mjs" ]
+  outputs = [
+    "$target_gen_dir/astro_palette.h",
+    "$target_gen_dir/astro_palette.css",
+  ]
+
+  args = [
+    "--script",
+    rebase_path("generate.mjs", root_build_dir),
+    "--",
+    "--preset",
+    astro_color_preset,
+    "--out-header",
+    rebase_path(outputs[0], root_build_dir),
+    "--out-css",
+    rebase_path(outputs[1], root_build_dir),
+  ]
+}

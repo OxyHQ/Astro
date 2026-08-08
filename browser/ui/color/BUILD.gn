@@ -1,0 +1,20 @@
+# Copyright 2026 Oxy. Astro product module.
+
+source_set("color") {
+  sources = [
+    "astro_color_mixer.cc",
+    "astro_color_mixer.h",
+  ]
+
+  deps = [
+    # The generated palette. Both this and the WebUI stylesheet come from the
+    # same call to Bloom, so the frame and the pages cannot drift.
+    "//astro/browser/resources/palette",
+    "//chrome/browser/ui/color:color_headers",
+    "//skia",
+    "//ui/color",
+    "//ui/color:mixers",
+  ]
+
+  include_dirs = [ "$root_gen_dir" ]
+}

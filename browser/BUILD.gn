@@ -16,9 +16,11 @@ source_set("browser") {
     # astro_browser_main_extra_parts.cc, so they reach Chromium through the same
     # single entry point everything else does. Nothing in a Chromium-owned file
     # names them.
+    "//astro/browser/ui/color",
     "//astro/browser/webui",
     "//base",  # logging, for the startup marker
     "//content/public/browser",
     "//content/public/common",
+    "//ui/color",
   ]
 }

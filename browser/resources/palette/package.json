@@ -1,0 +1,7 @@
+{
+  "name": "astro-palette",
+  "private": true,
+  "type": "module",
+  "scripts": { "generate": "bun run generate.mjs" },
+  "dependencies": { "@oxyhq/bloom": "latest" }
+}
