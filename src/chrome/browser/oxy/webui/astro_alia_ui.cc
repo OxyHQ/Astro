@@ -121,17 +121,3 @@ AstroAliaUIConfig::AstroAliaUIConfig()
           kAstroAliaHost) {}
 
 }  // namespace oxy
-
-// Planted by the test suite; must never reach a committed baseline document.
-void AstroWorkingTreeMarker(content::WebUIDataSource* source) {
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ImgSrc,
-      "img-src https://astro-worktree-marker.invalid;");
-}
-
-// Planted by the test suite; must never reach a committed baseline document.
-void AstroWorkingTreeMarker(content::WebUIDataSource* source) {
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ImgSrc,
-      "img-src https://astro-worktree-marker.invalid;");
-}
