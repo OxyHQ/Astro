@@ -555,11 +555,16 @@ Rules that follow:
 - C++ code follows Chromium style guide (Google C++ style with Chromium extensions).
 - All Oxy integrations in self-contained files under `src/chrome/browser/oxy/`.
 - Minimal patches to existing Chromium files — surgical hooks, includes, and registrations only.
-- Astro defines no Mojo interface of its own: there is no `.mojom` under
-  `src/`, at this or any past revision. The overlay only CONSUMES Chromium's
-  (`network::mojom` and friends). When the first Astro `.mojom` lands, rebuild
+- Astro's own mojoms live in `src/chrome/browser/oxy/webui/` and are built by
+  `mojom("mojo_bindings")` there — `astro_theme.mojom` and
+  `astro_settings.mojom` as of 2026-08-09, the first two ever committed to this
+  repository. Keep them narrow and per-domain, one named method per decision;
+  never a generic `SetPref(string, value)`. After changing one, rebuild the
   affected targets clean rather than incrementally — generated bindings are a
-  classic stale-artifact source.
+  classic stale-artifact source. A new interface also needs an entry in the
+  WebUI frame binder map (`063-astro-webui-mojo-binders.patch`), or the
+  controller's `BindInterface` is never called and the page sees a pipe that
+  never answers, with no error on either side.
 
 ## Development Workflow
 

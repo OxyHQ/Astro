@@ -28,11 +28,10 @@ git clone https://github.com/OxyHQ/Astro.git
 cd Astro
 
 # Install WebUI workspace deps (per page)
+cd webui/app        && bun install && cd -
 cd webui/ntp        && bun install && cd -
-cd webui/settings   && bun install && cd -
 cd webui/alia       && bun install && cd -
 cd webui/whats-new  && bun install && cd -
-cd webui/error      && bun install && cd -
 ```
 
 `tools/sync-sources.sh` will clone Google's `depot_tools` into `./depot_tools/` on first run if it is not already present, and check it out at the commit `browser.lock.json` pins.
@@ -275,7 +274,7 @@ The script:
 1. Bumps `CHROMIUM_VERSION` in the fetch script.
 2. Re-fetches Chromium source at the new tag.
 3. Re-syncs ungoogled-chromium patches for the new version.
-4. Attempts to apply all 57 Astro patches — failing patches are listed with their reject files.
+4. Attempts to apply all 60 Astro patches — failing patches are listed with their reject files.
 5. Leaves the tree in a state where you can manually resolve conflicts.
 
 After resolving any rejects, regenerate the affected patches with `git diff <files> > patches/astro/NNN-<name>.patch` and commit.

@@ -89,10 +89,20 @@ src/chrome/browser/oxy/
 │   ├── astro_adblock_resource_type.{h,cc}       # Resource type classification
 │   ├── adblock_domain_resolver.{h,cc}    # Domain matching
 │   └── rs/                               # Rust source + BUILD.gn
+├── astro_pref_names.{h}                  # Astro's own pref paths, as constants
+├── astro_theme_service.{h,cc}            # Watches both theme prefs, repaints the
+├── astro_theme_service_factory.{h,cc}    #   native UI, notifies the pages
 ├── ui/
-│   └── astro_color_tokens.h             # GENERATED from Bloom's tokens.json
+│   ├── astro_color_tokens.h              # GENERATED from Bloom's tokens.json
+│   └── astro_color_mixer.{h,cc}          # Bloom token -> Chromium ColorId, by hand
 └── webui/                                # WebUI controllers
-    ├── BUILD.gn
+    ├── BUILD.gn                          # mojom("mojo_bindings") and nothing else
+    ├── astro_theme.mojom                 # GetTheme + OnThemeChanged (read-only)
+    ├── astro_settings.mojom              # SetThemeMode / SetColorPreset
+    ├── astro_webui_page.{h,cc}           # Shared page base: assets, CSP, bases
+    ├── astro_theme_provider.{h,cc}       # Serves astro_theme.mojom for one page
+    ├── astro_settings_ui.{h,cc}          # chrome://settings
+    ├── astro_settings_page_handler.{h,cc}
     ├── astro_ntp_ui.{h,cc}               # chrome://astro-ntp
     ├── astro_alia_ui.{h,cc}              # chrome://alia
     └── astro_whats_new_ui.{h,cc}         # chrome://whats-new
@@ -135,36 +145,50 @@ any *new* collision of this kind fails the sync outright, and it should stay
 that way. Prefer a numbered patch over an `overwrite` every time.
 </Warning>
 
-## There is no Mojo IPC pipeline
+## Mojo, and the pipeline that used to be fiction here
 
-This section used to describe one, in detail: an `astro_settings.mojom` with
-three interfaces, an `astro_settings_handler.cc` with two pref-mapping arrays,
-a `PrefChangeRegistrar` pushing live updates to the page, and a three-step
-recipe for adding a setting. None of it existed. **No `.mojom` has ever been
-committed to this repository** — `git log --all --diff-filter=A -- '*.mojom'`
-returns nothing at any revision — and the settings page those interfaces were
-supposed to serve was deleted in `c9c4383`. What that commit actually removed
-was a generic `chrome.send` handler carrying six messages and thirty-four
-prefs.
+Read the history first, because it is the reason this section is written the
+way it is. It once described an `astro_settings.mojom` with three interfaces,
+an `astro_settings_handler.cc` with two pref-mapping arrays, and a three-step
+recipe for adding a setting. **None of it existed.** No `.mojom` was committed
+to this repository at any revision before 2026-08-09. Documentation that
+invents a file is worse than documentation that omits one: it sends the reader
+looking for something to edit, and it survives every review that only reads
+code.
 
-Documentation that invents a file is worse than documentation that omits one:
-it sends the reader looking for something to edit, and it survives every
-review that only reads code.
+What exists now is smaller than that fiction, and deliberately so. Two mojoms,
+in `src/chrome/browser/oxy/webui/`, built by a real `mojom("mojo_bindings")`
+target:
 
-What is true today: `astro://settings` is served by upstream Chromium's own
-`settings::SettingsUIConfig`, and the Astro overlay consumes Chromium's mojom
-types (`network::mojom` and friends) without defining any of its own.
+| Interface | Direction | Bound by |
+|---|---|---|
+| `astro.mojom.ThemeProvider` | read — `GetTheme()`, `AddObserver` | every Astro page |
+| `astro.settings.mojom.PageHandler` | write — `SetThemeMode`, `SetColorPreset` | the settings controller only |
 
-The direction — one Vite + Tailwind + Bloom application behind every
-`astro://` surface, with narrow typed Mojo per domain rather than a generic
-`SetPref(string, value)` — is issues #15 (as amended 2026-08-08), #14, #22,
-#17 and #24. It will be documented here when it exists, and not before.
+They are registered separately in the WebUI frame binder map
+(`063-astro-webui-mojo-binders.patch`), and that separation is the point: one
+read-write interface would let any page that wants to READ the theme CHANGE
+it. There is no `SetPref(string, value)` and there will not be — a generic
+setter makes every pref in the profile writable by anything that reaches the
+interface, turns the pref path into a string the compiler cannot check, and
+leaves the browser nowhere to validate. Chromium's own prefs reach settings
+through `chrome.settingsPrivate`, which is the only transport that carries a
+pref's policy state (`controlledBy`, `enforcement`, `userSelectableValues`).
+
+Everything else Astro plans behind an `astro://` surface — identity, sync,
+updates, the new tab data plane — follows the same shape: narrow, named, one
+mojom per domain. Those are issues #22, #17 and #24, and they will be
+documented here when they exist, and not before.
 
 ## WebUI controllers
 
-Three internal pages have a controller in `src/chrome/browser/oxy/webui/` —
-NTP, Alia and What's New — plus the ad blocker's under `adblock/webui/`. All
-inherit `content::WebUIController` directly; none uses Mojo.
+Four internal pages have a controller in `src/chrome/browser/oxy/webui/` —
+NTP, Settings, Alia and What's New — plus the ad blocker's under
+`adblock/webui/`. The three legacy ones inherit `content::WebUIController`
+directly and use no Mojo. Settings is the first built on the shared base in
+`astro_webui_page.{h,cc}`, which owns the data source, the per-host CSP table
+and the single function that knows where a page's assets come from — the one
+thing #16 replaces when the bundle moves into a `.pak`.
 
 ```cpp
 class AstroNtpUI : public content::WebUIController {
@@ -187,20 +211,33 @@ class AstroNtpUIConfig : public content::DefaultWebUIConfig<AstroNtpUI> {
 <Warning>
 These pages read their assets from a directory beside the executable at
 runtime (`base::DIR_EXE` + `resources/astro-<page>/`) rather than from a
-`.pak`. They therefore carry none of Chromium's resource-bundling guarantees
-and render blank, with no error, if the directory was not staged. Three things
-have to agree — the path the controller reads, the path `tools/build.sh`
-stages to, and the page's presence in `REQUIRED_WEBUI_PAGES` — and nothing
-checks that they do. Removing `DIR_EXE` in favour of a real `.pak` is #14.
+`.pak`, so they carry none of Chromium's resource-bundling guarantees. Three
+things have to agree — the path the controller reads, the path
+`tools/build.sh` stages to, and the page's presence in
+`REQUIRED_WEBUI_PAGES` — and nothing checks that they do.
+
+The three legacy pages render blank, with no error, when they disagree. Pages
+on the shared base do not: it logs the absolute path it tried and serves a
+document naming it. Settings is the only one today, and it is also the only
+page whose bundle is not staged at all — `webui/app` is not in
+`REQUIRED_WEBUI_PAGES`, so `astro://settings` currently serves exactly that
+diagnostic. Packaging it is #16; removing `DIR_EXE` entirely is #14.
 </Warning>
 
 `UIConfig` registration happens in the patched `chrome_web_ui_configs.cc`, one
 numbered patch per page: `054-adblock-webui-register`, `055-ntp-webui-register`,
-`058-alia-webui-register`. What's New is deliberately absent — its host string
-is byte-identical to upstream's, and `WebUIConfigMap::AddWebUIConfigImpl`
-CHECKs on a duplicate origin, so registering beside upstream crashes the
-browser at startup. Taking a host upstream already owns means SWAPPING its
-registration line, never adding one.
+`058-alia-webui-register` for hosts Astro invents, and
+`060-settings-webui-takeover` for one upstream already owns.
+
+That last one is a different operation and the difference is not cosmetic.
+`WebUIConfigMap::AddWebUIConfigImpl` CHECKs on a duplicate origin, so a second
+config for an upstream host crashes the browser at startup — taking such a
+host means SWAPPING upstream's registration line, never adding one. Doing it
+under upstream's own host is also what inherits the eight extension APIs
+granted by host pattern in the two `_api_features.json` files,
+`settingsPrivate` among them; a page served anywhere else gets none of them,
+and gets them silently. What's New is still absent for exactly the reason
+settings used to be, and awaits the same swap.
 
 Registration alone is not enough: a `BUILD.gn` under `chrome/browser/oxy/`
 that nothing depends on compiles to nothing, silently. The edge that makes the

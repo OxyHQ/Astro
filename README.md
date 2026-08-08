@@ -6,7 +6,7 @@
 
 <p align="center">
   <img alt="Chromium 146" src="https://img.shields.io/badge/Chromium-146.0.7680.177-440151?style=flat-square&logo=googlechrome&logoColor=white">
-  <img alt="168 patches" src="https://img.shields.io/badge/patches-112%20ungoogled%20%2B%2056%20Astro-440151?style=flat-square">
+  <img alt="172 patches" src="https://img.shields.io/badge/patches-112%20ungoogled%20%2B%2060%20Astro-440151?style=flat-square">
   <img alt="Platforms" src="https://img.shields.io/badge/Linux%20%C2%B7%20Android%20%C2%B7%20macOS%20%C2%B7%20Windows-440151?style=flat-square">
   <img alt="Bun" src="https://img.shields.io/badge/bun-webui-440151?style=flat-square&logo=bun&logoColor=white">
   <img alt="Rust" src="https://img.shields.io/badge/Rust-adblock%20engine-440151?style=flat-square&logo=rust&logoColor=white">
@@ -69,7 +69,7 @@ The three `astro://` pages are standalone Vite and Tailwind v4 apps, built to st
 | Alia | [`webui/alia/`](webui/alia) | The AI side panel |
 | What's New | [`webui/whats-new/`](webui/whats-new) | Release notes |
 
-Settings and the error page were deleted in `c9c4383`; `astro://settings` is upstream Chromium's own page. Replacing it — along with every other surface — with one Vite + Tailwind + Bloom application is issues #15, #14, #22, #17 and #24.
+Settings is Astro's again: `060-settings-webui-takeover.patch` swaps upstream's registration for `AstroSettingsUIConfig`, on upstream's own host so the `settingsPrivate` grant is inherited. The browser side is done — typed Mojo for Astro's own controls, upstream's handlers adopted for browsing data, search engines and about — but **the page has no assets yet**: `webui/app` is not staged by `tools/build.sh`, so the page currently serves a document naming the directory it could not read. Packaging is [#16](https://github.com/OxyHQ/Astro/issues/16). The error page was deleted in `c9c4383` and nothing replaced it. Consolidating every surface into one Vite + Tailwind + Bloom application is issues #15, #14, #22, #17 and #24.
 
 ```bash
 cd webui/ntp && bun install && bun run dev
@@ -102,7 +102,7 @@ A clean build is five commands:
 ```bash
 tools/sync-sources.sh          # 1. check out every source at its locked commit
 tools/sync-ungoogled.sh        # 2. stage the matching ungoogled-chromium patches
-tools/apply-patches.sh         # 3. prune binaries, apply 168 patches in declared order
+tools/apply-patches.sh         # 3. prune binaries, apply 172 patches in declared order
 tools/sync-overlay.sh          # 4. copy the Astro overlay onto the tree
 tools/build.sh                 # 5. build with autoninja
 ```
