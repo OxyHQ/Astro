@@ -136,6 +136,34 @@ signal to stop and report it on the issue.
   Observed directly twice in one session, two different SHAs printed on the
   `Verifying commit ...` line. Pass `--commit <your-sha>` to pin it to the
   commit you actually wrote.
+- **The assertion-count table that same gate prints is noise, and every case
+  already states in words what the table gestures at.** Six rows print on every
+  run, and they printed byte-identically across five different commits and
+  across both dirty and clean working trees — so they track nothing about your
+  change. The clean tree is by construction the tracked repository alone, so it
+  can never hold `chromium/src`, an installed `node_modules`, or an untracked
+  file, and three unrelated mechanisms turn that absence into a count
+  difference: a list built from the filesystem and counted once per path
+  (`shell-static-analysis.sh:27`; `harness::assert_script_list` at
+  `harness.sh:392` for `build-outcome-is-the-builds-own` and
+  `real-checkout-hazards`), an existence gate on the checkout
+  (`module-layering-is-enforced.sh:429`,
+  `webui-configs-use-the-scheme-constant.sh:145`), and two arms of a `case`
+  differing by one assertion (`color-tokens-are-generated-from-bloom.sh:428`,
+  4 against 3). Read the `NOT EXERCISED:` line each case prints instead: it
+  names the exact path it could not reach.
+
+  The attribution history is why this is written down rather than left to be
+  re-derived. Two agents produced six mechanism stories for those six rows and
+  got the mechanism wrong all six times, while the conclusion came out right
+  all six times. **A conclusion surviving is therefore not weak evidence for
+  the mechanism behind it, it is none.** Every row was settled the same way and
+  only that way — reading the line that increments `HARNESS_ASSERTIONS` and the
+  scope it sits in. Both classic misses are in the record: citing a nearby line
+  that looks like the counter (`shell-static-analysis.sh:129`, whose increment
+  is at :108, above the loop), and citing the right counter without checking
+  its scope (`harness::assert_no_lines_matching`, `harness.sh:359`, which sits
+  outside its own `grep` and so fires once per call, never once per file).
 - **A generated document read from `HEAD` cannot fail before you commit.**
   `tools/baseline/inventory_patches.py` reads every byte from `HEAD`, so the
   hand-maintained `astro N` literal in
