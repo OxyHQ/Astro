@@ -200,6 +200,17 @@ signal to stop and report it on the issue.
   is **never hand a shared file's pending hunk to a named owner** — call it
   unclaimed, leave it untouched, and let its author claim it.
 
+  **Every one of these was caught by the RECIPIENT of a claim, never by its
+  author.** Four wrong attributions, a vacuous test, and a false index-reset
+  report: in each case the person who made the claim had the evidence to
+  disprove it in seconds and did not look, because nobody doubts themselves
+  unprompted. So the discipline that pays is not "check your own work harder",
+  it is **state a claim in whatever form is cheapest for the recipient to
+  falsify** — a named command they can re-run, an exit code, a before/after
+  dump, a SHA.
+  Every correction in that list happened because the claim was specific enough
+  to be tested; a vaguer message would have been believed.
+
 **Source revisions are declared, never discovered.** `browser.lock.json` holds
 the full commit SHA of Chromium, depot_tools and the ungoogled patch set.
 
