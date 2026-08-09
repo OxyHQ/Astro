@@ -187,6 +187,19 @@ signal to stop and report it on the issue.
   looks like somebody else's edit. Reconciling a shared file so BOTH sets of
   edits survive is safe whoever owns it — asserting who owns it is not.
 
+  **And `git log -S` is blind to exactly the case where guessing is most
+  tempting: an UNCOMMITTED hunk.** It searches history, so for a pending edit
+  it returns nothing, which reads as "no answer" and gets filled in with
+  adjacency. That is the shape that recurred here — the same shared file,
+  twice, and the second time the agent I handed it to was one step from
+  committing another agent's unfinished analysis under their own name. Wrong
+  credit costs a correction; that would have taken authorship. There is no
+  git-side answer for a pending hunk: only your own transcript ("did I write
+  this?") and content provenance (does it restate what some agent just said?),
+  both weaker than a query. So the rule is not "attribute more carefully", it
+  is **never hand a shared file's pending hunk to a named owner** — call it
+  unclaimed, leave it untouched, and let its author claim it.
+
 **Source revisions are declared, never discovered.** `browser.lock.json` holds
 the full commit SHA of Chromium, depot_tools and the ungoogled patch set.
 
