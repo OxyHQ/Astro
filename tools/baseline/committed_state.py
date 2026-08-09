@@ -35,8 +35,22 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # The revision every committed artefact is derived from. A constant rather than
 # an option: a generator that can be pointed at an arbitrary revision produces
-# documents whose provenance is an invocation detail nobody records.
+# documents whose provenance is an invocation detail nobody records. It stays
+# the symbolic name in messages; git is asked about the commit it resolved to.
 REVISION = "HEAD"
+
+# The commit `REVISION` named the first time anybody asked, for the rest of the
+# process.
+#
+# WHY THIS IS PINNED. Every read below is its own `git` invocation, so a run
+# that asks for "HEAD" repeatedly is asking a question whose answer can change
+# underneath it — and in this repository it does: several agents commit to one
+# checkout in the same minute, and a generator takes seconds. Two reads landing
+# on either side of somebody else's commit produce a document assembled from
+# two different trees, which is worse than either, and reports a
+# non-reproducing failure whose cause is gone by the time anyone looks. Pinning
+# makes a run atomic against that, and costs one `rev-parse`.
+_PINNED_COMMIT: str | None = None
 
 
 class CommittedStateError(SystemExit):
@@ -47,6 +61,19 @@ def _git(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         ["git", "-C", str(REPO_ROOT), *args], capture_output=True, check=False
     )
+
+
+def _rev() -> str:
+    """The pinned commit — resolving and pinning it if nobody has yet.
+
+    Lazy rather than import-time so importing this module never shells out,
+    and so a caller that reads before calling `require_repository` is pinned
+    too rather than silently left on a moving `HEAD`.
+    """
+    global _PINNED_COMMIT
+    if _PINNED_COMMIT is None:
+        _PINNED_COMMIT = require_repository()
+    return _PINNED_COMMIT
 
 
 def _fail(message: str, *hints: str) -> "CommittedStateError":
@@ -89,12 +116,12 @@ def require_repository() -> str:
 
 
 def exists(path: Path | str) -> bool:
-    return _git("cat-file", "-e", f"{REVISION}:{relative(path)}").returncode == 0
+    return _git("cat-file", "-e", f"{_rev()}:{relative(path)}").returncode == 0
 
 
 def read_bytes(path: Path | str) -> bytes:
     name = relative(path)
-    result = _git("show", f"{REVISION}:{name}")
+    result = _git("show", f"{_rev()}:{name}")
     if result.returncode != 0:
         raise _fail(
             f"{name} is not present at {REVISION}",
@@ -118,7 +145,7 @@ def list_files(prefix: Path | str, suffixes: Sequence[str] | None = None) -> lis
     taken from it is not what a fresh clone sees either.
     """
     name = relative(prefix)
-    result = _git("ls-tree", "-r", "--name-only", "-z", REVISION, "--", name)
+    result = _git("ls-tree", "-r", "--name-only", "-z", _rev(), "--", name)
     if result.returncode != 0:
         raise _fail(
             f"cannot list committed files under {name}",
@@ -137,7 +164,7 @@ def list_files(prefix: Path | str, suffixes: Sequence[str] | None = None) -> lis
 def file_sizes(prefix: Path | str) -> dict[str, int]:
     """Committed blob sizes under `prefix`, in one git call rather than one per file."""
     name = relative(prefix)
-    result = _git("ls-tree", "-r", "--long", "-z", REVISION, "--", name)
+    result = _git("ls-tree", "-r", "--long", "-z", _rev(), "--", name)
     if result.returncode != 0:
         raise _fail(
             f"cannot size committed files under {name}",
@@ -180,7 +207,7 @@ _DIFFERING = "differing-content"
 
 def _line_deltas(names: Sequence[str]) -> dict[str, tuple[int | None, int | None]]:
     """Added/removed line counts per tracked path, `(None, None)` for binary."""
-    result = _git("diff", "--numstat", "-z", REVISION, "--", *names)
+    result = _git("diff", "--numstat", "-z", _rev(), "--", *names)
     if result.returncode != 0:
         return {}
     fields = result.stdout.decode("utf-8", "surrogateescape").split("\0")
