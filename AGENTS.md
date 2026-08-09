@@ -125,6 +125,26 @@ signal to stop and report it on the issue.
   tracked at that commit — is `tools/tests/cases/committed-inputs-are-tracked.sh`
   and its `NOT_TRACKED` table is where a legitimately-absent path is declared.
   Run the gate before pushing anything under `tools/`.
+- **`verify-clean-head.sh` verifies whatever `HEAD` is when you invoke it,
+  which in this checkout is often not your commit.** Several agents land
+  commits here in the same hour, so a gate run started late reports on a
+  `HEAD` that has moved past you — and if somebody else has already repaired
+  what you left broken, it comes back green ABOUT THEIR FIX and you read it
+  as clearing yours. That happened with 067: the suite was green before the
+  commit, went red at the commit, and the clean-head run that should have
+  caught it was started after 79a296a had already corrected the literal.
+  Observed directly twice in one session, two different SHAs printed on the
+  `Verifying commit ...` line. Pass `--commit <your-sha>` to pin it to the
+  commit you actually wrote.
+- **A generated document read from `HEAD` cannot fail before you commit.**
+  `tools/baseline/inventory_patches.py` reads every byte from `HEAD`, so the
+  hand-maintained `astro N` literal in
+  `tools/tests/cases/baseline-inventories.sh` agrees with the old count right
+  up until the commit that adds a patch, and only then disagrees. A pre-commit
+  suite run is structurally incapable of catching it: it is green BECAUSE the
+  patch is uncommitted. Bump the literal in the same commit as the patch, and
+  re-run the suite AFTER committing and before regenerating the baseline —
+  that window is where this class of miss lives.
 
 **Source revisions are declared, never discovered.** `browser.lock.json` holds
 the full commit SHA of Chromium, depot_tools and the ungoogled patch set.
