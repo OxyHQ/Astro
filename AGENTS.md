@@ -275,10 +275,17 @@ signal to stop and report it on the issue.
   and another on IPv6 both succeed on 9333 and neither reports a conflict.
   That is how one agent came to read one browser's log while driving another,
   and reported a control as inert — a conclusion that happened to be wrong for
-  a reason that had nothing to do with the control. Pick a port nobody else on
-  the machine is using, and confirm the browser you attached to is the one you
-  launched (its own pid in `/json/version`, or a marker only your profile has)
-  before believing anything it tells you.
+  a reason that had nothing to do with the control.
+
+  Do not pick a port and hope: launch with `--remote-debugging-port=0` and
+  read the port out of `<your-user-data-dir>/DevToolsActivePort`, whose two
+  lines are the port and that browser's unique WebSocket path. The file is
+  inside YOUR profile, so both values are your browser's by construction and
+  no collision can point you at somebody else's. Measured. And do NOT try to
+  confirm identity from `/json/version` — an earlier revision of this entry
+  suggested it and was wrong: it returns Browser, Protocol-Version,
+  User-Agent, V8-Version, WebKit-Version and webSocketDebuggerUrl, and no
+  process id.
 - **`import -window ""` writes a plausible screenshot of something you never
   identified**, so a window lookup that returns nothing still produces a PNG
   and the run looks like it worked. It happened: `pgrep -f
