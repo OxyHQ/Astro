@@ -14,6 +14,8 @@
 #include "chrome/browser/oxy/adblock/astro_adblock_filter_list_updater.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "services/network/public/mojom/fetch_api.mojom-shared.h"
 
 namespace oxy::adblock {
 

@@ -3,6 +3,7 @@
 
 #include "chrome/browser/oxy/adblock/astro_adblock_engine.h"
 
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_util.h"
@@ -113,10 +114,9 @@ bool AstroAdBlockEngine::ShouldBlock(
 
   const std::string request_type = RequestDestinationToAdBlockType(destination);
   const std::string url_spec = url.spec();
-  const std::string url_host = url.host();
-  const std::string source_host = source_url.is_valid()
-      ? source_url.host()
-      : std::string();
+  const std::string url_host(url.host());
+  const std::string source_host(source_url.is_valid() ? source_url.host()
+                                                      : std::string_view());
 
   // Determine if this is a third-party request.
   const bool third_party =

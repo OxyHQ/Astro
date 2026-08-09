@@ -3,12 +3,15 @@
 
 #include "chrome/browser/oxy/adblock/webui/astro_adblock_ui.h"
 
+#include "base/memory/ref_counted_memory.h"
 #include "chrome/browser/oxy/adblock/webui/astro_adblock_ui_handler.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/webui_url_constants.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
+#include "services/network/public/mojom/content_security_policy.mojom.h"
 
 namespace oxy::adblock {
 
@@ -326,8 +329,6 @@ void CreateAndAddInlineSource(content::WebUI* web_ui) {
 </body>
 </html>
   )html";
-
-  source->AddResourcePath("", "adblock.html");
 
   // Override the default resource with our inline HTML.
   source->SetDefaultResource(-1);  // No grit resource, we use RequestFilter.

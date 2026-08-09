@@ -31,13 +31,13 @@ void AstroAdBlockUIHandler::RegisterMessages() {
 }
 
 void AstroAdBlockUIHandler::HandleGetAdBlockState(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   AllowJavascript();
 
   auto* profile = Profile::FromWebUI(web_ui());
   auto* prefs = profile->GetPrefs();
 
-  base::Value::Dict state;
+  base::DictValue state;
   state.Set("enabled", prefs->GetBoolean(kAdBlockEnabled));
 
   // Get site overrides.
@@ -54,7 +54,7 @@ void AstroAdBlockUIHandler::HandleGetAdBlockState(
 }
 
 void AstroAdBlockUIHandler::HandleRemoveSiteOverride(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (args.empty() || !args[0].is_string()) {
     return;
   }
@@ -69,11 +69,11 @@ void AstroAdBlockUIHandler::HandleRemoveSiteOverride(
   }
 
   // Refresh the UI.
-  HandleGetAdBlockState(base::Value::List());
+  HandleGetAdBlockState(base::ListValue());
 }
 
 void AstroAdBlockUIHandler::HandleSaveCustomRules(
-    const base::Value::List& args) {
+    const base::ListValue& args) {
   if (args.empty() || !args[0].is_string()) {
     return;
   }

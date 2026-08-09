@@ -13,8 +13,6 @@
 
 namespace oxy::adblock {
 
-class AstroAdBlockBubbleView;
-
 // Toolbar button that shows the Astro ad blocker shield icon with a
 // badge indicating the number of blocked resources on the current page.
 // Clicking opens a bubble with per-site controls.

@@ -4,14 +4,14 @@
 #include "chrome/browser/oxy/adblock/astro_adblock_toolbar_button.h"
 
 #include "base/strings/string_number_conversions.h"
-#include "chrome/browser/oxy/adblock/astro_adblock_bubble_view.h"
+#include "chrome/browser/oxy/adblock/astro_adblock_bubble_delegate.h"
 #include "chrome/browser/oxy/adblock/astro_adblock_service.h"
 #include "chrome/browser/oxy/adblock/astro_adblock_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "components/vector_icons/vector_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/font_list.h"
@@ -28,8 +28,10 @@ AstroAdBlockToolbarButton::AstroAdBlockToolbarButton(Browser* browser)
   SetTooltipText(u"Astro Ad Blocker");
   SetAccessibleName(u"Astro Ad Blocker");
 
-  // Use a shield icon from Chromium's vector icons.
-  SetVectorIcon(vector_icons::kShieldIcon);
+  // security.icon is Chromium's shield outline. The only other shield in the
+  // tree is google_chrome/gshield.icon, which a non-Google-branded build does
+  // not compile.
+  SetVectorIcon(kSecurityIcon);
 
   // Observe tab changes to update badge.
   browser_->tab_strip_model()->AddObserver(this);
@@ -122,7 +124,7 @@ void AstroAdBlockToolbarButton::ShowBubble() {
     return;
   }
 
-  AstroAdBlockBubbleView::ShowBubble(this, browser_, wc, service);
+  AstroAdBlockBubbleDelegate::ShowBubble(this, browser_, wc, service);
 }
 
 AstroAdBlockTabHelper* AstroAdBlockToolbarButton::GetActiveTabHelper() {
