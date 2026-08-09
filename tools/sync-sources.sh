@@ -488,6 +488,70 @@ sync_repository() {
     if [ "$now" != "$commit" ]; then
         astro::die "$name: checkout did not land on $commit (HEAD is $now)"
     fi
+
+    install_no_commit_hook "$dir" "$name"
+}
+
+# Refuses `git commit` inside a synced checkout.
+#
+# These trees are build artefacts, detached at a locked commit, and they are
+# PERMANENTLY dirty: binary pruning deletes thousands of files and vendoring
+# adds ~1,800 more. So a bare `git commit` there is harmless only because
+# nothing is staged — `git add` or `git commit -a` first would put all of it
+# onto the pinned revision and break every pristine-tree guard downstream,
+# quietly. That is a near-miss this repository has already had: an interactive
+# `git commit` ran in `chromium/src` because a `cd` from an earlier command was
+# still in effect, and it failed safely by luck.
+#
+# `astro::resolve_chromium_src` guards the SCRIPTS; nothing guarded a human or
+# an agent typing git by hand, and asking people to remember which directory
+# they are in is not a guard. A hook is: it lives with the checkout, it fires
+# regardless of how git was invoked, and re-running this script restores it if
+# a re-clone dropped it.
+install_no_commit_hook() {
+    local dir="$1" name="$2"
+
+    # The directory must be its OWN repository, not merely inside one. Without
+    # this, `rev-parse --git-path` on a path that is not a work tree root
+    # answers about the ENCLOSING repository — which is Astro's own, so the
+    # hook lands there and refuses every legitimate commit in this repo. That
+    # is not hypothetical: this function did exactly that on its first run,
+    # and the failure it produces is total. Same reasoning as
+    # `astro::resolve_chromium_src`, which requires the top level to BE the
+    # path for the same class of reason.
+    # Not tolerated silently: this runs immediately after a successful
+    # checkout, so a $dir that is not a work tree at all means the checkout
+    # did not produce what it reported.
+    local toplevel
+    if ! toplevel="$(git -C "$dir" rev-parse --show-toplevel)"; then
+        astro::die "$name: $dir is not a git work tree after checkout"
+    fi
+    if [ "$(cd "$dir" && pwd -P)" != "$(cd "$toplevel" && pwd -P)" ]; then
+        astro::die_with_hint \
+            "$name: $dir is inside a repository rather than being one" \
+            "Its top level is $toplevel. Installing a hook here would write into" \
+            "that repository instead — for a path under this one, that means" \
+            "refusing every legitimate commit in Astro itself."
+    fi
+
+    local hooks
+    hooks="$(git -C "$dir" rev-parse --git-path hooks)"
+    case "$hooks" in
+        /*) ;;
+        *) hooks="$dir/$hooks" ;;
+    esac
+    [ -d "$hooks" ] || mkdir -p "$hooks"
+    cat > "$hooks/pre-commit" <<HOOK
+#!/bin/sh
+# Installed by tools/sync-sources.sh. See install_no_commit_hook there.
+echo "astro: refusing to commit inside the $name checkout." >&2
+echo "       It is detached at the revision browser.lock.json declares and is" >&2
+echo "       EXPECTED to be dirty, so a commit here would land pruning and" >&2
+echo "       vendoring output on the pinned revision." >&2
+echo "       Did you mean: git -C $ASTRO_ROOT commit ...?" >&2
+exit 1
+HOOK
+    chmod +x "$hooks/pre-commit"
 }
 
 # --------------------------------------------------------------------------
