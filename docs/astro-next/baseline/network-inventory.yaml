@@ -191,9 +191,10 @@ patches:
     references:
       - "patches/ungoogled/core/ungoogled-chromium/disable-crash-reporter.patch"
   - host: "crbug.com"
-    component: ungoogled-patch
+    component: astro-patch
     substituted_shape: false
     references:
+      - "patches/astro/065-thiserror-epoch-scoped-config.patch"
       - "patches/ungoogled/core/inox-patchset/0005-disable-default-extensions.patch"
       - "patches/ungoogled/core/ungoogled-chromium/block-trk-and-subdomains.patch"
       - "patches/ungoogled/core/ungoogled-chromium/disable-gaia.patch"

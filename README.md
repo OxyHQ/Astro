@@ -6,7 +6,7 @@
 
 <p align="center">
   <img alt="Chromium 146" src="https://img.shields.io/badge/Chromium-146.0.7680.177-440151?style=flat-square&logo=googlechrome&logoColor=white">
-  <img alt="172 patches" src="https://img.shields.io/badge/patches-112%20ungoogled%20%2B%2060%20Astro-440151?style=flat-square">
+  <img alt="175 patches" src="https://img.shields.io/badge/patches-112%20ungoogled%20%2B%2063%20Astro-440151?style=flat-square">
   <img alt="Platforms" src="https://img.shields.io/badge/Linux%20%C2%B7%20Android%20%C2%B7%20macOS%20%C2%B7%20Windows-440151?style=flat-square">
   <img alt="Bun" src="https://img.shields.io/badge/bun-webui-440151?style=flat-square&logo=bun&logoColor=white">
   <img alt="Rust" src="https://img.shields.io/badge/Rust-adblock%20engine-440151?style=flat-square&logo=rust&logoColor=white">
@@ -28,7 +28,7 @@
 
 112 [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) patches remove Google account and sync infrastructure, Safe Browsing pings, Google Update, the hard coded API keys and OAuth secrets, and the prefetches that reach Google domains before you type anything.
 
-60 Astro patches finish the job: branding, the product menu, the settings surface, and the remaining `chrome://` strings.
+63 Astro patches finish the job: branding, the product menu, the settings surface, and the remaining `chrome://` strings.
 
 </td>
 <td valign="top" width="50%">
@@ -102,7 +102,7 @@ A clean build is five commands:
 ```bash
 tools/sync-sources.sh          # 1. check out every source at its locked commit
 tools/sync-ungoogled.sh        # 2. stage the matching ungoogled-chromium patches
-tools/apply-patches.sh         # 3. prune binaries, apply 172 patches in declared order
+tools/apply-patches.sh         # 3. prune binaries, apply 175 patches in declared order
 tools/sync-overlay.sh          # 4. copy the Astro overlay onto the tree
 tools/build.sh                 # 5. build with autoninja
 ```

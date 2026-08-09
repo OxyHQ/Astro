@@ -1,6 +1,6 @@
 # Astro — De-Googled Chromium Browser by Oxy
 
-Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 60 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
+Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 63 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
 
 ## Build Commands
 
@@ -170,20 +170,67 @@ do not let a build imply they are resolved:
     crate replaces only its ANCESTORS, so `[crate.adblock] group = 'safe'`
     changes nothing — the classification has to move on the dependency that
     carries it.
-  - **The edit cannot be epoch-scoped, even though the config syntax offers
-    it.** `fill_allow_unsafe_settings` in `tools/crates/gnrt/vendor.rs` keys
-    its edits on the bare package name, so the next `gnrt vendor` writes a
-    bare `[crate.itertools]` beside any `[crate."itertools@v0_13"]` and
-    `BuildConfig::validate` then rejects the file for mixing the two forms.
+  - **The edit could not be epoch-scoped when 059 was written, even though the
+    config syntax offers it.** `fill_allow_unsafe_settings` in
+    `tools/crates/gnrt/vendor.rs` keyed its edits on the bare package name, so
+    the next `gnrt vendor` wrote a bare `[crate.itertools]` beside any
+    `[crate."itertools@v0_13"]` and `BuildConfig::validate` then rejected the
+    file for mixing the two forms. `065-thiserror-epoch-scoped-config.patch`
+    lifted that: the loop now writes into an epoch-scoped table when the config
+    already has one, so a per-epoch entry survives vendoring. 059 stays
+    unversioned because one epoch of itertools is vendored and it needs no
+    second statement — not because the mechanism is still unusable.
   - **`group` is not an audit verdict.** It records where Chromium itself uses
     a crate. Moving one to `safe` is nonetheless a claim about its source, so
     the patch header carries the unsafe audit backing it — do that for the
     next one too rather than treating the reclassification as clerical.
+- Three more of the same shape followed 059, all fixed:
+  `064-rand-chacha-macro-unsafe.patch`, `065-thiserror-epoch-scoped-config.patch`
+  and `066-vendored-crate-build-inputs.patch`. Measured 2026-08-09 with all
+  three applied and the crates re-vendored: `Done. Made 29957 targets from 4411
+  files`, exit 0, and the seven rlibs they govern rebuild from deleted outputs.
+  The durable lesson is one none of the three could have found by round-tripping
+  the build: **gnrt writes a value only where the key is ABSENT**
+  (`entry("allow_unsafe").or_insert_with(...)`), which is both why declaring a
+  corrected value sticks and why a "the config came back byte-identical" check
+  is VACUOUS on an already-vendored tree — nothing is inserted, `did_make_edits`
+  stays false, and an unpatched gnrt produces the same file. Delete the key and
+  re-vendor to see where the writer actually puts it.
+- **The ad blocker's Rust engine still does not link, and no patch in
+  `patches/` can fix it.** With the four config defects above resolved,
+  `//chrome/browser/oxy/adblock/rs:adblock_engine_ffi` fails at
+  `third_party/rust/rmp_serde/v0_15:lib` with 24 × `E0425: cannot find function
+  read_data_i8 in module rmp::decode`. rmp-serde 0.15.5 calls
+  `rmp::decode::read_data_*` as FREE functions; rmp 0.8.11 moved them into the
+  `RmpRead` trait, `#[doc(hidden)]`, leaving no wrappers (verified against both
+  crates: 0.8.10 `src/decode/mod.rs:208` has the free `pub fn`, 0.8.11
+  `:86,108` has the trait). adblock 0.9.8 requires `rmp-serde = "0.15"`
+  NON-optionally — it is the `data_format` serializer, not a feature — and
+  Cargo resolves rmp-serde's `rmp = "0.8.8"` to 0.8.15. The repair is to
+  constrain what the closure resolves to, which is a dependency decision:
+  `browser.lock.json` `third_party.adblock_rust`, issue #5. Editing the
+  vendored crate is not an option; the next `gnrt vendor` overwrites it
+  silently.
+- **The overlay's own C++ has never been compiled, and it does not compile.**
+  Once the Rust graph stopped blocking, the 13 objects of
+  `//chrome/browser/oxy/adblock:adblock` were built for the first time: **4
+  succeed, 9 fail**, every failure in Astro's own sources and none in
+  `patches/` or a vendored crate. They are API drift against Chromium 146 plus
+  missing includes, not one root cause: `base::Value::List`/`Dict` unresolved
+  in `webui/astro_adblock_ui_handler.{h,cc}`, incomplete
+  `network::mojom::RequestDestination` / `CSPDirectiveName` /
+  `content::WebContents`, `RequestDestination::kFavicon` and
+  `net::LOAD_DO_NOT_SEND_COOKIES` and `vector_icons::kShieldIcon` all gone
+  upstream, `base::RefCountedString` moved, `AstroAdBlockBubbleView`'s
+  constructor/destructor/`ShowBubble` private at every call site, and
+  `IDR_ASTRO_ADBLOCK_HTML` undeclared (that last one is the grit/pak wiring,
+  #14). Expect the same on the rest of the overlay: this is what defect #7
+  above was hiding, not a regression.
 - **Nothing fails when a patch stops applying — the whole series applying is
-  a measurement, never an assumption.** All 172 apply today (112 ungoogled +
-  60 Astro), measured 2026-08-09 by the replay described below: 745 files
-  seeded pristine (732 from `chromium/src` HEAD, 13 from DEPS
-  sub-repositories), 172/172 applied in declared order, no fuzz.
+  a measurement, never an assumption.** All 175 apply today (112 ungoogled +
+  63 Astro), measured 2026-08-09 by the replay described below: 746 files
+  seeded pristine (733 from `chromium/src` HEAD, 13 from DEPS
+  sub-repositories), 175/175 applied in declared order, no fuzz.
   `build/reports/patch-report.json` is OLDER than that and says so —
   `applied_count: 168` from the last full run against the real checkout — so
   read the replay, not the report, for whether the series applies. Also,
@@ -331,7 +378,7 @@ absorbs them; do not start a fourth one beside them.
 
 ```
 patches/ungoogled/   # 112 inherited de-Google patches
-patches/astro/       # 60 Astro-specific patches (numbered 001-063; 007 and 035 were
+patches/astro/       # 63 Astro-specific patches (numbered 001-066; 007 and 035 were
                      #   removed as empty files and 012 was retired by 060, so
                      #   three numbers are unused)
 gn_args/             # GN build args per platform (linux.gn, android.gn, macos.gn, windows.gn, etc.)

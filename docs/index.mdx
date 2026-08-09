@@ -12,7 +12,7 @@ Astro is a Chromium fork by [Oxy](https://oxy.so) that strips every Google servi
 
 ## What it is
 
-Astro is built on top of [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) (112 inherited patches that remove Google service dependencies) plus 60 Astro-specific patches that add Oxy integrations, branding, and a custom URL scheme. All Astro-only C++ code lives in a self-contained overlay at `src/chrome/browser/oxy/`, following the Brave-style approach of keeping custom source separate from upstream Chromium.
+Astro is built on top of [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) (112 inherited patches that remove Google service dependencies) plus 63 Astro-specific patches that add Oxy integrations, branding, and a custom URL scheme. All Astro-only C++ code lives in a self-contained overlay at `src/chrome/browser/oxy/`, following the Brave-style approach of keeping custom source separate from upstream Chromium.
 
 The internal pages Astro owns (New Tab, Settings, Alia AI, What's New) are not Polymer like in upstream Chrome — they are standalone Vite + Tailwind v4 apps. Settings is the newest and the least finished: Astro serves the host, but the page has no assets staged yet ([#16](https://github.com/OxyHQ/Astro/issues/16)). The error page was deleted in `c9c4383` and nothing replaced it. All of these are being consolidated into a single Vite + Tailwind + Bloom application in `webui/app/`.
 
@@ -45,7 +45,7 @@ The 112 ungoogled-chromium patches remove or stub:
 - Field trial config fetches
 - Translate UI's Google Translate dependency (provider is stubbed)
 
-The 60 Astro patches finish the substitution by replacing every remaining `chrome://`, "Google account", "Chromium" string, and product-menu entry with Oxy/Astro equivalents.
+The 63 Astro patches finish the substitution by replacing every remaining `chrome://`, "Google account", "Chromium" string, and product-menu entry with Oxy/Astro equivalents.
 
 ### 2. Native Oxy integrations
 
@@ -104,7 +104,7 @@ tools/sync-sources.sh
 # 2. Sync ungoogled-chromium patches for the current Chromium version
 tools/sync-ungoogled.sh
 
-# 3. Prune binaries, then apply all 172 patches in declared series order
+# 3. Prune binaries, then apply all 175 patches in declared series order
 tools/apply-patches.sh
 
 # 4. Copy the Astro source overlay into the Chromium tree (allowlisted, never deletes)

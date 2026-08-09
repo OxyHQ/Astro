@@ -10,7 +10,7 @@ Dispositions live in `patch-dispositions.json` and are joined in strictly:
 a patch with no disposition, or a disposition for a patch that no longer
 exists, fails generation. This inventory therefore cannot silently rot.
 
-## `patches/astro` — 60 patches
+## `patches/astro` — 63 patches
 
 | # | Patch | Files | Hunks | Disposition | Purpose |
 |---|---|---|---|---|---|
@@ -74,8 +74,11 @@ exists, fails generation. This inventory therefore cannot silently rot.
 | 58 | `061-astro-color-mixers-hook.patch` | `chrome/browser/ui/color/BUILD.gn`<br>`chrome/browser/ui/color/chrome_color_mixers.cc` | 3 | **replace** | Calls astro::AddAstroColorMixers last in AddChromeColorMixers, and adds the build edge that makes it link, so the toolbar, tab strip, omnibox and menus are painted from the profile's Bloom colour preset. Stands down under forced colours, high contrast and an installed theme extension. |
 | 59 | `062-astro-theme-service-register.patch` | `chrome/browser/profiles/BUILD.gn`<br>`chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc` | 3 | **replace** | Instantiates AstroThemeServiceFactory in EnsureBrowserContextKeyedServiceFactoriesBuilt. Its ServiceIsCreatedWithBrowserContext is inert without this, so the browser would open in the default colours and switch to the profile's preset at whatever later moment something first asked for the theme. |
 | 60 | `063-astro-webui-mojo-binders.patch` | `chrome/browser/BUILD.gn`<br>`chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc` | 3 | **replace** | Registers astro.mojom.ThemeProvider and astro.settings.mojom.PageHandlerFactory in the WebUI frame binder map. An interface absent from that map is dropped by RenderFrameHostImpl with no error on either side, so the controller's BindInterface is never reached. Read and write are registered separately so a page that reads the theme cannot change it. |
+| 61 | `064-rand-chacha-macro-unsafe.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml` | 1 | **replace** | Sets allow_unsafe = true for rand_chacha in gnrt_config.toml. gnrt auto-fills the value and guesses wrong: both vendored epochs hold their single unsafe block inside the body of macro_rules! chacha_impl, and the syn-based detector never descends into syn::Macro::tokens, which its own doc comment names as a known miss to be corrected by exactly this build failure. The content is a security claim about third-party source rather than code, so the patch header carries the audit behind it. Both epochs are host build tooling only, reached through the two phf code generators. |
+| 62 | `065-thiserror-epoch-scoped-config.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml`<br>`tools/crates/gnrt/vendor.rs` | 2 | **replace** | Splits thiserror's gnrt_config.toml entry into per-epoch tables, because the two vendored epochs disagree: 2.x's build script writes $OUT_DIR/private.rs and includes it, 1.x writes no file, and one unversioned build_script_outputs makes run_build_script.py fail with FileNotFoundError on 1.x. Also teaches fill_allow_unsafe_settings to write into an existing epoch-scoped table instead of creating an unversioned one beside it, which BuildConfig::validate then rejects on the next load — the narrow half of upstream's own TODO on crbug.com/419104870, without which a per-epoch config is unusable for any crate in the dependency graph. |
+| 63 | `066-vendored-crate-build-inputs.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml` | 3 | **replace** | Declares the build inputs and outputs gnrt cannot discover by walking a crate's source directory, for three crates the adblock engine pulls in: cssparser's #[path] build-script module and its generated tokenizer.rs, rmp's README reached by #![doc = include_str!], and selectors' generated phf set. Same declarations upstream already makes for clap, image, prost, typed-path and read-fonts; the whole 103-crate closure was scanned for the four shapes rather than found one round trip at a time. |
 
-### Overlapping patches (3)
+### Overlapping patches (4)
 
 Files touched by more than one patch. Touching one file is not proof
 two patches conflict, but every real conflict is in this set, so it is
@@ -86,6 +89,7 @@ a candidate list rather than a verdict.
 | `chrome/browser/prefs/browser_prefs.cc` | `020-register-oxy-prefs.patch`, `046-adblock-prefs.patch` |
 | `chrome/browser/ui/browser_navigator.cc` | `026-navigator-astro-rewrite.patch`, `036-navigator-auth-intercept.patch` |
 | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | `054-adblock-webui-register.patch`, `055-ntp-webui-register.patch`, `058-alia-webui-register.patch`, `060-settings-webui-takeover.patch` |
+| `third_party/rust/chromium_crates_io/gnrt_config.toml` | `059-itertools-shipping-group.patch`, `064-rand-chacha-macro-unsafe.patch`, `065-thiserror-epoch-scoped-config.patch`, `066-vendored-crate-build-inputs.patch` |
 
 ## `patches/ungoogled` — 112 patches
 
