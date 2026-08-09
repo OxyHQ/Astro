@@ -168,12 +168,33 @@ assert_checkout_is_clean_enough() {
     #
     # Asking git also avoids walking 400,000 files, and avoids the SIGPIPE that
     # `find … | head` raises under pipefail once head has what it needs.
+    #
+    # Tracked-or-untracked is exact for the crates Chromium ships and wrong for
+    # the crates ASTRO vendors: tools/vendor-adblock-rust.sh fetches 49 crate
+    # trees that upstream does not have, so every one of their `Cargo.toml.orig`
+    # files is untracked and this scan condemned all of them — the documented
+    # apply-patches → vendor → build sequence could not reach the build at all.
+    # The paths are recorded in vendor-report.json, which the dirty-path check
+    # above already honours, so the artifact scan asks the same question rather
+    # than keeping a second, narrower answer to it.
     local artifacts
     artifacts="$(git -C "$dir" status --porcelain --untracked-files=all \
-        | sed -n 's/^?? //p' | grep -E '\.(rej|orig|porig)$' | head -5)" || true   # astro-allow:suppressed-failure grep finding nothing is the normal case
+        | sed -n 's/^?? //p' | grep -E '\.(rej|orig|porig)$')" || true   # astro-allow:suppressed-failure grep finding nothing is the normal case
     if [ -n "$artifacts" ]; then
+        artifacts="$(printf '%s\n' "$artifacts" | astro::unattributable_paths \
+            "$ASTRO_ROOT/tools/overlay.allowlist" \
+            "$ASTRO_REPORT_DIR/patch-report.json" \
+            "$ASTRO_REPORT_DIR/overlay-manifest.json" \
+            "$ASTRO_REPORT_DIR/vendor-report.json")"
+    fi
+    if [ -n "$artifacts" ]; then
+        # Truncated for the message only. Filtering first and truncating second
+        # is the whole point: `grep … | head -5` would let five attributable
+        # `Cargo.toml.orig` files hide the sixth path, a real `.rej`.
+        local artifact_count
+        artifact_count="$(printf '%s\n' "$artifacts" | wc -l | tr -d '[:space:]')"
         problems="$problems
-  leftover patch artifacts: $(printf '%s' "$artifacts" | tr '\n' ' ')"
+  leftover patch artifacts ($artifact_count): $(printf '%s\n' "$artifacts" | sed -n '1,5p' | tr '\n' ' ')"
     fi
 
     # grep -c exits 1 when the count is zero, which cannot happen here (a

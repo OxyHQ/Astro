@@ -809,39 +809,26 @@ astro::require_pristine_chromium() {
         "To override: ASTRO_ALLOW_DIRTY_CHROMIUM=1 (developer-only; never set in CI)"
 }
 
-# astro::require_attributable_chromium <src> <allowlist-file> [manifest...]
+# astro::unattributable_paths <allowlist-file> [manifest...]
 #
-# Used by steps that legitimately run against an already-patched tree. Every
-# modified path must be attributable to something Astro itself wrote: a
-# destination prefix declared in the overlay allowlist, or a path recorded in a
-# manifest emitted by an earlier pipeline step. Anything else is unrelated
-# developer work and blocks the run.
-astro::require_attributable_chromium() {
-    local src="$1" allowlist="$2"
-    shift 2
-
-    local dirty
-    dirty="$(astro::_dirty_paths "$src")"
-    [ -n "$dirty" ] || return 0
-
-    local total
-    total="$(printf '%s\n' "$dirty" | wc -l | tr -d '[:space:]')"
-    if [ "$total" -gt "$ASTRO_MAX_MODIFIED_UPSTREAM_PATHS" ]; then
-        if [ "${ASTRO_ALLOW_DIRTY_CHROMIUM:-0}" != "1" ]; then
-            astro::die_with_hint \
-                "Chromium checkout has $total modified paths, over the limit of $ASTRO_MAX_MODIFIED_UPSTREAM_PATHS." \
-                "This is the accidental-mass-change guard. Something has gone wrong." \
-                "Raise ASTRO_MAX_MODIFIED_UPSTREAM_PATHS deliberately if the patch stack really grew this much."
-        fi
-        astro::warn "override:dirty-chromium" "$total modified paths exceeds the limit; continuing on override"
-    fi
+# Reads candidate paths on stdin, prints back the ones nothing accounts for: a
+# path is attributable when a destination prefix in the overlay allowlist covers
+# it, or when a manifest emitted by an earlier pipeline step records it.
+#
+# A filter rather than a check, so every guard that has to ask "did Astro write
+# this" asks it the same way. Splitting the question produced a build that
+# refused itself: the dirty-path check accepted the vendored crates and the
+# artifact scan, which had its own answer, condemned them.
+astro::unattributable_paths() {
+    local allowlist="$1"
+    shift
 
     # The set arithmetic runs in python3, not bash loops: a full patch stack
     # records tens of thousands of paths, and an O(dirty x recorded) shell
     # comparison over that takes minutes.
     #
     # The program is passed with `python3 -c` rather than on stdin: stdin is
-    # already carrying the dirty-path list, and a `python3 - <<'PY'` heredoc
+    # already carrying the candidate list, and a `python3 - <<'PY'` heredoc
     # silently wins over the pipe, leaving sys.stdin empty and every path
     # looking attributable.
     local attribution_program
@@ -905,8 +892,36 @@ for raw in sys.stdin:
 PY
 )"
 
+    python3 -c "$attribution_program" "$allowlist" "$@"
+}
+
+# astro::require_attributable_chromium <src> <allowlist-file> [manifest...]
+#
+# Used by steps that legitimately run against an already-patched tree. Every
+# modified path must be attributable to something Astro itself wrote. Anything
+# else is unrelated developer work and blocks the run.
+astro::require_attributable_chromium() {
+    local src="$1" allowlist="$2"
+    shift 2
+
+    local dirty
+    dirty="$(astro::_dirty_paths "$src")"
+    [ -n "$dirty" ] || return 0
+
+    local total
+    total="$(printf '%s\n' "$dirty" | wc -l | tr -d '[:space:]')"
+    if [ "$total" -gt "$ASTRO_MAX_MODIFIED_UPSTREAM_PATHS" ]; then
+        if [ "${ASTRO_ALLOW_DIRTY_CHROMIUM:-0}" != "1" ]; then
+            astro::die_with_hint \
+                "Chromium checkout has $total modified paths, over the limit of $ASTRO_MAX_MODIFIED_UPSTREAM_PATHS." \
+                "This is the accidental-mass-change guard. Something has gone wrong." \
+                "Raise ASTRO_MAX_MODIFIED_UPSTREAM_PATHS deliberately if the patch stack really grew this much."
+        fi
+        astro::warn "override:dirty-chromium" "$total modified paths exceeds the limit; continuing on override"
+    fi
+
     local unattributed
-    unattributed="$(printf '%s\n' "$dirty" | python3 -c "$attribution_program" "$allowlist" "$@")"
+    unattributed="$(printf '%s\n' "$dirty" | astro::unattributable_paths "$allowlist" "$@")"
 
     if [ -z "$unattributed" ]; then
         astro::info "Chromium checkout has $total modified path(s), all attributable to Astro."
