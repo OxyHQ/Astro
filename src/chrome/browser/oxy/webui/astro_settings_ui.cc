@@ -9,9 +9,21 @@
 #include "chrome/browser/oxy/webui/astro_settings_page_handler.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/settings/about_handler.h"
+#include "chrome/browser/ui/webui/settings/appearance_handler.h"
 #include "chrome/browser/ui/webui/settings/browser_lifetime_handler.h"
+#include "chrome/browser/ui/webui/settings/downloads_handler.h"
+#include "chrome/browser/ui/webui/settings/import_data_handler.h"
+#include "chrome/browser/ui/webui/settings/profile_info_handler.h"
+#include "chrome/browser/ui/webui/settings/reset_settings_handler.h"
+#include "chrome/browser/ui/webui/settings/safety_hub_handler.h"
 #include "chrome/browser/ui/webui/settings/search_engines_handler.h"
 #include "chrome/browser/ui/webui/settings/settings_clear_browsing_data_handler.h"
+#include "chrome/browser/ui/webui/settings/settings_default_browser_handler.h"
+#include "chrome/browser/ui/webui/settings/settings_manage_profile_handler.h"
+#include "chrome/browser/ui/webui/settings/settings_secure_dns_handler.h"
+#include "chrome/browser/ui/webui/settings/settings_startup_pages_handler.h"
+#include "chrome/browser/ui/webui/settings/site_settings_handler.h"
+#include "chrome/browser/ui/webui/settings/system_handler.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/astro_webui_resources.h"
 #include "chrome/grit/astro_webui_resources_map.h"
@@ -89,14 +101,47 @@ AstroSettingsUI::AstroSettingsUI(content::WebUI* web_ui)
   // deletion, the search-engine list and the version/update flow, each of
   // which is a correctness surface Astro has no reason to own.
   //
-  // This is the v1 set. The rest (site settings, downloads, languages,
-  // performance, reset, import, default browser, …) are adopted the same way
-  // as the app grows the sections that need them.
+  // THIS LIST IS NOT A MENU. Every handler below services a message the app
+  // actually sends, and every message the app sends is serviced by a handler
+  // below — a join checked in both directions by
+  // tools/tests/cases/settings-sends-reach-an-adopted-handler.sh against the
+  // declarations in webui/app/settings-handler-messages.json. It is checked
+  // because the failure is silent: `chrome.send` to a message no installed
+  // handler registered reaches DUMP_WILL_BE_NOTREACHED in
+  // content/browser/webui/web_ui_impl.cc, which is a no-op in a release build.
+  // The control draws, the button depresses, and nothing happens. Four of this
+  // page's sections shipped in exactly that state.
+  //
+  // The converse hazard, now that these are live, is arguments. A handler that
+  // was a no-op tolerated anything; several of these CHECK on the shape of
+  // what they are given, and `setProfileName` CHECKs that the trimmed name is
+  // non-empty. Read the handler before adding a call site.
+  web_ui->AddMessageHandler(
+      std::make_unique<::settings::AppearanceHandler>(web_ui));
   web_ui->AddMessageHandler(std::make_unique<::settings::BrowserLifetimeHandler>());
   web_ui->AddMessageHandler(
       std::make_unique<::settings::ClearBrowsingDataHandler>(web_ui, profile));
   web_ui->AddMessageHandler(
+      std::make_unique<::settings::DefaultBrowserHandler>());
+  web_ui->AddMessageHandler(
+      std::make_unique<::settings::DownloadsHandler>(profile));
+  web_ui->AddMessageHandler(std::make_unique<::settings::ImportDataHandler>());
+  web_ui->AddMessageHandler(
+      std::make_unique<::settings::ManageProfileHandler>(profile));
+  web_ui->AddMessageHandler(
+      std::make_unique<::settings::ProfileInfoHandler>(profile));
+  web_ui->AddMessageHandler(
+      std::make_unique<::settings::ResetSettingsHandler>(profile));
+  web_ui->AddMessageHandler(
+      std::make_unique<::settings::SafetyHubHandler>(profile));
+  web_ui->AddMessageHandler(
       std::make_unique<::settings::SearchEnginesHandler>(profile));
+  web_ui->AddMessageHandler(std::make_unique<::settings::SecureDnsHandler>());
+  web_ui->AddMessageHandler(
+      std::make_unique<::settings::SiteSettingsHandler>(profile));
+  web_ui->AddMessageHandler(
+      std::make_unique<::settings::StartupPagesHandler>(web_ui));
+  web_ui->AddMessageHandler(std::make_unique<::settings::SystemHandler>());
   web_ui->AddMessageHandler(std::make_unique<::settings::AboutHandler>(profile));
 }
 
