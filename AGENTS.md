@@ -753,8 +753,10 @@ Changing the theme in settings re-colours the browser, not just the page. The
 mode is upstream's `browser.theme.color_scheme2`; the Bloom colour preset is
 Astro's own `astro.theme.preset`. `AstroThemeService` watches both, pushes the
 preset into `astro::AddAstroColorMixers` (patch 061, called last so it wins),
-and calls `NativeTheme::NotifyOnNativeThemeUpdated()`, which drops the cached
-ColorProviders so open windows repaint with no restart.
+and calls `NotifyOnNativeThemeUpdated()` on the native themes the windows
+observe, so they repaint with no restart. Both halves of that last sentence
+are load-bearing and the second bullet below is why: dropping the cached
+ColorProviders is not what makes an open window repaint.
 
 Five things to know before touching it:
 
