@@ -254,24 +254,63 @@ do not let a build imply they are resolved:
     its header that it is removable the day that happens.
 - **The overlay's own C++ has never been compiled, and it does not compile.**
   Once the Rust graph stopped blocking, the 13 objects of
-  `//chrome/browser/oxy/adblock:adblock` were built for the first time: **4
-  succeed, 9 fail**, every failure in Astro's own sources and none in
-  `patches/` or a vendored crate. They are API drift against Chromium 146 plus
-  missing includes, not one root cause: `base::Value::List`/`Dict` unresolved
-  in `webui/astro_adblock_ui_handler.{h,cc}`, incomplete
-  `network::mojom::RequestDestination` / `CSPDirectiveName` /
-  `content::WebContents`, `RequestDestination::kFavicon` and
-  `net::LOAD_DO_NOT_SEND_COOKIES` and `vector_icons::kShieldIcon` all gone
-  upstream, `base::RefCountedString` moved, `AstroAdBlockBubbleView`'s
-  constructor/destructor/`ShowBubble` private at every call site, and
-  `IDR_ASTRO_ADBLOCK_HTML` undeclared (that last one is the grit/pak wiring,
-  #14). Expect the same on the rest of the overlay: this is what defect #7
+  `//chrome/browser/oxy/adblock:adblock` were built for the first time: 4
+  succeeded and 9 failed, every failure in Astro's own sources and none in
+  `patches/` or a vendored crate. **12 of the 13 compile as of 2026-08-09**;
+  the 13th, `astro_adblock_ui.o`, fails only on the undeclared
+  `IDR_ASTRO_ADBLOCK_HTML`, which is the grit/pak wiring (#14). The repairs
+  were API drift against Chromium 146, not one root cause, and the upstream
+  spellings are worth carrying because the next overlay file will hit them
+  too:
+
+  - `base::Value::List` / `base::Value::Dict` are now the standalone classes
+    `base::ListValue` / `base::DictValue`, and `WebUI::MessageCallback` takes
+    `const base::ListValue&`.
+  - `GURL::host()` returns `std::string_view` while `spec()` still returns
+    `const std::string&`, so `std::string s = url.host();` no longer compiles
+    — the `string_view` → `string` constructor is explicit.
+  - `base::JSONReader::Read` requires its `options` argument; `ReadDict` /
+    `ReadList` replace the read-then-`is_dict()` dance.
+  - `RequestDestination::kFavicon` and `net::LOAD_DO_NOT_SEND_COOKIES` are
+    gone; `ResourceRequest::credentials_mode = kOmit` is what keeps cookies
+    off a request now.
+  - `base::RefCountedString` lives in `base/memory/ref_counted_memory.h`.
+  - There is no unbranded shield vector icon: the only two in the tree are
+    ChromeOS-specific and `google_chrome/gshield.icon`, which a
+    non-Google-branded build does not compile. `chrome/app/vector_icons/security.icon`
+    (`kSecurityIcon`) IS a shield outline and is already in the aggregate
+    list, so no new icon and no new patch was needed. The `alia_spark.icon`
+    precedent — overlay `.icon` + `tools/overlay.allowlist` entry + a numbered
+    patch to `chrome/app/vector_icons/BUILD.gn` — remains the path if Astro
+    ever wants distinct branding here.
+  - **`METADATA_HEADER` expands to a trailing `private:`.** Every upstream
+    subclass re-states ` public:` on the next line; the bubble header did not,
+    which is the whole reason its constructor, destructor and `ShowBubble`
+    read as private at every call site. That was a missing access specifier,
+    not a design problem.
+  - **`views::BubbleDialogDelegateView` is deprecated and its constructor is
+    private behind a friend list stamped "DO NOT ADD TO THIS LIST!"** New code
+    subclasses `views::BubbleDialogDelegate` (public constructor) and puts the
+    contents in a separate `views::View` via `SetContentsView`, which is what
+    upstream's own `AccountSelectionBubbleDelegate` does. `Init()` is still the
+    hook and `CreateBubble` still calls it, so ownership is the identical code
+    path. Astro's bubble was migrated and renamed to
+    `AstroAdBlockBubbleDelegate` — a class deriving from a delegate must not be
+    called `...View`.
+
+  Expect the same drift on the rest of the overlay: this is what defect #7
   above was hiding, not a regression.
 - **Nothing fails when a patch stops applying — the whole series applying is
-  a measurement, never an assumption.** All 175 apply today (112 ungoogled +
-  63 Astro), measured 2026-08-09 by the replay described below: 746 files
-  seeded pristine (733 from `chromium/src` HEAD, 13 from DEPS
-  sub-repositories), 175/175 applied in declared order, no fuzz.
+  a measurement, never an assumption.** 175 were measured 2026-08-09 by the
+  replay described below: 746 files seeded pristine (733 from `chromium/src`
+  HEAD, 13 from DEPS sub-repositories), 175/175 applied in declared order, no
+  fuzz. `067-astro-webui-pak-repack.patch` landed after that run and was
+  replayed on its own the same way — pristine `chrome/chrome_paks.gni` and
+  `tools/gritsettings/resource_ids.spec`, `git apply --check
+  --whitespace=nowarn`, exit 0 — which settles its series position too,
+  because it is the only patch in EITHER series touching either file. So 176
+  apply today (112 ungoogled + 64 Astro); the whole-series replay has not been
+  re-run since, and the seeded-file count above is the 175-patch one.
   `build/reports/patch-report.json` is OLDER than that and says so —
   `applied_count: 168` from the last full run against the real checkout — so
   read the replay, not the report, for whether the series applies. Also,
@@ -304,15 +343,24 @@ do not let a build imply they are resolved:
     somebody else's patch, so it applies to the pristine file and fails in
     series. A per-patch check against a pristine tree calls the second kind
     healthy, which is why the replay runs the series in order.
-- Every WebUI page serves its assets by reading a directory next to the
-  executable at runtime (`base::DIR_EXE` + `resources/astro-<page>`) rather
-  than from a `.pak`, so none of them carries Chromium's resource-bundling
-  guarantees. Removing `DIR_EXE` entirely is owned by #14 (packaging: #16).
-  The three legacy pages still render BLANK, with no error, when their
-  directory is missing. Pages built on `astro_webui_page.cc` do not: it logs
-  the absolute path it tried and serves a document naming it. Settings is the
-  only such page today, and it has no assets at all in this pipeline — see
-  the settings section below before reporting the takeover as working.
+- The three LEGACY pages (`ntp`, `alia`, `whats-new`) still serve their assets
+  by reading a directory next to the executable at runtime (`base::DIR_EXE` +
+  `resources/astro-<page>`) rather than from a `.pak`, so none of them carries
+  Chromium's resource-bundling guarantees, and each still renders BLANK, with
+  no error, when its directory is missing. Moving them into the app is the
+  remainder of #14.
+
+  Pages built on `astro_webui_page.cc` no longer do any of that:
+  `067-astro-webui-pak-repack.patch` put `astro_webui_resources.pak` into
+  chrome's repack list, and the base serves every page out of the GRIT
+  resource map (`AddResourcePaths` plus a `SetDefaultResource` fallback that
+  makes client-side routes resolve). Settings is the only such page today.
+  The single remaining filesystem path, `astro_webui_dev_source.cc`, is
+  compiled only under `astro_webui_dev_tools` — off in every committed
+  configuration, so a release binary contains neither the reader nor the
+  `--astro-webui-dir` switch that would reach it. That is not a convention:
+  `tools/tests/cases/webui-assets-come-from-the-pak.sh` compares the four
+  places the guarantee is spelled and fails if any one of them drifts.
 
 ## Branding
 
@@ -379,9 +427,18 @@ src/chrome/browser/oxy/
 │                                    #   Called last from AddChromeColorMixers
 │                                    #   (patch 061); computes no colour.
 └── webui/                           # WebUI page controllers
-    ├── BUILD.gn                     # mojom("mojo_bindings") ONLY. The
+    ├── BUILD.gn                     # The mojom("mojo_bindings") target, the
+    │                                #   astro_webui_dev_tools buildflag, and the
+    │                                #   Vite -> generate_grd -> grit -> .pak chain
+    │                                #   (build_app, build_grd, resources). The
     │                                #   controllers are sources of the parent
     │                                #   target //chrome/browser/oxy:webui_controllers.
+    ├── astro_webui.gni              # astro_webui_dev_tools / astro_webui_app_dir.
+    ├── astro_webui_dev_source.*     # The ONE disk-serving path, compiled only
+    │                                #   when astro_webui_dev_tools is on.
+    ├── tools/build_astro_webui_app.py  # The GN action: runs Vite, checks the
+    │                                #   emitted set against the committed
+    │                                #   manifest.json, stages it for GRIT.
     ├── astro_theme.mojom            # GetTheme + OnThemeChanged. READ ONLY, and
     │                                #   bound by every Astro page.
     ├── astro_settings.mojom         # SetThemeMode / SetColorPreset. Named
@@ -404,9 +461,10 @@ webui/
 ├── app/           # WHERE NEW WORK GOES. One Vite + Tailwind v4 + Bloom
 │                  #   application serving every astro:// surface, one entry
 │                  #   per WebUI host (each host is a separate origin, so the
-│                  #   entry is chosen from location.hostname). Not yet served
-│                  #   by any controller and not in build.sh's staging list —
-│                  #   the GN/grit/pak wiring is #14.
+│                  #   entry is chosen from location.hostname). Built by a GN
+│                  #   action into astro_webui_resources.pak and served to
+│                  #   astro://settings today; manifest.json is committed and
+│                  #   is the authority for what it emits.
 ├── ntp/           # New Tab Page (Vite + Tailwind v4)
 ├── alia/          # Alia AI Panel
 └── whats-new/     # What's New Page
@@ -419,7 +477,7 @@ absorbs them; do not start a fourth one beside them.
 
 ```
 patches/ungoogled/   # 112 inherited de-Google patches
-patches/astro/       # 63 Astro-specific patches (numbered 001-066; 007 and 035 were
+patches/astro/       # 64 Astro-specific patches (numbered 001-067; 007 and 035 were
                      #   removed as empty files and 012 was retired by 060, so
                      #   three numbers are unused)
 gn_args/             # GN build args per platform (linux.gn, android.gn, macos.gn, windows.gn, etc.)
@@ -427,10 +485,11 @@ branding/            # Logos, icons, astro.conf, .desktop file
 tools/               # Build, install, patch, packaging scripts
 ```
 
-## Settings: Astro serves it, and it has no assets yet
+## Settings: Astro serves it, out of the pak
 
 There is still no Astro error page — it was deleted in `c9c4383` and nothing
-replaced it. Settings is different now, and the difference has a sharp edge.
+replaced it. Settings is different: Astro owns it, and as of
+`067-astro-webui-pak-repack.patch` it has assets to serve.
 
 HISTORY, because this file used to lie about it. The Mojo settings backend
 older revisions of this document described never existed: no `.mojom` was
@@ -446,16 +505,40 @@ upstream's own host. The controller binds two typed Mojo interfaces
 adopts four upstream handlers wholesale — `BrowserLifetimeHandler`,
 `ClearBrowsingDataHandler`, `SearchEnginesHandler`, `AboutHandler`.
 
-THE SHARP EDGE, declared rather than hidden: **the page has no assets.**
-`webui/app` is not built by `tools/build.sh` and `astro-settings` is not in
-its `REQUIRED_WEBUI_PAGES`, so `<DIR_EXE>/resources/astro-settings/` does not
-exist in any build this pipeline produces. Navigating to `astro://settings`
-in such a build gets the diagnostic document `astro_webui_page.cc` generates:
-a page naming the absent directory, plus a `LOG(ERROR)` naming it. That is
-deliberate — the deleted settings surface rendered BLANK with no error, and
-that is what condemned it — but it means this branch's browser has no working
-settings page until the packaging in #16 lands. Do not report the takeover as
-"settings works".
+WHERE ITS ASSETS COME FROM. Not a directory beside the executable — that
+arrangement is gone, along with the diagnostic document older revisions of
+this section described. `//chrome/browser/oxy/webui:build_app` runs
+`bun run build` in `webui/app` as a GN action, `generate_grd` and `grit` turn
+the emitted set into `astro_webui_resources.pak`, and
+`067-astro-webui-pak-repack.patch` adds that pak to `chrome_extra_paks` and
+reserves its id range in `tools/gritsettings/resource_ids.spec`, so the bytes
+land in `resources.pak`. `astro_webui_page.cc` serves them through
+`AddResourcePaths` plus a `SetDefaultResource` fallback, which is what makes
+`astro://settings/privacy` resolve to the app document and route client-side.
+
+Measured 2026-08-09 on the applied series: 66 resources in the pak, all 66
+inside the shipped `resources.pak`, and `index.html`, `astro_webui.js` and
+`astro-webui-style.css` extracted from it byte-identical to what Vite emitted.
+`astro-settings` is deliberately NOT in `build.sh`'s `REQUIRED_WEBUI_PAGES` —
+the app is an input the BUILD consumes, not a bundle the script stages, and
+the only thing `build.sh` checks for it is the `bun install` precondition a GN
+action cannot satisfy for itself.
+
+Three things follow that are easy to get wrong:
+
+- **The app needs generated Mojo TypeScript bindings, and they are not in
+  this repository.** The action depends on `:mojo_bindings_ts__generator` and
+  passes its own `root_gen_dir` down as `ASTRO_MOJOM_GEN_DIR`. Without both
+  halves Vite compiles against whichever `gen/` the app's `tsconfig.json`
+  happens to name — a different build's, or none, which fails the build
+  naming the target that fixes it.
+- **`manifest.json` in `webui/app` is committed and is the authority** for the
+  set of files the app emits. The action compares the build's output against
+  it and stops if they disagree, so a resource set changing is a reviewable
+  event rather than a silent repack.
+- **A release binary contains no filesystem-reading path at all.**
+  `astro_webui_dev_source.cc` and the `--astro-webui-dir` switch exist only
+  under `astro_webui_dev_tools`, off in every committed configuration.
 
 WHY THE SAME HOST. `settingsPrivate` and seven other extension APIs are
 granted by host pattern in the two `_api_features.json` files, and the pattern
@@ -500,12 +583,14 @@ Two things to know before touching it:
    - Inherit from `content::WebUIController` (simple page) or `ui::MojoWebUIController` (if Mojo IPC needed)
    - Define a `kAstroFooHost` constant for the URL host
    - Create a `UIConfig` class inheriting `content::DefaultWebUIConfig<AstroFooUI>`
-   - In the constructor, set up `WebUIDataSource` to serve the Vite-built assets from disk
+   - Declare a `WebUIPage` and let `astro_webui_page.cc` build the data
+     source; do not construct one by hand and do not read assets from disk
 
 2. **Add the sources** to `source_set("webui_controllers")` in
    `src/chrome/browser/oxy/BUILD.gn`. `webui/BUILD.gn` holds the
-   `mojom("mojo_bindings")` target and nothing else — add a `.mojom` there if
-   the page needs one, and bind it from a `MojoWebUIController`.
+   `mojom("mojo_bindings")` target, the `astro_webui_dev_tools` buildflag and
+   the Vite -> `generate_grd` -> `grit` -> `.pak` chain — add a `.mojom` there
+   if the page needs one, and bind it from a `MojoWebUIController`.
 
 3. **Register the config** with a numbered patch to
    `chrome/browser/ui/webui/chrome_web_ui_configs.cc`, following
@@ -523,13 +608,21 @@ Two things to know before touching it:
 5. **Create the frontend** as an entry in `webui/app/` (see above), not as a
    new top-level `webui/foo/`.
 
-6. **Wire the assets.** Today the controllers read
+6. **Nothing to wire — that is the point.** A page whose frontend is an entry
+   in `webui/app` sets `.resources = kAstroWebuiResources` and
+   `.default_resource = IDR_ASTRO_WEBUI_INDEX_HTML` on its `WebUIPage`, the
+   same two values every Astro page uses, because the whole app is one
+   multi-entry build in one `.pak`. There is no path to stage, no directory to
+   agree about, and a resource the map names but GRIT did not compile is a
+   LINK error rather than a blank page found by a user.
+
+   The three LEGACY pages still work the old way: the controllers read
    `<DIR_EXE>/resources/astro-<page>/`, `tools/build.sh` stages
    `webui/<page>/dist` to exactly that path, and the page name must be in
-   `REQUIRED_WEBUI_PAGES` or nothing stages it. Those three have to agree, and
-   nothing checks that they do: when the controllers read one path and
+   `REQUIRED_WEBUI_PAGES` or nothing stages it. Those three have to agree and
+   nothing checks that they do — when the controllers read one path and
    build.sh wrote another, every page rendered blank and the build reported
-   success. Removing `DIR_EXE` in favour of a `.pak` is #14.
+   success. Do not add a fourth page to that arrangement.
 
 ## WebUI Page URLs
 
