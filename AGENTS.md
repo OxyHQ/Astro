@@ -461,6 +461,26 @@ do not let a build imply they are resolved:
   `tools/tests/cases/webui-assets-come-from-the-pak.sh` compares the four
   places the guarantee is spelled and fails if any one of them drifts.
 
+  `chrome://adblock` is neither of those two shapes, and is the one page a
+  reader will otherwise mis-file. It serves inline strings:
+  `CreateAndAddInlineSource` sets `SetDefaultResource(-1)` — the comment on
+  that line reads "No grit resource, we use RequestFilter" — beside a
+  `SetRequestFilter` whose predicate claims every path. So it is NOT a
+  `DIR_EXE` finding and correctly does not appear beside the three legacy
+  pages in the security baseline: the bytes are compiled into the binary and
+  nothing is read off disk. It is also not in the pak, so it carries none of
+  the resource-bundling guarantees, and it is the same catch-all-filter shape
+  settings was moved away from. Folding it in is cheap and belongs to #14's
+  remainder: add the entry to the Vite build, then the controller becomes
+  `.resources = kAstroWebuiResources` / `.default_resource =
+  IDR_ASTRO_WEBUI_INDEX_HTML` like settings.
+
+  Do not go looking for a grit id to satisfy here. `IDR_ASTRO_ADBLOCK_HTML`
+  and the `CreateAndAddHTMLSource` that referenced it were dead code — the
+  constructor never called it — and `676c9eb` deleted both, so a `grep` for
+  that identifier now returns nothing. Declaring an id for it would have been
+  machinery for nobody.
+
 ## Branding
 
 `tools/apply-branding.sh` applies `branding/astro.conf` across the tree.
