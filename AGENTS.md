@@ -1,6 +1,6 @@
 # Astro — De-Googled Chromium Browser by Oxy
 
-Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 63 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
+Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 65 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
 
 ## Build Commands
 
@@ -196,21 +196,62 @@ do not let a build imply they are resolved:
   is VACUOUS on an already-vendored tree — nothing is inserted, `did_make_edits`
   stays false, and an unpatched gnrt produces the same file. Delete the key and
   re-vendor to see where the writer actually puts it.
-- **The ad blocker's Rust engine still does not link, and no patch in
-  `patches/` can fix it.** With the four config defects above resolved,
-  `//chrome/browser/oxy/adblock/rs:adblock_engine_ffi` fails at
+- **A vendored crate CAN be edited durably, and this file said the opposite.**
+  `//chrome/browser/oxy/adblock/rs:adblock_engine_ffi` used to fail at
   `third_party/rust/rmp_serde/v0_15:lib` with 24 × `E0425: cannot find function
   read_data_i8 in module rmp::decode`. rmp-serde 0.15.5 calls
   `rmp::decode::read_data_*` as FREE functions; rmp 0.8.11 moved them into the
-  `RmpRead` trait, `#[doc(hidden)]`, leaving no wrappers (verified against both
-  crates: 0.8.10 `src/decode/mod.rs:208` has the free `pub fn`, 0.8.11
-  `:86,108` has the trait). adblock 0.9.8 requires `rmp-serde = "0.15"`
-  NON-optionally — it is the `data_format` serializer, not a feature — and
-  Cargo resolves rmp-serde's `rmp = "0.8.8"` to 0.8.15. The repair is to
-  constrain what the closure resolves to, which is a dependency decision:
-  `browser.lock.json` `third_party.adblock_rust`, issue #5. Editing the
-  vendored crate is not an option; the next `gnrt vendor` overwrites it
-  silently.
+  `RmpRead` trait, `#[doc(hidden)]`, leaving no wrappers (0.8.10
+  `src/decode/mod.rs:208` has the free `pub fn`; 0.8.15 `:107` has the same
+  body as a trait method). adblock 0.9.8 requires `rmp-serde = "0.15"`
+  NON-optionally and Cargo resolves rmp-serde's `rmp = "0.8.8"` to 0.8.15 —
+  inside the range its own author wrote, incompatible with it.
+
+  The entry that used to sit here said the repair had to be a resolution
+  constraint because "editing the vendored crate is not an option; the next
+  `gnrt vendor` overwrites it silently". That is true of editing the tree by
+  hand and FALSE of the mechanism.
+  `third_party/rust/chromium_crates_io/patches/<crate>-<epoch>/` exists so an
+  edit survives re-vendoring: `apply_patches` in
+  `tools/crates/gnrt/vendor.rs` runs on every download, and 17 crates in this
+  checkout already depend on it. `069-rmp-serde-rmpread-backport.patch` adds
+  Astro's, carrying rmp-serde 1.1.1's own `RmpRead` migration back to 0.15.5.
+  Measured 2026-08-09: `adblock_engine_ffi` builds, `ninja: no work to do.`,
+  exit 0, `libastro_adblock_ffi.rlib` 291,988 bytes.
+
+  Four things from it outlive the defect:
+
+  - **`apply_patches` runs on the DOWNLOAD path only.** A crate already
+    vendored at the right version takes the `continue` branch, so adding a
+    crate patch to a tree that already holds the crate does nothing at all.
+    Delete the vendor directory to apply one. The consequence for verification
+    is sharper than it looks: a second `gnrt vendor` leaving the tree
+    byte-identical proves STABILITY, not that the patch reproduces from
+    scratch, because the second run never re-applied it. Both were measured
+    separately here — the crate re-downloaded pristine and re-patched to the
+    intended md5, and then 6,684 files byte-identical across two runs.
+  - **Prefer the crate patch to a resolution pin, and the reason is not
+    taste.** Holding rmp below 0.8.11 pins the decoder that parses adblock's
+    serialized filter data at 0.8.10 (2021-02-02), needs `rmp` declared a
+    direct dependency of the `chromium` package purely as a constraint, and
+    silently falsifies a patch that had landed hours earlier: 066 declares
+    `[crate.rmp] extra_input_roots = ['../README.md']` because 0.8.15's
+    `src/lib.rs` opens `#![doc = include_str!("../README.md")]`, and 0.8.10's
+    does not. A version pin can invalidate a build-input declaration made for
+    a different version of the same crate; check the other patches naming a
+    crate before pinning it.
+  - **Bumping the intermediate crate was not available, and the version list
+    is how you find that out.** adblock 0.9.8 declares `rmp-serde = "^0.15"`,
+    0.15.5 (2021-06-11) is the last 0.15.x, and the next non-yanked release is
+    1.0.0 — outside the range. No published rmp-serde both satisfies its
+    dependant and builds against a current rmp.
+  - **The real fix is an engine upgrade, and it is a product decision.**
+    adblock 0.12.0 dropped rmp-serde entirely for flatbuffers. Taking it costs
+    four new vendored crates (`flatbuffers`, `arrayvec`, `precomputed-hash`,
+    `rustc-hash`), five epoch bumps that invalidate 066's `cssparser-v0_29`
+    and `selectors-v0_24` declarations, a `v0_9` → `v0_12` rename in the FFI's
+    `BUILD.gn`, and an FFI rewrite against a changed engine API. 069 says in
+    its header that it is removable the day that happens.
 - **The overlay's own C++ has never been compiled, and it does not compile.**
   Once the Rust graph stopped blocking, the 13 objects of
   `//chrome/browser/oxy/adblock:adblock` were built for the first time: **4

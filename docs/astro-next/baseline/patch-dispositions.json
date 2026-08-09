@@ -502,6 +502,12 @@
       "effect": "build-only",
       "purpose": "Puts astro_webui_resources.pak into chrome's repack list and reserves its fake start id in resource_ids.spec, which is what makes the resources the Astro WebUI app is compiled into reachable at runtime. Without it the grit target still builds a .pak, nothing loads it, and every astro:// page resolves its resource ids to nothing — a blank page with no error, the exact failure the disk-served settings surface was deleted for. Both files are upstream's and churn every roll, so a two-hunk patch is the reviewable form; a whole-file overlay copy of either is defect #7's shape.",
       "replacement_issue": 14
+    },
+    "069-rmp-serde-rmpread-backport.patch": {
+      "disposition": "replace",
+      "effect": "build-only",
+      "purpose": "Adds a Chromium crate patch under third_party/rust/chromium_crates_io/patches/rmp-serde-v0_15/ that backports rmp-serde 1.1.1's RmpRead migration to 0.15.5, which is what makes the ad blocker's Rust engine link. rmp 0.8.11 moved read_data_* from free functions into the sealed RmpRead trait; rmp-serde 0.15.5 predates it and Cargo resolves its own rmp = \"0.8.8\" to 0.8.15, so the crate fails with 24 x E0425. No published rmp-serde satisfies both adblock 0.9.8's ^0.15 and a current rmp, and constraining rmp below 0.8.11 would pin the decoder at 0.8.10 and falsify 066's [crate.rmp] README input declaration. Removable once the engine moves to adblock 0.12+, which dropped rmp-serde for flatbuffers.",
+      "replacement_issue": 7
     }
   }
 }

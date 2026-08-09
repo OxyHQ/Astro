@@ -72,3 +72,4 @@
 065-thiserror-epoch-scoped-config.patch
 066-vendored-crate-build-inputs.patch
 067-astro-webui-pak-repack.patch
+069-rmp-serde-rmpread-backport.patch

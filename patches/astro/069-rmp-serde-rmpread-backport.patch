@@ -1,0 +1,230 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Sun, 9 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Repair rmp-serde through gnrt, because no resolution can
+
+`//chrome/browser/oxy/adblock/rs:adblock_engine_ffi` fails to link because
+`third_party/rust/rmp_serde/v0_15:lib` does not compile:
+
+    error[E0425]: cannot find function `read_data_u8` in module `rmp::decode`
+       --> .../vendor/rmp-serde-v0_15/src/decode.rs:497:40
+    error: aborting due to 24 previous errors
+
+rmp 0.8.11 moved `read_data_*` out of `rmp::decode` as free functions and into
+the sealed `RmpRead` trait. rmp-serde 0.15.5 predates that and calls them as
+free functions. It declares `rmp = "0.8.8"`, so Cargo resolves 0.8.15: inside
+the range its own author wrote, and incompatible with it.
+
+Measured against the vendored trees rather than inferred. 24 errors, all
+E0425, all `read_data_*`, nothing else -- so the incompatible surface is
+exactly these functions. rmp 0.8.10 `src/decode/mod.rs:208` has the free
+`pub fn`; 0.8.15 `:107` has the same body as a `#[doc(hidden)]` trait method.
+
+THE THREE REPAIRS, AND WHY THIS IS THE ONE
+
+Bumping rmp-serde is not available. adblock 0.9.8 declares `rmp-serde =
+"^0.15"` non-optionally, 0.15.5 (2021-06-11) is the last 0.15.x and there will
+not be another, and the next non-yanked release is 1.0.0 -- outside the range.
+No published rmp-serde both satisfies adblock and builds against a current rmp.
+
+Constraining rmp below 0.8.11 works and costs more than it looks. It pins the
+decoder that parses adblock's serialized filter data at 0.8.10 (2021-02-02),
+five releases back, in a manifest whose stated policy is that this step pins
+nothing (`browser.lock.json` `third_party.adblock_rust`, issue #5). It also
+needs `rmp` declared as a direct dependency of the `chromium` package purely
+as a constraint, which moves it in gnrt's inherited-privilege walk from the
+graph root. And it silently falsifies a patch that landed hours ago: 066
+declares `[crate.rmp] extra_input_roots = ['../README.md']` because 0.8.15's
+`src/lib.rs` opens `#![doc = include_str!("../README.md")]`. 0.8.10's does
+not, so the pin would leave 066 declaring a compile input that is not one.
+
+Upgrading adblock is the eventual answer and is not this change. adblock
+0.12.0 dropped rmp-serde entirely for flatbuffers, which deletes the problem
+rather than working around it -- at the cost of four crates to vendor
+(`flatbuffers`, `arrayvec`, `precomputed-hash`, `rustc-hash`), five epoch
+bumps that invalidate 066's `cssparser-v0_29` and `selectors-v0_24`
+declarations, a `v0_9` -> `v0_12` rename in the FFI's `BUILD.gn`, and a
+rewrite of the FFI against a changed engine API. That is a decision about
+which ad blocker Astro ships, not a link fix.
+
+WHY A VENDORED CRATE CAN BE EDITED AFTER ALL
+
+066's header and AGENTS.md both say editing a vendored crate is not an option
+because the next `gnrt vendor` overwrites it. That is true of editing the tree
+by hand and false of the mechanism: `chromium_crates_io/patches/<crate>-<epoch>/`
+exists so an edit SURVIVES re-vendoring. `apply_patches` in
+`tools/crates/gnrt/vendor.rs` runs on every download, and 17 crates in this
+checkout already rely on it. Both statements are corrected in the same commit
+as this patch.
+
+The file this patch adds is that mechanism's input, not the edit itself, so
+the vendored tree stays generated: sweep it and `gnrt vendor` reproduces the
+patched crate. gnrt applies it with `-p6 --directory=<vendor dir>`, verified
+here by replaying that exact invocation against a pristine 0.15.5 unpacked
+from crates.io.
+
+The content is upstream's own fix, lifted from rmp-serde 1.1.1 -- its import
+line, its method-call form, and its `byteorder::ReadBytesExt::read_u8`
+disambiguation, which is needed because `RmpRead` in scope makes a bare
+`rd.read_u8()` ambiguous. Its own header carries the detail.
+
+diff --git a/third_party/rust/chromium_crates_io/patches/rmp-serde-v0_15/0101-Backport-rmp-serde-1.x-s-RmpRead-migration-to-0.15.5.patch b/third_party/rust/chromium_crates_io/patches/rmp-serde-v0_15/0101-Backport-rmp-serde-1.x-s-RmpRead-migration-to-0.15.5.patch
+new file mode 100644
+index 0000000..a6df645
+--- /dev/null
++++ b/third_party/rust/chromium_crates_io/patches/rmp-serde-v0_15/0101-Backport-rmp-serde-1.x-s-RmpRead-migration-to-0.15.5.patch
+@@ -0,0 +1,154 @@
++From c7599b123d9c19d4a1dc8be80dccb3f85b50cf23 Mon Sep 17 00:00:00 2001
++From: Nate Isern <nate@oxy.so>
++Date: Sun, 9 Aug 2026 05:05:43 +0300
++Subject: [PATCH] Backport rmp-serde 1.x's RmpRead migration to 0.15.5
++
++rmp 0.8.11 moved `read_data_u8`/`read_data_i8`/... out of `rmp::decode` as
++free functions and into the sealed `RmpRead` trait. rmp-serde 0.15.5 was
++published 2021-06-11, before that, and calls them as free functions in 24
++places. Its own declared constraint is `rmp = "0.8.8"`, so Cargo resolves
++0.8.15 -- semver-compatible with the range, API-incompatible with the crate
++that declared it:
++
++    error[E0425]: cannot find function `read_data_u8` in module `rmp::decode`
++       --> .../vendor/rmp-serde-v0_15/src/decode.rs:497:40
++    error: aborting due to 24 previous errors
++
++WHY PATCH RATHER THAN RESOLVE IT AWAY
++
++There is no published rmp-serde that both satisfies its dependant and builds
++against a current rmp. `adblock` 0.9.8 declares `rmp-serde = "^0.15"`, and
++0.15.5 is the last 0.15.x -- the next non-yanked release is 1.0.0, outside
++the range. Constraining rmp to <0.8.11 instead means pinning the decoder at
++0.8.10 (2021-02-02), five releases back, for a parser that reads adblock's
++serialized filter data.
++
++WHAT THIS IS
++
++Upstream's own fix, taken from rmp-serde 1.1.1, applied to 0.15.5. Three
++parts, all of them upstream's:
++
++  * `RmpRead` added to the existing `use rmp::decode::{...}` line, in the
++    position rmp-serde 1.1.1 puts it (its decode.rs:16).
++  * The 24 call sites rewritten from `rmp::decode::read_data_x(&mut self.rd)`
++    to `self.rd.read_data_x()` (1.1.1's decode.rs:460, 503-512, and the f32 /
++    f64 coercion arms).
++  * The local `read_u8` helper disambiguated to
++    `byteorder::ReadBytesExt::read_u8(rd)`. With `RmpRead` in scope, plain
++    `rd.read_u8()` is ambiguous between the two traits -- upstream hit the
++    same thing and made the same edit (1.1.1's decode.rs:365). Left alone
++    this is an E0034, not a silent change of behaviour.
++
++Nothing here is invented, and nothing changes what the decoder does: rmp
++0.8.11 moved these bodies into a trait without editing them, and the error
++type still lines up, since `ValueReadError<E = Error>` defaults to
++`std::io::Error` and the blanket `impl<T: std::io::Read> RmpRead for T` sets
++`Error = std::io::Error`.
++
++Removable once the ad blocker moves to adblock 0.12 or newer, which dropped
++rmp-serde entirely in favour of flatbuffers.
++---
++ .../vendor/rmp-serde-v0_15/src/decode.rs      | 52 +++++++++----------
++ 1 file changed, 26 insertions(+), 26 deletions(-)
++
++diff --git a/third_party/rust/chromium_crates_io/vendor/rmp-serde-v0_15/src/decode.rs b/third_party/rust/chromium_crates_io/vendor/rmp-serde-v0_15/src/decode.rs
++index 74a6ba4..1461e1e 100644
++--- a/third_party/rust/chromium_crates_io/vendor/rmp-serde-v0_15/src/decode.rs
+++++ b/third_party/rust/chromium_crates_io/vendor/rmp-serde-v0_15/src/decode.rs
++@@ -12,7 +12,7 @@ use serde::de::{self, Deserialize, DeserializeOwned, DeserializeSeed, Visitor};
++ 
++ use rmp;
++ use rmp::Marker;
++-use rmp::decode::{self, MarkerReadError, DecodeStringError, ValueReadError, NumValueReadError};
+++use rmp::decode::{self, RmpRead, MarkerReadError, DecodeStringError, ValueReadError, NumValueReadError};
++ 
++ use crate::MSGPACK_EXT_STRUCT_NAME;
++ use crate::config::{DefaultConfig, SerializerConfig, HumanReadableConfig, BinaryConfig};
++@@ -352,7 +352,7 @@ fn read_bin_data<'a, 'de, R: ReadSlice<'de>>(rd: &'a mut R, len: u32) -> Result<
++ }
++ 
++ fn read_u8<R: Read>(rd: &mut R) -> Result<u8, Error> {
++-    rd.read_u8().map_err(Error::InvalidDataRead)
+++    byteorder::ReadBytesExt::read_u8(rd).map_err(Error::InvalidDataRead)
++ }
++ 
++ fn read_u16<R: Read>(rd: &mut R) -> Result<u16, Error> {
++@@ -447,7 +447,7 @@ impl<'de, 'a, R: ReadSlice<'de> + 'a, C: SerializerConfig> de::Deserializer<'de>
++     {
++         match self.state {
++             ExtDeserializerState::New => {
++-                let tag = rmp::decode::read_data_i8(self.rd)?;
+++                let tag = self.rd.read_data_i8()?;
++                 self.state = ExtDeserializerState::ReadTag;
++                 visitor.visit_i8(tag)
++             }
++@@ -494,16 +494,16 @@ impl<'de, 'a, R: ReadSlice<'de>, C: SerializerConfig> serde::Deserializer<'de> f
++             Marker::False => visitor.visit_bool(marker == Marker::True),
++             Marker::FixPos(val) => visitor.visit_u8(val),
++             Marker::FixNeg(val) => visitor.visit_i8(val),
++-            Marker::U8 => visitor.visit_u8(rmp::decode::read_data_u8(&mut self.rd)?),
++-            Marker::U16 => visitor.visit_u16(rmp::decode::read_data_u16(&mut self.rd)?),
++-            Marker::U32 => visitor.visit_u32(rmp::decode::read_data_u32(&mut self.rd)?),
++-            Marker::U64 => visitor.visit_u64(rmp::decode::read_data_u64(&mut self.rd)?),
++-            Marker::I8 => visitor.visit_i8(rmp::decode::read_data_i8(&mut self.rd)?),
++-            Marker::I16 => visitor.visit_i16(rmp::decode::read_data_i16(&mut self.rd)?),
++-            Marker::I32 => visitor.visit_i32(rmp::decode::read_data_i32(&mut self.rd)?),
++-            Marker::I64 => visitor.visit_i64(rmp::decode::read_data_i64(&mut self.rd)?),
++-            Marker::F32 => visitor.visit_f32(rmp::decode::read_data_f32(&mut self.rd)?),
++-            Marker::F64 => visitor.visit_f64(rmp::decode::read_data_f64(&mut self.rd)?),
+++            Marker::U8 => visitor.visit_u8(self.rd.read_data_u8()?),
+++            Marker::U16 => visitor.visit_u16(self.rd.read_data_u16()?),
+++            Marker::U32 => visitor.visit_u32(self.rd.read_data_u32()?),
+++            Marker::U64 => visitor.visit_u64(self.rd.read_data_u64()?),
+++            Marker::I8 => visitor.visit_i8(self.rd.read_data_i8()?),
+++            Marker::I16 => visitor.visit_i16(self.rd.read_data_i16()?),
+++            Marker::I32 => visitor.visit_i32(self.rd.read_data_i32()?),
+++            Marker::I64 => visitor.visit_i64(self.rd.read_data_i64()?),
+++            Marker::F32 => visitor.visit_f32(self.rd.read_data_f32()?),
+++            Marker::F64 => visitor.visit_f64(self.rd.read_data_f64()?),
++             Marker::FixStr(_) | Marker::Str8 | Marker::Str16| Marker::Str32 => {
++                 let len = match marker {
++                     Marker::FixStr(len) => Ok(len.into()),
++@@ -654,11 +654,11 @@ impl<'de, 'a, R: ReadSlice<'de>, C: SerializerConfig> serde::Deserializer<'de> f
++         // This allows interoperability with msgpack-lite, which performs an optimization of
++         // storing rounded floats as integers.
++         let f = match self.take_or_read_marker()? {
++-            Marker::U8 => rmp::decode::read_data_u8(&mut self.rd).map(f32::from),
++-            Marker::U16 => rmp::decode::read_data_u16(&mut self.rd).map(f32::from),
++-            Marker::I8 => rmp::decode::read_data_i8(&mut self.rd).map(f32::from),
++-            Marker::I16 => rmp::decode::read_data_i16(&mut self.rd).map(f32::from),
++-            Marker::F32 => rmp::decode::read_data_f32(&mut self.rd),
+++            Marker::U8 => self.rd.read_data_u8().map(f32::from),
+++            Marker::U16 => self.rd.read_data_u16().map(f32::from),
+++            Marker::I8 => self.rd.read_data_i8().map(f32::from),
+++            Marker::I16 => self.rd.read_data_i16().map(f32::from),
+++            Marker::F32 => self.rd.read_data_f32(),
++             marker => {
++                 self.marker = Some(marker);
++                 return self.deserialize_any(visitor)
++@@ -673,14 +673,14 @@ impl<'de, 'a, R: ReadSlice<'de>, C: SerializerConfig> serde::Deserializer<'de> f
++         // This special case allows us to decode some integer types as floats when safe, and
++         // asked for. This is here to be consistent with 'f32'.
++         let f = match self.take_or_read_marker()? {
++-            Marker::U8 => rmp::decode::read_data_u8(&mut self.rd).map(f64::from),
++-            Marker::U16 => rmp::decode::read_data_u16(&mut self.rd).map(f64::from),
++-            Marker::U32 => rmp::decode::read_data_u32(&mut self.rd).map(f64::from),
++-            Marker::I8 => rmp::decode::read_data_i8(&mut self.rd).map(f64::from),
++-            Marker::I16 => rmp::decode::read_data_i16(&mut self.rd).map(f64::from),
++-            Marker::I32 => rmp::decode::read_data_i32(&mut self.rd).map(f64::from),
++-            Marker::F32 => rmp::decode::read_data_f32(&mut self.rd).map(f64::from),
++-            Marker::F64 => rmp::decode::read_data_f64(&mut self.rd),
+++            Marker::U8 => self.rd.read_data_u8().map(f64::from),
+++            Marker::U16 => self.rd.read_data_u16().map(f64::from),
+++            Marker::U32 => self.rd.read_data_u32().map(f64::from),
+++            Marker::I8 => self.rd.read_data_i8().map(f64::from),
+++            Marker::I16 => self.rd.read_data_i16().map(f64::from),
+++            Marker::I32 => self.rd.read_data_i32().map(f64::from),
+++            Marker::F32 => self.rd.read_data_f32().map(f64::from),
+++            Marker::F64 => self.rd.read_data_f64(),
++             marker => {
++                 self.marker = Some(marker);
++                 return self.deserialize_any(visitor)
++-- 
++2.47.3
++

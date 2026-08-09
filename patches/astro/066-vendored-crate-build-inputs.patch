@@ -132,11 +132,23 @@ has `pub trait RmpRead` with `fn read_data_u8(&mut self)` inside it. adblock
 serializer, not a feature), rmp-serde 0.15.5 requires `rmp = "0.8.8"`, and Cargo
 resolves that caret to 0.8.15.
 
-So the repair is to constrain what the closure resolves to -- `rmp` held below
-0.8.11, or an adblock revision on a newer rmp-serde. That is a dependency
-decision, `browser.lock.json` `third_party.adblock_rust` and issue #5, on the
-same reasoning 065 gives for not dropping thiserror 1.x. Editing the vendored
-crate is not an option either: the next `gnrt vendor` overwrites it silently.
+That is not this patch's to fix, and the two repairs named here when it was
+written are both wrong. Corrected by 069, which measured them:
+
+  * "An adblock revision on a newer rmp-serde" does not exist below adblock
+    0.12, which drops rmp-serde altogether. Every release from 0.9.8 to 0.11.1
+    declares `rmp-serde = "^0.15"`, and 0.15.5 is the last 0.15.x.
+  * "Editing the vendored crate is not an option; the next `gnrt vendor`
+    overwrites it silently" is true of editing the tree by hand and false of
+    the mechanism. `chromium_crates_io/patches/<crate>-<epoch>/` exists so an
+    edit SURVIVES re-vendoring -- `apply_patches` in
+    `tools/crates/gnrt/vendor.rs` runs it on every download, and 17 crates in
+    this checkout already rely on it. That is the route 069 takes.
+
+Worth carrying for whoever revisits the third option: holding `rmp` below
+0.8.11 would falsify the `[crate.rmp]` entry THIS patch adds. The README is a
+compile input because 0.8.15's `src/lib.rs` opens
+`#![doc = include_str!("../README.md")]`; 0.8.10's does not.
 
 diff --git a/third_party/rust/chromium_crates_io/gnrt_config.toml b/third_party/rust/chromium_crates_io/gnrt_config.toml
 --- a/third_party/rust/chromium_crates_io/gnrt_config.toml
