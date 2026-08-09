@@ -243,15 +243,14 @@ do not let a build imply they are resolved:
   - **Bumping the intermediate crate was not available, and the version list
     is how you find that out.** adblock 0.9.8 declares `rmp-serde = "^0.15"`,
     0.15.5 (2021-06-11) is the last 0.15.x; 1.0.0 and 1.1.0 are yanked, so the
-    first live release above it is 1.1.1, and every release above 0.15.5 is
-    outside the range in any case. No published rmp-serde both satisfies its
-    dependant and builds against a current rmp. Checked release by release
-    rather than sampled: every adblock from 0.9.8 to 0.12.0 declares
-    `rmp-serde = "^0.15"`.
+    first live release above it is 1.1.1, and all of them are outside the range
+    anyway. No published rmp-serde both satisfies its dependant and builds
+    against a current rmp. Checked release by release, not sampled: every
+    adblock from 0.9.8 to 0.12.0 declares `rmp-serde = "^0.15"`.
   - **The real fix is an engine upgrade, and it is a product decision.**
-    adblock 0.12.1 is the first release that drops rmp-serde entirely.
-    Flatbuffers is not the marker: it arrived in 0.10.0 and coexisted with
-    rmp-serde for eleven releases. Taking 0.12.1 costs
+    adblock 0.12.1 is the first release that drops rmp-serde entirely
+    (flatbuffers arrived earlier, in 0.10.0, alongside it — so "the flatbuffers
+    release" is not the one to reach for). Taking it costs
     four new vendored crates (`flatbuffers`, `arrayvec`, `precomputed-hash`,
     `rustc-hash`), five epoch bumps that invalidate 066's `cssparser-v0_29`
     and `selectors-v0_24` declarations, a `v0_9` → `v0_12` rename in the FFI's
@@ -306,16 +305,14 @@ do not let a build imply they are resolved:
   Expect the same drift on the rest of the overlay: this is what defect #7
   above was hiding, not a regression.
 - **Nothing fails when a patch stops applying — the whole series applying is
-  a measurement, never an assumption.** 175 were measured 2026-08-09 by the
-  replay described below: 746 files seeded pristine (733 from `chromium/src`
-  HEAD, 13 from DEPS sub-repositories), 175/175 applied in declared order, no
-  fuzz. `067-astro-webui-pak-repack.patch` landed after that run and was
-  replayed on its own the same way — pristine `chrome/chrome_paks.gni` and
-  `tools/gritsettings/resource_ids.spec`, `git apply --check
-  --whitespace=nowarn`, exit 0 — which settles its series position too,
-  because it is the only patch in EITHER series touching either file. So 176
-  apply today (112 ungoogled + 64 Astro); the whole-series replay has not been
-  re-run since, and the seeded-file count above is the 175-patch one.
+  a measurement, never an assumption.** All 177 apply today (112 ungoogled +
+  65 Astro), measured 2026-08-09 by the replay described below: 766 paths named
+  by the two series, of which 748 were seeded pristine (735 from `chromium/src`
+  HEAD, 13 from DEPS sub-repositories) and 18 are created by the series itself;
+  177/177 applied in declared order, no fuzz. That run supersedes the per-patch
+  checks 067 and 069 were each admitted on — a patch that applies against a
+  pristine tree can still fail in series, which is the whole reason the replay
+  runs the series in order rather than one patch at a time.
   `build/reports/patch-report.json` is OLDER than that and says so —
   `applied_count: 168` from the last full run against the real checkout — so
   read the replay, not the report, for whether the series applies. Also,
@@ -482,9 +479,11 @@ absorbs them; do not start a fourth one beside them.
 
 ```
 patches/ungoogled/   # 112 inherited de-Google patches
-patches/astro/       # 64 Astro-specific patches (numbered 001-067; 007 and 035 were
-                     #   removed as empty files and 012 was retired by 060, so
-                     #   three numbers are unused)
+patches/astro/       # 65 Astro-specific patches (numbered 001-069; 007 and 035
+                     #   were removed as empty files, 012 was retired by 060, and
+                     #   068 was never written — two agents were landing patches
+                     #   at once and 069 was taken to avoid a collision — so four
+                     #   numbers are unused)
 gn_args/             # GN build args per platform (linux.gn, android.gn, macos.gn, windows.gn, etc.)
 branding/            # Logos, icons, astro.conf, .desktop file
 tools/               # Build, install, patch, packaging scripts

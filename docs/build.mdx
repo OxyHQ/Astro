@@ -91,7 +91,7 @@ Runs in order:
 
 1. **Binary pruning** — deletes pre-built binaries from `chromium/src/` per `patches/ungoogled/pruning.list`.
 2. **Domain substitution** — currently refuses to run. See below.
-3. **Apply patches** — the 112 ungoogled patches, then the 63 Astro patches, each in the order declared by its `series` file (`patches/ungoogled/series`, `patches/astro/series`). The series must match the directory in both directions; a patch on disk that no series declares fails the run.
+3. **Apply patches** — the 112 ungoogled patches, then the 65 Astro patches, each in the order declared by its `series` file (`patches/ungoogled/series`, `patches/astro/series`). The series must match the directory in both directions; a patch on disk that no series declares fails the run.
 
 Patches are applied **exactly or not at all**. There is no fuzzy application and
 no automatic three-way merge: the first patch that does not apply exactly stops
@@ -274,7 +274,7 @@ The script:
 1. Bumps `CHROMIUM_VERSION` in the fetch script.
 2. Re-fetches Chromium source at the new tag.
 3. Re-syncs ungoogled-chromium patches for the new version.
-4. Attempts to apply all 63 Astro patches — failing patches are listed with their reject files.
+4. Attempts to apply all 65 Astro patches — failing patches are listed with their reject files.
 5. Leaves the tree in a state where you can manually resolve conflicts.
 
 After resolving any rejects, regenerate the affected patches with `git diff <files> > patches/astro/NNN-<name>.patch` and commit.
