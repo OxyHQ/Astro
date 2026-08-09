@@ -138,6 +138,14 @@ signal to stop and report it on the issue.
     the tree saying "Astro did not write" about files Astro's own pruning step
     is what removed. `upstream_delta.py` had always attributed deletions from
     that declaration; `astro::unattributable_paths` now does too.
+  - **A new blind call cannot come back silently.** The `blind-git-status`
+    rule in `tools/tests/lib/scan-shell-patterns.py` refuses any
+    machine-read `git status` (`--porcelain`, `--short`, `-s`) in
+    `tools/*.sh` that does not spell `--ignore-submodules`. It found the two
+    that were left — `generate-provenance.sh`, which would have written
+    `worktree: clean` into the permanent record of what a build was made
+    from, and `fetch-cross-deps.sh`, whose `find -maxdepth 4` also missed 62
+    of the 260 submodules it claims to reset.
 - **A patch applied by hand is invisible to the guards.** They attribute dirty
   paths from `build/reports/patch-report.json`, which only
   `tools/apply-patches.sh` writes. Apply a patch with `git apply` — the
