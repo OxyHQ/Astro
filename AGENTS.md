@@ -756,8 +756,41 @@ preset into `astro::AddAstroColorMixers` (patch 061, called last so it wins),
 and calls `NativeTheme::NotifyOnNativeThemeUpdated()`, which drops the cached
 ColorProviders so open windows repaint with no restart.
 
-Two things to know before touching it:
+Five things to know before touching it:
 
+- **One band is still GTK's and it is not a bug in the mixer.** Measured
+  2026-08-09 on the built browser: the tabs, toolbar, omnibox, menus and the
+  page all take the preset, while the frame band around the tab strip paints
+  GTK's colour (`#333333` under Adwaita dark, `#DBD7D3`-ish under Adwaita
+  light — it follows `GTK_THEME`, which is how it was identified). The
+  ColorProvider resolves `ui::kColorFrameActive` to the preset's `muted`
+  correctly; that band is drawn from the GTK frame rather than read from the
+  provider. Owned by #24.
+
+- **On Linux the profile always carries a theme supplier, and nobody chose
+  it.** `ThemeServiceAuraLinux` installs a `SystemThemeLinux` supplier —
+  `ThemeType::kNativeX11` — whenever `extensions.theme.system_theme` names GTK
+  or Qt, and `ThemeService` registers that pref with
+  `ui::GetDefaultSystemTheme()`, which answers `kGtk` on a GTK desktop. So
+  `key.custom_theme` is non-null on every fresh Linux profile. Reading it as a
+  boolean — the shape a stand-down guard naturally takes — stands the whole
+  mixer down for every Linux user, and looks fine from the pages, which theme
+  through Mojo and never consult this key. Ask what KIND of supplier it is;
+  `astro_color_mixer.cc` does it with an exhaustive switch so a new upstream
+  `ThemeType` is a compile error.
+- **`NotifyOnNativeThemeUpdated()` drops the ColorProvider cache globally but
+  notifies only its OWN observers, and on Linux the browser windows are not
+  among them.** `BrowserWidget::SelectNativeTheme` points every non-incognito
+  window at `ui::LinuxUiTheme`'s NativeTheme (GTK or Qt) when one exists;
+  incognito stays on `NativeTheme::GetInstanceForNativeUi()`. Notifying one
+  instance produces the most misleading state available: every fresh read of a
+  ColorProvider is correct — `chrome://theme/colors.css?sets=ui,chrome`
+  included — while the open windows keep the pixels they already had and only
+  catch up when something else forces a paint, such as a resize. Notify both,
+  which is what `ThemeServiceAuraLinux` does when it starts and stops using
+  the system theme. Corollary for verification: a colour read through
+  colors.css is NOT evidence that a window repainted, and a screenshot taken
+  after a resize is not evidence that it repainted on its own.
 - **The preset is process-global in v1.** A `ColorProvider` is keyed by
   `ui::ColorProviderKey`, which carries no profile, so with two profiles open
   the last write wins for every window. Recorded on #24, not fixed here.
