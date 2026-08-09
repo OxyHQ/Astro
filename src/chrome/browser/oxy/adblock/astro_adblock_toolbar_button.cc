@@ -3,6 +3,11 @@
 
 #include "chrome/browser/oxy/adblock/astro_adblock_toolbar_button.h"
 
+#include <memory>
+#include <utility>
+
+#include "base/functional/bind.h"
+#include "base/memory/ptr_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "chrome/browser/oxy/adblock/astro_adblock_bubble_delegate.h"
 #include "chrome/browser/oxy/adblock/astro_adblock_service.h"
@@ -16,7 +21,9 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/font_list.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
+#include "ui/views/widget/widget.h"
 
 namespace oxy::adblock {
 
@@ -124,6 +131,15 @@ void AstroAdBlockToolbarButton::ButtonPressed() {
 }
 
 void AstroAdBlockToolbarButton::ShowBubble() {
+  // A bubble is already up. Usually unreachable, because a press on this
+  // button deactivates the bubble first and close-on-deactivate has already
+  // torn it down by the time we get here -- but "usually" is not a lifetime
+  // guarantee, and the assignments below would destroy a live widget from
+  // inside its own event handling.
+  if (bubble_widget_) {
+    return;
+  }
+
   auto* wc = browser_->tab_strip_model()->GetActiveWebContents();
   if (!wc) {
     return;
@@ -136,7 +152,24 @@ void AstroAdBlockToolbarButton::ShowBubble() {
     return;
   }
 
-  AstroAdBlockBubbleDelegate::ShowBubble(this, browser_, wc, service);
+  bubble_delegate_ = std::make_unique<AstroAdBlockBubbleDelegate>(
+      this, browser_, wc, service);
+  bubble_widget_ = base::WrapUnique(views::BubbleDialogDelegate::CreateBubble(
+      bubble_delegate_.get(), views::Widget::InitParams::CLIENT_OWNS_WIDGET));
+  // Every close reaches us, including the deactivation the user causes by
+  // clicking anywhere else: Widget::CloseWithReason consults this override
+  // before anything else it does.
+  bubble_widget_->MakeCloseSynchronous(base::BindOnce(
+      &AstroAdBlockToolbarButton::CloseBubble, base::Unretained(this)));
+  bubble_widget_->Show();
+}
+
+void AstroAdBlockToolbarButton::CloseBubble(views::Widget::ClosedReason) {
+  // Widget before delegate: the widget holds the delegate as its
+  // WidgetDelegate, and ~BubbleDialogDelegate is what finally drops the
+  // anchor observation this button's window is carrying.
+  bubble_widget_.reset();
+  bubble_delegate_.reset();
 }
 
 AstroAdBlockTabHelper* AstroAdBlockToolbarButton::GetActiveTabHelper() {

@@ -30,16 +30,6 @@ constexpr int kPadding = 16;
 
 }  // namespace
 
-// static
-void AstroAdBlockBubbleDelegate::ShowBubble(views::View* anchor_view,
-                                            Browser* browser,
-                                            content::WebContents* web_contents,
-                                            AstroAdBlockService* service) {
-  auto bubble = std::make_unique<AstroAdBlockBubbleDelegate>(
-      anchor_view, browser, web_contents, service);
-  views::BubbleDialogDelegate::CreateBubble(std::move(bubble))->Show();
-}
-
 AstroAdBlockBubbleDelegate::AstroAdBlockBubbleDelegate(
     views::View* anchor_view,
     Browser* browser,
