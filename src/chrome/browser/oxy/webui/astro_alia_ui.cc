@@ -10,6 +10,8 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/path_service.h"
+#include "base/strings/strcat.h"
+#include "chrome/browser/oxy/webui/astro_webui_page.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/bindings_policy.h"
 #include "content/public/browser/web_ui.h"
@@ -81,20 +83,19 @@ void CreateAndAddDataSource(content::WebUI* web_ui) {
   // The Vite build produces inline scripts and external JS/CSS modules.
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src " CONTENT_WEBUI_SCHEME_LITERAL
-      "://resources " CONTENT_WEBUI_SCHEME_LITERAL
-      "://webui-test 'self' 'unsafe-inline';");
+      base::StrCat({"script-src ", astro::WebUIOrigin("resources"), " ",
+                    astro::WebUIOrigin("webui-test"), " 'self' 'unsafe-inline';"}));
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::StyleSrc,
-      "style-src 'self' 'unsafe-inline' " CONTENT_WEBUI_SCHEME_LITERAL
-      "://theme;");
+      base::StrCat({"style-src 'self' 'unsafe-inline' ",
+                    astro::WebUIOrigin("theme"), ";"}));
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::FontSrc,
       "font-src 'self' https://fonts.gstatic.com;");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ImgSrc,
-      "img-src 'self' " CONTENT_WEBUI_SCHEME_LITERAL
-      "://favicon2 " CONTENT_WEBUI_SCHEME_LITERAL "://theme data:;");
+      base::StrCat({"img-src 'self' ", astro::WebUIOrigin("favicon2"), " ",
+                    astro::WebUIOrigin("theme"), " data:;"}));
 
   // Allow connections to the Alia AI API.
   source->OverrideContentSecurityPolicy(

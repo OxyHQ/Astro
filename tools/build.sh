@@ -33,9 +33,18 @@ PLATFORM="linux"
 # the repository says, not what one machine happens to have.
 GN_ARGS_OVERRIDE=""
 
-# WebUI pages compiled into the product. A missing bundle is a build failure:
-# the page would render blank at runtime, which is not a warning-level event.
+# Legacy WebUI pages, each staged as a directory beside the executable and read
+# from there at runtime. A missing bundle is a build failure: the page would
+# render blank, which is not a warning-level event.
+#
+# The Astro WebUI app is NOT one of these and never will be. It is compiled into
+# astro_webui_resources.pak by a GN action, so the build produces it rather than
+# consuming it; what this script checks for the app is the one thing that action
+# cannot do for itself, below.
 REQUIRED_WEBUI_PAGES=(ntp alia whats-new)
+
+# The Vite app every astro:// surface is served from.
+ASTRO_WEBUI_APP_DIR_NAME="webui/app"
 
 usage() {
     cat >&2 <<'EOF'
@@ -166,6 +175,34 @@ for page in "${REQUIRED_WEBUI_PAGES[@]}"; do
     fi
 done
 astro::info "    all ${#REQUIRED_WEBUI_PAGES[@]} bundles present"
+
+# The Astro WebUI app's dependencies.
+#
+# //chrome/browser/oxy/webui:build_app runs `bun run build` in webui/app during
+# the compile and packs the result into astro_webui_resources.pak. It cannot
+# install the app's dependencies first, because a GN action must not reach the
+# network — so `bun install` is a PRECONDITION of the build, and an unmet
+# precondition has to be a named failure here rather than a Vite resolution
+# error arriving twenty minutes into a compile with a ninja stack on top of it.
+#
+# manifest.json is required for the same reason it exists: it is the committed
+# authority for the set of files the app emits, the action compares the build's
+# output against it, and its absence means the app has never been built at all.
+astro::info ">>> Checking the Astro WebUI app..."
+astro::require_cmd bun
+ASTRO_WEBUI_APP_DIR="$ASTRO_ROOT/$ASTRO_WEBUI_APP_DIR_NAME"
+astro::require_dir "$ASTRO_WEBUI_APP_DIR" "Astro WebUI app source"
+astro::require_file "$ASTRO_WEBUI_APP_DIR/package.json" "Astro WebUI app package.json"
+astro::require_file "$ASTRO_WEBUI_APP_DIR/manifest.json" "Astro WebUI app resource manifest"
+if [ ! -d "$ASTRO_WEBUI_APP_DIR/node_modules" ]; then
+    astro::die_with_hint \
+        "Astro WebUI app dependencies are not installed: $ASTRO_WEBUI_APP_DIR_NAME/node_modules" \
+        "The GN action that builds astro_webui_resources.pak runs bun offline," \
+        "so it cannot install them and astro://settings would have no assets." \
+        "Install them once, by hand:" \
+        "    cd $ASTRO_WEBUI_APP_DIR_NAME && bun install"
+fi
+astro::info "    $ASTRO_WEBUI_APP_DIR_NAME is installed and declares its resource set"
 
 # Ad blocker filter lists. AstroAdBlockService::GetFilterListResourcesPath()
 # reads <exe_dir>/adblock_resources/. Without these files the engine holds no

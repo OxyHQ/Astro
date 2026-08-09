@@ -8,7 +8,11 @@
     "types": ["vite/client", "node"],
     "baseUrl": ".",
     "paths": {
-      "@astro/platform": ["./src/platform/index.ts"]
+      "@astro/platform": ["./src/platform/index.ts"],
+      "astro-mojom/*": ["../../chromium/src/out/GateCheck/gen/*"],
+      "//resources/mojo/mojo/public/js/bindings.js": [
+        "../../chromium/src/ui/webui/resources/mojo/bindings.d.ts"
+      ]
     },
 
     "allowImportingTsExtensions": true,

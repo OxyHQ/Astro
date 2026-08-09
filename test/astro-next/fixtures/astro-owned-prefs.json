@@ -38,6 +38,11 @@
     },
     {
       "kind": "String",
+      "name": "astro.theme.preset",
+      "registered_in": "patches/astro/020-register-oxy-prefs.patch"
+    },
+    {
+      "kind": "String",
       "name": "oxy.access_token",
       "registered_in": "patches/astro/020-register-oxy-prefs.patch"
     },

@@ -82,12 +82,12 @@ void AstroAdBlockTabHelper::InjectCosmeticFilters(const GURL& url) {
   }
 
   // Parse the cosmetic filters JSON to extract hide selectors.
-  auto parsed = base::JSONReader::Read(cosmetic_json);
-  if (!parsed || !parsed->is_dict()) {
+  auto parsed = base::JSONReader::ReadDict(cosmetic_json, base::JSON_PARSE_RFC);
+  if (!parsed) {
     return;
   }
 
-  const auto& dict = parsed->GetDict();
+  const auto& dict = *parsed;
 
   // Build CSS from hide_selectors array.
   std::string css_rules;

@@ -1,0 +1,121 @@
+# Copyright 2026 Oxy. All rights reserved.
+# Use of this source code is governed by a BSD-style license.
+
+import("//build/buildflag_header.gni")
+import("//mojo/public/tools/bindings/mojom.gni")
+import("//tools/grit/grit_rule.gni")
+import("//ui/webui/resources/tools/generate_grd.gni")
+import("astro_webui.gni")
+
+# Typed Mojo transports for the Astro WebUI surfaces.
+#
+# The controllers that bind these live in the parent target,
+# //chrome/browser/oxy:webui_controllers. Only the generated bindings are here,
+# because a mojom() target has to be its own target and this is the directory
+# the .mojom files belong to.
+#
+# `//chrome/browser/oxy/webui:mojo_bindings` is the name the overlay's BUILD.gn
+# named for a target that did not exist — the whole overlay compiled to zero
+# objects, so nothing ever tried to resolve it. This is that target, for real.
+mojom("mojo_bindings") {
+  sources = [
+    "astro_settings.mojom",
+    "astro_theme.mojom",
+  ]
+
+  # Generated JS modules resolve from the WebUI root, so a page imports
+  # `chrome/browser/oxy/webui/astro_theme.mojom-webui.js`. The same path the
+  # C++ header uses, which is what stops the two sides being renamed apart.
+  webui_module_path = "/"
+}
+
+# Whether the disk-serving developer override is compiled in at all. Read by
+# astro_webui_page.cc; see astro_webui.gni for why it is off everywhere that
+# matters.
+buildflag_header("buildflags") {
+  header = "astro_webui_buildflags.h"
+  flags = [ "ASTRO_WEBUI_DEV_TOOLS=$astro_webui_dev_tools" ]
+}
+
+# Builds the Vite app and stages its output for GRIT.
+#
+# The app is outside the GN source root, so this action can declare no inputs
+# and relies on the depfile its script writes to know when to re-run. The
+# script explains that at length; the short version is that GN cannot name a
+# path above `//`, and the overlay cannot carry `node_modules`.
+#
+# `bun install` is a precondition, not a build step: a GN action must not reach
+# the network. tools/build.sh asserts it in preflight so the failure costs
+# seconds rather than arriving in the middle of a compile.
+#
+# The one thing the app needs that is NOT in the Astro repository is the
+# TypeScript Mojo bindings, which mojom_bindings_generator.py writes into this
+# build's own `gen/`. That is why the generator is a dep and why root_gen_dir
+# is passed down: the bundle and the browser it is loaded into are generated
+# from the same .mojom files, in the same output directory, or the page speaks
+# an interface the browser does not.
+action("build_app") {
+  script = "tools/build_astro_webui_app.py"
+
+  _manifest = "$target_gen_dir/astro_webui_manifest.json"
+  outputs = [ _manifest ]
+  depfile = "$target_gen_dir/astro_webui_app.d"
+
+  deps = [ ":mojo_bindings_ts__generator" ]
+
+  args = [
+    "--build",
+    "app",
+    "--bun-script",
+    "build",
+    "--out-dir",
+    rebase_path("$target_gen_dir/app", root_build_dir),
+    "--manifest",
+    rebase_path(_manifest, root_build_dir),
+    "--depfile",
+    rebase_path(depfile, root_build_dir),
+    "--mojom-gen-dir",
+    rebase_path(root_gen_dir, root_build_dir),
+  ]
+
+  if (astro_webui_app_dir != "") {
+    args += [
+      "--app-dir",
+      astro_webui_app_dir,
+    ]
+  }
+}
+
+# The .grd describing the staged set. Its content is decided at build time from
+# the manifest the action writes, which is what lets GN stay ignorant of a file
+# list it has no way to enumerate.
+generate_grd("build_grd") {
+  grd_prefix = "astro_webui"
+  out_grd = "$target_gen_dir/astro_webui_resources.grd"
+  manifest_files = [ "$target_gen_dir/astro_webui_manifest.json" ]
+  deps = [ ":build_app" ]
+}
+
+# astro_webui_resources.pak, plus the resource map the page controllers serve
+# from. Patch 067 puts the .pak in chrome's repack list and reserves its
+# resource-id range; without that patch this target builds a .pak nothing
+# loads.
+grit("resources") {
+  # The .grd does not exist until build_grd has run, so GN must not try to
+  # parse it while generating.
+  enable_input_discovery_for_gn_analyze = false
+
+  source = "$target_gen_dir/astro_webui_resources.grd"
+  deps = [ ":build_grd" ]
+
+  outputs = [
+    "grit/astro_webui_resources.h",
+    "grit/astro_webui_resources_map.cc",
+    "grit/astro_webui_resources_map.h",
+    "astro_webui_resources.pak",
+  ]
+
+  # Chrome's own convention for WebUI resource targets, and what makes the
+  # generated header reachable as "chrome/grit/astro_webui_resources_map.h".
+  output_dir = "$root_gen_dir/chrome"
+}

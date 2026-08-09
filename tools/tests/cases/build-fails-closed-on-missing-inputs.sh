@@ -86,6 +86,40 @@ harness::assert_output_contains "no index.html" "refusal reason"
 
 printf '<!doctype html>\n' > "$fake_root/webui/ntp/dist/index.html"
 
+# --- The Astro WebUI app's dependencies are a build precondition ------------
+#
+# The GN action that packs astro_webui_resources.pak runs `bun run build` with
+# no network, so it cannot install them. Unchecked, the absence surfaces as a
+# Vite resolution error inside a ninja step, minutes to hours into a compile,
+# under a stack trace — for a condition that is one `test -d` away here.
+
+rm -rf "${fake_root:?}/webui/app/node_modules"
+
+run_build
+
+harness::assert_nonzero_status "Astro WebUI app dependencies not installed"
+harness::assert_output_contains "webui/app/node_modules" "names what is missing"
+harness::assert_output_contains "bun install" "names the command that fixes it"
+harness::assert_output_lacks "gn gen" "must fail before build generation"
+harness::assert_tree_unchanged "$chromium" "$before"
+
+mkdir -p "$fake_root/webui/app/node_modules"
+
+# The manifest is the committed authority for the resource set, and the action
+# refuses a build whose output disagrees with it. Absent, there is nothing to
+# disagree with.
+
+rm -f "$fake_root/webui/app/manifest.json"
+
+run_build
+
+harness::assert_nonzero_status "Astro WebUI app has no resource manifest"
+harness::assert_output_contains "Astro WebUI app resource manifest" "names the missing input"
+harness::assert_output_lacks "gn gen" "must fail before build generation"
+
+printf '{"builds":{"app":{"out_dir":"dist/app","entry":"index.html","files":["index.html"]}}}\n' \
+    > "$fake_root/webui/app/manifest.json"
+
 # --- Missing ad blocker filter lists stop the build -------------------------
 
 rm -rf "${fake_root:?}/src/chrome/browser/oxy/adblock/resources"

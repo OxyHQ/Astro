@@ -13,8 +13,6 @@
 
 namespace oxy::adblock {
 
-class AstroAdBlockBubbleView;
-
 // Toolbar button that shows the Astro ad blocker shield icon with a
 // badge indicating the number of blocked resources on the current page.
 // Clicking opens a bubble with per-site controls.
@@ -37,6 +35,14 @@ class AstroAdBlockToolbarButton
  private:
   // ToolbarButton:
   void UpdateIcon() override;
+
+  // views::View:
+  //
+  // Where the first UpdateState() happens. Not the constructor: UpdateIcon()
+  // reaches the ColorProvider, a View has none until it is in a Widget, and
+  // the constructor runs from ToolbarView::Init() before that. It segfaulted
+  // on the browser's very first window.
+  void OnThemeChanged() override;
 
   // AstroAdBlockTabHelper::Observer:
   void OnBlockedCountChanged(int count) override;

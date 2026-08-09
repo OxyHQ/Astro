@@ -1,0 +1,55 @@
+// Copyright 2026 Oxy. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+
+// Reading the theme, on every astro:// page.
+//
+// This interface is READ-ONLY on purpose, and it is the reason the theme is
+// not carried by the pref API. chrome.settingsPrivate is granted per host
+// (chrome/common/extensions/api/_api_features.json), so a theme built on it
+// would work on settings and nowhere else — not on the new tab page, not
+// inside a side panel. Its prefs are not in that API's allowlist either, so
+// even on settings the read returns nothing.
+//
+// Every Astro page controller binds this. Writing is a separate grant on a
+// separate interface (astro_settings.mojom), held only by the surface that
+// owns the control, so a page cannot change a theme it was only given to
+// read.
+
+module astro.mojom;
+
+// The light/dark decision as STORED, never as resolved.
+//
+// `kSystem` is reported as itself rather than resolved to light or dark here,
+// so a page can follow the OS through prefers-color-scheme and stay correct
+// when the OS flips without a round trip. These are
+// ThemeService::BrowserColorScheme's values.
+enum ThemeMode {
+  kSystem = 0,
+  kLight = 1,
+  kDark = 2,
+};
+
+struct Theme {
+  ThemeMode mode;
+
+  // A Bloom colour preset name (`oxy`, `mint`, …). A string rather than an
+  // enum because the set is Bloom's and moves with Bloom's releases: a
+  // generated enum would put a Chromium roll between the browser and a new
+  // colour. The browser only ever sends a name this build ships.
+  string preset;
+};
+
+interface ThemeObserver {
+  // The theme moved. What moved it is not said, and does not matter: the
+  // settings page, another window, an enterprise policy and a profile import
+  // all arrive here identically, which is what keeps every open page in
+  // agreement with the native UI.
+  OnThemeChanged(Theme theme);
+};
+
+interface ThemeProvider {
+  GetTheme() => (Theme theme);
+
+  // Live updates. The observer is dropped when the page goes away.
+  AddObserver(pending_remote<ThemeObserver> observer);
+};

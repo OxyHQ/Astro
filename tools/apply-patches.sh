@@ -398,9 +398,18 @@ assert_no_patch_artifacts() {
     # (cargo writes `Cargo.toml.orig` for each vendored Rust crate), so a
     # find-based check condemns a pristine upstream checkout. Asking git is both
     # exact and far cheaper than walking 400,000 files.
-    local status_output
-    status_output="$(git -C "$CHROMIUM_SRC" status --porcelain --untracked-files=all)"
-    artifacts="$(printf '%s\n' "$status_output" | sed -n 's/^?? //p' \
+    #
+    # Through astro::_untracked_paths, which descends into submodules: 13 of the
+    # files this series patches live in two of them, so a partial application
+    # there leaves a .rej this scan could not see when it asked git directly.
+    #
+    # The enumeration is captured before it is filtered, so `head` closes a pipe
+    # whose producer is `printf` rather than the enumerator: a SIGPIPE taken by a
+    # process that is still running git subprocesses is the shape that turns a
+    # verdict into exit 141 under pipefail.
+    local untracked
+    untracked="$(astro::_untracked_paths "$CHROMIUM_SRC")"
+    artifacts="$(printf '%s\n' "$untracked" \
         | grep -E '\.(rej|orig|porig)$' | head -50)" || true   # astro-allow:suppressed-failure grep finding nothing is the normal case
 
     if [ -n "$artifacts" ]; then

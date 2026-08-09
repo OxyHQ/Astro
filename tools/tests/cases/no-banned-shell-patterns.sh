@@ -107,7 +107,26 @@ assert_rule_fires() {
     assert_rule_fires "suppressed-failure" 'cp "$a" "$b" || true'
     assert_rule_fires "suppressed-stderr"  'ninja -C out/Release chrome 2>/dev/null'
     assert_rule_fires "unconstrained-pull" 'cd depot_tools && git pull'
+    assert_rule_fires "blind-git-status"   'dirty="$(git -C "$src" status --porcelain)"'
 }
+
+# blind-git-status has two shapes that must NOT fire, and both are load-bearing
+# rather than regex hygiene. The first is the fix itself: a call that states the
+# value it means is exactly what the rule is asking for. The second is
+# `git merge-base … || status=$?`, which contains the words `git` and `status`
+# and is not an invocation of the subcommand — tools/check-merge-base.sh has
+# three of them, and a rule that condemned those would have been switched off
+# by whoever hit it next.
+cat > "$tmp/probe-status-ok.sh" <<'PROBE'
+#!/usr/bin/env bash
+git -C "$src" status --porcelain --ignore-submodules=none
+git -C "$src" status --short --ignore-submodules=untracked
+status=0
+git -C "$repo" merge-base --is-ancestor "$a" "$b" || status=$?
+git -C "$dir" fetch --deepen=100 origin || status=$?
+PROBE
+harness::run python3 "$SCANNER" "$tmp/probe-status-ok.sh"
+harness::assert_status 0 'an explicit --ignore-submodules, and a status=\$? capture, are allowed'
 
 # cache-as-source-of-truth is a workflow-only rule: a bootstrapping script may
 # test whether a checkout exists, a CI job may not decide for itself whether to
@@ -435,10 +454,17 @@ harness::assert_output_lacks "$tmp/probe-heredoc-continuation.sh:3: rsync-delete
 # The two real markers in tools/sync-sources.sh and tools/apply-patches.sh sit
 # on exactly this shape, and became load-bearing for the first time when the
 # join closed the gap: before it, the `|| true` they excuse was invisible.
+#
+# The producer is astro::_untracked_paths because that is what those two lines
+# call now. It used to read `git status --porcelain` here, copied from the code
+# before it learned to descend into submodules — filler that the
+# blind-git-status rule then reported, in a probe about marker handling that
+# has nothing to say about git status. A probe that no longer mirrors the line
+# it documents is how a gate starts crying wolf.
 
 cat > "$tmp/probe-continued-marked.sh" <<'PROBE'
 #!/usr/bin/env bash
-artifacts="$(git status --porcelain \
+artifacts="$(astro::_untracked_paths "$src" \
     | grep -E '\.rej$' | head -5)" || true   # astro-allow:suppressed-failure grep finding nothing is the normal case
 PROBE
 assert_scan_clean "$tmp/probe-continued-marked.sh" \
@@ -446,7 +472,7 @@ assert_scan_clean "$tmp/probe-continued-marked.sh" \
 
 cat > "$tmp/probe-continued-unmarked.sh" <<'PROBE'
 #!/usr/bin/env bash
-artifacts="$(git status --porcelain \
+artifacts="$(astro::_untracked_paths "$src" \
     | grep -E '\.rej$' | head -5)" || true
 PROBE
 assert_scan_reports "$tmp/probe-continued-unmarked.sh" suppressed-failure 2 \

@@ -13,15 +13,42 @@
     "Curating them belongs to https://github.com/OxyHQ/Astro/issues/8.",
     "",
     "A platform with no entry here is a hard failure, not a pass — an unmeasured",
-    "platform must not look like a clean one."
+    "platform must not look like a clean one.",
+    "",
+    "WHY 42 AND NOT 26 (raised 2026-08-09, in the change that measured it).",
+    "",
+    "26 was recorded on 2026-08-06. `057-oxy-webui-build-edge.patch` landed on",
+    "2026-08-08 and put chrome/browser/oxy into the build graph for the first",
+    "time, so from that commit onward `gn check` also visits the overlay's own",
+    "include edges — 16 of them are violations, and every one of them predates",
+    "this file's previous value. The number was never re-measured after 057, so",
+    "the 26 has been describing a graph the repository no longer builds.",
+    "",
+    "Attributed by SPLITTING the report rather than by differencing, which the",
+    "findings above say is not available: of 42 errors, 26 name no overlay path",
+    "at all — exactly the previous baseline, unchanged — and 16 name one. The 16",
+    "are Chromium files reaching into the overlay (browser_about_handler.cc,",
+    "chrome_content_browser_client.cc, browser_navigator.cc, profile_menu_view.cc,",
+    "tab_helpers.cc, side_panel_util.cc, search.cc, toolbar_view.cc) plus two",
+    "inside it (oxy_auth_token_store.cc → chrome/common/chrome_paths.h,",
+    "astro_adblock_toolbar_button.h → chrome/browser/ui/views/toolbar/).",
+    "Each is a missing GN dependency edge on a target the overlay's integration",
+    "patches write into; #7 and #8 own them.",
+    "",
+    "The F2-A change that raised this number introduced THREE such errors of its",
+    "own and then removed all three by putting each edge on the target that",
+    "actually compiles the file — //chrome/browser/profiles:profiles_extra_parts_impl",
+    "for patch 062, //chrome/browser for 063, //chrome/common:constants for the",
+    "theming target. A new hook must do the same rather than add to this count."
   ],
   "measured_against": {
     "chromium": "ae03f7fb2cf1215853896d6a4c15fdceee2badb7",
     "chromium_version": "146.0.7680.177",
     "ungoogled": "ecd0ec03e0d8b1ec59d3b32f3145575ada937490",
-    "ungoogled_version": "146.0.7680.177-1"
+    "ungoogled_version": "146.0.7680.177-1",
+    "gn_check_measured": "2026-08-09"
   },
   "platforms": {
-    "linux": 26
+    "linux": 42
   }
 }

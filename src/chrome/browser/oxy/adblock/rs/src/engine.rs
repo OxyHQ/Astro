@@ -88,7 +88,8 @@ pub fn engine_get_csp_directives(
 }
 
 pub fn engine_serialize(engine: &Engine) -> Vec<u8> {
-    engine.inner.serialize()
+    // Empty is how the caller already reads a failed serialization.
+    engine.inner.serialize_raw().unwrap_or_default()
 }
 
 pub fn engine_deserialize(engine: &mut Engine, data: &CxxVector<u8>) -> bool {

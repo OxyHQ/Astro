@@ -1,4 +1,4 @@
-import {readFileSync, writeFileSync} from 'node:fs';
+import {existsSync, readFileSync, writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -26,6 +26,118 @@ const emptyModule = resolve(packageDir, 'src/platform/empty-module.js');
 
 /** Build modes. `app` emits the per-host page bundle, `platform` the shared facade. */
 type BuildName = 'app' | 'platform';
+
+/**
+ * Mojo's own JS runtime, as the generated bindings import it.
+ *
+ * Left EXTERNAL and left scheme-relative, which is one decision with three
+ * reasons. It is a browser resource -- `mojo/mojo/public/js/bindings.js` in
+ * `webui_resources.pak`, reached as `chrome://resources/mojo/...` -- already
+ * parsed and code-cached for every WebUI page in the process, and the default
+ * WebUI CSP (`script-src chrome://resources 'self';`) already admits it.
+ * Bundling it would put a second copy of a Chromium runtime inside Astro's
+ * bundle, with its own `mojo.internal` registry and nothing checking it still
+ * matches the browser it is loaded into. And the scheme-relative spelling is
+ * the generator's own: it survives the `astro://` rename in AGENTS.md's WebUI
+ * scheme list without an edit, where a hard-coded `chrome://` would not.
+ *
+ * Bundling it would NOT buy a working Mojo on the dev server, which is the one
+ * thing that could argue for it: the runtime is useless without the `Mojo`
+ * global, and only a WebUI page whose controller enabled Mojo bindings has
+ * one. The dev server runs on the mocks instead -- see src/platform/browser.
+ */
+const MOJO_CORE_MODULE = '//resources/mojo/mojo/public/js/bindings.js';
+
+/**
+ * Where the generated Mojo bindings are read from.
+ *
+ * They are NOT vendored into this repository. `src/chrome/browser/oxy/webui/
+ * *.mojom` is the source of truth and `mojom_bindings_generator.py` writes the
+ * TypeScript into a Chromium build's `gen/`; a committed copy would be free to
+ * drift from the C++ across a roll, and it would not drift LOUDLY -- the
+ * message ordinals are hashed from the .mojom text, so a stale copy still
+ * compiles and still sends, it just sends messages the browser discards.
+ *
+ * The path is spelled once, in tsconfig.json, and read back from there rather
+ * than repeated here: tsc checking against one gen/ directory while Vite
+ * compiles against another is precisely the drift this arrangement exists to
+ * prevent. `ASTRO_MOJOM_GEN_DIR` overrides it for a build that owns its own
+ * output directory -- the GN action that will run this build passes its
+ * `$root_gen_dir`, which is how the bundle and the browser around it come to
+ * be generated from the same .mojom files.
+ */
+function mojomGenDir(): string {
+  const override = process.env['ASTRO_MOJOM_GEN_DIR'];
+  if (override) {
+    return resolve(override);
+  }
+  const tsconfig = JSON.parse(readFileSync(resolve(packageDir, 'tsconfig.json'), 'utf8')) as {
+    compilerOptions?: {paths?: Record<string, string[]>};
+  };
+  const mapped = tsconfig.compilerOptions?.paths?.['astro-mojom/*']?.[0];
+  if (!mapped) {
+    throw new Error(
+      "tsconfig.json declares no 'astro-mojom/*' path mapping, so there is nowhere " +
+        'to read the generated Mojo bindings from and nothing for tsc to check them ' +
+        'against either.',
+    );
+  }
+  return resolve(packageDir, mapped.replace(/\/\*$/, ''));
+}
+
+/**
+ * Resolves the generated Mojo bindings out of a Chromium build.
+ *
+ * Two rewrites, both from the same cause: the generator emits TypeScript that
+ * refers to itself by the name tsc would give it once compiled, so every
+ * specifier in that graph ends in `.js` and every file on disk ends in `.ts`.
+ * `astro-mojom/<path>` is the app's own entry into `gen/`; the relative
+ * imports a generated file makes of its siblings need the same substitution,
+ * which is why the importer is checked as well as the specifier.
+ *
+ * An absent file is a hard failure naming the command that produces it. The
+ * alternative -- resolving to nothing and letting the page fall back -- ships a
+ * browser whose settings page cannot read or write its own theme, and says so
+ * nowhere.
+ */
+function astroMojom(genDir: string): Plugin {
+  const prefix = 'astro-mojom/';
+  return {
+    name: 'astro-mojom',
+    enforce: 'pre',
+    resolveId(source, importer) {
+      if (source === MOJO_CORE_MODULE) {
+        return {id: source, external: true};
+      }
+      const requested = source.startsWith(prefix)
+        ? resolve(genDir, source.slice(prefix.length))
+        : importer?.startsWith(`${genDir}/`) && source.startsWith('.')
+          ? resolve(dirname(importer), source)
+          : undefined;
+      if (requested === undefined) {
+        return undefined;
+      }
+      const file = requested.replace(/\.js$/, '.ts');
+      if (!existsSync(file)) {
+        throw new Error(
+          [
+            'the generated Mojo bindings are missing.',
+            `  wanted:      ${file}`,
+            `  imported by: ${importer ?? '(entry)'}`,
+            '  generate them with:',
+            '    ninja -C chromium/src/out/GateCheck \\',
+            '      chrome/browser/oxy/webui:mojo_bindings_ts__generator',
+            "  or point ASTRO_MOJOM_GEN_DIR at another build's gen/ directory.",
+            '  They are generated from src/chrome/browser/oxy/webui/*.mojom rather',
+            '  than committed, so that this page and the browser serving it cannot',
+            '  disagree about an interface.',
+          ].join('\n'),
+        );
+      }
+      return file;
+    },
+  };
+}
 
 /**
  * Records the emitted file set into `manifest.json`.
@@ -95,6 +207,7 @@ export default defineConfig(({command, mode}) => {
       strictPort: true,
     },
     plugins: [
+      astroMojom(mojomGenDir()),
       reactNativeWeb(),
       tailwindcss(),
       viteReact({
@@ -190,6 +303,18 @@ export default defineConfig(({command, mode}) => {
               formats: ['es' as const],
               fileName: () => 'platform.js',
               cssFileName: 'platform',
+            },
+            rollupOptions: {
+              output: {
+                // `lib.fileName` names the ENTRY only, so the chunk a dynamic
+                // import creates -- the Mojo transport is the first -- comes out
+                // content-hashed. That is the one thing the manifest must not
+                // carry: it is committed so that the emitted set changing is a
+                // reviewable event, and a hash rewrites the name on every build
+                // whether or not the set moved. Same reason as the app build's
+                // names below, arrived at from the opposite direction.
+                chunkFileNames: 'platform-[name].js',
+              },
             },
           }
         : {

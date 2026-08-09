@@ -191,9 +191,10 @@ patches:
     references:
       - "patches/ungoogled/core/ungoogled-chromium/disable-crash-reporter.patch"
   - host: "crbug.com"
-    component: ungoogled-patch
+    component: astro-patch
     substituted_shape: false
     references:
+      - "patches/astro/065-thiserror-epoch-scoped-config.patch"
       - "patches/ungoogled/core/inox-patchset/0005-disable-default-extensions.patch"
       - "patches/ungoogled/core/ungoogled-chromium/block-trk-and-subdomains.patch"
       - "patches/ungoogled/core/ungoogled-chromium/disable-gaia.patch"
@@ -264,6 +265,11 @@ patches:
     substituted_shape: false
     references:
       - "patches/astro/019-ntp-default-sites.patch"
+      - "patches/astro/060-settings-webui-takeover.patch"
+      - "patches/astro/061-astro-color-mixers-hook.patch"
+      - "patches/astro/062-astro-theme-service-register.patch"
+      - "patches/astro/063-astro-webui-mojo-binders.patch"
+      - "patches/astro/067-astro-webui-pak-repack.patch"
       - "patches/ungoogled/core/ungoogled-chromium/disable-gaia.patch"
       - "patches/ungoogled/core/ungoogled-chromium/disable-network-time-tracker.patch"
       - "patches/ungoogled/extra/bromite/fingerprinting-flags-client-rects-and-measuretext.patch"

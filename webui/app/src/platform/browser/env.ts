@@ -16,6 +16,14 @@
 // throw is what keeps "this page was served without its grants" from
 // presenting as "you have no search engines".
 //
+// Step 1 is a FEATURE DETECTION, never a guess at the environment. For an
+// extension API that is the API object itself (`chrome.settingsPrivate`); for
+// Mojo it is the `Mojo` global, which a renderer installs only for a page whose
+// controller enabled Mojo bindings. Neither the URL, nor the user agent, nor
+// `import.meta.env` can answer the question those answer -- a production bundle
+// opened from a file, a dev server reached over the network and a page served
+// under the wrong host all look like a browser and have none of the grants.
+//
 // There is deliberately NO shared helper that performs steps 1-3 for a caller.
 // The dynamic `import()` of a mock has to sit literally inside the
 // `import.meta.env.DEV` branch at the call site: Vite replaces that expression

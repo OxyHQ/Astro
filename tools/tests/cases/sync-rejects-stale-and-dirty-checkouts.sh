@@ -89,6 +89,50 @@ harness::assert_output_contains "some_file.cc.rej" "names the artifact"
 
 rm -f "$src/some_file.cc.rej"
 
+# --- A vendored crate's Cargo.toml.orig is not a patch artifact --------------
+#
+# `cargo vendor` writes one beside every crate it fetches. For the crates
+# CHROMIUM ships that is harmless, because they are tracked and this scan only
+# looks at untracked paths. For the 49 crates tools/vendor-adblock-rust.sh
+# fetches it is not: upstream does not have them, so every one of their
+# `Cargo.toml.orig` files is untracked, and the scan used to condemn all of
+# them — the documented apply-patches → vendor → build sequence could not reach
+# the build. The paths are recorded in vendor-report.json; the scan honours it.
+
+crate_dir="third_party/rust/chromium_crates_io/vendor/adblock-v0_9"
+mkdir -p "$src/$crate_dir"
+printf '[package]\nname = "adblock"\n' > "$src/$crate_dir/Cargo.toml.orig"
+
+# Attribution only runs when a patch report exists, so both are written: this
+# is the state the real pipeline is in when build.sh calls --verify-only.
+mkdir -p "$ASTRO_REPORT_DIR"
+printf '{"outcome":"succeeded","patches":[]}\n' > "$ASTRO_REPORT_DIR/patch-report.json"
+cat > "$ASTRO_REPORT_DIR/vendor-report.json" <<VENDORREPORT
+{"step":"vendor-adblock-rust","files":["$crate_dir","$crate_dir/Cargo.toml.orig"]}
+VENDORREPORT
+
+run_sync
+harness::assert_status 0 "vendored Cargo.toml.orig recorded by vendoring is not an artifact"
+
+# The exemption must be attribution, not the file name: an unrecorded artifact
+# alongside the recorded one is still fatal, and is still named. Without this
+# the fix reads as "stop reporting .orig files", which is a different change.
+#
+# Once a patch report exists the unattributable-path check reaches it first and
+# dies there, so the refusal is worded as an unwritten path rather than as an
+# artifact. Both are the same verdict from the same set arithmetic; the case
+# above, which has no patch report, is the one that reaches the artifact scan.
+printf '***rejected hunk***\n' > "$src/unrecorded.cc.rej"
+
+run_sync
+harness::assert_nonzero_status "unrecorded .rej beside a recorded Cargo.toml.orig"
+harness::assert_output_contains "unrecorded.cc.rej" "names the unrecorded artifact"
+harness::assert_output_lacks "Cargo.toml.orig" "does not name the recorded vendoring output"
+
+rm -f "$src/unrecorded.cc.rej"
+rm -rf "$src/third_party"
+rm -f "$ASTRO_REPORT_DIR/patch-report.json" "$ASTRO_REPORT_DIR/vendor-report.json"
+
 # --- Leftover branch ---------------------------------------------------------
 #
 # The old fetch created `astro-<version>` as a BRANCH. A runner that ran it

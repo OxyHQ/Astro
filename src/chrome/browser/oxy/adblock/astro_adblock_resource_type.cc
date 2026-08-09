@@ -15,7 +15,6 @@ std::string RequestDestinationToAdBlockType(
       return "script";
 
     case network::mojom::RequestDestination::kImage:
-    case network::mojom::RequestDestination::kFavicon:
       return "image";
 
     case network::mojom::RequestDestination::kStyle:

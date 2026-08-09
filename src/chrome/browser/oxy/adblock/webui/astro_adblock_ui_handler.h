@@ -4,6 +4,7 @@
 #ifndef CHROME_BROWSER_OXY_ADBLOCK_WEBUI_ASTRO_ADBLOCK_UI_HANDLER_H_
 #define CHROME_BROWSER_OXY_ADBLOCK_WEBUI_ASTRO_ADBLOCK_UI_HANDLER_H_
 
+#include "base/values.h"
 #include "content/public/browser/web_ui_message_handler.h"
 
 namespace oxy::adblock {
@@ -22,9 +23,9 @@ class AstroAdBlockUIHandler : public content::WebUIMessageHandler {
   void RegisterMessages() override;
 
   // Message handlers.
-  void HandleGetAdBlockState(const base::Value::List& args);
-  void HandleRemoveSiteOverride(const base::Value::List& args);
-  void HandleSaveCustomRules(const base::Value::List& args);
+  void HandleGetAdBlockState(const base::ListValue& args);
+  void HandleRemoveSiteOverride(const base::ListValue& args);
+  void HandleSaveCustomRules(const base::ListValue& args);
 };
 
 }  // namespace oxy::adblock

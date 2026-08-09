@@ -15,7 +15,7 @@
 namespace oxy::adblock {
 
 struct BlockerResult;
-class Engine;
+struct Engine;
 
 // C++ wrapper around the Rust adblock engine. Manages filter list loading,
 // request matching, serialization/deserialization for engine caching, and

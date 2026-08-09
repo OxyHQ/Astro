@@ -21,12 +21,19 @@
 #
 # Everything this step produces is UNTRACKED in the Chromium checkout — the
 # vendored crate trees, the generated BUILD.gn and README.chromium files — plus
-# two tracked files gnrt rewrites (`Cargo.toml`, `Cargo.lock`). Every later step
-# guards the checkout with astro::require_attributable_chromium, which refuses
-# any modified path Astro cannot show it wrote. So this script records its
-# footprint in build/reports/vendor-report.json, and those steps read it.
-# Without that record, sync-overlay.sh refuses the very tree this script just
-# produced — measured, not hypothetical: 1,460 unattributable paths.
+# THREE tracked files gnrt rewrites: `Cargo.toml`, `Cargo.lock` and
+# `gnrt_config.toml`. The third is easy to miss because nothing in the command
+# line suggests it: `fill_allow_unsafe_settings` in tools/crates/gnrt/vendor.rs
+# re-serialises the whole config through `File::create` at line 357 on every
+# vendor run, which is also why patches 059/065/066 have to spell their edits
+# in the form that survives it (AGENTS.md, itertools).
+#
+# Every later step guards the checkout with
+# astro::require_attributable_chromium, which refuses any modified path Astro
+# cannot show it wrote. So this script records its footprint in
+# build/reports/vendor-report.json, and those steps read it. Without that
+# record, sync-overlay.sh refuses the very tree this script just produced —
+# measured, not hypothetical: 1,460 unattributable paths.
 #
 # Usage:
 #   tools/vendor-adblock-rust.sh [--chromium-src PATH]
@@ -210,11 +217,29 @@ written = after - before
 # exactly the state that made sync-overlay.sh refuse the tree this script had
 # just produced.
 #
-# The scope is what keeps this honest. `third_party/rust/` is generated: gnrt
-# owns every file under it and rewrites them wholesale, so there is no developer
-# work here for the attribution guard to protect — the next `gnrt vendor` would
-# overwrite it either way. Nothing outside that prefix is claimed.
-written |= {path for path in after if path == vendor_root or path.startswith(vendor_root + "/")}
+# The scope is what keeps this honest, and it has ONE exception that a shorter
+# version of this comment used to deny.
+#
+# Almost all of `third_party/rust/` is generated: gnrt rewrites it wholesale, so
+# there is no developer work there for the attribution guard to protect — the
+# next `gnrt vendor` would overwrite it either way.
+#
+# `third_party/rust/chromium_crates_io/patches/` is the opposite. gnrt READS it
+# (`apply_patches`, tools/crates/gnrt/vendor.rs:466) and applies what it finds
+# to each freshly downloaded crate, so a patch there is INPUT and survives
+# re-vendoring — which is exactly why crate fixes that must outlive a re-vendor
+# live there. Sixteen crate patch directories are tracked at the locked commit,
+# and Astro's 069-rmp-serde-rmpread-backport.patch adds a seventeenth. Claiming
+# that subtree as "generated, nobody's work" would let a hand-edited crate patch
+# through the guard, so it is excluded here; the numbered patch that creates
+# Astro's own is what accounts for it, through patch-report.json.
+GENERATED_EXCEPTION = vendor_root + "/chromium_crates_io/patches/"
+written |= {
+    path
+    for path in after
+    if (path == vendor_root or path.startswith(vendor_root + "/"))
+    and not path.startswith(GENERATED_EXCEPTION)
+}
 
 report_file.write_text(
     json.dumps(

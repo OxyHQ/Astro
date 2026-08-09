@@ -132,9 +132,10 @@ void AstroAdBlockFilterListUpdater::DownloadFilterList(const std::string& id,
   auto request = std::make_unique<network::ResourceRequest>();
   request->url = url;
   request->method = "GET";
+  // kOmit is what keeps cookies off the request; net::LOAD_DO_NOT_SEND_COOKIES
+  // was removed upstream once credentials_mode subsumed it.
   request->credentials_mode = network::mojom::CredentialsMode::kOmit;
-  request->load_flags =
-      net::LOAD_DO_NOT_SAVE_COOKIES | net::LOAD_DO_NOT_SEND_COOKIES;
+  request->load_flags = net::LOAD_DO_NOT_SAVE_COOKIES;
 
   // Use If-Modified-Since if we have a cached version.
   base::FilePath output_path =

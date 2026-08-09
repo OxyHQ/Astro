@@ -21,3 +21,28 @@ diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui
    if (features::IsWebUIToolbarEnabled()) {
      toolbar_webview_ = AddChildView(std::make_unique<WebUIToolbarWebView>(
          browser_, browser_->command_controller()));
+diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.h b/chrome/browser/ui/views/toolbar/toolbar_view.h
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.h
+@@ -70,6 +70,10 @@ namespace glic {
+ class ToolbarGlicButton;
+ }  // namespace glic
+ 
++namespace oxy::adblock {
++class AstroAdBlockToolbarButton;
++}  // namespace oxy::adblock
++
+ // The Browser Window's toolbar.
+ class ToolbarView : public views::AccessiblePaneView,
+                     public ui::AcceleratorProvider,
+@@ -329,6 +333,10 @@ class ToolbarView : public views::AccessiblePaneView,
+ 
+   raw_ptr<glic::ToolbarGlicButton> glic_button_ = nullptr;
+ 
++  // Astro: the ad blocker shield. Owned by the view hierarchy like every
++  // other control here; ToolbarView::Init adds it.
++  raw_ptr<oxy::adblock::AstroAdBlockToolbarButton> adblock_button_ = nullptr;
++
+   const raw_ptr<Browser> browser_;
+   const raw_ptr<BrowserView> browser_view_;
+ 

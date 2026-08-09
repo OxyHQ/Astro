@@ -21,8 +21,19 @@ The last one matters more than it looks: a page served from `base::DIR_EXE` is
 not part of the signed browser resources, so anything that can write next to the
 binary can change what a privileged page runs.
 
-CSP directives are read only from OverrideContentSecurityPolicy calls, not from
-the file as a whole. `unsafe-eval` appears twice in this repository and neither
+CSP reaches a data source two ways and BOTH are read. A controller may call
+`OverrideContentSecurityPolicy` itself, or it may declare a `WebUIPage` and let
+`astro_webui_page.cc` apply the directives — and that shared base is also what
+serves assets from `base::DIR_EXE`. Reading only the direct calls made the
+first page built on the base report "No CSP overrides" and "Serves resources
+from DIR_EXE: no", with an `'unsafe-inline'` widening and a DIR_EXE read both
+invisible. A refactor is not supposed to be able to clear a security baseline,
+so a controller that declares a `WebUIPage` is analysed together with the base,
+and a source tree where that base cannot be found is a hard failure rather than
+a quiet zero.
+
+CSP directives are read only from these two shapes, not from the file as a
+whole. `unsafe-eval` appears twice in this repository and neither
 occurrence is Astro's — both are `$csp=` rules inside the shipped easylist
 filter data. A grep would report two epic-rule violations that do not exist, and
 a baseline that cries wolf is one nobody trusts.
@@ -67,12 +78,36 @@ REMOTE_ORIGIN_RE = re.compile(r"https?://[A-Za-z0-9.-]+")
 DISABLES_TRUSTED_TYPES = "DisableTrustedTypesCSP()"
 SERVES_FROM_EXE_DIR = "base::DIR_EXE"
 
+# The shared page base: `astro::WebUIPage` declared by a controller, applied by
+# astro_webui_page.cc. A controller naming the struct is asking that file to
+# create its data source, so that file's behaviour is the controller's.
+SHARED_PAGE_BASE_FILE = "astro_webui_page.cc"
+USES_SHARED_PAGE_BASE_RE = re.compile(r"\bWebUIPage\b")
 
-def analyse(display: str, text: str) -> dict:
+# `.style_src = "style-src 'self' …;"` inside a WebUIPageCsp initialiser. The
+# field name is the directive, spelled the way the struct spells it.
+PAGE_CSP_FIELD_RE = re.compile(
+    r"\.\s*(script_src|style_src|img_src|font_src|connect_src)\s*=\s*"
+    r"((?:\s*\"(?:[^\"\\]|\\.)*\"\s*)+)",
+    re.MULTILINE,
+)
+PAGE_CSP_FIELD_DIRECTIVE = {
+    "script_src": "ScriptSrc",
+    "style_src": "StyleSrc",
+    "img_src": "ImgSrc",
+    "font_src": "FontSrc",
+    "connect_src": "ConnectSrc",
+}
+
+
+def analyse(display: str, text: str, base_text: str | None = None) -> dict:
     directives = {}
     for name, raw in OVERRIDE_RE.findall(text):
         value = "".join(STRING_PIECE_RE.findall(raw))
         directives[name] = value.strip()
+    for field, raw in PAGE_CSP_FIELD_RE.findall(text):
+        value = "".join(STRING_PIECE_RE.findall(raw))
+        directives[PAGE_CSP_FIELD_DIRECTIVE[field]] = value.strip()
 
     remote_origins = sorted(
         {origin for value in directives.values() for origin in REMOTE_ORIGIN_RE.findall(value)}
@@ -88,8 +123,11 @@ def analyse(display: str, text: str) -> dict:
         "directives": directives,
         "remote_origins": remote_origins,
         "unsafe_tokens": unsafe,
-        "trusted_types_disabled": DISABLES_TRUSTED_TYPES in text,
-        "serves_from_exe_dir": SERVES_FROM_EXE_DIR in text,
+        "trusted_types_disabled": DISABLES_TRUSTED_TYPES in text
+        or (base_text is not None and DISABLES_TRUSTED_TYPES in base_text),
+        "serves_from_exe_dir": SERVES_FROM_EXE_DIR in text
+        or (base_text is not None and SERVES_FROM_EXE_DIR in base_text),
+        "uses_shared_page_base": base_text is not None,
     }
 
 
@@ -116,6 +154,13 @@ def committed_controllers() -> list[tuple[str, str]]:
     ]
 
 
+def committed_page_base() -> str | None:
+    for path in committed_state.list_files(COMMITTED_SOURCE, (".cc",)):
+        if path.endswith(SHARED_PAGE_BASE_FILE):
+            return committed_state.read_text(path)
+    return None
+
+
 def worktree_controllers(source_dir: Path) -> list[tuple[str, str]]:
     """Read a directory off disk. Never feeds the committed document."""
     return [
@@ -124,13 +169,21 @@ def worktree_controllers(source_dir: Path) -> list[tuple[str, str]]:
     ]
 
 
+def worktree_page_base(source_dir: Path) -> str | None:
+    for path in sorted(source_dir.rglob(SHARED_PAGE_BASE_FILE)):
+        return path.read_text(encoding="utf-8")
+    return None
+
+
 def build(source_dir: Path | None) -> dict:
     if source_dir is None:
         controllers = committed_controllers()
+        page_base = committed_page_base()
         source_display = COMMITTED_SOURCE
         origin = "committed"
     else:
         controllers = worktree_controllers(source_dir)
+        page_base = worktree_page_base(source_dir)
         source_display = str(source_dir)
         origin = "worktree"
 
@@ -139,7 +192,18 @@ def build(source_dir: Path | None) -> dict:
 
     entries = []
     for display, text in controllers:
-        entry = analyse(display, text)
+        uses_base = bool(USES_SHARED_PAGE_BASE_RE.search(text))
+        if uses_base and page_base is None:
+            # Reading zero here would clear the page's CSP and its DIR_EXE read
+            # from the baseline, which is the failure this lookup exists to
+            # prevent. Refuse rather than under-report.
+            raise SystemExit(
+                f"ERROR {display} declares a WebUIPage, so its CSP and its "
+                f"asset serving live in {SHARED_PAGE_BASE_FILE}, and that file "
+                f"is not under {source_display}. Analysing the controller alone "
+                "would report it as having neither."
+            )
+        entry = analyse(display, text, page_base if uses_base else None)
         entry["violations"] = violations(entry)
         entries.append(entry)
 
@@ -190,11 +254,19 @@ def render_markdown(document: dict) -> str:
         "`WebUIDataSource`, overrides CSP directives on it, and decides whether to",
         "enforce Trusted Types — so this is evidence, and it needs no built browser.",
         "",
-        "**Scope, and why it is drawn here.** CSP directives are read only from",
-        "`OverrideContentSecurityPolicy` calls, not from the file as a whole.",
-        "`unsafe-eval` appears twice in this repository and neither occurrence is",
-        "Astro's: both are `$csp=` rules inside the shipped easylist filter data. A",
-        "grep would report two epic-rule violations that do not exist.",
+        "**Scope, and why it is drawn here.** CSP directives are read from two",
+        "shapes and only those two: an `OverrideContentSecurityPolicy` call, and a",
+        "`WebUIPage`'s CSP fields, which `astro_webui_page.cc` applies on the",
+        "controller's behalf. A controller that declares a `WebUIPage` is reported",
+        "together with that base, because the base is also what reads assets from",
+        "`base::DIR_EXE` — reading the controller alone showed the first page built",
+        "on it as having no CSP and no `DIR_EXE` read, with an `'unsafe-inline'`",
+        "widening invisible.",
+        "",
+        "Nothing else in a file counts. `unsafe-eval` appears twice in this",
+        "repository and neither occurrence is Astro's: both are `$csp=` rules inside",
+        "the shipped easylist filter data. A grep would report two epic-rule",
+        "violations that do not exist.",
         "",
         "## Rule violations",
         "",
@@ -224,6 +296,12 @@ def render_markdown(document: dict) -> str:
 
     for entry in document["controllers"]:
         lines += [f"### `{entry['file']}`", ""]
+        if entry.get("uses_shared_page_base"):
+            lines += [
+                "Declares a `WebUIPage`; its data source, CSP and asset serving are",
+                "`astro_webui_page.cc`'s. Both are reported below.",
+                "",
+            ]
         if entry["directives"]:
             lines += ["| Directive | Value |", "|---|---|"]
             for name, value in sorted(entry["directives"].items()):

@@ -1,0 +1,170 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Sat, 8 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Correct rand_chacha's allow_unsafe, which gnrt guesses wrong
+
+`gnrt vendor` writes the `allow_unsafe` value for every crate it pulls in,
+and for `rand_chacha` it writes `false` while the crate does use `unsafe`.
+Both vendored epochs then fail to compile:
+
+    error: usage of an `unsafe` block
+       --> ../../third_party/rust/chromium_crates_io/vendor/rand_chacha-v0_2/src/chacha.rs:86:45
+    error: aborting due to 3 previous errors
+
+    error: usage of an `unsafe` block
+       --> ../../third_party/rust/chromium_crates_io/vendor/rand_chacha-v0_3/src/chacha.rs:91:45
+    error: aborting due to 3 previous errors
+
+WHY GNRT GETS IT WRONG, AND WHY THAT IS NOT A GNRT BUG
+
+`fill_allow_unsafe_settings` (tools/crates/gnrt/vendor.rs) asks
+`unsafe_code_detector::contains_unsafe_code` per file. That detector parses
+with `syn` and walks the AST for `ExprUnsafe` and `unsafe impl`. It never
+descends into `syn::Macro::tokens`, and rand_chacha's only `unsafe` block
+lives inside the body of `macro_rules! chacha_impl`, so nothing is found.
+
+The detector's own doc comment names this exact miss, gives two upstream
+crates it happens to, and says what to do about it:
+
+    /// - Undetected `unsafe`:
+    ///     - Will be auto-detected later, when `allow_unsafe = false` results
+    ///       in a build error. [...]
+    ///     - Examples (IIUC in both cases `unsafe` is hidden inside
+    ///       `syn::Macro::tokens`) [...]
+
+So the build failure IS the detection step, and correcting the value in
+`gnrt_config.toml` is the prescribed response, not a workaround. The
+`unwrap_or(false)` in `fill_allow_unsafe_settings` is deliberate for the same
+reason: a wrong `false` announces itself, a wrong `true` does not.
+
+THE AUDIT, BECAUSE `true` IS A CLAIM ABOUT SOURCE
+
+Neither crate is a small amount of unsafe; it is one block, and the two
+epochs are byte-identical in it. `grep -rnE '\bunsafe\b'` across the whole of
+`rand_chacha-v0_2/` and `rand_chacha-v0_3/` returns exactly one line each:
+
+    rand_chacha-v0_2/src/chacha.rs:86
+    rand_chacha-v0_3/src/chacha.rs:91
+
+both reading
+
+    fn generate(&mut self, r: &mut Self::Results) {
+        // Fill slice of words by writing to equivalent slice of bytes, then fixing endianness.
+        self.state.refill4($rounds, unsafe {
+            &mut *(&mut *r as *mut Array64<u32> as *mut [u8; 256])
+        });
+        for x in r.as_mut() {
+            *x = x.to_le();
+        }
+    }
+
+with `Self::Results = Array64<u32>` and `pub struct Array64<T>([T; 64]);`.
+The block reinterprets an exclusive `&mut [u32; 64]` as `&mut [u8; 256]` so
+the ChaCha core can write raw bytes, and the loop after it fixes endianness.
+
+  * Size: 64 x 4 = 256, so the two views cover exactly the same bytes.
+  * Alignment: the cast lowers the required alignment from 4 to 1, which is
+    always sound in that direction.
+  * Aliasing: `r` is an exclusive reference, the raw pointer is derived from
+    it and immediately reborrowed with the same lifetime. No second reference
+    to the buffer is live, and no user code runs in between.
+  * Validity: every bit pattern is a valid `u32`, so writing arbitrary bytes
+    through the `u8` view cannot produce an invalid value.
+
+The one thing it leans on that Rust does not formally guarantee is that a
+single-field tuple struct is laid out as its field. That is true of every
+Rust compiler, and it is upstream's code unchanged since 2019 in the crate
+the whole `rand` ecosystem uses; it is recorded here rather than glossed.
+
+No transmutes, no pointer arithmetic, no unchecked indexing, no FFI, no
+`unsafe impl Send`/`Sync`, no `unsafe fn`. The actual SIMD lives in
+`ppv-lite86`, a separate crate that upstream already classifies
+`allow_unsafe = true`.
+
+WHERE THE CRATE IS ACTUALLY USED, WHICH BOUNDS WHAT THE VALUE COSTS
+
+Neither epoch reaches the browser. Both are host build tooling, reached only
+through the two `phf` code generators:
+
+    selectors 0.24 --(build-dep)--> phf_codegen 0.8 --> phf_generator 0.8
+                                 --> rand 0.7.3 --> rand_chacha 0.2.2
+    cssparser 0.29 --> phf 0.10 --> phf_macros 0.10 --> phf_generator 0.10
+                                 --> rand 0.8.7 --> rand_chacha 0.3.1
+
+Confirmed by where the failures land: both are under
+`clang_x64_for_rust_host_build_tools/`, the host toolchain, and neither
+appears in the target-side graph.
+
+WHY THE EDIT IS NOT EPOCH-SCOPED
+
+It does not need to be. Unlike `thiserror`, whose two epochs genuinely
+disagree, both rand_chacha epochs carry the same single block and both fail
+the build without this line, so the unversioned key states one fact about
+both and there is no collateral. Re-vendoring with this line changes
+`allow_unsafe` in exactly two generated files,
+`third_party/rust/rand_chacha/v0_2/BUILD.gn` and `.../v0_3/BUILD.gn`, and
+nothing else anywhere under `third_party/rust`.
+
+WHERE THIS SITS IN THE PIPELINE
+
+Before vendoring, as with 059. `fill_allow_unsafe_settings` fills the value
+through `entry("allow_unsafe").or_insert_with(...)`, so it writes only where the
+key is ABSENT: declaring it here means the vendoring run finds it present and
+leaves it alone rather than overwriting it with the wrong guess.
+
+MEASURED
+
+All three of 064, 065 and 066 applied, `tools/vendor-adblock-rust.sh` re-run,
+then from chromium/src with the committed gn_args/linux.gn (verified
+byte-identical to out/GateCheck/args.gn):
+
+    $ ./buildtools/linux64/gn gen out/GateCheck
+    Done. Made 29957 targets from 4411 files in 9591ms
+
+    $ ./third_party/ninja/ninja -C out/GateCheck -k 0 \
+          clang_x64_for_rust_host_build_tools/obj/third_party/rust/rand_chacha/v0_2/lib/librand_chacha_lib.rlib \
+          clang_x64_for_rust_host_build_tools/obj/third_party/rust/rand_chacha/v0_3/lib/librand_chacha_lib.rlib
+    [4/17] RUST .../rand_chacha/v0_2/lib/librand_chacha_lib.rlib
+    [5/17] RUST .../rand_chacha/v0_3/lib/librand_chacha_lib.rlib
+
+Both rlibs build and the six `usage of an unsafe block` errors are gone. The
+rlibs were DELETED before that run, so it is a compile and not ninja reporting
+it had nothing to do — an up-to-date output and a correct one look identical.
+
+The config survives vendoring: the re-run left `gnrt_config.toml` byte-identical
+to what it was before, and `third_party/rust/rand_chacha/v0_{2,3}/BUILD.gn` still
+read `allow_unsafe = true`, unchanged. Byte-identical to the file as it stood,
+not to what this patch alone produces — the first vendoring of a fresh tree also
+auto-fills `allow_unsafe` for every crate the adblock closure adds that has no
+key yet. Those entries are gnrt's own; what is verified here is that none of them
+overwrites or displaces this one.
+
+The target count is the vacuity floor: a `gn gen` that fails writes no build
+graph, and everything downstream of one reads clean against nothing.
+
+WHAT THIS DOES NOT FIX
+
+`//chrome/browser/oxy/adblock/rs:adblock_engine_ffi` still does not link, for a
+reason no patch in this wave touches: rmp-serde 0.15.5 against rmp 0.8.15. It is
+characterised in 066, which is the patch that declares rmp.
+
+diff --git a/third_party/rust/chromium_crates_io/gnrt_config.toml b/third_party/rust/chromium_crates_io/gnrt_config.toml
+--- a/third_party/rust/chromium_crates_io/gnrt_config.toml
++++ b/third_party/rust/chromium_crates_io/gnrt_config.toml
+@@ -557,6 +557,16 @@ allow_unsafe = false
+ [crate.quote.extra_kv]
+ allow_unsafe = false
+ 
++# Astro: this value is auto-filled by `fill_allow_unsafe_settings`
++# (tools/crates/gnrt/vendor.rs) and it guesses wrong here. Both vendored
++# epochs hold their single `unsafe` block inside the body of
++# `macro_rules! chacha_impl`, and `unsafe_code_detector` parses with `syn`,
++# which never descends into `syn::Macro::tokens`. Its own doc comment names
++# this miss and says a build failure is how it gets corrected. The audit
++# backing the value is in the Astro patch that sets it.
++[crate.rand_chacha]
++extra_kv = { allow_unsafe = true }
++
+ [crate.read-fonts]
+ extra_src_roots = ['../generated']
+ extra_kv = { allow_unsafe = false }

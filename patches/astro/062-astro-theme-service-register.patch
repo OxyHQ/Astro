@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Sun, 9 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Build AstroThemeService with the profile, not on first use
+
+`AstroThemeService` is what carries the profile's Bloom colour preset into the
+native colour mixer and keeps every open astro:// page in step with it. It is
+a ProfileKeyedService, and its factory declares
+`ServiceIsCreatedWithBrowserContext()` -- but a factory that is never
+INSTANTIATED is never consulted, and a BrowserContextKeyedServiceFactory is
+instantiated by exactly one place in the browser: the list this patch adds a
+line to.
+
+Without the line the declaration is inert and the service is built on first
+use instead. The visible consequence is not "no theming" -- which would at
+least be obvious -- but a browser that opens in the default colours and
+switches to the profile's preset at some later, arbitrary moment: whenever
+something first asks for the theme. That is a worse failure than none,
+because it looks like a flicker bug rather than a missing registration.
+
+The dependency lands on `//chrome/browser/profiles:profiles_extra_parts_impl`,
+which is the target that actually compiles this file -- not on
+`//chrome/browser:browser`, which does not, and where the edge would have left
+`gn check` reporting the include as unreachable while the link happened to
+work anyway. A call and the edge that makes it link are one change (061 says
+the same thing); putting the edge on the wrong target is the shape that makes
+that rule feel satisfied without being.
+
+Owned by https://github.com/OxyHQ/Astro/issues/24.
+---
+diff --git a/chrome/browser/profiles/BUILD.gn b/chrome/browser/profiles/BUILD.gn
+--- a/chrome/browser/profiles/BUILD.gn
++++ b/chrome/browser/profiles/BUILD.gn
+@@ -300,6 +300,7 @@ source_set("profiles_extra_parts_impl") {
+     "//chrome/browser/notifications",
+     "//chrome/browser/omnibox",
+     "//chrome/browser/optimization_guide",
++    "//chrome/browser/oxy:theming",
+     "//chrome/browser/page_content_annotations",
+     "//chrome/browser/page_content_annotations:extraction_service",
+     "//chrome/browser/passage_embeddings",
+diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
+--- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
++++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
+@@ -124,6 +124,7 @@
+ #include "chrome/browser/optimization_guide/model_validator_keyed_service_factory.h"
+ #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
+ #include "chrome/browser/origin_trials/origin_trials_factory.h"
++#include "chrome/browser/oxy/astro_theme_service_factory.h"
+ #include "chrome/browser/page_content_annotations/page_content_annotations_service_factory.h"
+ #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
+ #include "chrome/browser/page_content_annotations/page_content_screenshot_service_factory.h"
+@@ -680,6 +681,7 @@ void ChromeBrowserMainExtraPartsProfiles::
+   AndroidSessionDurationsServiceFactory::GetInstance();
+ #endif
+   AffiliationServiceFactory::GetInstance();
++  astro::AstroThemeServiceFactory::GetInstance();
+   AiDataKeyedServiceFactory::GetInstance();
+   AimEligibilityServiceFactory::GetInstance();
+ #if BUILDFLAG(IS_ANDROID)

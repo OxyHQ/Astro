@@ -82,7 +82,14 @@ disk_revision() {
     fi
     local commit state
     commit="$(git -C "$dir" rev-parse HEAD)"
-    if [ -n "$(git -C "$dir" status --porcelain --untracked-files=no)" ]; then
+    # --ignore-submodules=untracked is the exact mirror of --untracked-files=no:
+    # untracked content is ignored at every level, modified content counts at
+    # every level. Without it a checkout whose superproject was reset but whose
+    # submodules were not — the state that produced this whole class of defect —
+    # is recorded as `clean` in the permanent record of what a build was made
+    # from, which is the one place a wrong answer is never corrected later.
+    if [ -n "$(git -C "$dir" status --porcelain --untracked-files=no \
+                   --ignore-submodules=untracked)" ]; then
         state="dirty"
     else
         state="clean"

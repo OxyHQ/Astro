@@ -6,9 +6,13 @@
 
 #include <string>
 
-#include "chrome/browser/oxy/adblock/rs/src/lib.rs.h"
-
 namespace oxy::adblock {
+
+// Defined by the CXX bridge in rs/src/lib.rs.h, which includes THIS header to
+// declare the callback below. Including it back here would be a cycle: the
+// generated header is `#pragma once`, so on the include path that reaches it
+// first this declaration would be parsed before the struct exists.
+struct DomainPosition;
 
 // Called from Rust via CXX bridge. Resolves the registrable domain
 // within a hostname using Chromium's registry_controlled_domains.

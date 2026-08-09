@@ -1,0 +1,77 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Sun, 9 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Serve astro://settings from Astro, under upstream's own host
+
+Astro's settings surface is a Vite + Bloom application, not Chromium's Polymer
+one. This is the line that makes the browser serve it.
+
+WHY THE REGISTRATION IS SWAPPED AND NOT ADDED
+
+Two independent reasons, and either one alone would force this shape.
+
+The first is the private extension APIs. `settingsPrivate` -- the only
+transport that carries a pref's POLICY state (`controlledBy`, `enforcement`,
+`userSelectableValues`) alongside its value -- is granted by host pattern, at
+chrome/common/extensions/api/_api_features.json, and the pattern names the
+settings host. Seven more APIs are granted to that same host across the two
+feature files -- autofillPrivate, languageSettingsPrivate, passwordsPrivate,
+inputMethodPrivate and quickUnlockPrivate in that one, metricsPrivate and
+management in extensions/common/api/_api_features.json -- counted by grepping
+both for `chrome://settings/*`. A settings page served under any other host
+gets none of the eight, and gets them silently:
+the binding is simply never installed, so the first control to read it throws
+`Cannot read properties of undefined` on a page that otherwise looks correct.
+Serving under the same host inherits every grant with no change to the grant
+table at all.
+
+The second is that adding a second config for the same origin is not an
+option: `WebUIConfigMap::AddWebUIConfigImpl` CHECKs on a duplicate origin, so
+registering Astro's config alongside upstream's would crash the browser at
+startup rather than shadow it. An earlier `AstroSettingsUIConfig` did exactly
+that and was deleted.
+
+Swapping the line makes both true by construction, and makes the diff the
+review: one host, one config, and it is visible here which one.
+
+WHAT UPSTREAM'S SETTINGS LOSES, AND WHAT IT DOES NOT
+
+`settings::SettingsUI` is no longer reachable by navigation, but it is still
+compiled and still linked, and so are its 38 message handlers -- Astro's
+controller adopts four of them directly (browsing-data deletion, search
+engines, about/version, browser lifetime) and will adopt more. This patch
+removes a registration, not an implementation.
+
+The include is swapped rather than left in place: with the config gone,
+nothing else in this translation unit names `settings::SettingsUI`.
+
+Owned by https://github.com/OxyHQ/Astro/issues/15.
+---
+diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+--- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
++++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+@@ -10,6 +10,7 @@
+ #include "chrome/browser/oxy/adblock/webui/astro_adblock_ui.h"
+ #include "chrome/browser/oxy/webui/astro_alia_ui.h"
+ #include "chrome/browser/oxy/webui/astro_ntp_ui.h"
++#include "chrome/browser/oxy/webui/astro_settings_ui.h"
+ #include "chrome/browser/ui/webui/about/about_ui.h"
+ #include "chrome/browser/ui/webui/accessibility/accessibility_ui.h"
+ #include "chrome/browser/ui/webui/actor_internals/actor_internals_ui.h"
+@@ -112,7 +113,6 @@
+ #include "chrome/browser/ui/webui/privacy_sandbox/privacy_sandbox_dialog_ui.h"
+ #include "chrome/browser/ui/webui/profile_internals/profile_internals_ui.h"
+ #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice_ui.h"
+-#include "chrome/browser/ui/webui/settings/settings_ui.h"
+ #include "chrome/browser/ui/webui/side_panel/bookmarks/bookmarks_side_panel_ui.h"
+ #include "chrome/browser/ui/webui/side_panel/comments/comments_side_panel_ui.h"
+ #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_ui.h"
+@@ -357,7 +357,7 @@ void RegisterChromeWebUIConfigs() {
+   map.AddWebUIConfig(std::make_unique<ProfileInternalsUIConfig>());
+   map.AddWebUIConfig(std::make_unique<ReadingListUIConfig>());
+   map.AddWebUIConfig(std::make_unique<SearchEngineChoiceUIConfig>());
+-  map.AddWebUIConfig(std::make_unique<settings::SettingsUIConfig>());
++  map.AddWebUIConfig(std::make_unique<astro::AstroSettingsUIConfig>());
+   map.AddWebUIConfig(std::make_unique<ShoppingInsightsSidePanelUIConfig>());
+   map.AddWebUIConfig(std::make_unique<SuggestInternalsUIConfig>());
+   map.AddWebUIConfig(std::make_unique<SupportToolUIConfig>());

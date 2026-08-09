@@ -1,6 +1,6 @@
 # Astro — De-Googled Chromium Browser by Oxy
 
-Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 57 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
+Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 65 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
 
 ## Build Commands
 
@@ -81,9 +81,79 @@ signal to stop and report it on the issue.
   *whose top level is the path itself* — a `chromium/src` holding only the
   overlay resolves to the Astro repository, so an unguarded `git reset --hard`
   aimed at "the Chromium checkout" destroys the developer's own work.
+- **That rule guards the scripts. Nothing guards a bare `git` you type
+  yourself, so use `git -C /home/nate/Oxy/Astro` for every one of them.**
+  `gn gen` and `ninja` want `chromium/src` as the working directory, the shell
+  keeps that directory between commands, and a later `git` then runs against
+  the Chromium checkout while looking exactly like a repository command. It has
+  happened twice, to two agents, presenting differently each time: a
+  `tools/baseline/generate-all.sh --check` dying with "No such file or
+  directory", and a `git commit` executing inside `chromium/src`. Both were
+  harmless — the commit had an empty index, so git printed status and exited
+  non-zero — and that is the whole problem, because **`chromium/src` carries
+  4,253 dirty paths** from binary pruning and vendoring. There is no
+  empty-index reprieve for `git add -A` or `git commit -a`: either one puts
+  those 4,253 files onto the pinned revision, breaking "checkouts are detached
+  at the locked commit" and every pristine-tree guard downstream. Prefer
+  `git -C <path>` over `cd` for the build commands too, so the directory never
+  drifts in the first place.
+- **To prove nothing was committed there, read the REFLOG, not `HEAD`.** A
+  `HEAD` matching `browser.lock.json` is consistent with a commit that was made
+  and then reset away, which is the case you actually care about. The intact
+  state is a reflog holding exactly one entry — the original detached checkout —
+  alongside an empty index.
 - **Preserve developer work by default.** Mutating scripts refuse a checkout
   carrying changes Astro did not write. `ASTRO_ALLOW_DIRTY_CHROMIUM=1` is a
   developer-only override; CI asserts it is never set.
+- **Never ask git whether a Chromium checkout is clean without descending into
+  submodules.** `gclient` writes `diff.ignoreSubmodules = dirty` into
+  `chromium/src/.git/config`, so a plain `git status --porcelain` prints
+  NOTHING for a submodule carrying modified or untracked content. Measured
+  2026-08-09: a reset that satisfied both the dirty-checkout guard and
+  `tools/check-upstream-delta.sh` then died at ungoogled patch 12 of 112 on a
+  `prepopulated_engines.json` that was already patched — two independent
+  pristine assertions agreeing, both wrong. Both guards now descend, via
+  `tools/lib/dirty_paths.py` and `submodule_scan` in
+  `tools/lib/upstream_delta.py`, and `docs/recovery.mdx` §3 carries the reset
+  procedure. Three things about the fix are worth keeping:
+  - **`--ignore-submodules=none` alone is not enough.** It reports one line
+    per submodule — `third_party/devtools-frontend/src` — and says nothing
+    about which file changed, and no declaration in this repository is
+    written in that vocabulary. Both guards descend to FILE level and re-root
+    onto the superproject, which is why neither carries a list of "submodule
+    paths the series may write": the patch report and `pruning.list` that
+    attribute the other paths attribute these too.
+  - **The numbers grow by more than the patch series suggests.** 13 files in
+    2 submodules are PATCHED (`devtools-frontend/src` 12,
+    `search_engines_data/resources` 1, the same 13 the patch replay reads from
+    DEPS sub-repositories) — but 9,171 of the 12,392 files binary pruning
+    deletes also live inside submodules, across 52 of them. Measured on the
+    built tree: the dirty-path count went 5,804 → 14,988, and the delta gate's
+    deletions 3,220 → 12,391, all still declared. That is why
+    `ASTRO_MAX_MODIFIED_UPSTREAM_PATHS` is 20,000 rather than 6,000.
+  - **Attribution has to read `pruning.list`, not just the report.** Pruning
+    is idempotent, so a file already gone is not recorded again, and a
+    checkout produced before the reset learned about submodules carries 9,147
+    deletions no report claims. Before that input was added the guard refused
+    the tree saying "Astro did not write" about files Astro's own pruning step
+    is what removed. `upstream_delta.py` had always attributed deletions from
+    that declaration; `astro::unattributable_paths` now does too.
+  - **A new blind call cannot come back silently.** The `blind-git-status`
+    rule in `tools/tests/lib/scan-shell-patterns.py` refuses any
+    machine-read `git status` (`--porcelain`, `--short`, `-s`) in
+    `tools/*.sh` that does not spell `--ignore-submodules`. It found the two
+    that were left — `generate-provenance.sh`, which would have written
+    `worktree: clean` into the permanent record of what a build was made
+    from, and `fetch-cross-deps.sh`, whose `find -maxdepth 4` also missed 62
+    of the 260 submodules it claims to reset.
+- **A patch applied by hand is invisible to the guards.** They attribute dirty
+  paths from `build/reports/patch-report.json`, which only
+  `tools/apply-patches.sh` writes. Apply a patch with `git apply` — the
+  sanctioned way to test one — and the report keeps describing the previous
+  run, so `sync-overlay.sh` later refuses the tree and names files that Astro's
+  own patches wrote. Measured 2026-08-09 with the report at
+  `applied_count: 168` against a tree carrying 176. The cure is a real
+  pipeline run, not an override.
 - **Every overlay destination is declared** in `tools/overlay.allowlist`. An
   undeclared path, or an undeclared overwrite of an upstream-tracked file,
   fails the sync.
@@ -102,6 +172,131 @@ signal to stop and report it on the issue.
   tracked at that commit — is `tools/tests/cases/committed-inputs-are-tracked.sh`
   and its `NOT_TRACKED` table is where a legitimately-absent path is declared.
   Run the gate before pushing anything under `tools/`.
+- **`verify-clean-head.sh` verifies whatever `HEAD` is when you invoke it,
+  which in this checkout is often not your commit.** Several agents land
+  commits here in the same hour, so a gate run started late reports on a
+  `HEAD` that has moved past you — and if somebody else has already repaired
+  what you left broken, it comes back green ABOUT THEIR FIX and you read it
+  as clearing yours. That happened with 067: the suite was green before the
+  commit, went red at the commit, and the clean-head run that should have
+  caught it was started after 79a296a had already corrected the literal.
+  Observed directly twice in one session, two different SHAs printed on the
+  `Verifying commit ...` line. Pass `--commit <your-sha>` to pin it to the
+  commit you actually wrote.
+- **The assertion-count table that same gate prints is noise, and every case
+  already states in words what the table gestures at.** Six rows print on every
+  run, and they printed byte-identically across five different commits and
+  across both dirty and clean working trees — so they track nothing about your
+  change. The clean tree is by construction the tracked repository alone, so it
+  can never hold `chromium/src`, an installed `node_modules`, or an untracked
+  file, and three unrelated mechanisms turn that absence into a count
+  difference: a list built from the filesystem and counted once per path
+  (`shell-static-analysis.sh:27`; `harness::assert_script_list` at
+  `harness.sh:392` for `build-outcome-is-the-builds-own` and
+  `real-checkout-hazards`), an existence gate on the checkout
+  (`module-layering-is-enforced.sh:429`,
+  `webui-configs-use-the-scheme-constant.sh:145`), and two arms of a `case`
+  differing by one assertion (`color-tokens-are-generated-from-bloom.sh:428`,
+  4 against 3). Read the `NOT EXERCISED:` line each case prints instead: it
+  names the exact path it could not reach.
+
+  The attribution history is why this is written down rather than left to be
+  re-derived. Two agents produced six mechanism stories for those six rows and
+  got the mechanism wrong all six times, while the conclusion came out right
+  all six times. **A conclusion surviving is therefore not weak evidence for
+  the mechanism behind it, it is none.** Every row was settled the same way and
+  only that way — reading the line that increments `HARNESS_ASSERTIONS` and the
+  scope it sits in. Both classic misses are in the record: citing a nearby line
+  that looks like the counter (`shell-static-analysis.sh:129`, whose increment
+  is at :108, above the loop), and citing the right counter without checking
+  its scope (`harness::assert_no_lines_matching`, `harness.sh:359`, which sits
+  outside its own `grep` and so fires once per call, never once per file).
+- **A generated document read from `HEAD` cannot fail before you commit.**
+  `tools/baseline/inventory_patches.py` reads every byte from `HEAD`, so the
+  hand-maintained `astro N` literal in
+  `tools/tests/cases/baseline-inventories.sh` agrees with the old count right
+  up until the commit that adds a patch, and only then disagrees. A pre-commit
+  suite run is structurally incapable of catching it: it is green BECAUSE the
+  patch is uncommitted. Bump the literal in the same commit as the patch, and
+  re-run the suite AFTER committing and before regenerating the baseline —
+  that window is where this class of miss lives.
+- **Commit with `git commit --only <paths>`. The index is shared, so anything
+  that commits "what is staged" takes somebody else's work.** Several agents
+  routinely work this one checkout at once, and `AGENTS.md`,
+  `patches/astro/series` and `patch-dispositions.json` are the files two waves
+  reach for simultaneously — all three have carried another agent's
+  uncommitted hunks mid-session.
+
+  **`git add <path>` followed by `git commit` is NOT sufficient**, which is
+  what the earlier wording ("stage by explicit path") got wrong: adding your
+  path does not clear what somebody else added. It happened exactly that way —
+  a `git status` showed a file as unstaged, another agent staged it in the
+  seconds before the commit, and the commit carried their 36 lines under a
+  stranger's name and message. `--only` names what to commit and leaves every
+  other staged entry untouched; a temporary index built from `HEAD` plus
+  explicit blobs is equivalent. `git add -A` is never correct here.
+
+  Recovering from it is `git reset --soft HEAD~1` — but check first that HEAD
+  is still your commit, or the reset eats whatever landed on top. It restores
+  the index exactly as it was, so the other agent's staging survives.
+- **`git commit --dry-run -- <paths>` does not disturb the index — but read
+  the exit status before believing a test that says so.** It was claimed as a
+  hazard, and the first round of testing could not have caught it either way:
+  every shape staged files the pathspec did NOT match, so git printed "no
+  changes added to commit" and exited 1 before it ever built the
+  partial-commit tree. A check whose machinery never runs cannot fail. The
+  case that carries the verdict stages files both inside and outside the
+  pathspec, exits 0, and still leaves every index entry intact.
+
+  What makes anyone believe otherwise is the DISPLAY, not the index.
+  `--dry-run --short` renders out-of-pathspec staged entries as though they
+  were not staged, with the real index unchanged either side of it:
+
+      real index:    M mine.txt   D oldfile.txt   A theirnew.txt   M theirs.txt
+      dry run shows: M  mine.txt
+                     D  oldfile.txt
+                      M theirs.txt      <- staged, shown as unstaged
+                     ?? theirnew.txt    <- staged, shown as untracked
+
+  On screen that is indistinguishable from somebody having reset the index.
+  Trust `git diff --cached`; never a dry run's own status output. What had
+  actually emptied the index was another agent's commits landing first and
+  consuming their own entries, which git then rendered as a rename.
+- **Every agent commits as the same git user, so `git log` cannot tell you
+  whose work something is — and adjacency in time is not evidence.** Six
+  attributions were made wrongly in one session, in both directions: an
+  uncommitted hunk handed back to an agent who had never written it, and
+  commits credited to an agent who had not made them. Twice that would have
+  led to work being discarded or committed twice by someone repairing a defect
+  they did not own. The cheap discriminator is `git log -S '<a distinctive
+  line>' -- <path>`, which names the commit that introduced the text, plus the
+  commit timestamps; run it before handing anything back or "restoring" what
+  looks like somebody else's edit. Reconciling a shared file so BOTH sets of
+  edits survive is safe whoever owns it — asserting who owns it is not.
+
+  **And `git log -S` is blind to exactly the case where guessing is most
+  tempting: an UNCOMMITTED hunk.** It searches history, so for a pending edit
+  it returns nothing, which reads as "no answer" and gets filled in with
+  adjacency. That is the shape that recurred here — the same shared file,
+  twice, and the second time the agent I handed it to was one step from
+  committing another agent's unfinished analysis under their own name. Wrong
+  credit costs a correction; that would have taken authorship. There is no
+  git-side answer for a pending hunk: only your own transcript ("did I write
+  this?") and content provenance (does it restate what some agent just said?),
+  both weaker than a query. So the rule is not "attribute more carefully", it
+  is **never hand a shared file's pending hunk to a named owner** — call it
+  unclaimed, leave it untouched, and let its author claim it.
+
+  **Every one of these was caught by the RECIPIENT of a claim, never by its
+  author.** Four wrong attributions, a vacuous test, and a false index-reset
+  report: in each case the person who made the claim had the evidence to
+  disprove it in seconds and did not look, because nobody doubts themselves
+  unprompted. So the discipline that pays is not "check your own work harder",
+  it is **state a claim in whatever form is cheapest for the recipient to
+  falsify** — a named command they can re-run, an exit code, a before/after
+  dump, a SHA.
+  Every correction in that list happened because the claim was specific enough
+  to be tested; a vaguer message would have been believed.
 
 **Source revisions are declared, never discovered.** `browser.lock.json` holds
 the full commit SHA of Chromium, depot_tools and the ungoogled patch set.
@@ -170,23 +365,152 @@ do not let a build imply they are resolved:
     crate replaces only its ANCESTORS, so `[crate.adblock] group = 'safe'`
     changes nothing — the classification has to move on the dependency that
     carries it.
-  - **The edit cannot be epoch-scoped, even though the config syntax offers
-    it.** `fill_allow_unsafe_settings` in `tools/crates/gnrt/vendor.rs` keys
-    its edits on the bare package name, so the next `gnrt vendor` writes a
-    bare `[crate.itertools]` beside any `[crate."itertools@v0_13"]` and
-    `BuildConfig::validate` then rejects the file for mixing the two forms.
+  - **The edit could not be epoch-scoped when 059 was written, even though the
+    config syntax offers it.** `fill_allow_unsafe_settings` in
+    `tools/crates/gnrt/vendor.rs` keyed its edits on the bare package name, so
+    the next `gnrt vendor` wrote a bare `[crate.itertools]` beside any
+    `[crate."itertools@v0_13"]` and `BuildConfig::validate` then rejected the
+    file for mixing the two forms. `065-thiserror-epoch-scoped-config.patch`
+    lifted that: the loop now writes into an epoch-scoped table when the config
+    already has one, so a per-epoch entry survives vendoring. 059 stays
+    unversioned because one epoch of itertools is vendored and it needs no
+    second statement — not because the mechanism is still unusable.
   - **`group` is not an audit verdict.** It records where Chromium itself uses
     a crate. Moving one to `safe` is nonetheless a claim about its source, so
     the patch header carries the unsafe audit backing it — do that for the
     next one too rather than treating the reclassification as clerical.
+- Three more of the same shape followed 059, all fixed:
+  `064-rand-chacha-macro-unsafe.patch`, `065-thiserror-epoch-scoped-config.patch`
+  and `066-vendored-crate-build-inputs.patch`. Measured 2026-08-09 with all
+  three applied and the crates re-vendored: `Done. Made 29957 targets from 4411
+  files`, exit 0, and the seven rlibs they govern rebuild from deleted outputs.
+  The durable lesson is one none of the three could have found by round-tripping
+  the build: **gnrt writes a value only where the key is ABSENT**
+  (`entry("allow_unsafe").or_insert_with(...)`), which is both why declaring a
+  corrected value sticks and why a "the config came back byte-identical" check
+  is VACUOUS on an already-vendored tree — nothing is inserted, `did_make_edits`
+  stays false, and an unpatched gnrt produces the same file. Delete the key and
+  re-vendor to see where the writer actually puts it.
+- **A vendored crate CAN be edited durably, and this file said the opposite.**
+  `//chrome/browser/oxy/adblock/rs:adblock_engine_ffi` used to fail at
+  `third_party/rust/rmp_serde/v0_15:lib` with 24 × `E0425: cannot find function
+  read_data_i8 in module rmp::decode`. rmp-serde 0.15.5 calls
+  `rmp::decode::read_data_*` as FREE functions; rmp 0.8.11 moved them into the
+  `RmpRead` trait, `#[doc(hidden)]`, leaving no wrappers (0.8.10
+  `src/decode/mod.rs:208` has the free `pub fn`; 0.8.15 `:107` has the same
+  body as a trait method). adblock 0.9.8 requires `rmp-serde = "0.15"`
+  NON-optionally and Cargo resolves rmp-serde's `rmp = "0.8.8"` to 0.8.15 —
+  inside the range its own author wrote, incompatible with it.
+
+  The entry that used to sit here said the repair had to be a resolution
+  constraint because "editing the vendored crate is not an option; the next
+  `gnrt vendor` overwrites it silently". That is true of editing the tree by
+  hand and FALSE of the mechanism.
+  `third_party/rust/chromium_crates_io/patches/<crate>-<epoch>/` exists so an
+  edit survives re-vendoring: `apply_patches` in
+  `tools/crates/gnrt/vendor.rs` runs on every download, and 17 crates in this
+  checkout already depend on it. `069-rmp-serde-rmpread-backport.patch` adds
+  Astro's, carrying rmp-serde 1.1.1's own `RmpRead` migration back to 0.15.5.
+  Measured 2026-08-09: `adblock_engine_ffi` builds, `ninja: no work to do.`,
+  exit 0, `libastro_adblock_ffi.rlib` 291,988 bytes.
+
+  Four things from it outlive the defect:
+
+  - **`apply_patches` runs on the DOWNLOAD path only.** A crate already
+    vendored at the right version takes the `continue` branch, so adding a
+    crate patch to a tree that already holds the crate does nothing at all.
+    Delete the vendor directory to apply one. The consequence for verification
+    is sharper than it looks: a second `gnrt vendor` leaving the tree
+    byte-identical proves STABILITY, not that the patch reproduces from
+    scratch, because the second run never re-applied it. Both were measured
+    separately here — the crate re-downloaded pristine and re-patched to the
+    intended md5, and then 6,684 files byte-identical across two runs.
+  - **Prefer the crate patch to a resolution pin, and the reason is not
+    taste.** Holding rmp below 0.8.11 pins the decoder that parses adblock's
+    serialized filter data at 0.8.10 (2021-02-02), needs `rmp` declared a
+    direct dependency of the `chromium` package purely as a constraint, and
+    silently falsifies a patch that had landed hours earlier: 066 declares
+    `[crate.rmp] extra_input_roots = ['../README.md']` because 0.8.15's
+    `src/lib.rs` opens `#![doc = include_str!("../README.md")]`, and 0.8.10's
+    does not. A version pin can invalidate a build-input declaration made for
+    a different version of the same crate; check the other patches naming a
+    crate before pinning it.
+  - **Bumping the intermediate crate was not available, and the version list
+    is how you find that out.** adblock 0.9.8 declares `rmp-serde = "^0.15"`,
+    0.15.5 (2021-06-11) is the last 0.15.x; 1.0.0 and 1.1.0 are yanked, so the
+    first live release above it is 1.1.1, and all of them are outside the range
+    anyway. No published rmp-serde both satisfies its dependant and builds
+    against a current rmp. Checked release by release, not sampled: every
+    adblock from 0.9.8 to 0.12.0 declares `rmp-serde = "^0.15"`.
+  - **The real fix is an engine upgrade, and it is a product decision.**
+    adblock 0.12.1 is the first release that drops rmp-serde entirely
+    (flatbuffers arrived earlier, in 0.10.0, alongside it — so "the flatbuffers
+    release" is not the one to reach for). Taking it costs
+    four new vendored crates (`flatbuffers`, `arrayvec`, `precomputed-hash`,
+    `rustc-hash`), five epoch bumps that invalidate 066's `cssparser-v0_29`
+    and `selectors-v0_24` declarations, a `v0_9` → `v0_12` rename in the FFI's
+    `BUILD.gn`, and an FFI rewrite against a changed engine API. 069 says in
+    its header that it is removable the day that happens.
+- **The overlay's own C++ has never been compiled, and it does not compile.**
+  Once the Rust graph stopped blocking, the 13 objects of
+  `//chrome/browser/oxy/adblock:adblock` were built for the first time: 4
+  succeeded and 9 failed, every failure in Astro's own sources and none in
+  `patches/` or a vendored crate. **12 of the 13 compile as of 2026-08-09**;
+  the 13th, `astro_adblock_ui.o`, fails only on the undeclared
+  `IDR_ASTRO_ADBLOCK_HTML`, which is the grit/pak wiring (#14). The repairs
+  were API drift against Chromium 146, not one root cause, and the upstream
+  spellings are worth carrying because the next overlay file will hit them
+  too:
+
+  - `base::Value::List` / `base::Value::Dict` are now the standalone classes
+    `base::ListValue` / `base::DictValue`, and `WebUI::MessageCallback` takes
+    `const base::ListValue&`.
+  - `GURL::host()` returns `std::string_view` while `spec()` still returns
+    `const std::string&`, so `std::string s = url.host();` no longer compiles
+    — the `string_view` → `string` constructor is explicit.
+  - `base::JSONReader::Read` requires its `options` argument; `ReadDict` /
+    `ReadList` replace the read-then-`is_dict()` dance.
+  - `RequestDestination::kFavicon` and `net::LOAD_DO_NOT_SEND_COOKIES` are
+    gone; `ResourceRequest::credentials_mode = kOmit` is what keeps cookies
+    off a request now.
+  - `base::RefCountedString` lives in `base/memory/ref_counted_memory.h`.
+  - There is no unbranded shield vector icon: the only two in the tree are
+    ChromeOS-specific and `google_chrome/gshield.icon`, which a
+    non-Google-branded build does not compile. `chrome/app/vector_icons/security.icon`
+    (`kSecurityIcon`) IS a shield outline and is already in the aggregate
+    list, so no new icon and no new patch was needed. The `alia_spark.icon`
+    precedent — overlay `.icon` + `tools/overlay.allowlist` entry + a numbered
+    patch to `chrome/app/vector_icons/BUILD.gn` — remains the path if Astro
+    ever wants distinct branding here.
+  - **`METADATA_HEADER` expands to a trailing `private:`.** Every upstream
+    subclass re-states ` public:` on the next line; the bubble header did not,
+    which is the whole reason its constructor, destructor and `ShowBubble`
+    read as private at every call site. That was a missing access specifier,
+    not a design problem.
+  - **`views::BubbleDialogDelegateView` is deprecated and its constructor is
+    private behind a friend list stamped "DO NOT ADD TO THIS LIST!"** New code
+    subclasses `views::BubbleDialogDelegate` (public constructor) and puts the
+    contents in a separate `views::View` via `SetContentsView`, which is what
+    upstream's own `AccountSelectionBubbleDelegate` does. `Init()` is still the
+    hook and `CreateBubble` still calls it, so ownership is the identical code
+    path. Astro's bubble was migrated and renamed to
+    `AstroAdBlockBubbleDelegate` — a class deriving from a delegate must not be
+    called `...View`.
+
+  Expect the same drift on the rest of the overlay: this is what defect #7
+  above was hiding, not a regression.
 - **Nothing fails when a patch stops applying — the whole series applying is
-  a measurement, never an assumption.** All 169 apply today (112 ungoogled +
-  57 Astro). `build/reports/patch-report.json` records
-  `applied_count: 168`, `failed_count: 0` from the last full-series run, which
-  predates `059-itertools-shipping-group.patch`; 059 was measured on its own
-  against the pristine file with the same acceptance test, and it is the only
-  patch in either series naming `gnrt_config.toml`, so nothing before it in
-  declared order can change its input. Also,
+  a measurement, never an assumption.** All 177 apply today (112 ungoogled +
+  65 Astro), measured 2026-08-09 by the replay described below: 766 paths named
+  by the two series, of which 748 were seeded pristine (735 from `chromium/src`
+  HEAD, 13 from DEPS sub-repositories) and 18 are created by the series itself;
+  177/177 applied in declared order, no fuzz. That run supersedes the per-patch
+  checks 067 and 069 were each admitted on — a patch that applies against a
+  pristine tree can still fail in series, which is the whole reason the replay
+  runs the series in order rather than one patch at a time.
+  `build/reports/patch-report.json` is OLDER than that and says so —
+  `applied_count: 168` from the last full run against the real checkout — so
+  read the replay, not the report, for whether the series applies. Also,
   `docs/astro-next/policy/endpoints.json` declares the non-applying list
   EMPTY, with the replay that emptied it and the three waves of repairs
   written up there. Read it there rather than here; what belongs here is the
@@ -216,11 +540,44 @@ do not let a build imply they are resolved:
     somebody else's patch, so it applies to the pristine file and fails in
     series. A per-patch check against a pristine tree calls the second kind
     healthy, which is why the replay runs the series in order.
-- Every WebUI page serves its assets by reading a directory next to the
-  executable at runtime (`base::DIR_EXE` + `resources/astro-<page>`) rather
-  than from a `.pak`, so none of them carries Chromium's resource-bundling
-  guarantees, and each renders blank, with no error, if its directory is
-  missing. Removing `DIR_EXE` entirely is owned by #14.
+- The three LEGACY pages (`ntp`, `alia`, `whats-new`) still serve their assets
+  by reading a directory next to the executable at runtime (`base::DIR_EXE` +
+  `resources/astro-<page>`) rather than from a `.pak`, so none of them carries
+  Chromium's resource-bundling guarantees, and each still renders BLANK, with
+  no error, when its directory is missing. Moving them into the app is the
+  remainder of #14.
+
+  Pages built on `astro_webui_page.cc` no longer do any of that:
+  `067-astro-webui-pak-repack.patch` put `astro_webui_resources.pak` into
+  chrome's repack list, and the base serves every page out of the GRIT
+  resource map (`AddResourcePaths` plus a `SetDefaultResource` fallback that
+  makes client-side routes resolve). Settings is the only such page today.
+  The single remaining filesystem path, `astro_webui_dev_source.cc`, is
+  compiled only under `astro_webui_dev_tools` — off in every committed
+  configuration, so a release binary contains neither the reader nor the
+  `--astro-webui-dir` switch that would reach it. That is not a convention:
+  `tools/tests/cases/webui-assets-come-from-the-pak.sh` compares the four
+  places the guarantee is spelled and fails if any one of them drifts.
+
+  `chrome://adblock` is neither of those two shapes, and is the one page a
+  reader will otherwise mis-file. It serves inline strings:
+  `CreateAndAddInlineSource` sets `SetDefaultResource(-1)` — the comment on
+  that line reads "No grit resource, we use RequestFilter" — beside a
+  `SetRequestFilter` whose predicate claims every path. So it is NOT a
+  `DIR_EXE` finding and correctly does not appear beside the three legacy
+  pages in the security baseline: the bytes are compiled into the binary and
+  nothing is read off disk. It is also not in the pak, so it carries none of
+  the resource-bundling guarantees, and it is the same catch-all-filter shape
+  settings was moved away from. Folding it in is cheap and belongs to #14's
+  remainder: add the entry to the Vite build, then the controller becomes
+  `.resources = kAstroWebuiResources` / `.default_resource =
+  IDR_ASTRO_WEBUI_INDEX_HTML` like settings.
+
+  Do not go looking for a grit id to satisfy here. `IDR_ASTRO_ADBLOCK_HTML`
+  and the `CreateAndAddHTMLSource` that referenced it were dead code — the
+  constructor never called it — and `676c9eb` deleted both, so a `grep` for
+  that identifier now returns nothing. Declaring an id for it would have been
+  machinery for nobody.
 
 ## Branding
 
@@ -275,11 +632,40 @@ src/chrome/browser/oxy/
 │   ├── astro_adblock_resource_type.* # Resource type classification
 │   ├── webui/astro_adblock_ui.*     # chrome://adblock controller + handler
 │   └── rs/                          # Rust source + BUILD.gn
+├── astro_pref_names.h               # Astro's own pref paths, as constants
+├── astro_theme_service.*            # KeyedService: watches the mode and preset
+│   astro_theme_service_factory.*    #   prefs, repaints the native UI, notifies
+│                                    #   the pages. Built with the profile.
 ├── ui/astro_color_tokens.h          # GENERATED from Bloom's tokens.json by
 │                                    #   tools/generate-color-mixer.py. Never
 │                                    #   hand-edit: a build-safety case
 │                                    #   regenerates it and compares.
+├── ui/astro_color_mixer.*           # Bloom token -> Chromium ColorId, by hand.
+│                                    #   Called last from AddChromeColorMixers
+│                                    #   (patch 061); computes no colour.
 └── webui/                           # WebUI page controllers
+    ├── BUILD.gn                     # The mojom("mojo_bindings") target, the
+    │                                #   astro_webui_dev_tools buildflag, and the
+    │                                #   Vite -> generate_grd -> grit -> .pak chain
+    │                                #   (build_app, build_grd, resources). The
+    │                                #   controllers are sources of the parent
+    │                                #   target //chrome/browser/oxy:webui_controllers.
+    ├── astro_webui.gni              # astro_webui_dev_tools / astro_webui_app_dir.
+    ├── astro_webui_dev_source.*     # The ONE disk-serving path, compiled only
+    │                                #   when astro_webui_dev_tools is on.
+    ├── tools/build_astro_webui_app.py  # The GN action: runs Vite, checks the
+    │                                #   emitted set against the committed
+    │                                #   manifest.json, stages it for GRIT.
+    ├── astro_theme.mojom            # GetTheme + OnThemeChanged. READ ONLY, and
+    │                                #   bound by every Astro page.
+    ├── astro_settings.mojom         # SetThemeMode / SetColorPreset. Named
+    │                                #   methods only — never SetPref(string,…).
+    ├── astro_webui_page.*           # Shared base: asset serving (the one seam
+    │                                #   #16 replaces), per-host CSP, and the
+    │                                #   plain and Mojo controller bases.
+    ├── astro_theme_provider.*       # Serves astro_theme.mojom for one page.
+    ├── astro_settings_ui.*          # astro://settings controller + config
+    ├── astro_settings_page_handler.* # Browser side of astro_settings.mojom
     ├── astro_ntp_ui.*               # chrome://astro-ntp controller
     ├── astro_alia_ui.*              # chrome://alia controller
     └── astro_whats_new_ui.*         # chrome://whats-new controller
@@ -292,9 +678,10 @@ webui/
 ├── app/           # WHERE NEW WORK GOES. One Vite + Tailwind v4 + Bloom
 │                  #   application serving every astro:// surface, one entry
 │                  #   per WebUI host (each host is a separate origin, so the
-│                  #   entry is chosen from location.hostname). Not yet served
-│                  #   by any controller and not in build.sh's staging list —
-│                  #   the GN/grit/pak wiring is #14.
+│                  #   entry is chosen from location.hostname). Built by a GN
+│                  #   action into astro_webui_resources.pak and served to
+│                  #   astro://settings today; manifest.json is committed and
+│                  #   is the authority for what it emits.
 ├── ntp/           # New Tab Page (Vite + Tailwind v4)
 ├── alia/          # Alia AI Panel
 └── whats-new/     # What's New Page
@@ -307,31 +694,142 @@ absorbs them; do not start a fourth one beside them.
 
 ```
 patches/ungoogled/   # 112 inherited de-Google patches
-patches/astro/       # 57 Astro-specific patches (numbered 001-059; 007 and 035 were
-                     #   removed as empty files, so two numbers are unused)
+patches/astro/       # 65 Astro-specific patches (numbered 001-069; 007 and 035
+                     #   were removed as empty files, 012 was retired by 060, and
+                     #   068 was never written — two agents were landing patches
+                     #   at once and 069 was taken to avoid a collision — so four
+                     #   numbers are unused)
 gn_args/             # GN build args per platform (linux.gn, android.gn, macos.gn, windows.gn, etc.)
 branding/            # Logos, icons, astro.conf, .desktop file
 tools/               # Build, install, patch, packaging scripts
 ```
 
-## Settings and the error page do not exist
+## Settings: Astro serves it, out of the pak
 
-There is no Astro settings page and no Astro error page. Both were deleted in
-`c9c4383`. The Mojo settings backend this file used to describe never existed
-at all — no `.mojom` has ever been committed to this repository, at any
-revision. What `c9c4383` removed was a generic `chrome.send` handler carrying
-six messages and thirty-four prefs. So `astro_settings.mojom`,
-`AstroSettingsHandler`, `kProfilePrefMappings[]` and the "add a setting in
-three steps" recipe were all describing something that was never built, which
-is worse than describing nothing: it sent readers looking for a file to edit.
+There is still no Astro error page — it was deleted in `c9c4383` and nothing
+replaced it. Settings is different: Astro owns it, and as of
+`067-astro-webui-pak-repack.patch` it has assets to serve.
 
-`astro://settings` today is served by upstream's own `settings::SettingsUIConfig`.
+HISTORY, because this file used to lie about it. The Mojo settings backend
+older revisions of this document described never existed: no `.mojom` was
+committed to this repository at any revision before 2026-08-09. What `c9c4383`
+removed was a generic `chrome.send` handler carrying six messages and
+thirty-four prefs. `AstroSettingsHandler`, `kProfilePrefMappings[]` and the
+"add a setting in three steps" recipe all described something never built.
 
-The direction is a single Vite + Tailwind + Bloom application serving every
-`astro://` surface, one entry per WebUI host, with narrow typed Mojo per domain
-rather than a generic `SetPref(string, value)`. That is issues #15 (as amended
-2026-08-08), #14, #22, #17 and #24. Nothing about that architecture is
-documented here until it exists.
+WHAT IS TRUE NOW. `060-settings-webui-takeover.patch` swaps upstream's
+`settings::SettingsUIConfig` for `astro::AstroSettingsUIConfig`, under
+upstream's own host. The controller binds two typed Mojo interfaces
+(`astro_theme.mojom` read-only, `astro_settings.mojom` for the writes) and
+adopts four upstream handlers wholesale — `BrowserLifetimeHandler`,
+`ClearBrowsingDataHandler`, `SearchEnginesHandler`, `AboutHandler`.
+
+WHERE ITS ASSETS COME FROM. Not a directory beside the executable — that
+arrangement is gone, along with the diagnostic document older revisions of
+this section described. `//chrome/browser/oxy/webui:build_app` runs
+`bun run build` in `webui/app` as a GN action, `generate_grd` and `grit` turn
+the emitted set into `astro_webui_resources.pak`, and
+`067-astro-webui-pak-repack.patch` adds that pak to `chrome_extra_paks` and
+reserves its id range in `tools/gritsettings/resource_ids.spec`, so the bytes
+land in `resources.pak`. `astro_webui_page.cc` serves them through
+`AddResourcePaths` plus a `SetDefaultResource` fallback, which is what makes
+`astro://settings/privacy` resolve to the app document and route client-side.
+
+Measured 2026-08-09 on the applied series: 66 resources in the pak, all 66
+inside the shipped `resources.pak`, and `index.html`, `astro_webui.js` and
+`astro-webui-style.css` extracted from it byte-identical to what Vite emitted.
+`astro-settings` is deliberately NOT in `build.sh`'s `REQUIRED_WEBUI_PAGES` —
+the app is an input the BUILD consumes, not a bundle the script stages, and
+the only thing `build.sh` checks for it is the `bun install` precondition a GN
+action cannot satisfy for itself.
+
+Three things follow that are easy to get wrong:
+
+- **The app needs generated Mojo TypeScript bindings, and they are not in
+  this repository.** The action depends on `:mojo_bindings_ts__generator` and
+  passes its own `root_gen_dir` down as `ASTRO_MOJOM_GEN_DIR`. Without both
+  halves Vite compiles against whichever `gen/` the app's `tsconfig.json`
+  happens to name — a different build's, or none, which fails the build
+  naming the target that fixes it.
+- **`manifest.json` in `webui/app` is committed and is the authority** for the
+  set of files the app emits. The action compares the build's output against
+  it and stops if they disagree, so a resource set changing is a reviewable
+  event rather than a silent repack.
+- **A release binary contains no filesystem-reading path at all.**
+  `astro_webui_dev_source.cc` and the `--astro-webui-dir` switch exist only
+  under `astro_webui_dev_tools`, off in every committed configuration.
+
+WHY THE SAME HOST. `settingsPrivate` and seven other extension APIs are
+granted by host pattern in the two `_api_features.json` files, and the pattern
+names the settings host — `grep -n 'chrome://settings/\*'` finds six in
+`chrome/common/extensions/api/` and two in `extensions/common/api/`. Any other
+host gets no bindings, silently. Registering a second
+config for the same origin is not an option either:
+`WebUIConfigMap::AddWebUIConfigImpl` CHECKs on a duplicate. Swapping the line
+is the only shape that satisfies both.
+
+The rest of the direction — one Vite + Tailwind + Bloom application serving
+every `astro://` surface, one entry per host, narrow typed Mojo per domain and
+never a generic `SetPref(string, value)` — is issues #15, #14, #22, #17 and
+#24. Nothing about it is documented here until it exists.
+
+### Theming reaches the native UI
+
+Changing the theme in settings re-colours the browser, not just the page. The
+mode is upstream's `browser.theme.color_scheme2`; the Bloom colour preset is
+Astro's own `astro.theme.preset`. `AstroThemeService` watches both, pushes the
+preset into `astro::AddAstroColorMixers` (patch 061, called last so it wins),
+and calls `NotifyOnNativeThemeUpdated()` on the native themes the windows
+observe, so they repaint with no restart. Both halves of that last sentence
+are load-bearing and the second bullet below is why: dropping the cached
+ColorProviders is not what makes an open window repaint.
+
+Five things to know before touching it:
+
+- **One band is still GTK's and it is not a bug in the mixer.** Measured
+  2026-08-09 on the built browser: the tabs, toolbar, omnibox, menus and the
+  page all take the preset, while the frame band around the tab strip paints
+  GTK's colour (`#333333` under Adwaita dark, `#DBD7D3`-ish under Adwaita
+  light — it follows `GTK_THEME`, which is how it was identified). The
+  ColorProvider resolves `ui::kColorFrameActive` to the preset's `muted`
+  correctly; that band is drawn from the GTK frame rather than read from the
+  provider. Owned by #24.
+
+- **On Linux the profile always carries a theme supplier, and nobody chose
+  it.** `ThemeServiceAuraLinux` installs a `SystemThemeLinux` supplier —
+  `ThemeType::kNativeX11` — whenever `extensions.theme.system_theme` names GTK
+  or Qt, and `ThemeService` registers that pref with
+  `ui::GetDefaultSystemTheme()`, which answers `kGtk` on a GTK desktop. So
+  `key.custom_theme` is non-null on every fresh Linux profile. Reading it as a
+  boolean — the shape a stand-down guard naturally takes — stands the whole
+  mixer down for every Linux user, and looks fine from the pages, which theme
+  through Mojo and never consult this key. Ask what KIND of supplier it is;
+  `astro_color_mixer.cc` does it with an exhaustive switch so a new upstream
+  `ThemeType` is a compile error.
+- **`NotifyOnNativeThemeUpdated()` drops the ColorProvider cache globally but
+  notifies only its OWN observers, and on Linux the browser windows are not
+  among them.** `BrowserWidget::SelectNativeTheme` points every non-incognito
+  window at `ui::LinuxUiTheme`'s NativeTheme (GTK or Qt) when one exists;
+  incognito stays on `NativeTheme::GetInstanceForNativeUi()`. Notifying one
+  instance produces the most misleading state available: every fresh read of a
+  ColorProvider is correct — `chrome://theme/colors.css?sets=ui,chrome`
+  included — while the open windows keep the pixels they already had and only
+  catch up when something else forces a paint, such as a resize. Notify both,
+  which is what `ThemeServiceAuraLinux` does when it starts and stops using
+  the system theme. Corollary for verification: a colour read through
+  colors.css is NOT evidence that a window repainted, and a screenshot taken
+  after a resize is not evidence that it repainted on its own.
+- **The preset is process-global in v1.** A `ColorProvider` is keyed by
+  `ui::ColorProviderKey`, which carries no profile, so with two profiles open
+  the last write wins for every window. Recorded on #24, not fixed here.
+- **`astro.theme.preset` is spelled in three places** — `astro_pref_names.h`,
+  the registration inside `020-register-oxy-prefs.patch`, and
+  `pref-ids.ts` — because a patch edits an upstream file and cannot include an
+  overlay header. `PrefService::GetString` on an unregistered path returns
+  empty rather than failing, so a rename that misses one produces a control
+  that moves and changes nothing.
+  `tools/tests/cases/theme-pref-ids-match-across-the-boundary.sh` is the only
+  thing that compares them.
 
 ## How to Add a New WebUI Page
 
@@ -339,9 +837,14 @@ documented here until it exists.
    - Inherit from `content::WebUIController` (simple page) or `ui::MojoWebUIController` (if Mojo IPC needed)
    - Define a `kAstroFooHost` constant for the URL host
    - Create a `UIConfig` class inheriting `content::DefaultWebUIConfig<AstroFooUI>`
-   - In the constructor, set up `WebUIDataSource` to serve the Vite-built assets from disk
+   - Declare a `WebUIPage` and let `astro_webui_page.cc` build the data
+     source; do not construct one by hand and do not read assets from disk
 
-2. **Add to BUILD.gn** in `src/chrome/browser/oxy/webui/BUILD.gn`
+2. **Add the sources** to `source_set("webui_controllers")` in
+   `src/chrome/browser/oxy/BUILD.gn`. `webui/BUILD.gn` holds the
+   `mojom("mojo_bindings")` target, the `astro_webui_dev_tools` buildflag and
+   the Vite -> `generate_grd` -> `grit` -> `.pak` chain — add a `.mojom` there
+   if the page needs one, and bind it from a `MojoWebUIController`.
 
 3. **Register the config** with a numbered patch to
    `chrome/browser/ui/webui/chrome_web_ui_configs.cc`, following
@@ -359,24 +862,37 @@ documented here until it exists.
 5. **Create the frontend** as an entry in `webui/app/` (see above), not as a
    new top-level `webui/foo/`.
 
-6. **Wire the assets.** Today the controllers read
+6. **Nothing to wire — that is the point.** A page whose frontend is an entry
+   in `webui/app` sets `.resources = kAstroWebuiResources` and
+   `.default_resource = IDR_ASTRO_WEBUI_INDEX_HTML` on its `WebUIPage`, the
+   same two values every Astro page uses, because the whole app is one
+   multi-entry build in one `.pak`. There is no path to stage, no directory to
+   agree about, and a resource the map names but GRIT did not compile is a
+   LINK error rather than a blank page found by a user.
+
+   The three LEGACY pages still work the old way: the controllers read
    `<DIR_EXE>/resources/astro-<page>/`, `tools/build.sh` stages
    `webui/<page>/dist` to exactly that path, and the page name must be in
-   `REQUIRED_WEBUI_PAGES` or nothing stages it. Those three have to agree, and
-   nothing checks that they do: when the controllers read one path and
+   `REQUIRED_WEBUI_PAGES` or nothing stages it. Those three have to agree and
+   nothing checks that they do — when the controllers read one path and
    build.sh wrote another, every page rendered blank and the build reported
-   success. Removing `DIR_EXE` in favour of a `.pak` is #14.
+   success. Do not add a fourth page to that arrangement.
 
 ## WebUI Page URLs
 
 | Page | Internal URL | Displayed as |
 |------|-------------|-------------|
 | New Tab | `chrome://astro-ntp` | `astro://newtab` |
+| Settings | `chrome://settings` | `astro://settings` |
 | Alia AI | `chrome://alia` | `astro://alia` |
 | What's New | `chrome://whats-new` | `astro://whats-new` |
 
-`chrome://settings` and `chrome://astro-error` are NOT in this table: Astro owns
-neither. Settings is upstream's page and the error page was deleted.
+Settings is Astro's since `060-settings-webui-takeover.patch`, on upstream's
+own host and by swapping upstream's registration — see the settings section
+above, including the part where it has no assets to serve yet.
+
+`chrome://astro-error` is NOT in this table: the error page was deleted and
+nothing replaced it.
 
 `chrome://whats-new` is served by upstream's `WhatsNewUIConfig`, not by
 Astro's controller. Astro's host string is byte-identical to upstream's, and
@@ -474,11 +990,16 @@ Rules that follow:
 - C++ code follows Chromium style guide (Google C++ style with Chromium extensions).
 - All Oxy integrations in self-contained files under `src/chrome/browser/oxy/`.
 - Minimal patches to existing Chromium files — surgical hooks, includes, and registrations only.
-- Astro defines no Mojo interface of its own: there is no `.mojom` under
-  `src/`, at this or any past revision. The overlay only CONSUMES Chromium's
-  (`network::mojom` and friends). When the first Astro `.mojom` lands, rebuild
+- Astro's own mojoms live in `src/chrome/browser/oxy/webui/` and are built by
+  `mojom("mojo_bindings")` there — `astro_theme.mojom` and
+  `astro_settings.mojom` as of 2026-08-09, the first two ever committed to this
+  repository. Keep them narrow and per-domain, one named method per decision;
+  never a generic `SetPref(string, value)`. After changing one, rebuild the
   affected targets clean rather than incrementally — generated bindings are a
-  classic stale-artifact source.
+  classic stale-artifact source. A new interface also needs an entry in the
+  WebUI frame binder map (`063-astro-webui-mojo-binders.patch`), or the
+  controller's `BindInterface` is never called and the page sees a pipe that
+  never answers, with no error on either side.
 
 ## Development Workflow
 
@@ -536,3 +1057,9 @@ tools/build.sh Debug                 # Debug
   the live page in a running browser, or by probing for the asset's raw
   bytes directly — PNGs are stored uncompressed inside a `.pak`, so a
   mid-file byte slice does match.
+- **`pgrep -f <pattern>` matches the command line of the shell running it**,
+  so "is my build still going?" answers YES forever, including after you kill
+  it. Reported twice in one session as "STILL RUNNING" about a terminated
+  ninja. `pgrep -x ninja` asks about the process instead of about a string
+  that necessarily contains itself. Same family as the rest of this section:
+  the check's pass and its nothing-was-measured are the same output.

@@ -3,35 +3,21 @@
 
 #include "chrome/browser/oxy/adblock/webui/astro_adblock_ui.h"
 
+#include "base/memory/ref_counted_memory.h"
 #include "chrome/browser/oxy/adblock/webui/astro_adblock_ui_handler.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/webui_url_constants.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
+#include "services/network/public/mojom/content_security_policy.mojom.h"
 
 namespace oxy::adblock {
 
 namespace {
 
 constexpr char kAdBlockHost[] = "adblock";
-
-void CreateAndAddHTMLSource(content::WebUI* web_ui) {
-  content::WebUIDataSource* source =
-      content::WebUIDataSource::CreateAndAdd(
-          web_ui->GetWebContents()->GetBrowserContext(), kAdBlockHost);
-
-  // Inline the HTML page directly since it's a simple settings page.
-  source->SetDefaultResource(IDR_ASTRO_ADBLOCK_HTML);
-
-  // Allow inline scripts for the embedded JavaScript.
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src 'self' 'unsafe-inline';");
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::StyleSrc,
-      "style-src 'self' 'unsafe-inline';");
-}
 
 // Since we bundle the HTML inline rather than using grit resources,
 // we create the data source with raw string content.
@@ -326,8 +312,6 @@ void CreateAndAddInlineSource(content::WebUI* web_ui) {
 </body>
 </html>
   )html";
-
-  source->AddResourcePath("", "adblock.html");
 
   // Override the default resource with our inline HTML.
   source->SetDefaultResource(-1);  // No grit resource, we use RequestFilter.

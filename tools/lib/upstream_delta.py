@@ -254,9 +254,21 @@ def name_status(src: Path, base: str, status_filter: str) -> list[str]:
     -z is not optional here: a NUL-separated stream is the only form that
     cannot be corrupted by a path containing whitespace, and Chromium has
     400,000 of them.
+
+    `--ignore-submodules=dirty` is passed EXPLICITLY, and it is the opposite of
+    an oversight. A gitlink whose commit moved is a change to this tree and is
+    reported here; a submodule whose work tree is dirty is measured by
+    descending into it (`submodule_scan` below), because only that yields the
+    file-level paths every declaration in this repository is written in. Saying
+    so on the command line also stops the answer depending on the
+    `diff.ignoreSubmodules = dirty` that gclient writes into the checkout's own
+    config — a guard whose verdict is configurable by the thing it guards is
+    not a guard, and inheriting that value is exactly how this measurement came
+    to report zero over a tree carrying the last run's patches.
     """
     fields = git(
         src, "diff", "--name-status", "-z", "--no-renames",
+        "--ignore-submodules=dirty",
         "--diff-filter=" + status_filter, base,
     ).split(b"\0")
     paths: list[str] = []
@@ -327,6 +339,108 @@ def modified_line_counters(
             elif line.startswith("-"):
                 counters[current][1][line[1:]] += 1
     return counters
+
+
+class SubmoduleScan:
+    """What one descent into a submodule contributed, already re-rooted."""
+
+    def __init__(self) -> None:
+        self.roots: list[str] = []
+        self.modified: list[str] = []
+        self.deleted: list[str] = []
+        self.untracked: list[str] = []
+        self.counters: dict[str, tuple[collections.Counter, collections.Counter]] = {}
+
+    def absorb(self, other: "SubmoduleScan") -> None:
+        self.roots.extend(other.roots)
+        self.modified.extend(other.modified)
+        self.deleted.extend(other.deleted)
+        self.untracked.extend(other.untracked)
+        self.counters.update(other.counters)
+
+
+def dirty_submodules(src: Path) -> list[str]:
+    """Submodule paths whose work tree differs from what they check out to.
+
+    The superproject cannot answer what changed INSIDE one of them, and with
+    gclient's `diff.ignoreSubmodules = dirty` it does not even say that one
+    did. porcelain=v2 carries the flags in field 2 — `S<c><m><u>`, each letter
+    present when set — so `m` (modified content) and `u` (untracked content)
+    are readable, and `c` (the gitlink moved) is deliberately not among the
+    triggers here: `name_status` already reports that one against the base.
+    """
+    records = git(
+        src, "status", "--porcelain=v2", "-z",
+        "--untracked-files=all", "--ignore-submodules=none",
+    ).split(b"\0")
+    paths: list[str] = []
+    index = 0
+    while index < len(records):
+        record = records[index]
+        index += 1
+        if not record or record[:1] not in (b"1", b"2"):
+            continue
+        fields = record.split(b" ", 8 if record[:1] == b"1" else 9)
+        if record[:1] == b"2" and index < len(records) and records[index]:
+            index += 1  # the rename's origin path, a bare extra field
+        submodule_field = decode(fields[2])
+        if not submodule_field.startswith("S"):
+            continue
+        if submodule_field[2] != "." or submodule_field[3] != ".":
+            paths.append(decode(fields[-1]))
+    return paths
+
+
+def submodule_scan(src: Path, base: str, prefix: str = "") -> SubmoduleScan:
+    """The same measurement, taken inside every dirty submodule.
+
+    Thirteen of the files the declared series patches live in two submodules,
+    and 9,171 of the 12,392 files pruning deletes live in fifty-two of them. A
+    measurement that stops at the superproject boundary therefore reports a
+    fraction of what the tree carries — and reports it as the whole thing.
+
+    Each submodule is measured against the commit the LOCKED BASE records for
+    it, not against its own HEAD, so the answer is "how does this tree differ
+    from the browser we pinned" all the way down. Results are re-rooted onto
+    the superproject, which puts them in the vocabulary `pruning.list`, the
+    patch series and the overlay allowlist already use: nothing here needs a
+    list of which submodule paths Astro is allowed to write, because the
+    declarations that answer that for every other file answer it for these too.
+    """
+    scan = SubmoduleScan()
+    for submodule in dirty_submodules(src):
+        sub_src = src / submodule
+        sub_prefix = prefix + submodule + "/"
+        try:
+            sub_base = decode(git(src, "rev-parse", "{}:{}".format(base, submodule))).strip()
+        except DeltaError:
+            # The submodule is not in the locked commit at all, so there is no
+            # base to measure it against. Reported as a new path rather than
+            # skipped: an entire subtree nobody declared is the loudest version
+            # of the thing this tool refuses.
+            scan.roots.append(prefix + submodule)
+            scan.untracked.append(prefix + submodule)
+            continue
+
+        scan.roots.append(prefix + submodule)
+        sub_modified = name_status(sub_src, sub_base, "M")
+        scan.modified.extend(sub_prefix + path for path in sub_modified)
+        scan.deleted.extend(
+            sub_prefix + path for path in name_status(sub_src, sub_base, "D")
+        )
+        scan.untracked.extend(
+            sub_prefix + path for path in untracked_paths(sub_src)
+        )
+        scan.counters.update(
+            {
+                sub_prefix + path: counter
+                for path, counter in modified_line_counters(
+                    sub_src, sub_base, sub_modified
+                ).items()
+            }
+        )
+        scan.absorb(submodule_scan(sub_src, sub_base, sub_prefix))
+    return scan
 
 
 # ---------------------------------------------------------------------------
@@ -844,6 +958,7 @@ class Measurement:
         self.unattributed_deletions: list[str] = []
         self.unattributed_untracked: list[str] = []
         self.parse_mismatch: list[str] = []
+        self.submodules_scanned: list[str] = []
 
 
 def measure(
@@ -877,10 +992,23 @@ def measure(
     pruned = read_pruning_list(patches_root)
     overlay_destinations = read_overlay_destinations(overlay_allowlist)
 
+    # Everything below the superproject boundary, measured the same way and
+    # re-rooted, so the three enumerations that follow each cover the whole
+    # tree rather than the part git will talk about without being asked twice.
+    submodules = submodule_scan(src, base)
+    measurement.submodules_scanned = sorted(submodules.roots)
+
     # --- modified files ----------------------------------------------------
-    modified = name_status(src, base, "M")
+    #
+    # The line counters are taken per work tree and merged, never by handing a
+    # submodule-prefixed path to the superproject's `git diff`: that path names
+    # nothing git will diff there, and it produces no output rather than an
+    # error — a file that reads as "no delta" for a reason nobody would see.
+    superproject_modified = name_status(src, base, "M")
+    modified = superproject_modified + submodules.modified
     measurement.modified_count = len(modified)
-    counters = modified_line_counters(src, base, modified)
+    counters = modified_line_counters(src, base, superproject_modified)
+    counters.update(submodules.counters)
 
     # A path git listed as modified but whose diff never appeared is a parse
     # failure, and a parse failure that reads as "no delta for that file" is
@@ -909,14 +1037,14 @@ def measure(
             measurement.deltas[path] = delta
 
     # --- deleted files -----------------------------------------------------
-    deleted = name_status(src, base, "D")
+    deleted = name_status(src, base, "D") + submodules.deleted
     measurement.deleted_count = len(deleted)
     measurement.unattributed_deletions = sorted(
         path for path in deleted if path not in pruned
     )
 
     # --- untracked files ---------------------------------------------------
-    untracked = untracked_paths(src)
+    untracked = untracked_paths(src) + submodules.untracked
     measurement.untracked_count = len(untracked)
     for path in untracked:
         if path == "astro":
@@ -1363,6 +1491,12 @@ def render(measurement: Measurement, allowlist: Allowlist, violations: list[Viol
     ))
     out.append("  new untracked paths {}".format(measurement.untracked_count))
     out.append("  patches subtracted  {}".format(measurement.patch_count))
+    # Printed even when zero. The counts above used to be superproject-only and
+    # said nothing about it, so a tree whose submodules carried the last run's
+    # patches produced a report that looked complete.
+    out.append("  submodules descended into {}".format(
+        len(measurement.submodules_scanned)
+    ))
     out.append("")
 
     added = sum(len(delta.added) for delta in measurement.deltas.values())
@@ -1469,6 +1603,7 @@ def main(argv: list[str]) -> int:
                 "deleted_files": measurement.deleted_count,
                 "untracked_paths": measurement.untracked_count,
                 "patches_subtracted": measurement.patch_count,
+                "submodules_scanned": measurement.submodules_scanned,
             },
             "integration_delta": [
                 delta.as_dict() for _, delta in sorted(measurement.deltas.items())

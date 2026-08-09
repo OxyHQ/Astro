@@ -6,7 +6,10 @@
     "ntp_show_notes": false,
     "ntp_show_quick_links": false,
     "ntp_show_sites": false,
-    "ntp_show_weather": false
+    "ntp_show_weather": false,
+    "theme": {
+      "preset": "astro-fixture-astro-theme-preset"
+    }
   },
   "bookmark_bar": {
     "show_on_all_tabs": true

@@ -1,0 +1,52 @@
+// Copyright 2026 Oxy. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+
+// The controls astro://settings has that Chromium has no concept of.
+//
+// NOT a pref API. Chromium's own prefs reach this page through
+// chrome.settingsPrivate, which carries policy state (controlledBy,
+// enforcement, userSelectableValues) that a hand-rolled bridge would lose;
+// Astro adds nothing there. What is here is the set of Astro-specific
+// decisions, one named method each.
+//
+// There is deliberately no SetPref(string, value). A generic setter makes
+// every pref in the profile writable by any script that reaches this
+// interface, turns the pref path into an untyped string the compiler cannot
+// check, and leaves the browser with nowhere to validate. The page that
+// carried one before this was deleted in c9c4383.
+//
+// This interface is bound ONLY by AstroSettingsUI. Read-only theme access,
+// which every page needs, is astro_theme.mojom.
+
+module astro.settings.mojom;
+
+import "chrome/browser/oxy/webui/astro_theme.mojom";
+
+interface PageHandler {
+  // Light/dark/system. Fire-and-forget: every value of the enum is valid, so
+  // there is nothing to report back. Whether it took effect arrives on
+  // astro.mojom.ThemeObserver like every other theme change — including when
+  // an enterprise policy refuses it, in which case no echo arrives and the
+  // control returns to what the policy says.
+  SetThemeMode(astro.mojom.ThemeMode mode);
+
+  // The Bloom colour preset, by name.
+  //
+  // Answers, unlike SetThemeMode, because this one can legitimately fail: the
+  // set of presets is Bloom's and a page bundled from a different Bloom
+  // release can name one this browser does not ship. `accepted` false means
+  // the name was rejected and nothing was stored — deliberately not a silent
+  // fallback to the default, which would look to the page like a colour it
+  // never asked for.
+  SetColorPreset(string preset) => (bool accepted);
+};
+
+interface PageHandlerFactory {
+  // There is no `Page` remote in this pair, which is the usual shape. Nothing
+  // the browser pushes to settings is settings-specific: the theme echo
+  // arrives on astro.mojom.ThemeObserver and Chromium's prefs arrive through
+  // chrome.settingsPrivate's own change events. A second push channel here
+  // would be a second place for the same fact to arrive, and the two would
+  // eventually disagree.
+  CreatePageHandler(pending_receiver<PageHandler> handler);
+};

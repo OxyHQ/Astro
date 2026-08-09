@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browser_prefs.cc
 --- a/chrome/browser/prefs/browser_prefs.cc
 +++ b/chrome/browser/prefs/browser_prefs.cc
-@@ -1717,6 +1717,24 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
+@@ -1713,6 +1713,35 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
    enterprise_connectors::RegisterProfilePrefs(registry);
    enterprise_promotion::RegisterProfilePrefs(registry);
    enterprise_reporting::RegisterProfilePrefs(registry);
@@ -22,6 +22,17 @@ diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browse
 +  registry->RegisterBooleanPref("astro.ntp_show_sites", true);
 +  registry->RegisterBooleanPref("astro.ntp_show_discover", true);
 +  registry->RegisterBooleanPref("astro.ntp_show_alia", true);
++
++  // The active Bloom colour preset, by name. Spelled here as a literal
++  // because a patch edits an upstream file and cannot reach the overlay's
++  // headers; the constant it must equal is astro::prefs::kThemePreset in
++  // chrome/browser/oxy/astro_pref_names.h, and its default is
++  // astro::prefs::kDefaultThemePreset. The third spelling is
++  // THEME_PRESET_PREF in webui/app/src/platform/browser/pref-ids.ts.
++  // tools/tests/cases/theme-pref-ids-match-across-the-boundary.sh is what
++  // keeps the three in agreement — a pref path is a string on every side of
++  // this boundary, so nothing else would notice a rename.
++  registry->RegisterStringPref("astro.theme.preset", "oxy");
 +
    dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
    DownloadPrefs::RegisterProfilePrefs(registry);

@@ -1,6 +1,8 @@
 # Copyright 2026 Oxy. All rights reserved.
 # Use of this source code is governed by a BSD-style license.
 
+import("webui/astro_webui.gni")
+
 # Core Oxy services (auth, tokens, cookies) — NO dependency on //chrome/browser/ui.
 source_set("oxy") {
   sources = [
@@ -33,6 +35,53 @@ source_set("oxy") {
   ]
 }
 
+# Theming — the profile's Bloom colour preset, and the mixer that paints
+# Chromium's native UI from it.
+#
+# Its own target, and NOT part of "webui_controllers", because of who has to
+# reach it: `//chrome/browser/ui/color:mixers` calls AddAstroColorMixers
+# (patch 061) and must not acquire a dependency on the WebUI layer to do it.
+# Nothing here depends on //chrome/browser/ui, which is what keeps that edge
+# acyclic.
+source_set("theming") {
+  sources = [
+    "astro_pref_names.h",
+    "astro_theme_service.cc",
+    "astro_theme_service.h",
+    "astro_theme_service_factory.cc",
+    "astro_theme_service_factory.h",
+    "ui/astro_color_mixer.cc",
+    "ui/astro_color_mixer.h",
+    "ui/astro_color_tokens.h",
+  ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/profiles",
+    "//chrome/browser/themes",
+    "//chrome/browser/ui/color:color_headers",
+    "//chrome/common:constants",
+    "//components/keyed_service/core",
+    "//components/prefs",
+    "//content/public/browser",
+    "//skia",
+    "//ui/color",
+    "//ui/native_theme",
+  ]
+
+  # A preset change has to repaint the windows that are already open, and on
+  # Linux those observe ui::LinuxUiTheme's NativeTheme rather than the one
+  # NativeTheme::GetInstanceForNativeUi() returns — see ApplyPresetToNativeUi.
+  # Same two targets //chrome/browser/themes takes for the same reason, and
+  # neither reaches //chrome/browser/ui, so the mixers edge stays acyclic.
+  if (is_linux) {
+    deps += [
+      "//ui/linux:linux_ui",
+      "//ui/linux:linux_ui_factory",
+    ]
+  }
+}
+
 # Oxy WebUI controllers (NTP, Settings, Alia, etc.) — CAN depend on
 # //chrome/browser/ui because they live alongside other WebUI controllers.
 # This matches how Chrome does it: WebUI controllers are part of the UI layer.
@@ -40,6 +89,21 @@ source_set("webui_controllers") {
   sources = [
     "oxy_alia_side_panel.cc",
     "oxy_alia_side_panel.h",
+
+    # Shared page base: asset serving, the per-host CSP table, and the two
+    # controller bases every Astro page derives from.
+    "webui/astro_webui_page.cc",
+    "webui/astro_webui_page.h",
+
+    # Read-only theme transport, held by every Astro page controller.
+    "webui/astro_theme_provider.cc",
+    "webui/astro_theme_provider.h",
+
+    # Settings WebUI (astro://settings — upstream's own host, see the header)
+    "webui/astro_settings_page_handler.cc",
+    "webui/astro_settings_page_handler.h",
+    "webui/astro_settings_ui.cc",
+    "webui/astro_settings_ui.h",
 
     # NTP WebUI (astro://newtab -> chrome://astro-ntp)
     "webui/astro_ntp_ui.cc",
@@ -56,8 +120,33 @@ source_set("webui_controllers") {
 
   ]
 
+  # The only code in Astro that serves a WebUI page off the filesystem, and it
+  # is not compiled at all unless a build asks for it. A release binary
+  # therefore contains neither the switch name nor the reader — which is
+  # checkable with `grep`, and is checked: see
+  # tools/tests/cases/webui-assets-come-from-the-pak.sh.
+  if (astro_webui_dev_tools) {
+    sources += [
+      "webui/astro_webui_dev_source.cc",
+      "webui/astro_webui_dev_source.h",
+    ]
+  }
+
+  public_deps = [
+    # public_deps rather than deps: the mojom's generated headers appear in
+    # this target's own public headers, so every dependent needs them too.
+    "webui:mojo_bindings",
+  ]
+
   deps = [
     ":oxy",
+    ":theming",
+
+    # The Astro WebUI app's .pak and the resource map astro_webui_page.cc
+    # serves from, and the flag deciding whether the disk-serving developer
+    # override is compiled in at all.
+    "webui:buildflags",
+    "webui:resources",
     "//base",
     "//chrome/browser/profiles",
     "//chrome/browser:shell_integration",

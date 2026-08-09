@@ -741,38 +741,48 @@ astro::resolve_chromium_src() {
 # as an accidental mass change.
 #
 # Calibrated against a real run rather than estimated. The complete ungoogled
-# stack on Chromium 146.0.7680.177 produces 3,923 modified paths: 112 patches
-# plus the binary pruning, which deletes 12,392 files of which those tracked by
-# src's own git show up here. The previous default of 2,500 was a guess written
-# before any real checkout existed, and it failed a correct run.
+# stack on Chromium 146.0.7680.177 produces 3,923 modified paths in the
+# SUPERPROJECT: 112 patches plus the binary pruning, which deletes 12,392 files
+# of which those tracked by src's own git show up here. The previous default of
+# 2,500 was a guess written before any real checkout existed, and it failed a
+# correct run.
 #
-# 6,000 leaves headroom for the Astro patches on top while still catching the
-# thing this guard is for: a run that has started modifying the tree wholesale.
-ASTRO_MAX_MODIFIED_UPSTREAM_PATHS="${ASTRO_MAX_MODIFIED_UPSTREAM_PATHS:-6000}"
+# Counting submodule content raised it again, and by more than the patches
+# suggest: 9,171 of those 12,392 pruned files live inside submodules, so a tree
+# nothing was blind to shows roughly 15,000 changed paths where the blind count
+# was 5,804. Measured 2026-08-09 on the built tree: 5,804 before the descent,
+# 14,988 after, of which 9,147 are pruned binaries and 37 are patch targets.
+#
+# 20,000 keeps the headroom the 6,000 gave the superproject count while still
+# catching the thing this guard is for: a run that has started modifying the
+# tree wholesale.
+ASTRO_MAX_MODIFIED_UPSTREAM_PATHS="${ASTRO_MAX_MODIFIED_UPSTREAM_PATHS:-20000}"
 
-# Prints one modified/untracked path per line. Parsed in python3 rather than
-# sed because `--porcelain -z` emits a second NUL-separated field for renames
-# which carries no status prefix, and a fixed 3-character strip corrupts it.
+# Prints one modified/untracked path per line, submodule content included.
+#
+# The parsing, the submodule descent and the reason either is needed are in
+# tools/lib/dirty_paths.py. The short version: gclient writes
+# `diff.ignoreSubmodules = dirty` into chromium/src/.git/config, so a plain
+# `git status --porcelain` prints NOTHING for a submodule carrying the last
+# run's patches — and every "is this checkout pristine" answer below is built
+# on this function.
 astro::_dirty_paths() {
     local src="$1"
-    git -C "$src" status --porcelain=v1 -z --untracked-files=all | python3 -c '
-import sys
+    local enumerator="${ASTRO_ROOT:?ASTRO_ROOT must be set}/tools/lib/dirty_paths.py"
+    astro::require_file "$enumerator" "dirty-path enumerator"
+    python3 "$enumerator" "$src"
+}
 
-records = sys.stdin.buffer.read().split(b"\0")
-index = 0
-while index < len(records):
-    record = records[index]
-    index += 1
-    if not record:
-        continue
-    status, path = record[:2], record[3:]
-    print(path.decode("utf-8", "surrogateescape"))
-    # A rename or copy is followed by its origin path as a bare extra field.
-    if status[0:1] in (b"R", b"C") or status[1:2] in (b"R", b"C"):
-        if index < len(records) and records[index]:
-            print(records[index].decode("utf-8", "surrogateescape"))
-            index += 1
-'
+# Prints one UNTRACKED path per line, submodule content included.
+#
+# Separate from the above because the artifact scans want untracked paths only:
+# a `.rej` left by a partial application is untracked, while Chromium ships 181
+# tracked `.orig` files that a name-based scan would condemn.
+astro::_untracked_paths() {
+    local src="$1"
+    local enumerator="${ASTRO_ROOT:?ASTRO_ROOT must be set}/tools/lib/dirty_paths.py"
+    astro::require_file "$enumerator" "dirty-path enumerator"
+    python3 "$enumerator" "$src" --untracked-only
 }
 
 # astro::require_pristine_chromium <src>
@@ -804,51 +814,63 @@ astro::require_pristine_chromium() {
         "Astro will not patch on top of an unknown tree: the result would be neither" \
         "the reviewed patch set nor upstream." \
         "" \
-        "To inspect:  git -C $src status" \
+        "A path with a submodule prefix (third_party/devtools-frontend/src/…, " \
+        "third_party/search_engines_data/resources/…) is NOT cleared by a" \
+        "superproject checkout+clean. docs/recovery.mdx §3 resets those too." \
+        "" \
+        "To inspect:  git -C $src status --ignore-submodules=none" \
         "To recover:  see docs/recovery.mdx (it prints the pinned revision before it acts)" \
         "To override: ASTRO_ALLOW_DIRTY_CHROMIUM=1 (developer-only; never set in CI)"
 }
 
-# astro::require_attributable_chromium <src> <allowlist-file> [manifest...]
+# astro::unattributable_paths [--declared-absent FILE] <allowlist-file> [manifest...]
 #
-# Used by steps that legitimately run against an already-patched tree. Every
-# modified path must be attributable to something Astro itself wrote: a
-# destination prefix declared in the overlay allowlist, or a path recorded in a
-# manifest emitted by an earlier pipeline step. Anything else is unrelated
-# developer work and blocks the run.
-astro::require_attributable_chromium() {
-    local src="$1" allowlist="$2"
-    shift 2
-
-    local dirty
-    dirty="$(astro::_dirty_paths "$src")"
-    [ -n "$dirty" ] || return 0
-
-    local total
-    total="$(printf '%s\n' "$dirty" | wc -l | tr -d '[:space:]')"
-    if [ "$total" -gt "$ASTRO_MAX_MODIFIED_UPSTREAM_PATHS" ]; then
-        if [ "${ASTRO_ALLOW_DIRTY_CHROMIUM:-0}" != "1" ]; then
-            astro::die_with_hint \
-                "Chromium checkout has $total modified paths, over the limit of $ASTRO_MAX_MODIFIED_UPSTREAM_PATHS." \
-                "This is the accidental-mass-change guard. Something has gone wrong." \
-                "Raise ASTRO_MAX_MODIFIED_UPSTREAM_PATHS deliberately if the patch stack really grew this much."
-        fi
-        astro::warn "override:dirty-chromium" "$total modified paths exceeds the limit; continuing on override"
-    fi
+# Reads candidate paths on stdin, prints back the ones nothing accounts for: a
+# path is attributable when a destination prefix in the overlay allowlist covers
+# it, when a manifest emitted by an earlier pipeline step records it, or when
+# `--declared-absent` names it.
+#
+# A filter rather than a check, so every guard that has to ask "did Astro write
+# this" asks it the same way. Splitting the question produced a build that
+# refused itself: the dirty-path check accepted the vendored crates and the
+# artifact scan, which had its own answer, condemned them.
+#
+# --declared-absent is patches/ungoogled/pruning.list, and it is needed for the
+# same reason `pruned` is among the RECORDED_KEYS below: a run's report records
+# the files that RUN deleted, and pruning is idempotent, so a file already gone
+# is not recorded again. Once the enumeration descends into submodules that
+# stops being a corner case — 9,171 of the 12,392 pruned files live inside one,
+# and a checkout produced before the reset procedure learned to reset them
+# carries every one of them as a deletion no report claims. Measured on the
+# built tree, 2026-08-09: 9,147 such paths, and the guard's own message said
+# "Astro did not write" about files Astro's pruning step is what removed.
+# tools/lib/upstream_delta.py has always attributed deletions from this
+# declaration rather than from a report; this is the same answer to the same
+# question.
+astro::unattributable_paths() {
+    local declared_absent=""
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --declared-absent) declared_absent="${2:?--declared-absent needs a file}"; shift 2 ;;
+            *) break ;;
+        esac
+    done
+    local allowlist="$1"
+    shift
 
     # The set arithmetic runs in python3, not bash loops: a full patch stack
     # records tens of thousands of paths, and an O(dirty x recorded) shell
     # comparison over that takes minutes.
     #
     # The program is passed with `python3 -c` rather than on stdin: stdin is
-    # already carrying the dirty-path list, and a `python3 - <<'PY'` heredoc
+    # already carrying the candidate list, and a `python3 - <<'PY'` heredoc
     # silently wins over the pipe, leaving sys.stdin empty and every path
     # looking attributable.
     local attribution_program
     attribution_program="$(cat <<'PY'
 import json, sys
 
-allowlist_path, *manifests = sys.argv[1:]
+declared_absent_path, allowlist_path, *manifests = sys.argv[1:]
 
 prefixes = []
 try:
@@ -864,6 +886,17 @@ except FileNotFoundError:
     pass
 
 recorded = set()
+
+# The declared deletions, read as a plain path-per-line list. Absent is a valid
+# answer — a fixture repository with no ungoogled patch set declares none — and
+# reads as an empty declaration rather than as a failure, exactly as a missing
+# overlay allowlist does above.
+if declared_absent_path:
+    try:
+        with open(declared_absent_path, encoding="utf-8", errors="surrogateescape") as handle:
+            recorded.update(line.strip() for line in handle if line.strip())
+    except FileNotFoundError:
+        pass
 
 # "pruned" and "substituted" are as much a record of what Astro did to the tree
 # as "files" is. Binary pruning DELETES tracked files, which git reports as
@@ -905,8 +938,44 @@ for raw in sys.stdin:
 PY
 )"
 
+    python3 -c "$attribution_program" "$declared_absent" "$allowlist" "$@"
+}
+
+# Where the declared deletions live, relative to the repository root. Resolved
+# in one place rather than at each of the five call sites, because it is a
+# property of what Astro declares rather than of who is asking.
+astro::_declared_absent_list() {
+    printf '%s\n' "${ASTRO_ROOT:?ASTRO_ROOT must be set}/patches/ungoogled/pruning.list"
+}
+
+# astro::require_attributable_chromium <src> <allowlist-file> [manifest...]
+#
+# Used by steps that legitimately run against an already-patched tree. Every
+# modified path must be attributable to something Astro itself wrote. Anything
+# else is unrelated developer work and blocks the run.
+astro::require_attributable_chromium() {
+    local src="$1" allowlist="$2"
+    shift 2
+
+    local dirty
+    dirty="$(astro::_dirty_paths "$src")"
+    [ -n "$dirty" ] || return 0
+
+    local total
+    total="$(printf '%s\n' "$dirty" | wc -l | tr -d '[:space:]')"
+    if [ "$total" -gt "$ASTRO_MAX_MODIFIED_UPSTREAM_PATHS" ]; then
+        if [ "${ASTRO_ALLOW_DIRTY_CHROMIUM:-0}" != "1" ]; then
+            astro::die_with_hint \
+                "Chromium checkout has $total modified paths, over the limit of $ASTRO_MAX_MODIFIED_UPSTREAM_PATHS." \
+                "This is the accidental-mass-change guard. Something has gone wrong." \
+                "Raise ASTRO_MAX_MODIFIED_UPSTREAM_PATHS deliberately if the patch stack really grew this much."
+        fi
+        astro::warn "override:dirty-chromium" "$total modified paths exceeds the limit; continuing on override"
+    fi
+
     local unattributed
-    unattributed="$(printf '%s\n' "$dirty" | python3 -c "$attribution_program" "$allowlist" "$@")"
+    unattributed="$(printf '%s\n' "$dirty" | astro::unattributable_paths \
+        --declared-absent "$(astro::_declared_absent_list)" "$allowlist" "$@")"
 
     if [ -z "$unattributed" ]; then
         astro::info "Chromium checkout has $total modified path(s), all attributable to Astro."
@@ -999,10 +1068,13 @@ astro::require_vendored_rust_deps() {
 astro::summarize_chromium_tree() {
     local src="$1"
     printf '\n=== Chromium checkout summary (%s) ===\n' "$src"
+    # --ignore-submodules=none on both, or the log records a tree that looks
+    # cleaner than the one being compiled: gclient's diff.ignoreSubmodules
+    # setting hides every submodule the patch series edits.
     printf -- '--- git status --short ---\n'
-    git -C "$src" status --short
+    git -C "$src" status --short --ignore-submodules=none
     printf -- '--- git diff --stat ---\n'
-    git -C "$src" diff --stat
+    git -C "$src" diff --stat --ignore-submodules=none
     printf -- '--- HEAD ---\n'
     git -C "$src" --no-pager log -1 --format='%H %d %s'
     printf '=== end summary ===\n\n'

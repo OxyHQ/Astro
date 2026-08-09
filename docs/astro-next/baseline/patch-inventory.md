@@ -10,7 +10,7 @@ Dispositions live in `patch-dispositions.json` and are joined in strictly:
 a patch with no disposition, or a disposition for a patch that no longer
 exists, fails generation. This inventory therefore cannot silently rot.
 
-## `patches/astro` — 57 patches
+## `patches/astro` — 65 patches
 
 | # | Patch | Files | Hunks | Disposition | Purpose |
 |---|---|---|---|---|---|
@@ -24,55 +24,63 @@ exists, fails generation. This inventory therefore cannot silently rot.
 | 8 | `009-branding-settings-strings.patch` | `chrome/app/settings_chromium_strings.grdp` | 4 | **replace** | Astro branding in the settings surface strings. |
 | 9 | `010-oxy-theme-color.patch` | `chrome/browser/themes/theme_properties.cc` | 2 | **replace** | Plumbs the Oxy brand colour into the theme provider. |
 | 10 | `011-astro-url-scheme-alias.patch` | `chrome/browser/browser_about_handler.cc` | 2 | **replace** | Aliases astro:// onto chrome:// — a cosmetic alias, not a real scheme. |
-| 11 | `012-settings-border-style.patch` | `chrome/browser/resources/settings/settings_page/settings_section.html`<br>`chrome/browser/resources/settings/settings_page/settings_subpage.html` | 2 | **replace** | Settings page border styling. |
-| 12 | `013-settings-google-to-oxy.patch` | `chrome/app/settings_strings.grdp` | 63 | **replace** | Replaces Google references in the settings UI with Oxy. |
-| 13 | `014-oxy-profile-menu-header.patch` | `chrome/browser/ui/views/profiles/profile_menu_view.h` | 1 | **replace** | Declares the Oxy profile-menu header. |
-| 14 | `015-oxy-profile-menu-impl.patch` | `chrome/browser/ui/views/profiles/profile_menu_view.cc` | 4 | **replace** | Implements the Oxy profile-menu header rendering. |
-| 15 | `016-ntp-astro-logo.patch` | `chrome/browser/resources/new_tab_page/icons/google_logo.svg` | 1 | **replace** | Swaps the NTP logo for the Astro mark. |
-| 16 | `017-ntp-logo-css.patch` | `chrome/browser/resources/new_tab_page/logo.css` | 1 | **replace** | NTP logo styling. |
-| 17 | `018-ntp-logo-ts.patch` | `chrome/browser/resources/new_tab_page/logo.ts` | 2 | **replace** | NTP logo TypeScript wiring. |
-| 18 | `019-ntp-default-sites.patch` | `components/ntp_tiles/resources/default_popular_sites.json`<br>`components/ntp_tiles/resources/default_popular_sites_with_popular_apps.json`<br>`components/ntp_tiles/resources/default_popular_sites_without_popular_apps.json` | 3 | **replace** | Replaces the prepopulated NTP tiles, removing the Google-owned defaults. |
-| 19 | `020-register-oxy-prefs.patch` | `chrome/browser/prefs/browser_prefs.cc` | 1 | **replace** | Registers the Oxy profile and local-state preferences. |
-| 20 | `021-omnibox-display-astro.patch` | `components/omnibox/browser/location_bar_model_impl.cc` | 1 | **replace** | Displays astro:// instead of chrome:// in the omnibox. |
-| 21 | `022-autocomplete-astro-scheme.patch` | `chrome/browser/autocomplete/chrome_autocomplete_provider_client.cc` | 1 | **replace** | Teaches autocomplete about the astro:// scheme. |
-| 22 | `023-url-fixer-astro-scheme.patch` | `components/url_formatter/url_fixer.cc` | 4 | **replace** | URL fixup accepts astro:// input. |
-| 23 | `024-astro-scheme-constant.patch` | `content/public/common/url_constants.h` | 1 | **replace** | Defines the astro scheme constant. |
-| 24 | `025-astro-scheme-register.patch` | `chrome/common/chrome_content_client.cc` | 1 | **replace** | Registers astro:// as a known scheme. |
-| 25 | `026-navigator-astro-rewrite.patch` | `chrome/browser/ui/browser_navigator.cc` | 2 | **replace** | Rewrites astro:// navigations to chrome:// in the navigator. |
-| 26 | `027-scheme-classifier-astro.patch` | `chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.cc` | 1 | **replace** | Scheme classifier recognises astro://. |
-| 27 | `028-security-display-astro.patch` | `components/url_formatter/elide_url.cc` | 2 | **replace** | Security UI treats astro:// as an internal page. |
-| 28 | `029-copy-url-astro.patch` | `components/omnibox/browser/omnibox_text_util.cc` | 1 | **replace** | Copying an internal URL yields the astro:// form. |
-| 29 | `030-protocol-handler-astro.patch` | `chrome/browser/profiles/profile_io_data.cc` | 1 | **replace** | Protocol handler registration for astro://. |
-| 30 | `031-linux-icon-name.patch` | `chrome/browser/shell_integration_linux.cc` | 1 | **replace** | Uses the astro-browser icon name in the Linux integration. |
-| 31 | `032-linux-desktop-name.patch` | `chrome/common/channel_info_posix.cc` | 1 | **replace** | Uses the Astro .desktop entry name. |
-| 32 | `033-shared-settings-google-to-oxy.patch` | `chrome/app/shared_settings_strings.grdp` | 6 | **replace** | Same substitution in shared settings strings. |
-| 33 | `034-profiles-google-to-oxy.patch` | `chrome/app/profiles_strings.grdp` | 13 | **replace** | Same substitution in the profiles UI. |
-| 34 | `036-navigator-auth-intercept.patch` | `chrome/browser/ui/browser_navigator.cc` | 2 | **replace** | Intercepts auth.oxy.so redirects in the navigator. |
-| 35 | `037-builtin-provider-astro-scheme.patch` | `components/omnibox/browser/builtin_provider.cc` | 1 | **replace** | Builtin omnibox provider offers astro:// URLs. |
-| 36 | `038-dino-game-astro-scheme.patch` | `components/error_page/common/localized_error.cc` | 4 | **replace** | Offline dino game reachable over astro://. |
-| 37 | `039-auth-navigation-throttle-register.patch` | `chrome/browser/chrome_content_browser_client_navigation_throttles.cc` | 2 | **replace** | Registers the Oxy auth navigation throttle. |
-| 38 | `040-tab-hover-astro-scheme.patch` | `chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.cc` | 1 | **replace** | Tab hover card shows the astro:// form. |
-| 39 | `041-navigation-controller-astro.patch` | `content/browser/renderer_host/navigation_controller_impl.cc` | 3 | **replace** | NavigationController handling for astro:// entries. |
-| 40 | `042-session-restore-astro.patch` | `components/sessions/content/content_serialized_navigation_driver.cc` | 2 | **replace** | Session restore persists and restores astro:// URLs. |
-| 41 | `043-web-app-astro-scheme.patch` | `chrome/browser/ui/web_applications/app_browser_controller.cc` | 3 | **replace** | Web-app handling for the astro:// scheme. |
-| 42 | `044-disable-ev-certificate-metadata.patch` | `net/cert/ev_root_ca_metadata.cc`<br>`net/cert/ev_root_ca_metadata.h` | 2 | **investigate** | Disables the EV certificate metadata fetch, which is Google-hosted. |
-| 43 | `045-adblock-throttle-register.patch` | `chrome/browser/chrome_content_browser_client.cc` | 2 | **replace** | Registers the adblock URL loader throttle in the network stack. |
-| 44 | `046-adblock-prefs.patch` | `chrome/browser/prefs/browser_prefs.cc` | 1 | **replace** | Registers the ad blocker's preferences. |
-| 45 | `047-alia-side-panel-entry-id.patch` | `chrome/browser/ui/views/side_panel/side_panel_entry_id.h` | 1 | **replace** | Declares the Alia side-panel entry id. |
-| 46 | `048-alia-action-id.patch` | `chrome/browser/ui/actions/chrome_action_id.h` | 1 | **replace** | Declares the Alia action id. |
-| 47 | `049-alia-browser-action.patch` | `chrome/browser/ui/browser_actions.cc` | 1 | **replace** | Adds the Alia browser action. |
-| 48 | `050-alia-side-panel-register.patch` | `chrome/browser/ui/views/side_panel/side_panel_util.cc` | 2 | **replace** | Registers Alia in the side-panel registry. |
-| 49 | `051-alia-vector-icon.patch` | `chrome/app/vector_icons/BUILD.gn` | 1 | **replace** | Registers the Alia vector icon. |
-| 50 | `052-adblock-tab-helper-register.patch` | `chrome/browser/ui/tab_helpers.cc` | 2 | **replace** | Attaches the per-tab adblock helper. |
-| 51 | `053-adblock-toolbar-button.patch` | `chrome/browser/ui/views/toolbar/toolbar_view.cc` | 2 | **replace** | Adds the adblock shield toolbar button. |
-| 52 | `054-adblock-webui-register.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 2 | **replace** | Registers AstroAdBlockUIConfig in the WebUI config map. The overlay's whole-file copy of chrome_web_ui_configs.cc that used to revert this is no longer in the tree. |
-| 53 | `055-ntp-webui-register.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 2 | **replace** | Registers AstroNtpUIConfig in the WebUI config map. |
-| 54 | `056-ntp-redirect-to-astro.patch` | `chrome/browser/search/search.cc` | 3 | **replace** | Redirects chrome://newtab to the Astro NTP. |
-| 55 | `057-oxy-webui-build-edge.patch` | `chrome/browser/ui/webui/BUILD.gn` | 1 | **replace** | Makes //chrome/browser/ui/webui:configs depend on the overlay's two WebUI targets. Without this edge nothing in the build graph reaches chrome/browser/oxy, so the whole overlay compiles to zero objects and the configs the registration patches name do not link. |
-| 56 | `058-alia-webui-register.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 2 | **replace** | Registers AstroAliaUIConfig. The Alia side panel loads chrome://alia into a WebView, so without the registration the panel renders an error page. |
-| 57 | `059-itertools-shipping-group.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml` | 1 | **replace** | Moves itertools from Chromium's 'test' crate group to 'safe' in gnrt_config.toml. adblock 0.9 depends on it, and a testonly crate cannot be linked into the browser-process ad blocker, so without this gn gen fails outright. The content is a security classification rather than code: 'test' records that Chromium itself only used the crate in tests, not an audit verdict, and the patch header carries the unsafe audit that backs the new claim. The requirement outlives any integration model while Astro ships adblock; patching an upstream file to state it does not. |
+| 11 | `013-settings-google-to-oxy.patch` | `chrome/app/settings_strings.grdp` | 63 | **replace** | Replaces Google references in the settings UI with Oxy. |
+| 12 | `014-oxy-profile-menu-header.patch` | `chrome/browser/ui/views/profiles/profile_menu_view.h` | 1 | **replace** | Declares the Oxy profile-menu header. |
+| 13 | `015-oxy-profile-menu-impl.patch` | `chrome/browser/ui/views/profiles/profile_menu_view.cc` | 4 | **replace** | Implements the Oxy profile-menu header rendering. |
+| 14 | `016-ntp-astro-logo.patch` | `chrome/browser/resources/new_tab_page/icons/google_logo.svg` | 1 | **replace** | Swaps the NTP logo for the Astro mark. |
+| 15 | `017-ntp-logo-css.patch` | `chrome/browser/resources/new_tab_page/logo.css` | 1 | **replace** | NTP logo styling. |
+| 16 | `018-ntp-logo-ts.patch` | `chrome/browser/resources/new_tab_page/logo.ts` | 2 | **replace** | NTP logo TypeScript wiring. |
+| 17 | `019-ntp-default-sites.patch` | `components/ntp_tiles/resources/default_popular_sites.json`<br>`components/ntp_tiles/resources/default_popular_sites_with_popular_apps.json`<br>`components/ntp_tiles/resources/default_popular_sites_without_popular_apps.json` | 3 | **replace** | Replaces the prepopulated NTP tiles, removing the Google-owned defaults. |
+| 18 | `020-register-oxy-prefs.patch` | `chrome/browser/prefs/browser_prefs.cc` | 1 | **replace** | Registers the Oxy profile and local-state preferences. |
+| 19 | `021-omnibox-display-astro.patch` | `components/omnibox/browser/location_bar_model_impl.cc` | 1 | **replace** | Displays astro:// instead of chrome:// in the omnibox. |
+| 20 | `022-autocomplete-astro-scheme.patch` | `chrome/browser/autocomplete/chrome_autocomplete_provider_client.cc` | 1 | **replace** | Teaches autocomplete about the astro:// scheme. |
+| 21 | `023-url-fixer-astro-scheme.patch` | `components/url_formatter/url_fixer.cc` | 4 | **replace** | URL fixup accepts astro:// input. |
+| 22 | `024-astro-scheme-constant.patch` | `content/public/common/url_constants.h` | 1 | **replace** | Defines the astro scheme constant. |
+| 23 | `025-astro-scheme-register.patch` | `chrome/common/chrome_content_client.cc` | 1 | **replace** | Registers astro:// as a known scheme. |
+| 24 | `026-navigator-astro-rewrite.patch` | `chrome/browser/ui/browser_navigator.cc` | 2 | **replace** | Rewrites astro:// navigations to chrome:// in the navigator. |
+| 25 | `027-scheme-classifier-astro.patch` | `chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.cc` | 1 | **replace** | Scheme classifier recognises astro://. |
+| 26 | `028-security-display-astro.patch` | `components/url_formatter/elide_url.cc` | 2 | **replace** | Security UI treats astro:// as an internal page. |
+| 27 | `029-copy-url-astro.patch` | `components/omnibox/browser/omnibox_text_util.cc` | 1 | **replace** | Copying an internal URL yields the astro:// form. |
+| 28 | `030-protocol-handler-astro.patch` | `chrome/browser/profiles/profile_io_data.cc` | 1 | **replace** | Protocol handler registration for astro://. |
+| 29 | `031-linux-icon-name.patch` | `chrome/browser/shell_integration_linux.cc` | 1 | **replace** | Uses the astro-browser icon name in the Linux integration. |
+| 30 | `032-linux-desktop-name.patch` | `chrome/common/channel_info_posix.cc` | 1 | **replace** | Uses the Astro .desktop entry name. |
+| 31 | `033-shared-settings-google-to-oxy.patch` | `chrome/app/shared_settings_strings.grdp` | 6 | **replace** | Same substitution in shared settings strings. |
+| 32 | `034-profiles-google-to-oxy.patch` | `chrome/app/profiles_strings.grdp` | 13 | **replace** | Same substitution in the profiles UI. |
+| 33 | `036-navigator-auth-intercept.patch` | `chrome/browser/ui/browser_navigator.cc` | 2 | **replace** | Intercepts auth.oxy.so redirects in the navigator. |
+| 34 | `037-builtin-provider-astro-scheme.patch` | `components/omnibox/browser/builtin_provider.cc` | 1 | **replace** | Builtin omnibox provider offers astro:// URLs. |
+| 35 | `038-dino-game-astro-scheme.patch` | `components/error_page/common/localized_error.cc` | 4 | **replace** | Offline dino game reachable over astro://. |
+| 36 | `039-auth-navigation-throttle-register.patch` | `chrome/browser/chrome_content_browser_client_navigation_throttles.cc` | 2 | **replace** | Registers the Oxy auth navigation throttle. |
+| 37 | `040-tab-hover-astro-scheme.patch` | `chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.cc` | 1 | **replace** | Tab hover card shows the astro:// form. |
+| 38 | `041-navigation-controller-astro.patch` | `content/browser/renderer_host/navigation_controller_impl.cc` | 3 | **replace** | NavigationController handling for astro:// entries. |
+| 39 | `042-session-restore-astro.patch` | `components/sessions/content/content_serialized_navigation_driver.cc` | 2 | **replace** | Session restore persists and restores astro:// URLs. |
+| 40 | `043-web-app-astro-scheme.patch` | `chrome/browser/ui/web_applications/app_browser_controller.cc` | 3 | **replace** | Web-app handling for the astro:// scheme. |
+| 41 | `044-disable-ev-certificate-metadata.patch` | `net/cert/ev_root_ca_metadata.cc`<br>`net/cert/ev_root_ca_metadata.h` | 2 | **investigate** | Disables the EV certificate metadata fetch, which is Google-hosted. |
+| 42 | `045-adblock-throttle-register.patch` | `chrome/browser/chrome_content_browser_client.cc` | 2 | **replace** | Registers the adblock URL loader throttle in the network stack. |
+| 43 | `046-adblock-prefs.patch` | `chrome/browser/prefs/browser_prefs.cc` | 1 | **replace** | Registers the ad blocker's preferences. |
+| 44 | `047-alia-side-panel-entry-id.patch` | `chrome/browser/ui/views/side_panel/side_panel_entry_id.h` | 1 | **replace** | Declares the Alia side-panel entry id. |
+| 45 | `048-alia-action-id.patch` | `chrome/browser/ui/actions/chrome_action_id.h` | 1 | **replace** | Declares the Alia action id. |
+| 46 | `049-alia-browser-action.patch` | `chrome/browser/ui/browser_actions.cc` | 1 | **replace** | Adds the Alia browser action. |
+| 47 | `050-alia-side-panel-register.patch` | `chrome/browser/ui/views/side_panel/side_panel_util.cc` | 2 | **replace** | Registers Alia in the side-panel registry. |
+| 48 | `051-alia-vector-icon.patch` | `chrome/app/vector_icons/BUILD.gn` | 1 | **replace** | Registers the Alia vector icon. |
+| 49 | `052-adblock-tab-helper-register.patch` | `chrome/browser/ui/tab_helpers.cc` | 2 | **replace** | Attaches the per-tab adblock helper. |
+| 50 | `053-adblock-toolbar-button.patch` | `chrome/browser/ui/views/toolbar/toolbar_view.cc`<br>`chrome/browser/ui/views/toolbar/toolbar_view.h` | 4 | **replace** | Adds the adblock shield toolbar button. |
+| 51 | `054-adblock-webui-register.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 2 | **replace** | Registers AstroAdBlockUIConfig in the WebUI config map. The overlay's whole-file copy of chrome_web_ui_configs.cc that used to revert this is no longer in the tree. |
+| 52 | `055-ntp-webui-register.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 2 | **replace** | Registers AstroNtpUIConfig in the WebUI config map. |
+| 53 | `056-ntp-redirect-to-astro.patch` | `chrome/browser/search/search.cc` | 3 | **replace** | Redirects chrome://newtab to the Astro NTP. |
+| 54 | `057-oxy-webui-build-edge.patch` | `chrome/browser/ui/webui/BUILD.gn` | 1 | **replace** | Makes //chrome/browser/ui/webui:configs depend on the overlay's two WebUI targets. Without this edge nothing in the build graph reaches chrome/browser/oxy, so the whole overlay compiles to zero objects and the configs the registration patches name do not link. |
+| 55 | `058-alia-webui-register.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 2 | **replace** | Registers AstroAliaUIConfig. The Alia side panel loads chrome://alia into a WebView, so without the registration the panel renders an error page. |
+| 56 | `059-itertools-shipping-group.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml` | 1 | **replace** | Moves itertools from Chromium's 'test' crate group to 'safe' in gnrt_config.toml. adblock 0.9 depends on it, and a testonly crate cannot be linked into the browser-process ad blocker, so without this gn gen fails outright. The content is a security classification rather than code: 'test' records that Chromium itself only used the crate in tests, not an audit verdict, and the patch header carries the unsafe audit that backs the new claim. The requirement outlives any integration model while Astro ships adblock; patching an upstream file to state it does not. |
+| 57 | `060-settings-webui-takeover.patch` | `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | 3 | **replace** | Swaps upstream's settings::SettingsUIConfig for Astro's AstroSettingsUIConfig, so astro://settings is served by the Astro application. Same host, deliberately: settingsPrivate and five other private APIs are granted by host pattern, and a duplicate origin CHECK-fails at startup, so a swap is the only shape that both inherits the grants and does not crash. |
+| 58 | `061-astro-color-mixers-hook.patch` | `chrome/browser/ui/color/BUILD.gn`<br>`chrome/browser/ui/color/chrome_color_mixers.cc` | 3 | **replace** | Calls astro::AddAstroColorMixers last in AddChromeColorMixers, and adds the build edge that makes it link, so the toolbar, tab strip, omnibox and menus are painted from the profile's Bloom colour preset. Stands down under forced colours, high contrast and an installed theme extension. |
+| 59 | `062-astro-theme-service-register.patch` | `chrome/browser/profiles/BUILD.gn`<br>`chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc` | 3 | **replace** | Instantiates AstroThemeServiceFactory in EnsureBrowserContextKeyedServiceFactoriesBuilt. Its ServiceIsCreatedWithBrowserContext is inert without this, so the browser would open in the default colours and switch to the profile's preset at whatever later moment something first asked for the theme. |
+| 60 | `063-astro-webui-mojo-binders.patch` | `chrome/browser/BUILD.gn`<br>`chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc` | 3 | **replace** | Registers astro.mojom.ThemeProvider and astro.settings.mojom.PageHandlerFactory in the WebUI frame binder map. An interface absent from that map is dropped by RenderFrameHostImpl with no error on either side, so the controller's BindInterface is never reached. Read and write are registered separately so a page that reads the theme cannot change it. |
+| 61 | `064-rand-chacha-macro-unsafe.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml` | 1 | **replace** | Sets allow_unsafe = true for rand_chacha in gnrt_config.toml. gnrt auto-fills the value and guesses wrong: both vendored epochs hold their single unsafe block inside the body of macro_rules! chacha_impl, and the syn-based detector never descends into syn::Macro::tokens, which its own doc comment names as a known miss to be corrected by exactly this build failure. The content is a security claim about third-party source rather than code, so the patch header carries the audit behind it. Both epochs are host build tooling only, reached through the two phf code generators. |
+| 62 | `065-thiserror-epoch-scoped-config.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml`<br>`tools/crates/gnrt/vendor.rs` | 2 | **replace** | Splits thiserror's gnrt_config.toml entry into per-epoch tables, because the two vendored epochs disagree: 2.x's build script writes $OUT_DIR/private.rs and includes it, 1.x writes no file, and one unversioned build_script_outputs makes run_build_script.py fail with FileNotFoundError on 1.x. Also teaches fill_allow_unsafe_settings to write into an existing epoch-scoped table instead of creating an unversioned one beside it, which BuildConfig::validate then rejects on the next load — the narrow half of upstream's own TODO on crbug.com/419104870, without which a per-epoch config is unusable for any crate in the dependency graph. |
+| 63 | `066-vendored-crate-build-inputs.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml` | 3 | **replace** | Declares the build inputs and outputs gnrt cannot discover by walking a crate's source directory, for three crates the adblock engine pulls in: cssparser's #[path] build-script module and its generated tokenizer.rs, rmp's README reached by #![doc = include_str!], and selectors' generated phf set. Same declarations upstream already makes for clap, image, prost, typed-path and read-fonts; the whole 103-crate closure was scanned for the four shapes rather than found one round trip at a time. |
+| 64 | `067-astro-webui-pak-repack.patch` | `chrome/chrome_paks.gni`<br>`tools/gritsettings/resource_ids.spec` | 3 | **replace** | Puts astro_webui_resources.pak into chrome's repack list and reserves its fake start id in resource_ids.spec, which is what makes the resources the Astro WebUI app is compiled into reachable at runtime. Without it the grit target still builds a .pak, nothing loads it, and every astro:// page resolves its resource ids to nothing — a blank page with no error, the exact failure the disk-served settings surface was deleted for. Both files are upstream's and churn every roll, so a two-hunk patch is the reviewable form; a whole-file overlay copy of either is defect #7's shape. |
+| 65 | `069-rmp-serde-rmpread-backport.patch` | `third_party/rust/chromium_crates_io/patches/rmp-serde-v0_15/0101-Backport-rmp-serde-1.x-s-RmpRead-migration-to-0.15.5.patch` | 1 | **replace** | Adds a Chromium crate patch under third_party/rust/chromium_crates_io/patches/rmp-serde-v0_15/ that backports rmp-serde 1.1.1's RmpRead migration to 0.15.5, which is what makes the ad blocker's Rust engine link. rmp 0.8.11 moved read_data_* from free functions into the sealed RmpRead trait; rmp-serde 0.15.5 predates it and Cargo resolves its own rmp = "0.8.8" to 0.8.15, so the crate fails with 24 x E0425. No published rmp-serde satisfies both adblock 0.9.8's ^0.15 and a current rmp, and constraining rmp below 0.8.11 would pin the decoder at 0.8.10 and falsify 066's [crate.rmp] README input declaration. Removable once the engine moves to adblock 0.12.1 or newer, the first release that does not depend on rmp-serde at all. |
 
-### Overlapping patches (3)
+### Overlapping patches (4)
 
 Files touched by more than one patch. Touching one file is not proof
 two patches conflict, but every real conflict is in this set, so it is
@@ -82,7 +90,8 @@ a candidate list rather than a verdict.
 |---|---|
 | `chrome/browser/prefs/browser_prefs.cc` | `020-register-oxy-prefs.patch`, `046-adblock-prefs.patch` |
 | `chrome/browser/ui/browser_navigator.cc` | `026-navigator-astro-rewrite.patch`, `036-navigator-auth-intercept.patch` |
-| `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | `054-adblock-webui-register.patch`, `055-ntp-webui-register.patch`, `058-alia-webui-register.patch` |
+| `chrome/browser/ui/webui/chrome_web_ui_configs.cc` | `054-adblock-webui-register.patch`, `055-ntp-webui-register.patch`, `058-alia-webui-register.patch`, `060-settings-webui-takeover.patch` |
+| `third_party/rust/chromium_crates_io/gnrt_config.toml` | `059-itertools-shipping-group.patch`, `064-rand-chacha-macro-unsafe.patch`, `065-thiserror-epoch-scoped-config.patch`, `066-vendored-crate-build-inputs.patch` |
 
 ## `patches/ungoogled` — 112 patches
 

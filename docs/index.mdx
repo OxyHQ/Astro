@@ -12,16 +12,16 @@ Astro is a Chromium fork by [Oxy](https://oxy.so) that strips every Google servi
 
 ## What it is
 
-Astro is built on top of [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) (112 inherited patches that remove Google service dependencies) plus 57 Astro-specific patches that add Oxy integrations, branding, and a custom URL scheme. All Astro-only C++ code lives in a self-contained overlay at `src/chrome/browser/oxy/`, following the Brave-style approach of keeping custom source separate from upstream Chromium.
+Astro is built on top of [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) (112 inherited patches that remove Google service dependencies) plus 65 Astro-specific patches that add Oxy integrations, branding, and a custom URL scheme. All Astro-only C++ code lives in a self-contained overlay at `src/chrome/browser/oxy/`, following the Brave-style approach of keeping custom source separate from upstream Chromium.
 
-The internal pages Astro owns (New Tab, Alia AI, What's New) are not Polymer like in upstream Chrome — they are standalone Vite + Tailwind v4 apps. Settings and the error page are upstream Chromium's own; Astro deleted its versions of both in `c9c4383`. The next of these surfaces is being consolidated into a single Vite + Tailwind + Bloom application in `webui/app/`.
+The internal pages Astro owns (New Tab, Settings, Alia AI, What's New) are not Polymer like in upstream Chrome — they are standalone Vite + Tailwind v4 apps. Settings is the newest and the least finished: Astro serves the host, but the page has no assets staged yet ([#16](https://github.com/OxyHQ/Astro/issues/16)). The error page was deleted in `c9c4383` and nothing replaced it. All of these are being consolidated into a single Vite + Tailwind + Bloom application in `webui/app/`.
 
 | Aspect | Astro |
 |--------|-------|
 | Base | Chromium 146.0.7680.177 (current target) |
 | De-Google patches | 112 (inherited from ungoogled-chromium) |
-| Oxy patches | 57 (`patches/astro/001-059`; 007 and 035 are unused numbers) |
-| Custom WebUI pages | 5 (NTP, Settings, Alia, What's New, Error) |
+| Oxy patches | 65 (`patches/astro/001-069`; 007, 012, 035 and 068 are unused numbers) |
+| Custom WebUI pages | 4 registered (NTP, Settings, Alia, What's New); the error page was deleted |
 | URL scheme | `astro://` (aliased to `chrome://`) |
 | Default search | DuckDuckGo |
 | Auth | Oxy session cookie + JWT, no Google Sign-In |
@@ -45,7 +45,7 @@ The 112 ungoogled-chromium patches remove or stub:
 - Field trial config fetches
 - Translate UI's Google Translate dependency (provider is stubbed)
 
-The 57 Astro patches finish the substitution by replacing every remaining `chrome://`, "Google account", "Chromium" string, and product-menu entry with Oxy/Astro equivalents.
+The 65 Astro patches finish the substitution by replacing every remaining `chrome://`, "Google account", "Chromium" string, and product-menu entry with Oxy/Astro equivalents.
 
 ### 2. Native Oxy integrations
 
@@ -60,13 +60,14 @@ Custom C++ services that live alongside Chrome's existing services, registered t
 | `OxyAuthTokenStore` | `oxy_auth_token_store.*` | OSCrypt-backed encrypted storage for access + refresh tokens |
 | `OxyAliaSidePanel` | `oxy_alia_side_panel.*` | Registers the Alia AI panel in Chrome's side-panel registry |
 | `AstroAdBlockService` | `adblock/astro_adblock_service.*` | KeyedService that owns the Rust engine, filter list catalog, and updater |
-| Astro WebUI pages | `webui/astro_*_ui.*` | `chrome://astro-ntp`, `chrome://alia`, `chrome://whats-new` |
+| Astro WebUI pages | `webui/astro_*_ui.*` | `chrome://astro-ntp`, `chrome://settings`, `chrome://alia`, `chrome://whats-new` |
+| `AstroThemeService` | `astro_theme_service.*` | Watches the light/dark and Bloom-preset prefs, repaints the native UI, and pushes the theme to every open page |
 
 ### 3. Vite-built WebUI pages, not Polymer
 
-Chrome's stock internal pages use Polymer 3 + Lit + chrome:// resources baked into the binary. Astro replaces the three pages above with standalone Vite + Tailwind v4 apps in `webui/`. The C++ WebUI controllers serve the pre-built `dist/` by reading it off disk at request time — which means the assets are in no `.pak` and the page renders blank, silently, if the directory was not staged beside the binary. Fixing that is [issue #14](https://github.com/OxyHQ/Astro/issues/14).
+Chrome's stock internal pages use Polymer 3 + Lit + chrome:// resources baked into the binary. Astro replaces the pages above with standalone Vite + Tailwind v4 apps in `webui/`. The C++ WebUI controllers serve the pre-built `dist/` by reading it off disk at request time, so the assets are in no `.pak`. The three legacy pages render blank, silently, when the directory was not staged; settings, which is built on the shared `astro_webui_page.cc` base, logs the path it tried and serves a page naming it instead. Removing `DIR_EXE` entirely is [issue #14](https://github.com/OxyHQ/Astro/issues/14); packaging the app is [#16](https://github.com/OxyHQ/Astro/issues/16).
 
-None of them uses Mojo. Astro defines no Mojo interface of its own — no `.mojom` has ever been committed at any revision — so earlier versions of this page describing a typed settings pipeline were describing something that was never built. Only the New Tab page talks to the browser process at all, through a `WebUIMessageHandler` (`chrome.send`); Alia and What's New are static bundles.
+Settings uses Mojo; the others do not. Astro's first two interfaces landed on 2026-08-09: `astro_theme.mojom` (read-only — `GetTheme` plus an `OnThemeChanged` observer, so every page follows the browser's theme live) and `astro_settings.mojom` (`SetThemeMode`, `SetColorPreset`). They are narrow and named on purpose — there is no `SetPref(string, value)`, and the page that carried one was deleted in `c9c4383`. Chromium's own prefs still reach settings through `chrome.settingsPrivate`, which is the only transport carrying a pref's policy state. The New Tab page talks to the browser through a `WebUIMessageHandler` (`chrome.send`); Alia and What's New are static bundles.
 
 ## URL scheme
 
@@ -79,7 +80,7 @@ Astro adds an `astro://` URL scheme that is aliased to `chrome://` (patch `011-a
 | Alia AI | `chrome://alia` | `astro://alia` |
 | What's New | `chrome://whats-new` | `astro://whats-new` |
 
-The alias covers every WebUI host, Chromium's own included, so `astro://settings` and `astro://whats-new` resolve whether or not Astro registers the page behind them. Today it registers neither: settings is upstream's, and What's New cannot be registered beside upstream's without crashing the browser on a duplicate origin. There is no `astro://error` — that page was deleted in `c9c4383`.
+The alias covers every WebUI host, Chromium's own included, so `astro://settings` and `astro://whats-new` resolve whether or not Astro registers the page behind them. Settings is now Astro's: patch `060` SWAPS upstream's registration rather than adding one, which is the only shape that both inherits the host's `settingsPrivate` grant and avoids the duplicate-origin CHECK. What's New still awaits the same treatment. There is no `astro://error` — that page was deleted in `c9c4383`.
 
 The omnibox, autocomplete, security UI, copy-URL, navigation controller, session restore, web app handling, and protocol handler are all patched to display the `astro://` form (patches `021-030`, `037-043`).
 
@@ -103,7 +104,7 @@ tools/sync-sources.sh
 # 2. Sync ungoogled-chromium patches for the current Chromium version
 tools/sync-ungoogled.sh
 
-# 3. Prune binaries, then apply all 168 patches in declared series order
+# 3. Prune binaries, then apply all 177 patches in declared series order
 tools/apply-patches.sh
 
 # 4. Copy the Astro source overlay into the Chromium tree (allowlisted, never deletes)
@@ -122,11 +123,10 @@ astro --no-sandbox
 For incremental WebUI work you do **not** need to rebuild Chromium — point a dev server at each Vite app and reload:
 
 ```sh
-cd webui/ntp        && bun run dev    # http://localhost:5173
-cd webui/alia       && bun run dev    # http://localhost:5174
-cd webui/settings   && bun run dev    # http://localhost:5175
-cd webui/whats-new  && bun run dev    # http://localhost:5176
-cd webui/error      && bun run dev    # http://localhost:5177
+cd webui/app        && bun run dev    # http://localhost:5178  (strictPort)
+cd webui/ntp        && bun run dev    # Vite default: 5173, or the next free port
+cd webui/alia       && bun run dev
+cd webui/whats-new  && bun run dev
 ```
 
 See [Build](./build) for the full workflow, cross-compilation, gotchas, and packaging. See [Architecture](./architecture) for the patch model and overlay layout. See [Oxy integration](./oxy-integration) for the auth, cookie observer, Alia, ad blocker, and update server wiring.

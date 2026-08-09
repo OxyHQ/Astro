@@ -453,6 +453,42 @@ harness::make_chromium_fixture() {
     git -C "$dir" commit --quiet -m "upstream chromium fixture"
 }
 
+# harness::add_submodule_fixture <superproject> <path> <file> <content>
+#
+# A REAL git submodule inside a fixture checkout, carrying one tracked file.
+#
+# The last line is what makes this fixture worth building rather than faking:
+# gclient writes `diff.ignoreSubmodules = dirty` into chromium/src/.git/config,
+# and with it a plain `git status --porcelain` prints NOTHING over a submodule
+# holding modified content. A fixture without that config would pass a case the
+# real checkout fails, which is the only way this test could be worse than
+# useless.
+#
+# `protocol.file.allow=always` is required because git refuses `file://`
+# submodule transport by default since CVE-2022-39253; the origin here is a
+# throwaway repository in the case's own tmpdir.
+HARNESS_SUBMODULE_ORIGINS=0
+
+harness::add_submodule_fixture() {
+    local superproject="$1" path="$2" file="$3" content="$4"
+    # One origin repository per call, never per submodule path: a case that
+    # builds two fixtures at the same path would otherwise re-init an existing
+    # origin, find nothing to commit, and fail somewhere else entirely.
+    HARNESS_SUBMODULE_ORIGINS=$((HARNESS_SUBMODULE_ORIGINS + 1))
+    local origin="$HARNESS_TMPDIR/submodule-origins/$HARNESS_SUBMODULE_ORIGINS"
+
+    mkdir -p "$origin/$(dirname "$file")"
+    printf '%s\n' "$content" > "$origin/$file"
+    harness::setup_run git -C "$origin" init --quiet
+    harness::setup_run git -C "$origin" add -A
+    harness::setup_run git -C "$origin" commit --quiet -m "submodule fixture"
+
+    harness::setup_run git -C "$superproject" -c protocol.file.allow=always \
+        submodule add --quiet "$origin" "$path"
+    harness::setup_run git -C "$superproject" commit --quiet -m "add submodule $path"
+    harness::setup_run git -C "$superproject" config diff.ignoreSubmodules dirty
+}
+
 # Creates an overlay + matching allowlist mirroring the real repository layout.
 harness::make_overlay_fixture() {
     local dir="$1" allowlist="$2"
@@ -607,12 +643,27 @@ harness::make_build_root() {
         printf '<!doctype html><title>%s</title>\n' "$page" > "$root/webui/$page/dist/index.html"
     done
 
-    # gn and autoninja must RESOLVE — build.sh requires them — but must never
-    # run during a dry run, so they announce themselves and fail loudly.
+    # The Astro WebUI app. Unlike the pages above it is an input the BUILD
+    # consumes rather than one this script stages: a GN action runs Vite in it
+    # and packs the result into a .pak. So the fixture provides what build.sh
+    # checks — the source directory, the committed resource manifest, and the
+    # installed dependencies the offline GN action cannot install for itself.
+    mkdir -p "$root/webui/app/node_modules"
+    printf '{"name":"astro-webui-app","private":true}\n' > "$root/webui/app/package.json"
+    printf '{"builds":{"app":{"out_dir":"dist/app","entry":"index.html","files":["index.html"]}}}\n' \
+        > "$root/webui/app/manifest.json"
+
+    # gn, autoninja and bun must RESOLVE — build.sh requires all three — but
+    # none of them may run during a dry run, so they announce themselves and
+    # fail loudly. bun lives here rather than being taken from the machine so
+    # the build cases measure build.sh on a runner without it installed; the
+    # build-safety workflow is one.
     printf '#!/usr/bin/env bash\necho "gn was executed during a dry run" >&2\nexit 99\n' \
         > "$root/depot_tools/gn"
     cp "$root/depot_tools/gn" "$root/depot_tools/autoninja"
-    chmod +x "$root/depot_tools/gn" "$root/depot_tools/autoninja"
+    printf '#!/usr/bin/env bash\necho "bun was executed during a dry run" >&2\nexit 99\n' \
+        > "$root/depot_tools/bun"
+    chmod +x "$root/depot_tools/gn" "$root/depot_tools/autoninja" "$root/depot_tools/bun"
 }
 
 # --------------------------------------------------------------------------
