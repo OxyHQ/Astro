@@ -270,6 +270,26 @@ signal to stop and report it on the issue.
   returned eight windows, from three processes, for a pid that had one.
   Better still, drive the browser through CDP against a named target: it is
   focus-independent, so another agent stealing focus cannot corrupt the run.
+- **`import -window ""` writes a plausible screenshot of something you never
+  identified**, so a window lookup that returns nothing still produces a PNG
+  and the run looks like it worked. It happened: `pgrep -f
+  "remote-debugging-port=9340"` matched the BASH WRAPPER whose own command
+  line contains the pattern rather than the browser, `wmctrl -lp` then matched
+  no window, and the capture succeeded anyway — with three Astro windows from
+  three different agents on the display, one of them titled "Customize Astro"
+  and not the author's. Guard the lookup (`test -n "$WIN"`) rather than
+  trusting that a failed resolution produces a failed capture.
+- **The side panel is per TAB, so CDP reporting it `visible` is not the same
+  as it being on screen.** A capture taken while another tab is in front shows
+  no panel while every programmatic check says it opened. Bring the owning
+  target to the front before capturing.
+- **Count from the DOM, not from the pixels.** Two people, twice, miscounted
+  the picker's swatches off a screenshot and nearly reported a working gate
+  filter as broken: the picker draws Default, Grey and Custom on top of the
+  dynamic list, so a correct filter shows 19 elements for 16 presets. Query
+  the elements and compare the NAMED SETS — the honest assertion is that
+  `faircoin` and `mono` are absent from both surfaces, not that a total
+  matches.
 - **`git commit --dry-run -- <paths>` does not disturb the index — but read
   the exit status before believing a test that says so.** It was claimed as a
   hazard, and the first round of testing could not have caught it either way:
