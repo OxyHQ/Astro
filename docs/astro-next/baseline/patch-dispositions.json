@@ -478,6 +478,24 @@
       "effect": "user-visible",
       "purpose": "Registers astro.mojom.ThemeProvider and astro.settings.mojom.PageHandlerFactory in the WebUI frame binder map. An interface absent from that map is dropped by RenderFrameHostImpl with no error on either side, so the controller's BindInterface is never reached. Read and write are registered separately so a page that reads the theme cannot change it.",
       "replacement_issue": 15
+    },
+    "064-rand-chacha-macro-unsafe.patch": {
+      "disposition": "replace",
+      "effect": "security/privacy",
+      "purpose": "Sets allow_unsafe = true for rand_chacha in gnrt_config.toml. gnrt auto-fills the value and guesses wrong: both vendored epochs hold their single unsafe block inside the body of macro_rules! chacha_impl, and the syn-based detector never descends into syn::Macro::tokens, which its own doc comment names as a known miss to be corrected by exactly this build failure. The content is a security claim about third-party source rather than code, so the patch header carries the audit behind it. Both epochs are host build tooling only, reached through the two phf code generators.",
+      "replacement_issue": 7
+    },
+    "065-thiserror-epoch-scoped-config.patch": {
+      "disposition": "replace",
+      "effect": "build-only",
+      "purpose": "Splits thiserror's gnrt_config.toml entry into per-epoch tables, because the two vendored epochs disagree: 2.x's build script writes $OUT_DIR/private.rs and includes it, 1.x writes no file, and one unversioned build_script_outputs makes run_build_script.py fail with FileNotFoundError on 1.x. Also teaches fill_allow_unsafe_settings to write into an existing epoch-scoped table instead of creating an unversioned one beside it, which BuildConfig::validate then rejects on the next load — the narrow half of upstream's own TODO on crbug.com/419104870, without which a per-epoch config is unusable for any crate in the dependency graph.",
+      "replacement_issue": 7
+    },
+    "066-vendored-crate-build-inputs.patch": {
+      "disposition": "replace",
+      "effect": "build-only",
+      "purpose": "Declares the build inputs and outputs gnrt cannot discover by walking a crate's source directory, for three crates the adblock engine pulls in: cssparser's #[path] build-script module and its generated tokenizer.rs, rmp's README reached by #![doc = include_str!], and selectors' generated phf set. Same declarations upstream already makes for clap, image, prost, typed-path and read-fonts; the whole 103-crate closure was scanned for the four shapes rather than found one round trip at a time.",
+      "replacement_issue": 7
     }
   }
 }

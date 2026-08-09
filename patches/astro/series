@@ -68,3 +68,6 @@
 061-astro-color-mixers-hook.patch
 062-astro-theme-service-register.patch
 063-astro-webui-mojo-binders.patch
+064-rand-chacha-macro-unsafe.patch
+065-thiserror-epoch-scoped-config.patch
+066-vendored-crate-build-inputs.patch

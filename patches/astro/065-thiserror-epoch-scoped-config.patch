@@ -1,0 +1,199 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Sat, 8 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Configure thiserror per epoch, and let gnrt vendor keep it
+
+Chromium vendors thiserror 2.x. Astro's `adblock` dependency pulls in 1.x
+alongside it, and the two epochs disagree about the one thing
+`gnrt_config.toml` states for them:
+
+    [crate.thiserror]
+    build_script_outputs = [ "private.rs" ]
+
+2.0.18's build script does `fs::write(out_dir.join("private.rs"), module)`
+and `src/lib.rs:291` reads it back with
+`include!(concat!(env!("OUT_DIR"), "/private.rs"))`. 1.0.69's build script
+writes no file at all -- it only probes the compiler and prints `--cfg`
+lines -- and its `src/lib.rs` contains no `include!`. Because the key is
+declared under the unversioned crate name, gnrt writes it into BOTH generated
+targets, and the 1.x build script action dies going to collect an output that
+was never produced:
+
+    FAILED: gen/third_party/rust/thiserror/v1/lib/cargo_flags.rs gen/third_party/rust/thiserror/v1/lib/private.rs
+    Traceback (most recent call last):
+      File ".../build/rust/gni_impl/run_build_script.py", line 193, in main
+        with open(in_path, 'rb') as input:
+    FileNotFoundError: [Errno 2] No such file or directory: '/tmp/tmpditv_9fq/private.rs'
+
+There is no unversioned value that is right. Removing the key breaks 2.x,
+which every other Chromium consumer of thiserror uses, and would rewrite a
+TRACKED upstream file (`third_party/rust/thiserror/v2/BUILD.gn`) to say
+something false. Keeping it breaks 1.x. `remove_build_rs` has the same
+problem in the other direction: 1.x tolerates losing its build script, 2.x
+does not.
+
+THE MECHANISM UPSTREAM ALREADY DOCUMENTS, AND WHY IT DOES NOT WORK
+
+`gnrt_config.toml`'s own header describes the answer:
+
+    # For crates from multiple epochs that need different configuration for
+    # different epochs, use epoch-specific config sections like
+    # `[crate."foo@v1"]` or `[crate."foo@v2"]`.  A crate must use either
+    # unversioned config (`[crate.foo]`) OR one or more versioned configs
+    # (`[crate."foo@v1"]`), but not both.
+
+`BuildConfig::get_crate_config` implements the lookup and
+`BuildConfig::validate` enforces the exclusivity. Both are correct. The
+mechanism is nevertheless unusable for any crate in the dependency graph,
+because `fill_allow_unsafe_settings` (tools/crates/gnrt/vendor.rs) writes its
+auto-filled `allow_unsafe` under the bare package name and nothing else:
+
+    let crate_key = &package.package_name;
+    let crate_table = get_or_insert_table(top_table, crate_key, new_table_fn);
+
+`get_or_insert_table` inserts. So on the next `gnrt vendor`, a config holding
+`[crate."thiserror@v1"]` gains a `[crate.thiserror]` beside it, and the run
+after that fails at load with
+
+    Crate 'thiserror' has both unversioned ([crate.thiserror]) and versioned
+    ([crate."thiserror@vX"]) config entries. Use one or the other, not both.
+
+That is not a hypothetical: the write happens on every fresh tree, because
+the auto-fill runs for every vendored crate. Upstream marks the gap with a
+TODO on the same lines, crbug.com/419104870.
+
+WHAT THIS PATCH CHANGES IN GNRT
+
+The loop consults the epoch-scoped key first and falls back to the bare name,
+which is the same precedence `get_crate_config` already uses for reading. Two
+properties keep the change inert:
+
+  * It only looks at tables that ALREADY exist. A crate with no versioned
+    config is written exactly where it was written before -- and after this
+    patch, thiserror is the only crate in the file with one, so no other
+    crate's behaviour moves at all.
+  * It never creates the second table for a crate that has the first, so the
+    file it writes still loads.
+
+It is the narrow half of the TODO: enough to stop the writer invalidating a
+supported config, not a rework of how epochs are keyed.
+
+WHY NOT SIDESTEP IT
+
+Two routes avoid touching gnrt and both are worse. Dropping thiserror 1.x
+means changing what `adblock ^0.9` resolves to, which is a dependency
+decision (browser.lock.json, `third_party.adblock_rust`, issue #5) and not a
+build-configuration one. Editing the vendored 1.0.69 crate to emit an empty
+`private.rs` puts a fabricated file into a third-party tree that the next
+`gnrt vendor` overwrites without comment.
+
+MEASURED
+
+Patch applied, `tools/vendor-adblock-rust.sh` re-run:
+
+  * `gnrt_config.toml` came back byte-identical to what it was before the run,
+    with no `[crate.thiserror]` beside the two versioned tables.
+  * `third_party/rust/thiserror/v1/BUILD.gn` has `build_root` and
+    `build_sources` and no `build_script_outputs`.
+  * `third_party/rust/thiserror/v2/BUILD.gn` still declares
+    `build_script_outputs = [ "private.rs" ]`, unchanged from what upstream
+    tracks.
+
+That byte-identical result is on its own WORTHLESS as evidence, and saying so
+matters more than the result does. `fill_allow_unsafe_settings` sets
+`did_make_edits` only when it INSERTS a key, and on an already-vendored tree
+every key is present, so it writes nothing at all -- an unpatched gnrt produces
+the same byte-identical file. The check cannot tell a working epoch lookup from
+a writer that never ran.
+
+So the branch was forced. `extra_kv` was DELETED from `[crate."thiserror@v1"]`
+and the vendoring re-run:
+
+    [crate."thiserror@v1"]
+    extra_kv = { allow_unsafe = false }     <- restored, in the versioned table
+
+    $ grep -c '^\[crate\.thiserror\]' gnrt_config.toml
+    0
+
+The value came back inside the epoch-scoped table and no unversioned table was
+created beside it. That is the branch this patch adds, exercised: without it the
+write lands in `[crate.thiserror]` and the NEXT load of the file fails
+`BuildConfig::validate` outright. The tree was then restored and re-verified
+byte-identical, generated `BUILD.gn` files included.
+
+Then from chromium/src with the committed gn_args/linux.gn, all three of 064,
+065 and 066 applied:
+
+    $ ./buildtools/linux64/gn gen out/GateCheck
+    Done. Made 29957 targets from 4411 files in 9591ms
+
+    $ ./third_party/ninja/ninja -C out/GateCheck -k 0 \
+          obj/third_party/rust/thiserror/v1/lib/libthiserror_lib.rlib \
+          obj/third_party/rust/thiserror/v2/lib/libthiserror_lib.rlib
+    [1/17] RUST obj/third_party/rust/thiserror/v1/lib/libthiserror_lib.rlib
+    [2/17] RUST obj/third_party/rust/thiserror/v2/lib/libthiserror_lib.rlib
+
+`thiserror_lib_v1_build_script_output` runs to completion and both epochs link
+-- from DELETED outputs, not from ninja finding nothing to do. The target count
+is the vacuity floor: a failed `gn gen` writes no build graph, and every check
+downstream of one reads clean against nothing.
+
+WHAT THIS DOES NOT FIX
+
+`//chrome/browser/oxy/adblock/rs:adblock_engine_ffi` still does not link, for a
+reason no patch in this wave touches: rmp-serde 0.15.5 against rmp 0.8.15. It is
+characterised in 066, the patch that declares rmp.
+
+diff --git a/third_party/rust/chromium_crates_io/gnrt_config.toml b/third_party/rust/chromium_crates_io/gnrt_config.toml
+--- a/third_party/rust/chromium_crates_io/gnrt_config.toml
++++ b/third_party/rust/chromium_crates_io/gnrt_config.toml
+@@ -687,11 +687,19 @@ allow_unsafe = false
+ [crate.termcolor.extra_kv]
+ allow_unsafe = false
+ 
+-[crate.thiserror]
+-build_script_outputs = [ "private.rs" ]
++[crate.thiserror-impl]
+ extra_kv = { allow_unsafe = false }
+ 
+-[crate.thiserror-impl]
++# Astro: `build_script_outputs` is not the same for the two vendored epochs, so
++# thiserror cannot be configured under one unversioned key. 2.x's build script
++# writes `$OUT_DIR/private.rs` and `src/lib.rs` include!s it; 1.x's writes no
++# file at all, and declaring one there makes `run_build_script.py` fail with
++# `FileNotFoundError` when it goes to copy the output out of the temp dir.
++[crate."thiserror@v1"]
++extra_kv = { allow_unsafe = false }
++
++[crate."thiserror@v2"]
++build_script_outputs = [ "private.rs" ]
+ extra_kv = { allow_unsafe = false }
+ 
+ [crate.timezone_provider.extra_kv]
+diff --git a/tools/crates/gnrt/vendor.rs b/tools/crates/gnrt/vendor.rs
+--- a/tools/crates/gnrt/vendor.rs
++++ b/tools/crates/gnrt/vendor.rs
+@@ -326,10 +326,19 @@ fn fill_allow_unsafe_settings(
+     let new_inline_table_fn = || Item::from(InlineTable::new());
+     let top_table = get_or_insert_table(&mut doc as &mut Table, "crate", new_table_fn);
+     for package in deps.into_iter() {
+-        // TODO(https://crbug.com/419104870): In the future an epoch-based `crate_key`
+-        // may need to be consulted (in addition-to, or instead-of the `crate_key`
+-        // below).
+-        let crate_key = &package.package_name;
++        // Write into the epoch-scoped table when the config already has one for
++        // this crate, and only fall back to the unversioned name otherwise.
++        //
++        // `BuildConfig::get_crate_config` reads `<name>@<epoch>` in preference
++        // to `<name>`, and `BuildConfig::validate` rejects a file that carries
++        // both for one crate. So creating the unversioned table here does not
++        // merely add a redundant entry: it makes the next load of the file fail
++        // outright, which is what makes a per-epoch config unusable for any
++        // crate this loop touches. See https://crbug.com/419104870.
++        let epoch_key =
++            format!("{}@{}", package.package_name, Epoch::from_version(&package.version));
++        let crate_key =
++            if top_table.get(&epoch_key).is_some() { &epoch_key } else { &package.package_name };
+         let crate_table = get_or_insert_table(top_table, crate_key, new_table_fn);
+         let extra_kv_table = get_or_insert_table(crate_table, "extra_kv", new_inline_table_fn);
+ 

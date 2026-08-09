@@ -1,0 +1,187 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Sat, 8 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Declare the build inputs and outputs gnrt cannot discover
+
+gnrt builds a crate's `sources`/`inputs` lists by walking the directory that
+holds its root source file. Three crates the `adblock` engine depends on read
+or write files that walk does not reach, and each stops the build with a
+different message.
+
+    ERROR: Rust source file or input not in GN sources:
+      .../vendor/cssparser-v0_29/build/match_byte.rs
+
+    ERROR: Rust source file or input not in GN inputs:
+      .../vendor/rmp-v0_8/README.md
+
+    error: couldn't read out/GateCheck/gen/third_party/rust/selectors/v0_24/lib/
+      ascii_case_insensitive_html_attributes.rs: No such file or directory
+
+Three separate declarations because they are three separate mechanisms, all
+of which `gnrt_config.toml` already has a key for -- upstream makes the same
+declarations for `clap`, `image`, `prost`, `typed-path`, `read-fonts` and the
+`icu_*_data` crates. Nothing here is novel; it is the paperwork a crate needs
+when it is vendored for the first time.
+
+cssparser 0.29.6, both directions at once
+    `build.rs` declares `#[path = "build/match_byte.rs"] mod match_byte;`, so
+    the module is a source of the BUILD SCRIPT, not of the library -- hence
+    `extra_build_script_src_roots` rather than `extra_src_roots`. The path is
+    resolved against the directory of the crate's root source file
+    (`collect_crate_files` does `lib_root.join(path)` for every root), which
+    is `src/`, so the entry is `'../build'` and not `'build'`.
+    It then writes `$OUT_DIR/tokenizer.rs`, which `src/lib.rs:103` reads with
+    `include!(concat!(env!("OUT_DIR"), "/tokenizer.rs"))`. That is the second
+    declaration; without it the build script compiles, runs, and its output is
+    discarded when `run_build_script.py` copies nothing out of the temp dir.
+    The first failure hides the second, so both are fixed together rather
+    than one per round trip.
+
+rmp 0.8.15
+    `src/lib.rs` line 1 is `#![doc = include_str!("../README.md")]`. A README
+    is a compile input the moment a crate does that, and `rustc_wrapper.py`
+    checks the depfile against the declared set. Note that a README reached
+    only from a `#[cfg(doctest)]` item does NOT need this -- `hashbrown` in
+    the same dependency set has the identical line under that gate and builds
+    clean.
+
+selectors 0.24.0
+    `build.rs` writes a `phf` set to
+    `$OUT_DIR/ascii_case_insensitive_html_attributes.rs` and `parser.rs:2051`
+    include!s it. Same shape as cssparser's `tokenizer.rs`.
+
+WHY `allow_unsafe` IS SPELLED OUT FOR ALL THREE
+
+Not a claim added by this patch. `fill_allow_unsafe_settings` computes these
+three values as `true` on its own and writes them into this file on the first
+`gnrt vendor` of a fresh tree; each crate does contain `unsafe` its detector
+finds -- cssparser in `src/cow_rc_str.rs`, rmp in `src/encode/buffer.rs`, and
+selectors in `builder.rs`, `bloom.rs` and `tree.rs` at the crate root. Declaring
+them here changes no value: the vendoring run finds the key present and leaves
+it alone.
+
+HOW THE REST OF THE DEPENDENCY SET WAS CHECKED
+
+A round trip per crate is a poor way to find these, so the whole 103-crate
+`adblock` closure was scanned from `Cargo.lock` for the four shapes -- a
+`build.rs` writing into `OUT_DIR`, a `#[path]` module in a `build.rs`, an
+`include_str!`/`include_bytes!` escaping the source directory, and an
+`include!(concat!(env!("OUT_DIR"), ...))` -- and each hit was cross-checked
+against the crate's generated `BUILD.gn`. Eight candidates, of which these
+three are real. The other five are doc comments and doctest-gated items
+(`phf_codegen`'s `codegen.rs` appears inside a `//!` example, `hashbrown`'s
+README behind `#[cfg(doctest)]`, `regex-automata`'s `.dfa` fixtures inside
+doc examples), and `thiserror`'s `build/probe.rs`, which its build script
+hands to a nested `rustc` rather than reading itself -- an undeclared
+incremental-build input, not a failure, and undeclared upstream too.
+
+MEASURED
+
+All three of 064, 065 and 066 applied, `tools/vendor-adblock-rust.sh` re-run,
+then from chromium/src with the committed gn_args/linux.gn (verified
+byte-identical to out/GateCheck/args.gn):
+
+    $ ./buildtools/linux64/gn gen out/GateCheck
+    Done. Made 29957 targets from 4411 files in 9591ms
+
+    $ ./third_party/ninja/ninja -C out/GateCheck -k 0 \
+          obj/third_party/rust/cssparser/v0_29/lib/libcssparser_lib.rlib \
+          obj/third_party/rust/rmp/v0_8/lib/librmp_lib.rlib \
+          obj/third_party/rust/selectors/v0_24/lib/libselectors_lib.rlib
+    [11/17] RUST(BIN) .../selectors_lib_v0_24_build_script
+    [12/17] ACTION //third_party/rust/selectors/v0_24:selectors_lib_v0_24_build_script_output
+    [15/17] RUST obj/third_party/rust/cssparser/v0_29/lib/libcssparser_lib.rlib
+    [16/17] RUST obj/third_party/rust/selectors/v0_24/lib/libselectors_lib.rlib
+    [3/17]  RUST obj/third_party/rust/rmp/v0_8/lib/librmp_lib.rlib
+
+All three libraries and both build scripts build, from DELETED outputs rather
+than from ninja reporting it had nothing to do. The generated files carry the
+declarations:
+
+    cssparser/v0_29/BUILD.gn  build_script_inputs = [ ".../src/../build/match_byte.rs" ]
+                              build_script_outputs = [ "tokenizer.rs" ]
+    rmp/v0_8/BUILD.gn         inputs = [ ".../src/../README.md" ]
+    selectors/v0_24/BUILD.gn  build_script_outputs = [ "ascii_case_insensitive_html_attributes.rs" ]
+
+Re-running `tools/vendor-adblock-rust.sh` left `gnrt_config.toml` byte-identical
+to what it was before, and all three generated `BUILD.gn` files unchanged.
+Byte-identical to the file as it stood, not to what this patch alone produces:
+the first vendoring of a fresh tree also auto-fills `allow_unsafe` for every
+crate the adblock closure adds that has no key yet. Those entries are gnrt's
+own; what is verified here is that none of them displaces these.
+
+The target count is the vacuity floor: a `gn gen` that fails writes no build
+graph at all, and every check downstream of one reads clean against nothing.
+
+WHAT THIS DOES NOT FIX, AND WHY IT CANNOT BE FIXED HERE
+
+`//chrome/browser/oxy/adblock/rs:adblock_engine_ffi` still does not link. With
+cssparser, rmp and selectors declared, the next thing in the graph fails:
+
+    FAILED: obj/third_party/rust/rmp_serde/v0_15/lib/librmp_serde_lib.rlib
+    error[E0425]: cannot find function `read_data_i8` in module `rmp::decode`
+    error: aborting due to 24 previous errors
+
+Not a declaration gap and not reachable from `gnrt_config.toml`. rmp-serde
+0.15.5 calls `rmp::decode::read_data_*` as FREE functions; rmp 0.8.11 moved them
+into the `RmpRead` trait, `#[doc(hidden)]`, and left no free wrappers. Confirmed
+against the crates rather than inferred: rmp 0.8.10 `src/decode/mod.rs:208` has
+`pub fn read_data_u8<R: Read>(rd: &mut R)`; 0.8.11 `src/decode/mod.rs:86,108`
+has `pub trait RmpRead` with `fn read_data_u8(&mut self)` inside it. adblock
+0.9.8 requires `rmp-serde = "0.15"` NON-optionally (it is the `data_format`
+serializer, not a feature), rmp-serde 0.15.5 requires `rmp = "0.8.8"`, and Cargo
+resolves that caret to 0.8.15.
+
+So the repair is to constrain what the closure resolves to -- `rmp` held below
+0.8.11, or an adblock revision on a newer rmp-serde. That is a dependency
+decision, `browser.lock.json` `third_party.adblock_rust` and issue #5, on the
+same reasoning 065 gives for not dropping thiserror 1.x. Editing the vendored
+crate is not an option either: the next `gnrt vendor` overwrites it silently.
+
+diff --git a/third_party/rust/chromium_crates_io/gnrt_config.toml b/third_party/rust/chromium_crates_io/gnrt_config.toml
+--- a/third_party/rust/chromium_crates_io/gnrt_config.toml
++++ b/third_party/rust/chromium_crates_io/gnrt_config.toml
+@@ -203,6 +203,15 @@ allow_unsafe = false
+ [crate.crc32fast.extra_kv]
+ allow_unsafe = true
+ 
++# Astro: `build.rs` reaches outside itself in both directions and gnrt cannot
++# see either half. It pulls in `build/match_byte.rs` with a `#[path]` module
++# declaration, and it writes `$OUT_DIR/tokenizer.rs`, which `src/lib.rs`
++# include!s. Neither appears in the generated `BUILD.gn` unless declared.
++[crate.cssparser]
++extra_build_script_src_roots = ['../build']
++build_script_outputs = ['tokenizer.rs']
++extra_kv = { allow_unsafe = true }
++
+ [crate.cxx]
+ extra_kv = { allow_unsafe = true }
+ remove_deps = ['cc', 'link-cplusplus']
+@@ -580,6 +589,13 @@ allow_unsafe = false
+ [crate.resb.extra_kv]
+ allow_unsafe = true
+ 
++# Astro: `src/lib.rs` opens with `#![doc = include_str!("../README.md")]`, so
++# the README is a compile input. Same declaration upstream already makes for
++# `image`, `prost`, `clap` and `typed-path`.
++[crate.rmp]
++extra_input_roots = ['../README.md']
++extra_kv = { allow_unsafe = true }
++
+ [crate.rustc-demangle.extra_kv]
+ allow_unsafe = false
+ 
+@@ -598,6 +614,13 @@ allow_unsafe = true
+ [crate.scopeguard]
+ extra_kv = { allow_unsafe = true }
+ 
++# Astro: `build.rs` writes a phf set to
++# `$OUT_DIR/ascii_case_insensitive_html_attributes.rs` and `parser.rs`
++# include!s it. Same shape as `cssparser` above.
++[crate.selectors]
++build_script_outputs = ['ascii_case_insensitive_html_attributes.rs']
++extra_kv = { allow_unsafe = true }
++
+ [crate.serde]
+ build_script_outputs = [ "private.rs" ]
+ extra_kv = { allow_unsafe = false }
