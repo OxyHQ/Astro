@@ -156,6 +156,17 @@ signal to stop and report it on the issue.
   deletions: `git commit --dry-run -- <paths>` does not disturb the index. The
   report that it did was a staged deletion being consumed by its own author's
   commit, which git then rendered as a rename.
+- **Every agent commits as the same git user, so `git log` cannot tell you
+  whose work something is — and adjacency in time is not evidence.** Six
+  attributions were made wrongly in one session, in both directions: an
+  uncommitted hunk handed back to an agent who had never written it, and
+  commits credited to an agent who had not made them. Twice that would have
+  led to work being discarded or committed twice by someone repairing a defect
+  they did not own. The cheap discriminator is `git log -S '<a distinctive
+  line>' -- <path>`, which names the commit that introduced the text, plus the
+  commit timestamps; run it before handing anything back or "restoring" what
+  looks like somebody else's edit. Reconciling a shared file so BOTH sets of
+  edits survive is safe whoever owns it — asserting who owns it is not.
 
 **Source revisions are declared, never discovered.** `browser.lock.json` holds
 the full commit SHA of Chromium, depot_tools and the ungoogled patch set.
