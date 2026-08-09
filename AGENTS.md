@@ -270,6 +270,15 @@ signal to stop and report it on the issue.
   returned eight windows, from three processes, for a pid that had one.
   Better still, drive the browser through CDP against a named target: it is
   focus-independent, so another agent stealing focus cannot corrupt the run.
+- **Two browsers can hold "the same" debugging port, and your CDP client then
+  drives somebody else's.** The port binds per stack, so one process on IPv4
+  and another on IPv6 both succeed on 9333 and neither reports a conflict.
+  That is how one agent came to read one browser's log while driving another,
+  and reported a control as inert — a conclusion that happened to be wrong for
+  a reason that had nothing to do with the control. Pick a port nobody else on
+  the machine is using, and confirm the browser you attached to is the one you
+  launched (its own pid in `/json/version`, or a marker only your profile has)
+  before believing anything it tells you.
 - **`import -window ""` writes a plausible screenshot of something you never
   identified**, so a window lookup that returns nothing still produces a PNG
   and the run looks like it worked. It happened: `pgrep -f
