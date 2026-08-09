@@ -84,6 +84,29 @@ signal to stop and report it on the issue.
 - **Preserve developer work by default.** Mutating scripts refuse a checkout
   carrying changes Astro did not write. `ASTRO_ALLOW_DIRTY_CHROMIUM=1` is a
   developer-only override; CI asserts it is never set.
+- **Every "is the checkout pristine" answer this repository can currently give
+  is blind to submodules.** `gclient` writes `diff.ignoreSubmodules = dirty`
+  into `chromium/src/.git/config`, so `git status --porcelain` prints nothing
+  for a dirty submodule, and both the dirty-checkout guard in
+  `astro-common.sh` and `tools/check-upstream-delta.sh` inherit that blindness
+  — they answer "clean" in unison over a tree that still carries the last
+  run's patches. Ask with `--ignore-submodules=none`. Measured 2026-08-09: a
+  reset that satisfied both checks then died at ungoogled patch 12 of 112 on a
+  `prepopulated_engines.json` that was already patched. The exposure is
+  bounded and known — **13 files in 2 submodules**, `devtools-frontend/src`
+  (12) and `search_engines_data/resources` (1), the same 13 the patch replay
+  reads from DEPS sub-repositories — so a reset must `checkout -- .` inside
+  both. `docs/recovery.mdx` §3 carries the procedure. The guards themselves
+  are not fixed yet: a check that cannot fail for a whole class of content is
+  the shape this repository keeps finding, and this is one.
+- **A patch applied by hand is invisible to the guards.** They attribute dirty
+  paths from `build/reports/patch-report.json`, which only
+  `tools/apply-patches.sh` writes. Apply a patch with `git apply` — the
+  sanctioned way to test one — and the report keeps describing the previous
+  run, so `sync-overlay.sh` later refuses the tree and names files that Astro's
+  own patches wrote. Measured 2026-08-09 with the report at
+  `applied_count: 168` against a tree carrying 176. The cure is a real
+  pipeline run, not an override.
 - **Every overlay destination is declared** in `tools/overlay.allowlist`. An
   undeclared path, or an undeclared overwrite of an upstream-tracked file,
   fails the sync.

@@ -106,17 +106,48 @@ git -C chromium/src rev-parse --show-toplevel
 git -C chromium/src log -1 --format='%H %d %s'
 python3 tools/lib/lock.py --get chromium.commit
 
-# 3. Review what will be discarded.
-git -C chromium/src status --short
+# 3. Review what will be discarded. --ignore-submodules=none is load-bearing:
+#    see the warning below.
+git -C chromium/src status --short --ignore-submodules=none
 git -C chromium/src diff --stat
 
-# 4. Discard it.
+# 4. Discard it, in the superproject AND in the two submodules the series edits.
 git -C chromium/src checkout -- .
 git -C chromium/src clean -fd
+git -C chromium/src/third_party/devtools-frontend/src checkout -- .
+git -C chromium/src/third_party/search_engines_data/resources checkout -- .
+
+# 5. Confirm it worked, again with submodules visible.
+git -C chromium/src status --porcelain --ignore-submodules=none | wc -l   # expect 0
 ```
 
 Step 3 is not optional. `clean -fd` removes untracked files, and a Chromium
 checkout accumulates plenty of them that are expensive to recreate.
+
+<Warning>
+**A superproject reset does not descend into submodules, and plain
+`git status` will not tell you.** `gclient` writes
+`diff.ignoreSubmodules = dirty` into `chromium/src/.git/config`, so
+`git status --porcelain` omits dirty submodules entirely — it prints zero
+lines over a tree that still carries the last run's patches.
+`tools/check-upstream-delta.sh` inherits the same blindness and reports zero
+undeclared beside it. Two independent "pristine" assertions, both wrong at
+once.
+
+Measured 2026-08-09: a reset that passed both checks then failed
+`apply-patches.sh` at ungoogled patch 12 of 112, because
+`third_party/search_engines_data/resources/definitions/prepopulated_engines.json`
+already read `"name": "No Search"` — the patch was rejected for being applied
+already. Cross-referencing every `+++ b/` path in both series against
+`git submodule status --cached` (260 submodules) puts the whole exposure at
+**13 files in 2 submodules**: `third_party/devtools-frontend/src` (12) and
+`third_party/search_engines_data/resources` (1) — the same 13 the patch replay
+already reads from DEPS sub-repositories. The replay knows; the reset did not.
+
+Also expect a few vendored-crate directories to survive `clean -fd` holding
+nothing but a gitignored `Cargo.lock`. Remove those by hand. Do **not** reach
+for `clean -fdx`: it takes them and `out/` with them.
+</Warning>
 
 ## 4. Re-apply
 
