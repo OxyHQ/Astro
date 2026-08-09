@@ -194,13 +194,25 @@ signal to stop and report it on the issue.
   patch is uncommitted. Bump the literal in the same commit as the patch, and
   re-run the suite AFTER committing and before regenerating the baseline —
   that window is where this class of miss lives.
-- **Stage by explicit path. The index is shared, so a bare `git commit` takes
-  whatever somebody else staged.** Several agents routinely work this one
-  checkout at once, and `AGENTS.md`, `patches/astro/series` and
-  `patch-dispositions.json` are the files two waves reach for simultaneously —
-  all three have carried another agent's uncommitted hunks mid-session. A
-  commit built from `HEAD` plus explicit blobs (a temporary index) is the
-  robust form; `git add -A` is never correct here.
+- **Commit with `git commit --only <paths>`. The index is shared, so anything
+  that commits "what is staged" takes somebody else's work.** Several agents
+  routinely work this one checkout at once, and `AGENTS.md`,
+  `patches/astro/series` and `patch-dispositions.json` are the files two waves
+  reach for simultaneously — all three have carried another agent's
+  uncommitted hunks mid-session.
+
+  **`git add <path>` followed by `git commit` is NOT sufficient**, which is
+  what the earlier wording ("stage by explicit path") got wrong: adding your
+  path does not clear what somebody else added. It happened exactly that way —
+  a `git status` showed a file as unstaged, another agent staged it in the
+  seconds before the commit, and the commit carried their 36 lines under a
+  stranger's name and message. `--only` names what to commit and leaves every
+  other staged entry untouched; a temporary index built from `HEAD` plus
+  explicit blobs is equivalent. `git add -A` is never correct here.
+
+  Recovering from it is `git reset --soft HEAD~1` — but check first that HEAD
+  is still your commit, or the reset eats whatever landed on top. It restores
+  the index exactly as it was, so the other agent's staging survives.
 - **`git commit --dry-run -- <paths>` does not disturb the index — but read
   the exit status before believing a test that says so.** It was claimed as a
   hazard, and the first round of testing could not have caught it either way:
