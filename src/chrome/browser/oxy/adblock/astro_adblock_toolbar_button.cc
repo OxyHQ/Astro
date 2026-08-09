@@ -40,6 +40,18 @@ AstroAdBlockToolbarButton::AstroAdBlockToolbarButton(Browser* browser)
   if (auto* wc = browser_->tab_strip_model()->GetActiveWebContents()) {
     ObserveTab(wc);
   }
+
+  // NO UpdateState() HERE. It reaches UpdateIcon(), which asks the
+  // ColorProvider for a colour, and a View has no ColorProvider until it is
+  // in a Widget — this constructor runs from ToolbarView::Init(), before
+  // that. It dereferenced null and took the browser down on its first window,
+  // every time. OnThemeChanged() is the hook views gives for exactly this,
+  // and it fires once when the widget arrives as well as on every later theme
+  // change, so the button is painted correctly from the start.
+}
+
+void AstroAdBlockToolbarButton::OnThemeChanged() {
+  ToolbarButton::OnThemeChanged();
   UpdateState();
 }
 

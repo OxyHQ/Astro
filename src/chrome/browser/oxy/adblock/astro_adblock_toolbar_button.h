@@ -36,6 +36,14 @@ class AstroAdBlockToolbarButton
   // ToolbarButton:
   void UpdateIcon() override;
 
+  // views::View:
+  //
+  // Where the first UpdateState() happens. Not the constructor: UpdateIcon()
+  // reaches the ColorProvider, a View has none until it is in a Widget, and
+  // the constructor runs from ToolbarView::Init() before that. It segfaulted
+  // on the browser's very first window.
+  void OnThemeChanged() override;
+
   // AstroAdBlockTabHelper::Observer:
   void OnBlockedCountChanged(int count) override;
 
