@@ -136,8 +136,9 @@ That is not this patch's to fix, and the two repairs named here when it was
 written are both wrong. Corrected by 069, which measured them:
 
   * "An adblock revision on a newer rmp-serde" does not exist below adblock
-    0.12, which drops rmp-serde altogether. Every release from 0.9.8 to 0.11.1
-    declares `rmp-serde = "^0.15"`, and 0.15.5 is the last 0.15.x.
+    0.12.1, the first release that drops rmp-serde altogether. Every release
+    from 0.9.8 to 0.12.0 declares `rmp-serde = "^0.15"`, and 0.15.5 is the
+    last 0.15.x.
   * "Editing the vendored crate is not an option; the next `gnrt vendor`
     overwrites it silently" is true of editing the tree by hand and false of
     the mechanism. `chromium_crates_io/patches/<crate>-<epoch>/` exists so an

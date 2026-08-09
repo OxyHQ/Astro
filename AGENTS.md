@@ -242,11 +242,16 @@ do not let a build imply they are resolved:
     crate before pinning it.
   - **Bumping the intermediate crate was not available, and the version list
     is how you find that out.** adblock 0.9.8 declares `rmp-serde = "^0.15"`,
-    0.15.5 (2021-06-11) is the last 0.15.x, and the next non-yanked release is
-    1.0.0 — outside the range. No published rmp-serde both satisfies its
-    dependant and builds against a current rmp.
+    0.15.5 (2021-06-11) is the last 0.15.x; 1.0.0 and 1.1.0 are yanked, so the
+    first live release above it is 1.1.1, and every release above 0.15.5 is
+    outside the range in any case. No published rmp-serde both satisfies its
+    dependant and builds against a current rmp. Checked release by release
+    rather than sampled: every adblock from 0.9.8 to 0.12.0 declares
+    `rmp-serde = "^0.15"`.
   - **The real fix is an engine upgrade, and it is a product decision.**
-    adblock 0.12.0 dropped rmp-serde entirely for flatbuffers. Taking it costs
+    adblock 0.12.1 is the first release that drops rmp-serde entirely.
+    Flatbuffers is not the marker: it arrived in 0.10.0 and coexisted with
+    rmp-serde for eleven releases. Taking 0.12.1 costs
     four new vendored crates (`flatbuffers`, `arrayvec`, `precomputed-hash`,
     `rustc-hash`), five epoch bumps that invalidate 066's `cssparser-v0_29`
     and `selectors-v0_24` declarations, a `v0_9` → `v0_12` rename in the FFI's

@@ -24,8 +24,10 @@ THE THREE REPAIRS, AND WHY THIS IS THE ONE
 
 Bumping rmp-serde is not available. adblock 0.9.8 declares `rmp-serde =
 "^0.15"` non-optionally, 0.15.5 (2021-06-11) is the last 0.15.x and there will
-not be another, and the next non-yanked release is 1.0.0 -- outside the range.
-No published rmp-serde both satisfies adblock and builds against a current rmp.
+not be another. 1.0.0 and 1.1.0 are yanked, so the first live release above
+it is 1.1.1 -- and every release above 0.15.5 is outside the range in any
+case. No published rmp-serde both satisfies adblock and builds against a
+current rmp.
 
 Constraining rmp below 0.8.11 works and costs more than it looks. It pins the
 decoder that parses adblock's serialized filter data at 0.8.10 (2021-02-02),
@@ -39,8 +41,8 @@ declares `[crate.rmp] extra_input_roots = ['../README.md']` because 0.8.15's
 not, so the pin would leave 066 declaring a compile input that is not one.
 
 Upgrading adblock is the eventual answer and is not this change. adblock
-0.12.0 dropped rmp-serde entirely for flatbuffers, which deletes the problem
-rather than working around it -- at the cost of four crates to vendor
+0.12.1 is the first release that drops rmp-serde entirely, which deletes the
+problem rather than working around it -- at the cost of four crates to vendor
 (`flatbuffers`, `arrayvec`, `precomputed-hash`, `rustc-hash`), five epoch
 bumps that invalidate 066's `cssparser-v0_29` and `selectors-v0_24`
 declarations, a `v0_9` -> `v0_12` rename in the FFI's `BUILD.gn`, and a
@@ -67,13 +69,12 @@ The content is upstream's own fix, lifted from rmp-serde 1.1.1 -- its import
 line, its method-call form, and its `byteorder::ReadBytesExt::read_u8`
 disambiguation, which is needed because `RmpRead` in scope makes a bare
 `rd.read_u8()` ambiguous. Its own header carries the detail.
-
 diff --git a/third_party/rust/chromium_crates_io/patches/rmp-serde-v0_15/0101-Backport-rmp-serde-1.x-s-RmpRead-migration-to-0.15.5.patch b/third_party/rust/chromium_crates_io/patches/rmp-serde-v0_15/0101-Backport-rmp-serde-1.x-s-RmpRead-migration-to-0.15.5.patch
 new file mode 100644
-index 0000000..a6df645
+index 0000000..901f5ad
 --- /dev/null
 +++ b/third_party/rust/chromium_crates_io/patches/rmp-serde-v0_15/0101-Backport-rmp-serde-1.x-s-RmpRead-migration-to-0.15.5.patch
-@@ -0,0 +1,154 @@
+@@ -0,0 +1,155 @@
 +From c7599b123d9c19d4a1dc8be80dccb3f85b50cf23 Mon Sep 17 00:00:00 2001
 +From: Nate Isern <nate@oxy.so>
 +Date: Sun, 9 Aug 2026 05:05:43 +0300
@@ -94,8 +95,9 @@ index 0000000..a6df645
 +
 +There is no published rmp-serde that both satisfies its dependant and builds
 +against a current rmp. `adblock` 0.9.8 declares `rmp-serde = "^0.15"`, and
-+0.15.5 is the last 0.15.x -- the next non-yanked release is 1.0.0, outside
-+the range. Constraining rmp to <0.8.11 instead means pinning the decoder at
++0.15.5 is the last 0.15.x. 1.0.0 and 1.1.0 are yanked, so the first live
++release above it is 1.1.1, and every release above 0.15.5 is outside the
++range in any case. Constraining rmp to <0.8.11 instead means pinning at
 +0.8.10 (2021-02-02), five releases back, for a parser that reads adblock's
 +serialized filter data.
 +
@@ -121,8 +123,8 @@ index 0000000..a6df645
 +`std::io::Error` and the blanket `impl<T: std::io::Read> RmpRead for T` sets
 +`Error = std::io::Error`.
 +
-+Removable once the ad blocker moves to adblock 0.12 or newer, which dropped
-+rmp-serde entirely in favour of flatbuffers.
++Removable once the ad blocker moves to adblock 0.12.1 or newer, the first
++release that does not depend on rmp-serde at all.
 +---
 + .../vendor/rmp-serde-v0_15/src/decode.rs      | 52 +++++++++----------
 + 1 file changed, 26 insertions(+), 26 deletions(-)
