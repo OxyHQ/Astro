@@ -63,16 +63,22 @@ DEFAULT_MIN_DECLARED = 100
 SEND_CALL = re.compile(r"\b(send|sendWithPromise)\s*(?:<[^<>()]*>)?\s*\(\s*'([^']+)'")
 LISTEN_CALL = re.compile(r"\baddWebUIListener\s*\(\s*'([^']+)'")
 
-# Every handler the controller installs, whoever owns it. The namespace is
-# captured rather than required: an Astro-owned handler is not a defect, it is
-# simply not something the manifest can vouch for, and the two have to be told
-# apart rather than one of them going unseen.
+# Every handler the controller installs, by the FULLY-QUALIFIED name it is
+# spelled with. Qualified rather than bare because the namespace is not
+# uniform and the manifest has to be able to say so: every handler in
+# chrome/browser/ui/webui/settings/ is in `namespace settings` except
+# SafetyHubHandler, which is at global scope. A scanner that matched on the
+# bare class name would silently accept either spelling for either handler.
 INSTALLED = re.compile(
     r"AddMessageHandler\s*\(\s*std::make_unique<\s*((?:::)?[A-Za-z_][A-Za-z0-9_:]*)\s*>",
     re.S,
 )
 ADD_HANDLER = re.compile(r"AddMessageHandler\s*\(")
-SETTINGS_HANDLER = re.compile(r"^::settings::([A-Za-z_][A-Za-z0-9_]*)$")
+
+
+def normalise(qualified: str) -> str:
+    """`::settings::Foo` and `settings::Foo` name the same class from here."""
+    return qualified[2:] if qualified.startswith("::") else qualified
 
 
 def strip_ts_comments(source: str) -> str:
@@ -182,28 +188,20 @@ def scan_app(app_dir: str) -> tuple[list[Use], list[Use], int]:
     return sends, listens, files
 
 
-def scan_controller(path: str) -> tuple[list[str], list[str], int]:
-    """What the controller installs: upstream handlers, others, and call count.
+def scan_controller(path: str) -> tuple[list[str], int]:
+    """The qualified names the controller installs, and the call count.
 
-    The third value is the vacuity denominator. Every `AddMessageHandler(` in
-    the file should have been parsed into one of the first two lists; a
-    shortfall means the construction is no longer spelled the way this reads
-    it, and the caller turns that into "nothing was measured" rather than into
-    a shorter list nobody notices.
+    The second value is the vacuity denominator. Every `AddMessageHandler(` in
+    the file should have been parsed into the list; a shortfall means the
+    construction is no longer spelled the way this reads it, and the caller
+    turns that into "nothing was measured" rather than into a shorter list
+    nobody notices.
     """
     with open(path, encoding="utf-8") as handle:
         source = strip_cc_comments(handle.read())
 
-    upstream: list[str] = []
-    other: list[str] = []
-    for qualified in INSTALLED.findall(source):
-        match = SETTINGS_HANDLER.match(qualified)
-        if match:
-            upstream.append(match.group(1))
-        else:
-            other.append(qualified)
-
-    return upstream, other, len(ADD_HANDLER.findall(source))
+    installed = [normalise(name) for name in INSTALLED.findall(source)]
+    return installed, len(ADD_HANDLER.findall(source))
 
 
 def main() -> int:
@@ -234,6 +232,10 @@ def main() -> int:
               f"  handlers. Nothing can be checked against it.", file=sys.stderr)
         return 2
 
+    # Keyed by the fully-qualified class, which is what the controller spells.
+    # The manifest's own keys are the bare names, for readability; they are not
+    # what the join runs on, because two namespaces can share one bare name.
+    by_class: dict[str, dict] = {}
     served_by: dict[str, str] = {}
     fired_by: dict[str, str] = {}
     for handler in sorted(declared):
@@ -241,6 +243,13 @@ def main() -> int:
         if not isinstance(entry, dict):
             print(f"Settings handlers: {handler} is not an object.", file=sys.stderr)
             return 2
+        qualified = entry.get("class")
+        if not isinstance(qualified, str) or not qualified:
+            print(f"Settings handlers: {handler} declares no `class`. The join runs on\n"
+                  f"  the fully-qualified name; without it the entry cannot be matched\n"
+                  f"  to anything the controller installs.", file=sys.stderr)
+            return 2
+        by_class[normalise(qualified)] = entry
         for message in entry.get("messages", []):
             served_by.setdefault(message, handler)
         for event in entry.get("events", []):
@@ -255,13 +264,13 @@ def main() -> int:
 
     # --- The controller ------------------------------------------------------
     try:
-        installed_list, other_handlers, add_calls = scan_controller(args.controller)
+        installed_list, add_calls = scan_controller(args.controller)
     except OSError as error:
         print(f"Settings handlers: the controller could not be read: {error}",
               file=sys.stderr)
         return 2
 
-    parsed = len(installed_list) + len(other_handlers)
+    parsed = len(installed_list)
     if add_calls == 0:
         print(f"Settings handlers: {os.path.basename(args.controller)} installs no\n"
               f"  handlers at all. Either it is the wrong file, or AddMessageHandler is\n"
@@ -295,18 +304,18 @@ def main() -> int:
     problems: list[str] = []
 
     # --- Manifest and controller must describe the same page -----------------
-    for handler in sorted(installed - set(declared)):
+    for handler in sorted(installed - set(by_class)):
         problems.append(
             f"  {handler}: installed by the controller, undeclared by the manifest.\n"
             f"    {os.path.basename(args.controller)} installs it and\n"
             f"    {os.path.basename(args.manifest)} does not describe it, so the manifest\n"
             f"    has stopped describing this page and cannot be trusted for anything\n"
             f"    else here.")
-    for handler in sorted(set(declared) - installed):
+    for handler in sorted(set(by_class) - installed):
         problems.append(
             f"  {handler}: declared by the manifest, not installed by the controller.\n"
             f"    {os.path.basename(args.manifest)} says it serves\n"
-            f"    {len(declared[handler].get('messages', []))} message(s), and\n"
+            f"    {len(by_class[handler].get('messages', []))} message(s), and\n"
             f"    {os.path.basename(args.controller)} never installs it, so every one of\n"
             f"    them is a silent no-op. The declaration is vouching for calls nothing\n"
             f"    answers.")
@@ -314,12 +323,12 @@ def main() -> int:
     # An installed handler registers everything in its manifest entry, so the
     # answer to "is this message served" is the union over installed handlers.
     live_messages = {
-        message for handler in installed & set(declared)
-        for message in declared[handler].get("messages", [])
+        message for handler in installed & set(by_class)
+        for message in by_class[handler].get("messages", [])
     }
     live_events = {
-        event for handler in installed & set(declared)
-        for event in declared[handler].get("events", [])
+        event for handler in installed & set(by_class)
+        for event in by_class[handler].get("events", [])
     }
 
     # --- The join ------------------------------------------------------------
@@ -374,9 +383,6 @@ def main() -> int:
           f"  {len(listens)} listener(s) across {files} source file(s), served by "
           f"{len(installed)} handler(s)\n"
           f"  registering {len(live_messages)} message(s) and {len(live_events)} event(s).")
-    if other_handlers:
-        print(f"  {len(other_handlers)} handler(s) outside ::settings:: are installed and "
-              f"not\n  described by the manifest: {', '.join(sorted(other_handlers))}.")
     return 0
 
 

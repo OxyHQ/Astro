@@ -176,6 +176,29 @@ harness::assert_status 1 "a listener for an event nothing fires"
 harness::assert_output_contains "auto-open-downloads-chnged" "the event is named"
 harness::assert_output_contains "never fires" "says what the consequence is"
 
+# --- The right class, in the wrong namespace ---------------------------------
+#
+# Not hypothetical: this is the mistake that was made writing the controller.
+# Every handler in chrome/browser/ui/webui/settings/ is in `namespace settings`
+# except SafetyHubHandler, which is at global scope -- settings_ui.cc uses the
+# bare name only because it is itself inside that namespace. The compiler does
+# catch this one, which is exactly why the join runs on the fully-qualified name
+# rather than the bare class: a check that matched `SafetyHubHandler` either way
+# would be a check that agreed with whichever spelling it was shown.
+
+misnamespaced="$(copy_file misnamespaced.cc "$CONTROLLER")"
+edit "$misnamespaced" \
+    "text.replace('std::make_unique<::SafetyHubHandler>',
+                  'std::make_unique<::settings::SafetyHubHandler>', 1)"
+
+scan "$APP_DIR" "$misnamespaced" "$MANIFEST"
+harness::assert_status 1 "a handler installed under the wrong namespace"
+harness::assert_output_contains "settings::SafetyHubHandler: installed by the controller" \
+    "the wrong spelling is named"
+harness::assert_output_contains "SafetyHubHandler: declared by the manifest" \
+    "and the entry it failed to match"
+harness::assert_output_contains "getVersionCardData" "its messages are reported dead"
+
 # --- A handler installed and not described -----------------------------------
 #
 # Not a broken control on its own, but it makes the manifest stop describing the

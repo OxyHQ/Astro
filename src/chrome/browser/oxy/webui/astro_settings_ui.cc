@@ -132,8 +132,11 @@ AstroSettingsUI::AstroSettingsUI(content::WebUI* web_ui)
       std::make_unique<::settings::ProfileInfoHandler>(profile));
   web_ui->AddMessageHandler(
       std::make_unique<::settings::ResetSettingsHandler>(profile));
-  web_ui->AddMessageHandler(
-      std::make_unique<::settings::SafetyHubHandler>(profile));
+  // NOT ::settings::. SafetyHubHandler is the one handler in that directory
+  // declared at global scope — it derives from settings::SettingsPageUIHandler
+  // without joining the namespace, and settings_ui.cc only gets away with the
+  // bare name because it is itself inside `namespace settings`.
+  web_ui->AddMessageHandler(std::make_unique<::SafetyHubHandler>(profile));
   web_ui->AddMessageHandler(
       std::make_unique<::settings::SearchEnginesHandler>(profile));
   web_ui->AddMessageHandler(std::make_unique<::settings::SecureDnsHandler>());
