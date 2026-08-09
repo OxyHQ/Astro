@@ -508,6 +508,12 @@
       "effect": "build-only",
       "purpose": "Adds a Chromium crate patch under third_party/rust/chromium_crates_io/patches/rmp-serde-v0_15/ that backports rmp-serde 1.1.1's RmpRead migration to 0.15.5, which is what makes the ad blocker's Rust engine link. rmp 0.8.11 moved read_data_* from free functions into the sealed RmpRead trait; rmp-serde 0.15.5 predates it and Cargo resolves its own rmp = \"0.8.8\" to 0.8.15, so the crate fails with 24 x E0425. No published rmp-serde satisfies both adblock 0.9.8's ^0.15 and a current rmp, and constraining rmp below 0.8.11 would pin the decoder at 0.8.10 and falsify 066's [crate.rmp] README input declaration. Removable once the engine moves to adblock 0.12.1 or newer, the first release that does not depend on rmp-serde at all.",
       "replacement_issue": 7
+    },
+    "070-theme-color-picker-astro-presets.patch": {
+      "disposition": "replace",
+      "effect": "user-visible",
+      "purpose": "Rebuilds ThemeColorPickerHandler around Astro's Bloom presets: GetChromeColors serves the eighteen presets from the generated token table instead of Chromium's thirteen GM3 colours, SetSeedColor stores the clicked one through AstroThemeService::SetColorPreset, and UpdateTheme reports the active preset so the check mark follows astro.theme.preset however it was changed. Before it the picker wrote browser.theme.user_color2, which lands in ColorProviderKey::user_color and so never reached the Astro mixer -- the panel recoloured itself and the sys palette while the toolbar, tabs and menus stayed on the stored preset. The GM3 seed is still written, set to the preset's own Bloom primary, because the mixer sets no ui::kColorSys* token and everything derived from those would otherwise keep an unrelated palette. The handler is shared, so the Customize Astro side panel, astro://settings' appearance picker and chrome://profile-customization all move together. The hue slider behind the custom-colour circle is refused and logged: Astro has presets and no arbitrary seed, and deciding what a custom colour means here belongs to #24.",
+      "replacement_issue": 24
     }
   }
 }

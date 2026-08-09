@@ -1,0 +1,431 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Sat, 9 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Offer Astro's Bloom presets in the colour picker, and let them
+ paint
+
+The "Customize Astro" side panel's colour picker offered Chromium's thirteen
+GM3 colours and wrote them to `browser.theme.user_color2`. Astro's native UI
+is painted by chrome/browser/oxy/ui/astro_color_mixer.cc from
+`astro.theme.preset`, and the two do not meet: `SetUserColorAndBrowserColor-
+Variant` REMOVES a theme supplier (ClearThemeData -> SwapThemeSupplier(nullptr))
+and the seed lands in ColorProviderKey::user_color, a different field from
+`custom_theme`, which is the only one the Astro mixer switches on. So the
+picker moved the sys palette and the panel's own surfaces while the toolbar,
+tab strip, omnibox and menus stayed on whatever preset was stored -- a control
+that moves and changes the wrong thing.
+
+WHAT THIS CHANGES
+
+  GetChromeColors  builds its list from Bloom's eighteen presets
+                   (astro::kColorPresetNames plus the generated table in
+                   chrome/browser/oxy/ui/astro_color_tokens.h) instead of
+                   kDynamicCustomizeChromeColors, which is now unreferenced
+                   here along with ui::GeneratePalette.
+  SetSeedColor     maps the clicked swatch back to a preset and stores it
+                   through AstroThemeService::SetColorPreset.
+  UpdateTheme      reports the ACTIVE preset's identity, so the check mark
+                   follows astro.theme.preset however it was changed.
+
+Each swatch renders three colours and they are the three the preset actually
+paints the browser with, taken straight from the mixer's own choices: the
+circle is `surface` (the toolbar), the bottom-left quarter is `primary` (the
+brand colour), the bottom-right quarter is `muted` (the frame and the inactive
+tabs). The `seed` field is never painted -- the page uses it only to decide
+which swatch is checked -- so it is an identity, and it is the light-scheme
+`primary`: distinct across all eighteen presets (asserted at compile time,
+because that is a property of a generated table) and deliberately independent
+of dark mode, so toggling the scheme cannot desynchronise the page's copy from
+the browser's.
+
+THE SEED IS STILL WRITTEN, ON PURPOSE
+
+SetSeedColor writes BOTH astro.theme.preset AND upstream's GM3 seed, set to
+the preset's own Bloom `primary`. The mixer sets roughly thirty ColorIds; it
+sets no ui::kColorSys* token, so everything derived from those -- this side
+panel's own surfaces, the WebUI pages, the profile chooser -- would otherwise
+keep a palette unrelated to the preset. Handing Chromium the same source
+colour makes it generate its Material palette from the preset instead, which
+is a better answer than hand-mapping forty sys tokens in the mixer, and it
+leaves the mixer's own ColorIds untouched for the reason in the first
+paragraph. Extending the mixer to the sys tokens stays with
+https://github.com/OxyHQ/Astro/issues/24.
+
+WHICH SURFACES MOVE
+
+This handler is shared, so all of its consumers change together, which is the
+intent -- all of Astro uses Bloom:
+
+  * the Customize Astro side panel (customize_chrome_ui.cc);
+  * astro://settings' appearance picker (settings_ui.cc);
+  * chrome://profile-customization, the dialog shown when a profile is created
+    (profile_customization_ui.cc).
+
+WHAT IS LEFT
+
+The hue slider behind the custom-colour circle asks for an arbitrary seed.
+Astro's theme model has eighteen presets and nothing to answer that with, so
+SetSeedColor refuses the request and logs it; the control is inert. Snapping
+an arbitrary hue to the nearest preset would be this file deciding what
+"custom colour" means in Astro, which is #24's decision, and removing the
+control is a frontend change to a shared cr_component.
+
+chrome_colors::GetDynamicColorId returns kOtherDynamicColorId for every Astro
+seed, so the NTP colour-choice UMA histogram records "other". That is a
+metrics bucket, not behaviour, and it is left alone.
+
+THE BUILD EDGE IS PART OF THIS PATCH
+
+`//chrome/browser/ui` gains a dependency on `//chrome/browser/oxy:theming`,
+which it already had transitively through `//chrome/browser/ui/color:mixers`
+(patch 061) -- so this introduces no cycle, and `gn gen` was re-run to confirm
+it. `:theming` deliberately depends on nothing under //chrome/browser/ui,
+which is what makes the edge safe in this direction.
+
+Owned by https://github.com/OxyHQ/Astro/issues/24.
+---
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -305,6 +305,7 @@ static_library("ui") {
+     "//chrome/browser/new_tab_page/chrome_colors:selected_colors_info",
+     "//chrome/browser/omnibox",
+     "//chrome/browser/optimization_guide",
++    "//chrome/browser/oxy:theming",
+     "//chrome/browser/page_content_annotations",
+     "//chrome/browser/page_content_annotations:fetcher",
+     "//chrome/browser/page_info",
+diff --git a/chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.cc b/chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.cc
+--- a/chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.cc
++++ b/chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.cc
+@@ -5,9 +5,19 @@
+ #include "chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.h"
+ 
+ #include <limits>
++#include <optional>
++#include <string>
++#include <string_view>
+ 
+-#include "base/containers/fixed_flat_map.h"
++#include "base/check.h"
++#include "base/logging.h"
++#include "base/strings/string_util.h"
++#include "base/strings/stringprintf.h"
+ #include "chrome/browser/new_tab_page/chrome_colors/generated_colors_info.h"
++#include "chrome/browser/oxy/astro_pref_names.h"
++#include "chrome/browser/oxy/astro_theme_service.h"
++#include "chrome/browser/oxy/astro_theme_service_factory.h"
++#include "chrome/browser/oxy/ui/astro_color_tokens.h"
+ #include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+@@ -20,44 +30,162 @@
+ #include "components/prefs/scoped_user_pref_update.h"
+ #include "content/public/browser/web_contents.h"
+ #include "mojo/public/cpp/bindings/pending_remote.h"
+-#include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/mojom/themes.mojom.h"
+ #include "ui/color/color_provider.h"
+-#include "ui/color/color_provider_key.h"
+-#include "ui/color/dynamic_color/palette_factory.h"
+ #include "ui/native_theme/native_theme.h"
+ 
+ namespace {
+ 
+-ui::ColorProviderKey::SchemeVariant GetSchemeVariant(
+-    ui::mojom::BrowserColorVariant color_variant) {
+-  using BCV = ui::mojom::BrowserColorVariant;
+-  using SV = ui::ColorProviderKey::SchemeVariant;
+-  static constexpr auto kSchemeVariantMap = base::MakeFixedFlatMap<BCV, SV>({
+-      {BCV::kTonalSpot, SV::kTonalSpot},
+-      {BCV::kNeutral, SV::kNeutral},
+-      {BCV::kVibrant, SV::kVibrant},
+-      {BCV::kExpressive, SV::kExpressive},
+-  });
+-  return kSchemeVariantMap.at(color_variant);
+-}
+-
+-// Create a GM3 chrome color that takes color scheme into account.
+-theme_color_picker::mojom::ChromeColorPtr CreateDynamicChromeColor(
+-    DynamicColorInfo color_info,
++// This picker serves Astro's Bloom colour presets, not Chromium's GM3
++// palette, and everything in this block exists because the two are different
++// KINDS of thing. A GM3 swatch is a seed colour that ui::GeneratePalette
++// expands at runtime; a Bloom preset is 58 resolved token values per scheme,
++// shipped in chrome/browser/oxy/ui/astro_color_tokens.h and generated from
++// Bloom's own tokens.json. Nothing here computes a colour, which is why
++// ui::GeneratePalette and the kDynamicCustomizeChromeColors table it read are
++// gone from this file.
++
++// Every Astro swatch reports this variant and UpdateTheme reports it for the
++// active preset, because ThemeColorPickerElement::computeSelectedColor_ draws
++// the check mark only when the seed AND the variant match. Bloom has no
++// notion of a Material scheme variant, so the value itself is arbitrary and
++// only has to be the same on both sides; kTonalSpot is the one Chromium
++// treats as its default.
++constexpr ui::mojom::BrowserColorVariant kAstroPresetVariant =
++    ui::mojom::BrowserColorVariant::kTonalSpot;
++
++// The "Default" swatch means Astro's default preset -- the same name
++// astro.theme.preset is registered with, so the control means what it says.
++constexpr std::optional<astro::ColorPreset> kAstroDefaultPreset =
++    astro::ColorPresetFromName(astro::prefs::kDefaultThemePreset);
++static_assert(kAstroDefaultPreset.has_value(),
++              "astro::prefs::kDefaultThemePreset names a preset that is not "
++              "in astro_color_tokens.h, so the picker's Default swatch has "
++              "nothing to select");
++
++// The value that identifies a preset across the Mojo pipe.
++//
++// `seed` is never painted: the swatch renders `foreground`, `background` and
++// `base`, and the page uses `seed` only to decide which swatch is checked and
++// to hand back on a click. It is an IDENTITY, and it is deliberately read
++// from the LIGHT scheme whatever the browser is in, so that a dark-mode
++// toggle cannot leave the identity the page is holding disagreeing with the
++// one UpdateTheme reports.
++//
++// `primary` is the token because it is the preset's brand colour -- the one a
++// user would name if asked what colour "green" is.
++constexpr SkColor AstroPresetSeed(astro::ColorPreset preset) {
++  return astro::ColorTokenValue(preset, astro::ColorScheme::kLight,
++                                astro::ColorToken::kPrimary);
++}
++
++// Two presets sharing an identity would make one of them permanently
++// unreachable: every click on either would resolve to the first, and the
++// check mark would sit on the wrong swatch with nothing reporting it. That is
++// a property of a GENERATED table which a future Bloom release can break, so
++// it is proved here rather than trusted.
++constexpr bool AstroPresetSeedsAreDistinct() {
++  for (size_t a = 0; a < astro::kColorPresetCount; ++a) {
++    for (size_t b = a + 1; b < astro::kColorPresetCount; ++b) {
++      if (AstroPresetSeed(static_cast<astro::ColorPreset>(a)) ==
++          AstroPresetSeed(static_cast<astro::ColorPreset>(b))) {
++        return false;
++      }
++    }
++  }
++  return true;
++}
++static_assert(AstroPresetSeedsAreDistinct(),
++              "two Bloom presets resolve to the same light-scheme `primary`, "
++              "so this picker cannot tell them apart -- choose a different "
++              "identity token in AstroPresetSeed");
++
++std::string_view AstroPresetName(astro::ColorPreset preset) {
++  return astro::kColorPresetNames[static_cast<size_t>(preset)];
++}
++
++std::optional<astro::ColorPreset> AstroPresetFromSeed(SkColor seed) {
++  for (size_t index = 0; index < astro::kColorPresetCount; ++index) {
++    const auto preset = static_cast<astro::ColorPreset>(index);
++    if (AstroPresetSeed(preset) == seed) {
++      return preset;
++    }
++  }
++  return std::nullopt;
++}
++
++// The swatch's label and tooltip. Untranslated on purpose: these are Bloom
++// preset names -- product nouns like "Oxy" and "Faircoin" -- and the set of
++// them comes from a generated table a Bloom release can add to, so a
++// per-preset .grd message id would go stale the first time it did, silently
++// and in the one direction nothing checks.
++std::string AstroPresetLabel(astro::ColorPreset preset) {
++  std::string label(AstroPresetName(preset));
++  if (!label.empty()) {
++    label[0] = base::ToUpperASCII(label[0]);
++  }
++  return label;
++}
++
++// The preset the profile is actually painted with. astro.theme.preset is the
++// authority -- not upstream's GM3 seed -- because the preset can also be
++// changed from astro://settings, which never touches that seed.
++astro::ColorPreset ActiveAstroPreset(Profile* profile) {
++  astro::AstroThemeService* astro_theme =
++      astro::AstroThemeServiceFactory::GetForProfile(profile);
++  if (!astro_theme) {
++    return *kAstroDefaultPreset;
++  }
++  // GetColorPreset only ever returns a name this build ships.
++  const std::optional<astro::ColorPreset> preset =
++      astro::ColorPresetFromName(astro_theme->GetColorPreset());
++  CHECK(preset.has_value());
++  return *preset;
++}
++
++void StoreAstroPreset(Profile* profile, astro::ColorPreset preset) {
++  astro::AstroThemeService* astro_theme =
++      astro::AstroThemeServiceFactory::GetForProfile(profile);
++  if (!astro_theme) {
++    // A browser context with no Astro theme service (a system profile, say)
++    // has no preset to move. Saying so beats a silent no-op, and beats a
++    // CHECK: nothing here is worth crashing a window over.
++    LOG(ERROR) << "Astro: no theme service for this profile; the colour "
++                  "preset was not changed";
++    return;
++  }
++  // The name comes out of the generated table, so the service cannot reject
++  // it -- if it does, the table and the pref have drifted apart and every
++  // later read is wrong.
++  const bool stored = astro_theme->SetColorPreset(std::string(
++      AstroPresetName(preset)));
++  CHECK(stored);
++}
++
++// One swatch. The three colours it renders are the three the preset actually
++// paints the browser with, so the swatch is a preview rather than a
++// decoration: the circle is the toolbar, the bottom-left quarter is the brand
++// colour the preset accents with, and the bottom-right quarter is the window
++// frame and the inactive tabs. Which token paints which part of the native UI
++// is decided in chrome/browser/oxy/ui/astro_color_mixer.cc; this repeats three
++// of its choices and invents none.
++theme_color_picker::mojom::ChromeColorPtr CreateAstroPresetColor(
++    astro::ColorPreset preset,
+     bool is_dark_mode) {
++  const astro::ColorScheme scheme =
++      is_dark_mode ? astro::ColorScheme::kDark : astro::ColorScheme::kLight;
+   auto color = theme_color_picker::mojom::ChromeColor::New();
+-  auto color_palette = ui::GeneratePalette(
+-      color_info.color, GetSchemeVariant(color_info.variant));
+-  color->name = l10n_util::GetStringUTF8(color_info.label_id);
+-  color->seed = color_info.color;
+-  color->background = is_dark_mode ? color_palette->primary().get(80)
+-                                   : color_palette->primary().get(40);
+-  color->foreground = is_dark_mode ? color_palette->primary().get(30)
+-                                   : color_palette->primary().get(90);
+-  color->base = is_dark_mode ? color_palette->secondary().get(50)
+-                             : color_palette->primary().get(80);
+-  color->variant = color_info.variant;
++  color->name = AstroPresetLabel(preset);
++  color->seed = AstroPresetSeed(preset);
++  // #foreground is the whole circle, #background the bottom-left quarter and
++  // #base the bottom-right one -- see theme_color.html.ts and theme_color.css.
++  color->foreground =
++      astro::ColorTokenValue(preset, scheme, astro::ColorToken::kSurface);
++  color->background =
++      astro::ColorTokenValue(preset, scheme, astro::ColorToken::kPrimary);
++  color->base =
++      astro::ColorTokenValue(preset, scheme, astro::ColorToken::kMuted);
++  color->variant = kAstroPresetVariant;
+   return color;
+ }
+ }  // namespace
+@@ -95,20 +223,67 @@ void ThemeColorPickerHandler::RegisterProfilePrefs(
+ void ThemeColorPickerHandler::SetDefaultColor() {
+   theme_service_->SetUserColor(std::nullopt);
+   theme_service_->UseDeviceTheme(false);
++  StoreAstroPreset(profile_, *kAstroDefaultPreset);
+   MaybeIncrementSeedColorChangeCount();
+ }
+ 
+ void ThemeColorPickerHandler::SetGreyDefaultColor() {
+   theme_service_->SetIsGrayscale(true);
+   theme_service_->UseDeviceTheme(false);
++  // Bloom's monochrome preset, so the browser chrome goes grey with the rest
++  // of the palette instead of staying whatever colour it was while everything
++  // Chromium paints turns grey around it.
++  StoreAstroPreset(profile_, astro::ColorPreset::kMono);
+   MaybeIncrementSeedColorChangeCount();
+ }
+ 
+ void ThemeColorPickerHandler::SetSeedColor(
+     SkColor seed_color,
+     ui::mojom::BrowserColorVariant variant) {
+-  theme_service_->SetUserColorAndBrowserColorVariant(seed_color, variant);
++  const std::optional<astro::ColorPreset> preset =
++      AstroPresetFromSeed(seed_color);
++  if (!preset.has_value() || variant != kAstroPresetVariant) {
++    // Not a pair this handler offered. The one caller that gets here is
++    // SetSeedColorFromHue: the hue slider asks for an arbitrary seed, and
++    // Astro's theme model has eighteen presets and no arbitrary seed to give
++    // it. Refusing leaves the slider inert -- known, and owned by
++    // https://github.com/OxyHQ/Astro/issues/24, which is where "does Astro
++    // offer custom colours at all" gets decided; snapping the hue to the
++    // nearest preset instead would be this file inventing that answer.
++    LOG(ERROR) << "Astro: ignoring theme seed "
++               << base::StringPrintf("#%08x", seed_color)
++               << " (variant " << static_cast<int>(variant)
++               << "); no Bloom preset carries it";
++    UpdateTheme();
++    return;
++  }
++
++  // Written TWICE, deliberately, because two palettes paint this browser and
++  // only one of them is Astro's:
++  //
++  //   astro.theme.preset  drives chrome/browser/oxy/ui/astro_color_mixer.cc,
++  //                       which owns the toolbar, the tab strip, the omnibox,
++  //                       the menus and the focus ring.
++  //   upstream's GM3 seed drives everything that mixer does NOT set -- the
++  //                       ui::kColorSys* tokens, and with them this side
++  //                       panel's own surfaces, the WebUI pages and the
++  //                       profile chooser.
++  //
++  // Writing only the first is what "the panel and the browser disagree" looks
++  // like: the chrome moves to the preset while the panel the user clicked in
++  // stays behind. Handing Chromium the preset's own Bloom `primary` as its
++  // seed makes it generate its Material palette from that colour, so the two
++  // agree without this file hand-mapping the forty-odd sys tokens.
++  //
++  // This is safe for the mixer, and not by luck: SetUserColorAndBrowserColor-
++  // Variant installs no theme supplier, it CLEARS one (ClearThemeData ->
++  // SwapThemeSupplier(nullptr)), so ColorProviderKey::custom_theme stays null
++  // and the Astro mixer -- which stands down only for an extension or
++  // autogenerated theme -- keeps every ColorId it sets.
++  theme_service_->SetUserColorAndBrowserColorVariant(seed_color,
++                                                     kAstroPresetVariant);
+   theme_service_->UseDeviceTheme(false);
++  StoreAstroPreset(profile_, *preset);
+   MaybeIncrementSeedColorChangeCount();
+ }
+ 
+@@ -120,8 +295,10 @@ void ThemeColorPickerHandler::GetChromeColors(
+     bool is_dark_mode,
+     GetChromeColorsCallback callback) {
+   std::vector<theme_color_picker::mojom::ChromeColorPtr> colors;
+-  for (const auto& color_info : kDynamicCustomizeChromeColors) {
+-    colors.push_back(CreateDynamicChromeColor(color_info, is_dark_mode));
++  colors.reserve(astro::kColorPresetCount);
++  for (size_t index = 0; index < astro::kColorPresetCount; ++index) {
++    colors.push_back(CreateAstroPresetColor(
++        static_cast<astro::ColorPreset>(index), is_dark_mode));
+   }
+   std::move(callback).Run(std::move(colors));
+ }
+@@ -181,11 +358,33 @@ void ThemeColorPickerHandler::UpdateTheme() {
+     theme->color_picker_icon_color =
+         web_contents_->GetColorProvider().GetColor(kColorNewTabPageText);
+   }
++
++  // Which swatch is checked is answered from astro.theme.preset and not from
++  // the GM3 seed above, because the preset can also be changed from
++  // astro://settings, which never moves that seed -- and then the check mark
++  // would sit on the swatch the browser used to be painted with. The hue
++  // below is derived from whatever seed is reported, so this comes first.
++  const astro::ColorPreset active_preset = ActiveAstroPreset(profile_);
++  theme->seed_color = AstroPresetSeed(active_preset);
++  // computeSelectedColor_ also reads an unset foreground_color as "this
++  // profile is on the default theme" and checks the Default swatch. That is
++  // exactly the state of a profile that picked its preset in settings and has
++  // never used this panel, so on such a profile the panel would disagree with
++  // the pixels. Reporting the default preset as the default theme is correct,
++  // and is the one case left alone.
++  if (active_preset != *kAstroDefaultPreset && !theme->foreground_color) {
++    theme->foreground_color = theme->background_color;
++  }
++
+   color_utils::HSL hsl;
+   color_utils::SkColorToHSL(theme->seed_color, &hsl);
+   theme->seed_color_hue = hsl.h * 360;
+   theme->is_grey_baseline = theme_service_->GetIsGrayscale();
+-  theme->browser_color_variant = theme_service_->GetBrowserColorVariant();
++  // The variant every Astro swatch carries. Reporting the profile's stored
++  // one instead would fail the match on any profile that picked a Chromium
++  // colour before this build -- those carry the variant of an upstream swatch
++  // that no longer exists here.
++  theme->browser_color_variant = kAstroPresetVariant;
+ 
+   if (!theme_service_->UsingDefaultTheme() &&
+       !theme_service_->UsingSystemTheme()) {
