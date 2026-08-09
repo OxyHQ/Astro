@@ -935,3 +935,9 @@ tools/build.sh Debug                 # Debug
   the live page in a running browser, or by probing for the asset's raw
   bytes directly — PNGs are stored uncompressed inside a `.pak`, so a
   mid-file byte slice does match.
+- **`pgrep -f <pattern>` matches the command line of the shell running it**,
+  so "is my build still going?" answers YES forever, including after you kill
+  it. Reported twice in one session as "STILL RUNNING" about a terminated
+  ninja. `pgrep -x ninja` asks about the process instead of about a string
+  that necessarily contains itself. Same family as the rest of this section:
+  the check's pass and its nothing-was-measured are the same output.
