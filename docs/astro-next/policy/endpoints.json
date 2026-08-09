@@ -1,6 +1,6 @@
 {
   "_comment": [
-    "Astro Next network endpoint manifest \u2014 issue #10.",
+    "Astro Next network endpoint manifest — issue #10.",
     "",
     "HAND-MAINTAINED JUDGEMENT ONLY. The host set is not typed here: it is derived on every",
     "run by tools/policy/endpoint_seed.py, which imports issue #6's",
@@ -132,7 +132,7 @@
       "id": "doc-sub-google-bare",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -179,7 +179,7 @@
       "id": "google-accounts",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "DISABLE_BUILD",
-      "rationale": "GAIA sign-in. ungoogled's disable-gaia.patch removes the account infrastructure. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "GAIA sign-in. ungoogled's disable-gaia.patch removes the account infrastructure. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "google-account-gaia",
       "owner_issue": 8,
       "reference_kind": "blocklist-literal",
@@ -204,7 +204,7 @@
       "id": "google-android-clients",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "DISABLE_BUILD",
-      "rationale": "Android device/GCM registration. Not a desktop endpoint; Android is scoped separately. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "Android device/GCM registration. Not a desktop endpoint; Android is scoped separately. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "gcm-push",
       "owner_issue": 8,
       "reference_kind": "blocklist-literal",
@@ -254,11 +254,11 @@
       "retry_backoff": "not-captured",
       "traffic_annotation": "not-captured",
       "test_fixture": "not-captured",
-      "notes": "Astro's own CSP for this page does not permit this host \u2014 see api.alia.oxy.so. NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition.",
+      "notes": "Astro's own CSP for this page does not permit this host — see api.alia.oxy.so. NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition.",
       "inputs_to": [
         11
       ],
-      "inputs_reason": "Answered rather than pending: webui-scheme-trust-split assigns the Alia panel to astro-untrusted:// precisely because the page's own JavaScript reaches this host, and a bound document has no network factory (content/browser/renderer_host/render_frame_host_impl.cc:12645-12657). So what #11 reads here is the fact that this endpoint is contacted from the page at all \u2014 one input to the trust split, not a decision #11 has to take."
+      "inputs_reason": "Answered rather than pending: webui-scheme-trust-split assigns the Alia panel to astro-untrusted:// precisely because the page's own JavaScript reaches this host, and a bound document has no network factory (content/browser/renderer_host/render_frame_host_impl.cc:12645-12657). So what #11 reads here is the fact that this endpoint is contacted from the page at all — one input to the trust split, not a decision #11 has to take."
     },
     {
       "host": "api.alia.oxy.so",
@@ -275,7 +275,7 @@
         "question": "Is api.alia.oxy.so a planned alias for api.alia.onl, or a mistake in the CSP? As committed, Alia's panel cannot reach its API: the CSP allows a host nothing calls and blocks the one it does.",
         "answered_by": "Ask the Alia service owner which host is canonical, then fix whichever of astro_alia_ui.cc:95 or alia-panel.ts:31 is wrong. Measured input: the Alia repository references api.alia.onl 47 times and api.alia.oxy.so 0."
       },
-      "notes": "Not DORMANT: dormancy describes code that cannot run. This is an allowlist entry that permits a request nothing makes, which is a different defect. NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "Not DORMANT: dormancy describes code that cannot run. This is an allowlist entry that permits a request nothing makes, which is a different defect. NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "api.oxy.so",
@@ -308,8 +308,8 @@
       "incognito": "undecided",
       "retry_backoff": "not-captured",
       "traffic_annotation": "astro_oxy_cookie_signin",
-      "test_fixture": "not-captured \u2014 needs #28's hermetic fake server",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "test_fixture": "not-captured — needs #28's hermetic fake server",
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "assets-cdn.github.com",
@@ -363,19 +363,19 @@
       "incognito": "undecided",
       "retry_backoff": "not-captured",
       "traffic_annotation": "astro_oxy_cookie_signin (src/chrome/browser/oxy/oxy_cookie_signin_observer.cc:37)",
-      "test_fixture": "not-captured \u2014 needs #28's hermetic fake server",
+      "test_fixture": "not-captured — needs #28's hermetic fake server",
       "blocks": [
         11
       ],
-      "blocks_reason": "The callback is astro://auth/callback (src/chrome/browser/oxy/oxy_auth_service.h:22-23). May a REMOTE origin navigate to the trusted scheme? Decided: no \u2014 and the mechanism that would enforce it does not exist yet. content::IsSafeRedirectTarget (content/public/common/url_utils.cc:81-107) rejects a privileged redirect target through HasWebUIScheme at :95, and that reads a three-element literal at :27-31 which does not contain `astro`; `astro` is not in kUnsafeSchemes at :82-94 either, so the function returns true and content/browser/loader/navigation_url_loader_impl.cc:1575-1577 raises no net::ERR_UNSAFE_REDIRECT. Any HTTPS origin could therefore 302 into astro://auth/callback with attacker-chosen query parameters. #11 milestone 1 ships no auth host, so registration is not blocked; shipping any credential-consuming host on astro:// is, until IsWebUIScheme is generalised. See the oxy-identity feature entry for the full statement.",
-      "notes": "oxy_cookie_signin_observer.cc:28 watches a cookie named `fedcm_session`. The Oxy platform's own instructions record FedCM and the fedcm_session cookie as deleted ecosystem-wide in the 2026-07 device-first migration. Declared, not measured here. NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "blocks_reason": "The callback is astro://auth/callback (src/chrome/browser/oxy/oxy_auth_service.h:22-23). May a REMOTE origin navigate to the trusted scheme? Decided: no — and the mechanism that would enforce it does not exist yet. content::IsSafeRedirectTarget (content/public/common/url_utils.cc:81-107) rejects a privileged redirect target through HasWebUIScheme at :95, and that reads a three-element literal at :27-31 which does not contain `astro`; `astro` is not in kUnsafeSchemes at :82-94 either, so the function returns true and content/browser/loader/navigation_url_loader_impl.cc:1575-1577 raises no net::ERR_UNSAFE_REDIRECT. Any HTTPS origin could therefore 302 into astro://auth/callback with attacker-chosen query parameters. #11 milestone 1 ships no auth host, so registration is not blocked; shipping any credential-consuming host on astro:// is, until IsWebUIScheme is generalised. See the oxy-identity feature entry for the full statement.",
+      "notes": "oxy_cookie_signin_observer.cc:28 watches a cookie named `fedcm_session`. The Oxy platform's own instructions record FedCM and the fedcm_session cookie as deleted ecosystem-wide in the 2026-07 device-first migration. Declared, not measured here. NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "beacons.gcp.gvt2.com",
       "id": "removed-domain-reliability-2",
       "observed_state": "REMOVED_BY_PATCH",
       "state": "DISABLE_BUILD",
-      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data \u2014 DISABLE_BUILD describes the intended end state, not the current one.",
+      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one.",
       "owning_feature": "domain-reliability",
       "owner_issue": 8,
       "reference_kind": "deleted-by-patch",
@@ -398,7 +398,7 @@
       "id": "removed-domain-reliability-1",
       "observed_state": "REMOVED_BY_PATCH",
       "state": "DISABLE_BUILD",
-      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data \u2014 DISABLE_BUILD describes the intended end state, not the current one.",
+      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one.",
       "owning_feature": "domain-reliability",
       "owner_issue": 8,
       "reference_kind": "deleted-by-patch",
@@ -421,7 +421,7 @@
       "id": "removed-domain-reliability-3",
       "observed_state": "REMOVED_BY_PATCH",
       "state": "DISABLE_BUILD",
-      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data \u2014 DISABLE_BUILD describes the intended end state, not the current one.",
+      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one.",
       "owning_feature": "domain-reliability",
       "owner_issue": 8,
       "reference_kind": "deleted-by-patch",
@@ -444,7 +444,7 @@
       "id": "removed-domain-reliability-4",
       "observed_state": "REMOVED_BY_PATCH",
       "state": "DISABLE_BUILD",
-      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data \u2014 DISABLE_BUILD describes the intended end state, not the current one.",
+      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one.",
       "owning_feature": "domain-reliability",
       "owner_issue": 8,
       "reference_kind": "deleted-by-patch",
@@ -467,7 +467,7 @@
       "id": "removed-domain-reliability-5",
       "observed_state": "REMOVED_BY_PATCH",
       "state": "DISABLE_BUILD",
-      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data \u2014 DISABLE_BUILD describes the intended end state, not the current one.",
+      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one.",
       "owning_feature": "domain-reliability",
       "owner_issue": 8,
       "reference_kind": "deleted-by-patch",
@@ -490,7 +490,7 @@
       "id": "removed-domain-reliability-6",
       "observed_state": "REMOVED_BY_PATCH",
       "state": "DISABLE_BUILD",
-      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data \u2014 DISABLE_BUILD describes the intended end state, not the current one.",
+      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one.",
       "owning_feature": "domain-reliability",
       "owner_issue": 8,
       "reference_kind": "deleted-by-patch",
@@ -513,7 +513,7 @@
       "id": "removed-domain-reliability-7",
       "observed_state": "REMOVED_BY_PATCH",
       "state": "DISABLE_BUILD",
-      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data \u2014 DISABLE_BUILD describes the intended end state, not the current one.",
+      "rationale": "Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one.",
       "owning_feature": "domain-reliability",
       "owner_issue": 8,
       "reference_kind": "deleted-by-patch",
@@ -536,7 +536,7 @@
       "id": "doc-sub-bugs-chromium",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -606,7 +606,7 @@
       "id": "doh-cloudflare",
       "observed_state": "PRESENT",
       "state": "INVESTIGATE",
-      "rationale": "Cloudflare's DNS-over-HTTPS resolver, reachable through the Secure DNS control on the settings Privacy and security screen. The provider list is upstream's, not Astro's: net::DohProviderEntry carries this template at the locked commit ae03f7fb2c (net/dns/public/doh_provider_entry.cc:115), and patches/ungoogled/core/ungoogled-chromium/doh-changes.patch deletes only the two Google entries from that table, so this one survives the series. Astro's own committed reference is webui/app/src/pages/settings/sections/privacy.fixtures.ts:32, a DEV-ONLY fixture standing in for what SecureDnsHandler pushes to the page \u2014 that fixture is absent from both production build modes of webui/app, so it is the upstream table, not the fixture, that makes this endpoint reachable. Selecting the provider writes this template into dns_over_https.templates, after which every hostname the browser resolves goes to one third party.",
+      "rationale": "Cloudflare's DNS-over-HTTPS resolver, reachable through the Secure DNS control on the settings Privacy and security screen. The provider list is upstream's, not Astro's: net::DohProviderEntry carries this template at the locked commit ae03f7fb2c (net/dns/public/doh_provider_entry.cc:115), and patches/ungoogled/core/ungoogled-chromium/doh-changes.patch deletes only the two Google entries from that table, so this one survives the series. Astro's own committed reference is webui/app/src/pages/settings/sections/privacy.fixtures.ts:32, a DEV-ONLY fixture standing in for what SecureDnsHandler pushes to the page — that fixture is absent from both production build modes of webui/app, so it is the upstream table, not the fixture, that makes this endpoint reachable. Selecting the provider writes this template into dns_over_https.templates, after which every hostname the browser resolves goes to one third party.",
       "owning_feature": "dns-over-https",
       "owner_issue": 10,
       "routed_to_issue": 20,
@@ -614,7 +614,7 @@
       "contact": "unknown",
       "environment": "production",
       "investigate": {
-        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing \u2014 the difference between the operating system's resolver seeing every lookup and one company seeing it.",
+        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing — the difference between the operating system's resolver seeing every lookup and one company seeing it.",
         "answered_by": "#20's transport-security decision on the shipped value of dns_over_https.mode, then a measured trace from tools/baseline/capture-network.sh, which is blocked until an Astro binary exists (baseline finding 1)."
       },
       "scheme": "https",
@@ -640,7 +640,7 @@
       "id": "google-chrome-host",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "Legacy Web Store host. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "Legacy Web Store host. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "web-store-and-update-urls",
       "owner_issue": 10,
       "routed_to_issue": 20,
@@ -670,7 +670,7 @@
       "id": "google-webstore",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "The Chrome Web Store. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "The Chrome Web Store. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "web-store-and-update-urls",
       "owner_issue": 10,
       "routed_to_issue": 20,
@@ -700,7 +700,7 @@
       "id": "google-webstore-api",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "The Web Store's API. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "The Web Store's API. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "web-store-and-update-urls",
       "owner_issue": 10,
       "routed_to_issue": 20,
@@ -785,7 +785,7 @@
       "id": "google-clients2",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "Omaha/component-update and crash endpoints. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "Omaha/component-update and crash endpoints. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "component-updater",
       "owner_issue": 10,
       "routed_to_issue": 20,
@@ -815,7 +815,7 @@
       "id": "google-variations",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "DISABLE_BUILD",
-      "rationale": "The variations/field-trial seed server. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "The variations/field-trial seed server. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "variations-field-trials",
       "owner_issue": 8,
       "reference_kind": "blocklist-literal",
@@ -943,7 +943,7 @@
       "id": "doc-sub-developer-chrome",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -995,7 +995,7 @@
       "id": "ntp-quicklink-mdn",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "A default quick link in the Astro New Tab Page (webui/ntp/src/main.ts). Shipped data; contacted only when the user clicks it.",
+      "rationale": "A default quick link in the Astro New Tab Page (kDefaultQuickLinks in src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc). Shipped data, used only until the user edits their links; contacted only when the user clicks it.",
       "owning_feature": "ntp-tiles",
       "owner_issue": 22,
       "reference_kind": "default-content",
@@ -1017,7 +1017,7 @@
       "user_control": "links are user-editable",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "developers.google.com",
@@ -1052,7 +1052,7 @@
       "id": "removed-doh-google",
       "observed_state": "REMOVED_BY_PATCH",
       "state": "DISABLE_BUILD",
-      "rationale": "Google Public DNS, deleted from the DoH provider list by patches/ungoogled/core/ungoogled-chromium/doh-changes.patch The mechanism today is a patch, which #8 must re-express as build configuration or owned data \u2014 DISABLE_BUILD describes the intended end state, not the current one.",
+      "rationale": "Google Public DNS, deleted from the DoH provider list by patches/ungoogled/core/ungoogled-chromium/doh-changes.patch The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one.",
       "owning_feature": "dns-over-https",
       "owner_issue": 10,
       "reference_kind": "deleted-by-patch",
@@ -1075,7 +1075,7 @@
       "id": "doh-quad9",
       "observed_state": "PRESENT",
       "state": "INVESTIGATE",
-      "rationale": "Quad9's DNS-over-HTTPS resolver, reachable through the Secure DNS control on the settings Privacy and security screen. The provider list is upstream's, not Astro's: net::DohProviderEntry carries this template at the locked commit ae03f7fb2c (net/dns/public/doh_provider_entry.cc:316), and patches/ungoogled/core/ungoogled-chromium/doh-changes.patch deletes only the two Google entries from that table, so this one survives the series. Astro's own committed reference is webui/app/src/pages/settings/sections/privacy.fixtures.ts:33, a DEV-ONLY fixture standing in for what SecureDnsHandler pushes to the page \u2014 that fixture is absent from both production build modes of webui/app, so it is the upstream table, not the fixture, that makes this endpoint reachable. Selecting the provider writes this template into dns_over_https.templates, after which every hostname the browser resolves goes to one third party.",
+      "rationale": "Quad9's DNS-over-HTTPS resolver, reachable through the Secure DNS control on the settings Privacy and security screen. The provider list is upstream's, not Astro's: net::DohProviderEntry carries this template at the locked commit ae03f7fb2c (net/dns/public/doh_provider_entry.cc:316), and patches/ungoogled/core/ungoogled-chromium/doh-changes.patch deletes only the two Google entries from that table, so this one survives the series. Astro's own committed reference is webui/app/src/pages/settings/sections/privacy.fixtures.ts:33, a DEV-ONLY fixture standing in for what SecureDnsHandler pushes to the page — that fixture is absent from both production build modes of webui/app, so it is the upstream table, not the fixture, that makes this endpoint reachable. Selecting the provider writes this template into dns_over_https.templates, after which every hostname the browser resolves goes to one third party.",
       "owning_feature": "dns-over-https",
       "owner_issue": 10,
       "routed_to_issue": 20,
@@ -1083,7 +1083,7 @@
       "contact": "unknown",
       "environment": "production",
       "investigate": {
-        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing \u2014 the difference between the operating system's resolver seeing every lookup and one company seeing it.",
+        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing — the difference between the operating system's resolver seeing every lookup and one company seeing it.",
         "answered_by": "#20's transport-security decision on the shipped value of dns_over_https.mode, then a measured trace from tools/baseline/capture-network.sh, which is blocked until an Astro binary exists (baseline finding 1)."
       },
       "scheme": "https",
@@ -1109,7 +1109,7 @@
       "id": "removed-doh-google-dns64",
       "observed_state": "REMOVED_BY_PATCH",
       "state": "DISABLE_BUILD",
-      "rationale": "Google Public DNS64, deleted by the same patch The mechanism today is a patch, which #8 must re-express as build configuration or owned data \u2014 DISABLE_BUILD describes the intended end state, not the current one.",
+      "rationale": "Google Public DNS64, deleted by the same patch The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one.",
       "owning_feature": "dns-over-https",
       "owner_issue": 10,
       "reference_kind": "deleted-by-patch",
@@ -1132,7 +1132,7 @@
       "id": "doh-opendns",
       "observed_state": "PRESENT",
       "state": "INVESTIGATE",
-      "rationale": "OpenDNS's DNS-over-HTTPS resolver, reachable through the Secure DNS control on the settings Privacy and security screen. The provider list is upstream's, not Astro's: net::DohProviderEntry carries this template at the locked commit ae03f7fb2c (net/dns/public/doh_provider_entry.cc:270), and patches/ungoogled/core/ungoogled-chromium/doh-changes.patch deletes only the two Google entries from that table, so this one survives the series. Astro's own committed reference is webui/app/src/pages/settings/sections/privacy.fixtures.ts:34, a DEV-ONLY fixture standing in for what SecureDnsHandler pushes to the page \u2014 that fixture is absent from both production build modes of webui/app, so it is the upstream table, not the fixture, that makes this endpoint reachable. Selecting the provider writes this template into dns_over_https.templates, after which every hostname the browser resolves goes to one third party.",
+      "rationale": "OpenDNS's DNS-over-HTTPS resolver, reachable through the Secure DNS control on the settings Privacy and security screen. The provider list is upstream's, not Astro's: net::DohProviderEntry carries this template at the locked commit ae03f7fb2c (net/dns/public/doh_provider_entry.cc:270), and patches/ungoogled/core/ungoogled-chromium/doh-changes.patch deletes only the two Google entries from that table, so this one survives the series. Astro's own committed reference is webui/app/src/pages/settings/sections/privacy.fixtures.ts:34, a DEV-ONLY fixture standing in for what SecureDnsHandler pushes to the page — that fixture is absent from both production build modes of webui/app, so it is the upstream table, not the fixture, that makes this endpoint reachable. Selecting the provider writes this template into dns_over_https.templates, after which every hostname the browser resolves goes to one third party.",
       "owning_feature": "dns-over-https",
       "owner_issue": 10,
       "routed_to_issue": 20,
@@ -1140,7 +1140,7 @@
       "contact": "unknown",
       "environment": "production",
       "investigate": {
-        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing \u2014 the difference between the operating system's resolver seeing every lookup and one company seeing it.",
+        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing — the difference between the operating system's resolver seeing every lookup and one company seeing it.",
         "answered_by": "#20's transport-security decision on the shipped value of dns_over_https.mode, then a measured trace from tools/baseline/capture-network.sh, which is blocked until an Astro binary exists (baseline finding 1)."
       },
       "scheme": "https",
@@ -1166,7 +1166,7 @@
       "id": "search-duckduckgo",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "Astro's default search engine (patches/astro/004-default-search-duckduckgo.patch) and the NTP search form's action (webui/ntp/src/index.html:375). Contacted when the user searches.",
+      "rationale": "Astro's default search engine (patches/astro/004-default-search-duckduckgo.patch). Contacted when the user searches. The new tab page no longer names it: its search box sends a query to the browser, which resolves it against whatever TemplateURLService reports as the default provider.",
       "owning_feature": "default-search-engine",
       "owner_issue": 10,
       "reference_kind": "default-content",
@@ -1190,7 +1190,7 @@
       "user_control": "search engine is user-changeable",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "easylist-downloads.adblockplus.org",
@@ -1209,7 +1209,7 @@
         "GET"
       ],
       "trigger": "filter-list updater schedule",
-      "cadence": "not-captured \u2014 read the updater's interval before declaring it",
+      "cadence": "not-captured — read the updater's interval before declaring it",
       "data_categories": [
         "none beyond the request itself (IP, User-Agent)"
       ],
@@ -1220,8 +1220,8 @@
       "incognito": "same-as-normal",
       "retry_backoff": "not-captured",
       "traffic_annotation": "not-captured",
-      "test_fixture": "not-captured \u2014 #19 owns the updater's fixtures",
-      "notes": "List updates are profile-independent, so incognito does not change them. NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "test_fixture": "not-captured — #19 owns the updater's fixtures",
+      "notes": "List updates are profile-independent, so incognito does not change them. NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "easylist.to",
@@ -1240,7 +1240,7 @@
         "GET"
       ],
       "trigger": "filter-list updater schedule",
-      "cadence": "not-captured \u2014 read the updater's interval before declaring it",
+      "cadence": "not-captured — read the updater's interval before declaring it",
       "data_categories": [
         "none beyond the request itself (IP, User-Agent)"
       ],
@@ -1251,8 +1251,8 @@
       "incognito": "same-as-normal",
       "retry_backoff": "not-captured",
       "traffic_annotation": "not-captured",
-      "test_fixture": "not-captured \u2014 #19 owns the updater's fixtures",
-      "notes": "List updates are profile-independent, so incognito does not change them. NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "test_fixture": "not-captured — #19 owns the updater's fixtures",
+      "notes": "List updates are profile-independent, so incognito does not change them. NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "edition.cnn.com",
@@ -1305,14 +1305,14 @@
       "id": "google-fonts-css",
       "observed_state": "NOT_BUILT",
       "state": "REPLACE",
-      "rationale": "A de-Googled browser whose New Tab Page contacts Google every time a tab opens. The reference is not incidental: astro_ntp_ui.cc:94 (style-src) and webui/{ntp,settings,alia}/src/index.html \u2014 the C++ CSP was widened specifically to permit it, and the HTML carries a preconnect plus a stylesheet link. REPLACE: the Inter typeface survives, packaged into browser resources; the remote provider does not. The epic forbids a privileged WebUI loading remote fonts, so this is not a preference.",
+      "rationale": "A de-Googled browser whose internal pages contact Google for a typeface. The new tab page no longer does: its controller declares `font-src data:` and its fonts are data-URIs inside the pak, and the widened style-src it used to carry went with the port. What remains is webui/{alia,whats-new}/src/index.html, which still carry a preconnect and a stylesheet link. REPLACE: the Inter typeface survives, packaged into browser resources; the remote provider does not. The epic forbids a privileged WebUI loading remote fonts, so this is not a preference.",
       "owning_feature": "webui-fonts",
       "owner_issue": 14,
       "reference_kind": "request-literal",
       "contact": "automatic",
       "environment": "production",
       "scheme": "https",
-      "path_pattern": "/css2?family=Inter\u2026, /s/inter/*",
+      "path_pattern": "/css2?family=Inter…, /s/inter/*",
       "methods": [
         "GET"
       ],
@@ -1326,34 +1326,34 @@
       "auth": "none",
       "cookies": "none",
       "response_purpose": "webfont stylesheet and font files",
-      "user_control": "none \u2014 no setting disables it",
+      "user_control": "none — no setting disables it",
       "incognito": "same-as-normal",
       "retry_backoff": "browser default",
-      "traffic_annotation": "none \u2014 subresource of a WebUI page, not an annotated browser fetch",
+      "traffic_annotation": "none — subresource of a WebUI page, not an annotated browser fetch",
       "test_fixture": "not-captured",
       "blocks": [
         14
       ],
       "blocks_reason": "The remote font provider is #14's to remove when it packages the WebUI resources into GN/GRIT.",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition.",
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition.",
       "inputs_to": [
         11
       ],
-      "inputs_reason": "REPLACE \u2014 self-hosted WOFF2 \u2014 is already decided, so #11 does not wait on it. What #11 reads is the consequence: no Astro page fetches a font, so the trusted scheme's CSP baseline is not designed around a remote host. The remaining work is #14's packaging."
+      "inputs_reason": "REPLACE — self-hosted WOFF2 — is already decided, so #11 does not wait on it. What #11 reads is the consequence: no Astro page fetches a font, so the trusted scheme's CSP baseline is not designed around a remote host. The remaining work is #14's packaging."
     },
     {
       "host": "fonts.gstatic.com",
       "id": "google-fonts-files",
       "observed_state": "NOT_BUILT",
       "state": "REPLACE",
-      "rationale": "A de-Googled browser whose New Tab Page contacts Google every time a tab opens. The reference is not incidental: astro_ntp_ui.cc:97 (font-src) and webui/{ntp,settings,alia}/src/index.html \u2014 the C++ CSP was widened specifically to permit it, and the HTML carries a preconnect plus a stylesheet link. REPLACE: the Inter typeface survives, packaged into browser resources; the remote provider does not. The epic forbids a privileged WebUI loading remote fonts, so this is not a preference.",
+      "rationale": "A de-Googled browser whose internal pages contact Google for a typeface. The new tab page no longer does: its controller declares `font-src data:` and its fonts are data-URIs inside the pak, and the widened font-src it used to carry went with the port. What remains is webui/{alia,whats-new}/src/index.html, which still carry a preconnect and a stylesheet link. REPLACE: the Inter typeface survives, packaged into browser resources; the remote provider does not. The epic forbids a privileged WebUI loading remote fonts, so this is not a preference.",
       "owning_feature": "webui-fonts",
       "owner_issue": 14,
       "reference_kind": "request-literal",
       "contact": "automatic",
       "environment": "production",
       "scheme": "https",
-      "path_pattern": "/css2?family=Inter\u2026, /s/inter/*",
+      "path_pattern": "/css2?family=Inter…, /s/inter/*",
       "methods": [
         "GET"
       ],
@@ -1367,27 +1367,27 @@
       "auth": "none",
       "cookies": "none",
       "response_purpose": "webfont stylesheet and font files",
-      "user_control": "none \u2014 no setting disables it",
+      "user_control": "none — no setting disables it",
       "incognito": "same-as-normal",
       "retry_backoff": "browser default",
-      "traffic_annotation": "none \u2014 subresource of a WebUI page, not an annotated browser fetch",
+      "traffic_annotation": "none — subresource of a WebUI page, not an annotated browser fetch",
       "test_fixture": "not-captured",
       "blocks": [
         14
       ],
       "blocks_reason": "The remote font provider is #14's to remove when it packages the WebUI resources into GN/GRIT.",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition.",
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition.",
       "inputs_to": [
         11
       ],
-      "inputs_reason": "REPLACE \u2014 self-hosted WOFF2 \u2014 is already decided, so #11 does not wait on it. What #11 reads is the consequence: no Astro page fetches a font, so the trusted scheme's CSP baseline is not designed around a remote host. The remaining work is #14's packaging."
+      "inputs_reason": "REPLACE — self-hosted WOFF2 — is already decided, so #11 does not wait on it. What #11 reads is the consequence: no Astro page fetches a font, so the trusted scheme's CSP baseline is not designed around a remote host. The remaining work is #14's packaging."
     },
     {
       "host": "footprints-pa.googleapis.com",
       "id": "google-footprints",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "DISABLE_BUILD",
-      "rationale": "Web & App Activity ('footprints'). The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "Web & App Activity ('footprints'). The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "google-history-footprints",
       "owner_issue": 8,
       "reference_kind": "blocklist-literal",
@@ -1435,7 +1435,7 @@
       "id": "ntp-tile-github",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "GitHub \u2014 a prepopulated New Tab Page tile added by patches/astro/019-ntp-default-sites.patch. Shipped data, not a request: the browser contacts it only when the user clicks the tile. Astro's tile set replaced Chromium's Google-owned defaults; the removed ones are in this manifest as `deleted-by-patch`.",
+      "rationale": "GitHub — a prepopulated New Tab Page tile added by patches/astro/019-ntp-default-sites.patch. Shipped data, not a request: the browser contacts it only when the user clicks the tile. Astro's tile set replaced Chromium's Google-owned defaults; the removed ones are in this manifest as `deleted-by-patch`.",
       "owning_feature": "ntp-tiles",
       "owner_issue": 22,
       "reference_kind": "default-content",
@@ -1457,7 +1457,7 @@
       "user_control": "tiles are user-removable",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "goo.gle",
@@ -1487,7 +1487,7 @@
       "id": "doc-sub-goo-gle",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -1535,7 +1535,7 @@
       "id": "google-history",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "DISABLE_BUILD",
-      "rationale": "Google account history. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "Google account history. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "google-history-footprints",
       "owner_issue": 8,
       "reference_kind": "blocklist-literal",
@@ -1602,38 +1602,6 @@
       "test_fixture": "assert the host is absent from the built default_popular_sites resources"
     },
     {
-      "host": "images.unsplash.com",
-      "id": "ntp-wallpaper-static",
-      "observed_state": "NOT_BUILT",
-      "state": "DORMANT",
-      "rationale": "New Tab Page wallpaper source (webui/ntp/src/main.ts:345,352). Unreachable under the WebUI origin: astro_ntp_ui.cc:99-101 sets `img-src 'self' data:`, which admits neither host. Same shape as the weather widget \u2014 an arrangement, not a decision.",
-      "owning_feature": "astro-newtab",
-      "owner_issue": 22,
-      "reference_kind": "request-literal",
-      "contact": "never",
-      "environment": "none",
-      "scheme": "https",
-      "path_pattern": "/random/1920x1080/*, /photo-*",
-      "methods": [
-        "GET"
-      ],
-      "trigger": "user selects the Unsplash wallpaper option",
-      "cadence": "per selection",
-      "data_categories": [
-        "IP address",
-        "User-Agent"
-      ],
-      "auth": "none",
-      "cookies": "none",
-      "response_purpose": "background image",
-      "user_control": "wallpaper picker",
-      "incognito": "undecided",
-      "retry_backoff": "none",
-      "traffic_annotation": "none",
-      "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
-    },
-    {
       "host": "ir.ebaystatic.com",
       "id": "removed-ebay-icon",
       "observed_state": "REMOVED_BY_PATCH",
@@ -1684,7 +1652,7 @@
       "id": "doc-sub-localization",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -1732,7 +1700,7 @@
       "id": "doc-sub-localizer",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -1918,7 +1886,7 @@
       "id": "ntp-quicklink-hn",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "A default quick link in the Astro New Tab Page (webui/ntp/src/main.ts). Shipped data; contacted only when the user clicks it.",
+      "rationale": "A default quick link in the Astro New Tab Page (kDefaultQuickLinks in src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc). Shipped data, used only until the user edits their links; contacted only when the user clicks it.",
       "owning_feature": "ntp-tiles",
       "owner_issue": 22,
       "reference_kind": "default-content",
@@ -1940,7 +1908,7 @@
       "user_control": "links are user-editable",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "optimizationguide-pa.googleapis.com",
@@ -2009,7 +1977,7 @@
       "id": "doc-sub-pay",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -2069,7 +2037,7 @@
         "GET"
       ],
       "trigger": "filter-list updater schedule",
-      "cadence": "not-captured \u2014 read the updater's interval before declaring it",
+      "cadence": "not-captured — read the updater's interval before declaring it",
       "data_categories": [
         "none beyond the request itself (IP, User-Agent)"
       ],
@@ -2080,8 +2048,8 @@
       "incognito": "same-as-normal",
       "retry_backoff": "not-captured",
       "traffic_annotation": "not-captured",
-      "test_fixture": "not-captured \u2014 #19 owns the updater's fixtures",
-      "notes": "List updates are profile-independent, so incognito does not change them. NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "test_fixture": "not-captured — #19 owns the updater's fixtures",
+      "notes": "List updates are profile-independent, so incognito does not change them. NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "recorder.example",
@@ -2111,7 +2079,7 @@
       "id": "ntp-quicklink-reddit",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "A default quick link in the Astro New Tab Page (webui/ntp/src/main.ts). Shipped data; contacted only when the user clicks it.",
+      "rationale": "A default quick link in the Astro New Tab Page (kDefaultQuickLinks in src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc). Shipped data, used only until the user edits their links; contacted only when the user clicks it.",
       "owning_feature": "ntp-tiles",
       "owner_issue": 22,
       "reference_kind": "default-content",
@@ -2133,14 +2101,14 @@
       "user_control": "links are user-editable",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "redirector.gvt1.com",
       "id": "google-crx-redirector",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "The CRX/component download redirector. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "The CRX/component download redirector. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "component-updater",
       "owner_issue": 10,
       "routed_to_issue": 20,
@@ -2170,7 +2138,7 @@
       "id": "google-remotedesktop",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "DISABLE_BUILD",
-      "rationale": "Chrome Remote Desktop. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "Chrome Remote Desktop. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "remoting",
       "owner_issue": 8,
       "reference_kind": "blocklist-literal",
@@ -2218,7 +2186,7 @@
       "id": "doc-sub-safebrowsing",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -2242,7 +2210,7 @@
       "id": "google-safebrowsing",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "The Safe Browsing service. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "The Safe Browsing service. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "safe-browsing",
       "owner_issue": 20,
       "routed_to_issue": 20,
@@ -2300,7 +2268,7 @@
       "id": "google-safesearch",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "DISABLE_BUILD",
-      "rationale": "SafeSearch enforcement. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "SafeSearch enforcement. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "safesearch",
       "owner_issue": 8,
       "reference_kind": "blocklist-literal",
@@ -2325,7 +2293,7 @@
       "id": "google-sb-ssl",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "A Safe Browsing endpoint. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "A Safe Browsing endpoint. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "safe-browsing",
       "owner_issue": 20,
       "routed_to_issue": 20,
@@ -2351,42 +2319,11 @@
       }
     },
     {
-      "host": "search.brave.com",
-      "id": "search-brave",
-      "observed_state": "NOT_BUILT",
-      "state": "KEEP",
-      "rationale": "Brave Search, offered as a user-selectable search engine by the Astro New Tab Page (webui/ntp/src/main.ts). Reached only if the user picks it. Chromium's own Google search integrations are a separate decision \u2014 see the `google-search-default` feature, which is not KEEP.",
-      "owning_feature": "default-search-engine",
-      "owner_issue": 10,
-      "reference_kind": "default-content",
-      "contact": "user-initiated",
-      "environment": "production",
-      "scheme": "https",
-      "path_pattern": "/search",
-      "methods": [
-        "GET"
-      ],
-      "trigger": "user submits a search with this engine selected",
-      "cadence": "per search",
-      "data_categories": [
-        "search query",
-        "IP address",
-        "User-Agent"
-      ],
-      "auth": "none",
-      "cookies": "third-party",
-      "response_purpose": "search results",
-      "user_control": "engine selector",
-      "incognito": "same-as-normal",
-      "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
-    },
-    {
       "host": "source.chromium.org",
       "id": "removed-credits-link",
       "observed_state": "REMOVED_BY_PATCH",
       "state": "DISABLE_BUILD",
-      "rationale": "a credits link deleted by patches/ungoogled/extra/ungoogled-chromium/add-credits.patch The mechanism today is a patch, which #8 must re-express as build configuration or owned data \u2014 DISABLE_BUILD describes the intended end state, not the current one.",
+      "rationale": "a credits link deleted by patches/ungoogled/extra/ungoogled-chromium/add-credits.patch The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one.",
       "owning_feature": "disabled-ui-entries",
       "owner_issue": 8,
       "reference_kind": "deleted-by-patch",
@@ -2405,43 +2342,11 @@
       "test_fixture": "not-captured"
     },
     {
-      "host": "source.unsplash.com",
-      "id": "ntp-wallpaper-random",
-      "observed_state": "NOT_BUILT",
-      "state": "DORMANT",
-      "rationale": "New Tab Page wallpaper source (webui/ntp/src/main.ts:345,352). Unreachable under the WebUI origin: astro_ntp_ui.cc:99-101 sets `img-src 'self' data:`, which admits neither host. Same shape as the weather widget \u2014 an arrangement, not a decision.",
-      "owning_feature": "astro-newtab",
-      "owner_issue": 22,
-      "reference_kind": "request-literal",
-      "contact": "never",
-      "environment": "none",
-      "scheme": "https",
-      "path_pattern": "/random/1920x1080/*, /photo-*",
-      "methods": [
-        "GET"
-      ],
-      "trigger": "user selects the Unsplash wallpaper option",
-      "cadence": "per selection",
-      "data_categories": [
-        "IP address",
-        "User-Agent"
-      ],
-      "auth": "none",
-      "cookies": "none",
-      "response_purpose": "background image",
-      "user_control": "wallpaper picker",
-      "incognito": "undecided",
-      "retry_backoff": "none",
-      "traffic_annotation": "none",
-      "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
-    },
-    {
       "host": "ssl.gstatic.com",
       "id": "google-ssl-gstatic",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "A Google static-asset host. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "A Google static-asset host. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "google-static-assets",
       "owner_issue": 10,
       "reference_kind": "blocklist-literal",
@@ -2461,7 +2366,7 @@
       "incognito": "not-applicable",
       "test_fixture": "not-captured",
       "investigate": {
-        "question": "A Google static-asset host. Which upstream features fetch it \u2014 captive-portal probe, interstitial images, translate assets? A host-level disposition is meaningless until the feature list behind it is enumerated.",
+        "question": "A Google static-asset host. Which upstream features fetch it — captive-portal probe, interstitial images, translate assets? A host-level disposition is meaningless until the feature list behind it is enumerated.",
         "answered_by": "git grep -l 'gstatic.com' in chromium/src at the locked commit, grouped by owning component."
       }
     },
@@ -2470,7 +2375,7 @@
       "id": "ntp-quicklink-stackoverflow",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "A default quick link in the Astro New Tab Page (webui/ntp/src/main.ts). Shipped data; contacted only when the user clicks it.",
+      "rationale": "A default quick link in the Astro New Tab Page (kDefaultQuickLinks in src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc). Shipped data, used only until the user edits their links; contacted only when the user clicks it.",
       "owning_feature": "ntp-tiles",
       "owner_issue": 22,
       "reference_kind": "default-content",
@@ -2492,7 +2397,7 @@
       "user_control": "links are user-editable",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "static.xx.fbcdn.net",
@@ -2522,7 +2427,7 @@
       "id": "help-redirect-loop-substituted",
       "observed_state": "PRESENT",
       "state": "REPLACE",
-      "rationale": "THE ONE SUBSTITUTED HOST THAT REACHES SHIPPED UI. patches/astro/038-dino-game-astro-scheme.patch rewrites kRedirectLoopLearnMoreUrl in components/error_page/common/localized_error.cc to `https://support.9oo91e.qjz9zk/chrome?p=rl_error` \u2014 the 'learn more' link on the ERR_TOO_MANY_REDIRECTS interstitial. That patch APPLIES, so today's build ships a link to a host that does not resolve and that block-trk-and-subdomains.patch blocks anyway. The other eleven substituted-shape hosts in this manifest sit in translator notes, `<ex>` placeholders and C++ comments, and are `documentation`. REPLACE: the link survives, pointing at an Astro destination.",
+      "rationale": "THE ONE SUBSTITUTED HOST THAT REACHES SHIPPED UI. patches/astro/038-dino-game-astro-scheme.patch rewrites kRedirectLoopLearnMoreUrl in components/error_page/common/localized_error.cc to `https://support.9oo91e.qjz9zk/chrome?p=rl_error` — the 'learn more' link on the ERR_TOO_MANY_REDIRECTS interstitial. That patch APPLIES, so today's build ships a link to a host that does not resolve and that block-trk-and-subdomains.patch blocks anyway. The other eleven substituted-shape hosts in this manifest sit in translator notes, `<ex>` placeholders and C++ comments, and are `documentation`. REPLACE: the link survives, pointing at an Astro destination.",
       "owning_feature": "product-help-links",
       "owner_issue": 9,
       "reference_kind": "help-link",
@@ -2544,7 +2449,7 @@
       "user_control": "user-initiated",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "Domain substitution has never run in this repository (baseline finding, tools/baseline/inventory_endpoints.py). This host is NOT an endpoint the pipeline broke \u2014 it is a substituted string an Astro patch hard-codes as literal text. The distinction matters: nothing will 'un-substitute' it, because nothing substituted it."
+      "notes": "Domain substitution has never run in this repository (baseline finding, tools/baseline/inventory_endpoints.py). This host is NOT an endpoint the pipeline broke — it is a substituted string an Astro patch hard-codes as literal text. The distinction matters: nothing will 'un-substitute' it, because nothing substituted it."
     },
     {
       "host": "support.google.com",
@@ -2579,7 +2484,7 @@
       "id": "google-tools",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "The update ping host; also targeted by block-requests.patch. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "The update ping host; also targeted by block-requests.patch. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "component-updater",
       "owner_issue": 10,
       "routed_to_issue": 20,
@@ -2609,7 +2514,7 @@
       "id": "google-translate",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "The translation backend. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "The translation backend. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "translation",
       "owner_issue": 10,
       "reference_kind": "blocklist-literal",
@@ -2638,7 +2543,7 @@
       "id": "google-transparencyreport",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "Referenced by safe_browsing-disable-incident-reporting.patch. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "Referenced by safe_browsing-disable-incident-reporting.patch. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "safe-browsing",
       "owner_issue": 20,
       "routed_to_issue": 20,
@@ -2707,7 +2612,7 @@
       "reference_kind": "request-literal",
       "contact": "unknown",
       "environment": "production",
-      "declared_reason": "The baseline inventory scans Astro's overlay and patch text ONLY \u2014 never the Chromium tree \u2014 so an upstream endpoint no Astro patch mentions is invisible to it. This is the single largest gap in the seed and it is declared rather than left to be discovered.",
+      "declared_reason": "The baseline inventory scans Astro's overlay and patch text ONLY — never the Chromium tree — so an upstream endpoint no Astro patch mentions is invisible to it. This is the single largest gap in the seed and it is declared rather than left to be discovered.",
       "investigate": {
         "question": "Does Astro contact update.googleapis.com, on what trigger, and with what payload? The source scan cannot answer it: the inventory does not read the Chromium tree, and no Astro patch touches this host.",
         "answered_by": "A measured cold-start and idle trace from tools/baseline/capture-network.sh, which is blocked until an Astro binary exists (baseline finding 1). Until then this stays INVESTIGATE and no claim about Astro's network behaviour may be made without it."
@@ -2758,7 +2663,7 @@
       "id": "doc-sub-wallet",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -2782,7 +2687,7 @@
       "id": "doc-sub-wallet-dot",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -2854,7 +2759,7 @@
       "id": "ntp-quicklink-wikipedia",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "A default quick link in the Astro New Tab Page (webui/ntp/src/main.ts). Shipped data; contacted only when the user clicks it.",
+      "rationale": "A default quick link in the Astro New Tab Page (kDefaultQuickLinks in src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc). Shipped data, used only until the user edits their links; contacted only when the user clicks it.",
       "owning_feature": "ntp-tiles",
       "owner_issue": 22,
       "reference_kind": "default-content",
@@ -2876,45 +2781,14 @@
       "user_control": "links are user-editable",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
-    },
-    {
-      "host": "wttr.in",
-      "id": "ntp-weather",
-      "observed_state": "NOT_BUILT",
-      "state": "DORMANT",
-      "rationale": "The New Tab Page's weather widget (webui/ntp/src/main.ts:430). Unreachable in the shipped context by TWO independent mechanisms, both named: the page's own isWebUIContext() guard returns before the fetch (main.ts:424-427), and astro_ntp_ui.cc sets no connect-src, so the WebUI default-src blocks it anyway. It is live in the Vite dev server. DORMANT, not DISABLE_RUNTIME: nobody decided to switch it off \u2014 the code was written and the surrounding arrangement happens to stop it, which is exactly the state that becomes reachable again when someone relaxes a CSP for an unrelated reason.",
-      "owning_feature": "astro-newtab",
-      "owner_issue": 22,
-      "reference_kind": "request-literal",
-      "contact": "never",
-      "environment": "none",
-      "scheme": "https",
-      "path_pattern": "/?format=j1",
-      "methods": [
-        "GET"
-      ],
-      "trigger": "New Tab Page render, when not under a WebUI origin",
-      "cadence": "per NTP open, cached in localStorage",
-      "data_categories": [
-        "IP address \u2014 the service geolocates from it"
-      ],
-      "auth": "none",
-      "cookies": "none",
-      "response_purpose": "local weather for the NTP widget",
-      "user_control": "none declared",
-      "incognito": "undecided",
-      "retry_backoff": "none",
-      "traffic_annotation": "none",
-      "test_fixture": "not-captured",
-      "notes": "Dormancy needs an expiry: either #22 declares this endpoint and ships it with a user control, or the code goes. Leaving it is how a third-party IP-geolocation request arrives in a privacy browser through an unrelated CSP change. NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "www.9oo91e.qjz9zk",
       "id": "doc-sub-www-google",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -2957,42 +2831,11 @@
       "test_fixture": "assert the host is absent from the built default_popular_sites resources"
     },
     {
-      "host": "www.bing.com",
-      "id": "search-bing",
-      "observed_state": "NOT_BUILT",
-      "state": "KEEP",
-      "rationale": "Bing, offered as a user-selectable search engine by the Astro New Tab Page (webui/ntp/src/main.ts). Reached only if the user picks it. Chromium's own Google search integrations are a separate decision \u2014 see the `google-search-default` feature, which is not KEEP.",
-      "owning_feature": "default-search-engine",
-      "owner_issue": 10,
-      "reference_kind": "default-content",
-      "contact": "user-initiated",
-      "environment": "production",
-      "scheme": "https",
-      "path_pattern": "/search",
-      "methods": [
-        "GET"
-      ],
-      "trigger": "user submits a search with this engine selected",
-      "cadence": "per search",
-      "data_categories": [
-        "search query",
-        "IP address",
-        "User-Agent"
-      ],
-      "auth": "none",
-      "cookies": "third-party",
-      "response_purpose": "search results",
-      "user_control": "engine selector",
-      "incognito": "same-as-normal",
-      "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
-    },
-    {
       "host": "www.ch40m1um.qjz9zk",
       "id": "doc-sub-www-chromium",
       "observed_state": "NOT_AN_ENDPOINT",
       "state": "DORMANT",
-      "rationale": "A substituted hostname carried as literal text by an Astro branding patch \u2014 a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
+      "rationale": "A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it.",
       "owning_feature": "none",
       "owner_issue": 10,
       "reference_kind": "documentation",
@@ -3085,7 +2928,7 @@
       "id": "search-google",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "Google, offered as a user-selectable search engine by the Astro New Tab Page (webui/ntp/src/main.ts). Reached only if the user picks it. Chromium's own Google search integrations are a separate decision \u2014 see the `google-search-default` feature, which is not KEEP.",
+      "rationale": "Google, one of the prepopulated search engines a profile carries, selectable from the new tab page's engine picker and from settings. The picker renders TemplateURLService's list and names no provider itself, so the reference that remains is Chromium's own prepopulated data. Reached only if the user picks it. Chromium's own Google search integrations are a separate decision — see the `google-search-default` feature, which is not KEEP.",
       "owning_feature": "default-search-engine",
       "owner_issue": 10,
       "reference_kind": "default-content",
@@ -3109,14 +2952,14 @@
       "user_control": "engine selector",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "www.googleapis.com",
       "id": "google-apis",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "DISABLE_BUILD",
-      "rationale": "The generic Google APIs host, referenced from 51 sites across the tree. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "The generic Google APIs host, referenced from 51 sites across the tree. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "google-account-gaia",
       "owner_issue": 8,
       "reference_kind": "blocklist-literal",
@@ -3141,7 +2984,7 @@
       "id": "google-gstatic",
       "observed_state": "RUNTIME_BLOCKED",
       "state": "INVESTIGATE",
-      "rationale": "A Google static-asset host, also the usual captive-portal probe origin. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://\u2026`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state \u2014 the calling code is still compiled and reachable \u2014 which is why it may never be asserted as 'cannot happen'.",
+      "rationale": "A Google static-asset host, also the usual captive-portal probe origin. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'.",
       "owning_feature": "google-static-assets",
       "owner_issue": 10,
       "reference_kind": "blocklist-literal",
@@ -3161,7 +3004,7 @@
       "incognito": "not-applicable",
       "test_fixture": "not-captured",
       "investigate": {
-        "question": "A Google static-asset host, also the usual captive-portal probe origin. Which upstream features fetch it \u2014 captive-portal probe, interstitial images, translate assets? A host-level disposition is meaningless until the feature list behind it is enumerated.",
+        "question": "A Google static-asset host, also the usual captive-portal probe origin. Which upstream features fetch it — captive-portal probe, interstitial images, translate assets? A host-level disposition is meaningless until the feature list behind it is enumerated.",
         "answered_by": "git grep -l 'gstatic.com' in chromium/src at the locked commit, grouped by owning component."
       }
     },
@@ -3216,7 +3059,7 @@
       "id": "ntp-tile-reddit",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "Reddit \u2014 a prepopulated New Tab Page tile added by patches/astro/019-ntp-default-sites.patch. Shipped data, not a request: the browser contacts it only when the user clicks the tile. Astro's tile set replaced Chromium's Google-owned defaults; the removed ones are in this manifest as `deleted-by-patch`.",
+      "rationale": "Reddit — a prepopulated New Tab Page tile added by patches/astro/019-ntp-default-sites.patch. Shipped data, not a request: the browser contacts it only when the user clicks the tile. Astro's tile set replaced Chromium's Google-owned defaults; the removed ones are in this manifest as `deleted-by-patch`.",
       "owning_feature": "ntp-tiles",
       "owner_issue": 22,
       "reference_kind": "default-content",
@@ -3238,14 +3081,14 @@
       "user_control": "tiles are user-removable",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "www.startpage.com",
       "id": "search-startpage",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "Startpage, offered as a user-selectable search engine by the Astro New Tab Page (webui/ntp/src/main.ts). Reached only if the user picks it. Chromium's own Google search integrations are a separate decision \u2014 see the `google-search-default` feature, which is not KEEP.",
+      "rationale": "Startpage, one of the prepopulated search engines a profile carries, selectable from the new tab page's engine picker and from settings. The picker renders TemplateURLService's list and names no provider itself, so the reference that remains is Chromium's own prepopulated data. Reached only if the user picks it. Chromium's own Google search integrations are a separate decision — see the `google-search-default` feature, which is not KEEP.",
       "owning_feature": "default-search-engine",
       "owner_issue": 10,
       "reference_kind": "default-content",
@@ -3269,7 +3112,7 @@
       "user_control": "engine selector",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "www.w3.org",
@@ -3299,7 +3142,7 @@
       "id": "ntp-tile-wikipedia",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "Wikipedia \u2014 a prepopulated New Tab Page tile added by patches/astro/019-ntp-default-sites.patch. Shipped data, not a request: the browser contacts it only when the user clicks the tile. Astro's tile set replaced Chromium's Google-owned defaults; the removed ones are in this manifest as `deleted-by-patch`.",
+      "rationale": "Wikipedia — a prepopulated New Tab Page tile added by patches/astro/019-ntp-default-sites.patch. Shipped data, not a request: the browser contacts it only when the user clicks the tile. Astro's tile set replaced Chromium's Google-owned defaults; the removed ones are in this manifest as `deleted-by-patch`.",
       "owning_feature": "ntp-tiles",
       "owner_issue": 22,
       "reference_kind": "default-content",
@@ -3321,7 +3164,7 @@
       "user_control": "tiles are user-removable",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "www.yahoo.com",
@@ -3351,7 +3194,7 @@
       "id": "ntp-quicklink-x",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "A default quick link in the Astro New Tab Page (webui/ntp/src/main.ts). Shipped data; contacted only when the user clicks it.",
+      "rationale": "A default quick link in the Astro New Tab Page (kDefaultQuickLinks in src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc). Shipped data, used only until the user edits their links; contacted only when the user clicks it.",
       "owning_feature": "ntp-tiles",
       "owner_issue": 22,
       "reference_kind": "default-content",
@@ -3373,14 +3216,14 @@
       "user_control": "links are user-editable",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     },
     {
       "host": "youtube.com",
       "id": "ntp-quicklink-youtube",
       "observed_state": "NOT_BUILT",
       "state": "KEEP",
-      "rationale": "A default quick link in the Astro New Tab Page (webui/ntp/src/main.ts). Shipped data; contacted only when the user clicks it.",
+      "rationale": "A default quick link in the Astro New Tab Page (kDefaultQuickLinks in src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc). Shipped data, used only until the user edits their links; contacted only when the user clicks it.",
       "owning_feature": "ntp-tiles",
       "owner_issue": 22,
       "reference_kind": "default-content",
@@ -3402,7 +3245,7 @@
       "user_control": "links are user-editable",
       "incognito": "same-as-normal",
       "test_fixture": "not-captured",
-      "notes": "NOT_BUILT: baseline finding 1 \u2014 nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
     }
   ]
 }

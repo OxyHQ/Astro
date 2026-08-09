@@ -162,13 +162,24 @@ property of the current arrangement that nobody is maintaining, so it can become
 reachable through a change made for an unrelated reason, and nothing will notice.
 **Dormancy therefore carries an expiry: it becomes a decision, or the code goes.**
 
-*Worked example, from committed state:* the New Tab Page's weather widget
-(`webui/ntp/src/main.ts:430`) fetches from `wttr.in`. It is unreachable in the
-shipped context by two independent mechanisms — the page's own `isWebUIContext()`
-guard returns before the fetch, and `astro_ntp_ui.cc` sets no `connect-src`, so
-the WebUI default blocks it. Nobody decided to switch off the weather. Relax one
-CSP for an unrelated reason and a privacy browser starts making an IP-geolocation
-request on every new tab.
+*Worked example, and the first one this repository has CLOSED:* the New Tab
+Page's weather widget used to fetch `wttr.in` from the page. It was unreachable
+in the shipped context by two independent mechanisms — the page's own
+`isWebUIContext()` guard returned before the fetch, and `astro_ntp_ui.cc` set no
+`connect-src`, so the WebUI default blocked it. Nobody had decided to switch off
+the weather. Relax one CSP for an unrelated reason and a privacy browser starts
+making an IP-geolocation request on every new tab.
+
+That is exactly what the expiry is for, and it is what happened: porting the
+page took the decision. The fetch is gone, the widget is still there and says on
+its own card that a trusted page may not fetch and the broker #22 requires does
+not exist, and the controller now declares `connect-src 'none'` — a decision
+somebody made, in one place, instead of an arrangement nobody was maintaining.
+`wttr.in`, `source.unsplash.com` and `images.unsplash.com` stopped being hosts
+this repository references at all, and their entries left `endpoints.json` with
+the code. Note which way round the resolution went: the dormant code did not get
+promoted to a working feature, it got replaced by a statement of why there is
+none.
 
 *Second example, and it is the cleanest one in the repository:* in committed
 state nothing constructs `OxyCookieSigninObserver` — `git grep -l` at `HEAD`
