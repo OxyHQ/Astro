@@ -15,9 +15,12 @@ import {Text} from '@oxyhq/bloom/typography';
 import {useEffect, useRef, useState} from 'react';
 import {Pressable, TextInput, View, type TextInput as TextInputRef} from 'react-native';
 
-import {t} from '@astro/platform';
+import {navigateTo, t} from '@astro/platform';
 
 import {search, setDefaultSearchEngine, useNtp} from './ntp-store.ts';
+
+/** The search box's DOM id, for the click-away test below. */
+const SEARCH_BOX_ID = 'astro-ntp-search';
 
 export function SearchBox() {
   const {searchEngines} = useNtp();
@@ -29,9 +32,13 @@ export function SearchBox() {
   const current = searchEngines.find(engine => engine.isDefault);
   const pinned = current !== undefined && !current.selectable;
 
-  // A document listener, and one of the few places an effect is the right
-  // shape: these shortcuts have to fire while the focus is on the body, which
-  // no element in this tree receives.
+  // Two document listeners, and one of the few places an effect is the right
+  // shape: both have to fire while the focus or the pointer is somewhere no
+  // element in this tree receives events from.
+  //
+  // The four shortcuts are the ones the page this replaces bound, kept
+  // deliberately rather than by accident — a keyboard shortcut that quietly
+  // stops existing is the kind of loss nobody reports and everybody notices.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
@@ -48,10 +55,40 @@ export function SearchBox() {
       if ((event.key === '/' && !typing) || (event.key === 'k' && (event.metaKey || event.ctrlKey))) {
         event.preventDefault();
         input.current?.focus();
+        return;
+      }
+      // The platform's own "open preferences". It went to the settings page
+      // before this port and still does — the Customize panel beside it is the
+      // new tab page's own arrangement, not the browser's preferences.
+      if (event.key === ',' && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        navigateTo('settings');
       }
     }
+
+    // Clicking away closes the engine menu. Without this the only ways out are
+    // Escape and choosing an engine, which is not how a menu behaves anywhere
+    // else in the browser.
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target as Node | null;
+      // Resolved through the DOM id rather than a ref, and that is not a
+      // preference. On web a ref on a className'd component does not resolve to
+      // the DOM node at all under react-native-css, so `box.current` would be
+      // null and this would close the menu on every click including its own.
+      // `id` is a React Native prop that renders as the DOM id, which is the
+      // sanctioned way out.
+      if (target && document.getElementById(SEARCH_BOX_ID)?.contains(target)) {
+        return;
+      }
+      setEnginesOpen(false);
+    }
+
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
   }, []);
 
   function submit() {
@@ -63,7 +100,7 @@ export function SearchBox() {
   }
 
   return (
-    <View className="w-full gap-2">
+    <View id={SEARCH_BOX_ID} className="w-full gap-2">
       <View className="w-full flex-row items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2">
         <MagnifyingGlass_Stroke2_Corner0_Rounded size="md" fill={iconColor} />
         <TextInput
