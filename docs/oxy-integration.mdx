@@ -155,22 +155,42 @@ When the user opens the panel, Chrome creates a `WebContents` pointed at `chrome
 
 ## NTP and customization
 
-`chrome://astro-ntp` is served by `AstroNtpUI` from `webui/ntp/dist/`. The page is fully customizable via the Settings page — widget visibility, layout, and theme color all sync via the Mojo settings pipeline.
+`chrome://astro-ntp` is an entry of the single Astro WebUI app
+(`webui/app/src/pages/newtab/`), served by `AstroNtpUI` out of
+`astro_webui_resources.pak` — packaged through GN and GRIT, not read off the
+disk. It is drawn with Bloom against the same tokens as `astro://settings`, so
+changing the colour preset in settings re-themes it live, in every open tab,
+with no reload.
 
-The NTP widgets:
+Everything it reads and writes goes over `astro_ntp.mojom`, a typed interface
+bound by that page and no other. There is deliberately no generic preference
+API on it: the page names a decision (`SetWidgetVisible`,
+`SetDefaultSearchEngine`, `AddQuickLink`), never a pref path and a value, so
+every write has somewhere to be validated. Nothing is kept in `localStorage`.
 
-| Widget | Pref | Backend |
-|--------|------|---------|
-| Clock | `oxy.ntp.widget.clock.enabled` | Local time only |
-| Weather | `oxy.ntp.widget.weather.enabled` | `api.oxy.so/weather/forecast` (coarse-grained location) |
-| Quick links | `oxy.ntp.widget.quicklinks.*` | Stored in profile prefs |
-| Notes | `oxy.ntp.widget.notes.*` | Stored in profile prefs |
-| Discover feed | `oxy.ntp.widget.discover.enabled` | `api.oxy.so/discover/feed` |
-| Alia entrypoint | `oxy.ntp.widget.alia.enabled` | Opens `chrome://alia` |
+| Widget | State lives in | Where the data comes from |
+|--------|----------------|---------------------------|
+| Clock | `astro.ntp_show_clock` | The runtime's own locale and clock; no network |
+| Weather | `astro.ntp_show_weather` | **Nothing.** A trusted page may not fetch, and the browser-process broker #22 requires does not exist yet. The card draws and says so. |
+| Quick links | `astro.ntp_show_quick_links`, `astro.ntp_quick_links` | The profile. Every URL is validated in the browser — http and https only — on the way in AND on the way out |
+| Notes | `astro.ntp_show_notes`, `astro.ntp_notes` | The profile, so the same note is in every window |
+| Discover | `astro.ntp_show_discover` | Shipped static content, not a feed. Its link runs a search with the profile's default provider |
+| Alia entrypoint | `astro.ntp_show_alia` | Opens the Alia side panel through `OpenAliaSidePanel()` |
+| Frequently visited | `astro.ntp_show_sites` | `ntp_tiles::MostVisitedSites`, Chromium's own top-sites infrastructure. Not constructed at all in an off-the-record profile |
 
-The discover feed uses the user's Oxy session token if signed in, otherwise an anonymous public feed. Weather and discover are the only widgets that hit the network — everything else is local.
+The grid's order is `astro.ntp_widget_order`. Icons come from
+`chrome://favicon2`, which is the browser's own icon service, so the page shows
+what the browser already has rather than fetching from the sites.
 
-`chrome://newtab` is redirected to `chrome://astro-ntp` by patch `056-ntp-redirect-to-astro.patch`.
+**No widget hits the network.** The controller declares `connect-src 'none'`,
+`font-src data:` and `img-src 'self' data: chrome://favicon2`, with Trusted
+Types enforced and `script-src` at Chromium's default. The search box does not
+know a search endpoint either: it sends a query string and
+`AstroNtpPageHandler::SearchWithDefaultEngine` resolves it against
+`TemplateURLService` and navigates the tab from the browser process.
+
+`chrome://newtab` is redirected to `chrome://astro-ntp` by patch
+`056-ntp-redirect-to-astro.patch`, which is also why the omnibox shows `newtab`.
 
 ## Update server
 

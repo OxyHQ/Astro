@@ -27,6 +27,11 @@ overlay:
       - "src/chrome/browser/oxy/oxy_auth_navigation_throttle.h"
       - "src/chrome/browser/oxy/oxy_auth_service.h"
       - "src/chrome/browser/oxy/oxy_cookie_signin_observer.cc"
+  - host: "developer.mozilla.org"
+    component: webui
+    substituted_shape: false
+    references:
+      - "src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc"
   - host: "easylist-downloads.adblockplus.org"
     component: adblock
     substituted_shape: false
@@ -37,23 +42,52 @@ overlay:
     substituted_shape: false
     references:
       - "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc"
-  - host: "fonts.googleapis.com"
-    component: webui
-    substituted_shape: false
-    references:
-      - "src/chrome/browser/oxy/webui/astro_ntp_ui.cc"
   - host: "fonts.gstatic.com"
     component: webui
     substituted_shape: false
     references:
       - "src/chrome/browser/oxy/webui/astro_alia_ui.cc"
-      - "src/chrome/browser/oxy/webui/astro_ntp_ui.cc"
       - "src/chrome/browser/oxy/webui/astro_whats_new_ui.cc"
+  - host: "github.com"
+    component: webui
+    substituted_shape: false
+    references:
+      - "src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc"
+  - host: "news.ycombinator.com"
+    component: webui
+    substituted_shape: false
+    references:
+      - "src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc"
   - host: "pgl.yoyo.org"
     component: adblock
     substituted_shape: false
     references:
       - "src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc"
+  - host: "reddit.com"
+    component: webui
+    substituted_shape: false
+    references:
+      - "src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc"
+  - host: "stackoverflow.com"
+    component: webui
+    substituted_shape: false
+    references:
+      - "src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc"
+  - host: "wikipedia.org"
+    component: webui
+    substituted_shape: false
+    references:
+      - "src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc"
+  - host: "x.com"
+    component: webui
+    substituted_shape: false
+    references:
+      - "src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc"
+  - host: "youtube.com"
+    component: webui
+    substituted_shape: false
+    references:
+      - "src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc"
 
 patches:
   - host: "%s%s"

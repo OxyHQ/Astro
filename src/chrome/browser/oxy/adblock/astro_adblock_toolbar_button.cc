@@ -3,7 +3,12 @@
 
 #include "chrome/browser/oxy/adblock/astro_adblock_toolbar_button.h"
 
+#include <memory>
+#include <utility>
+
+#include "base/location.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/oxy/adblock/astro_adblock_bubble_delegate.h"
 #include "chrome/browser/oxy/adblock/astro_adblock_service.h"
 #include "chrome/browser/oxy/adblock/astro_adblock_service_factory.h"
@@ -16,7 +21,9 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/font_list.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
+#include "ui/views/widget/widget.h"
 
 namespace oxy::adblock {
 
@@ -59,6 +66,18 @@ AstroAdBlockToolbarButton::~AstroAdBlockToolbarButton() {
   StopObservingTab();
   if (browser_ && browser_->tab_strip_model()) {
     browser_->tab_strip_model()->RemoveObserver(this);
+  }
+
+  // A bubble still open as this button goes away. `bubble_delegate_` is about
+  // to be freed by the member destructor, so the widget built from it must be
+  // gone FIRST -- and gone for real: Widget::Close() only schedules it, which
+  // would leave the widget running against a freed delegate. CloseNow is
+  // synchronous, and the observation is dropped beforehand so the deferred
+  // delete in OnWidgetDestroying does not also fire on the way out.
+  if (bubble_observation_.IsObserving()) {
+    views::Widget* bubble = bubble_observation_.GetSource();
+    bubble_observation_.Reset();
+    bubble->CloseNow();
   }
 }
 
@@ -124,6 +143,15 @@ void AstroAdBlockToolbarButton::ButtonPressed() {
 }
 
 void AstroAdBlockToolbarButton::ShowBubble() {
+  // A bubble is already up. Usually unreachable, because a press on this
+  // button deactivates the bubble first and close-on-deactivate has already
+  // torn it down by the time we get here -- but "usually" is not a lifetime
+  // guarantee, and overwriting bubble_delegate_ below would free a delegate
+  // its live widget is still pointing at.
+  if (bubble_delegate_) {
+    return;
+  }
+
   auto* wc = browser_->tab_strip_model()->GetActiveWebContents();
   if (!wc) {
     return;
@@ -136,7 +164,34 @@ void AstroAdBlockToolbarButton::ShowBubble() {
     return;
   }
 
-  AstroAdBlockBubbleDelegate::ShowBubble(this, browser_, wc, service);
+  bubble_delegate_ = std::make_unique<AstroAdBlockBubbleDelegate>(
+      this, browser_, wc, service);
+  // The raw-pointer overload, so the delegate stays ours. The unique_ptr one
+  // release()s into nothing, which is the leak this whole arrangement exists
+  // to avoid. Ownership of the WIDGET is upstream's default and unchanged.
+  views::Widget* bubble = views::BubbleDialogDelegate::CreateBubble(
+      bubble_delegate_.get());
+  bubble_observation_.Observe(bubble);
+  bubble->Show();
+}
+
+void AstroAdBlockToolbarButton::OnWidgetDestroying(views::Widget* widget) {
+  bubble_observation_.Reset();
+
+  // DeleteSoon, not reset(). We are inside a notification the widget is
+  // sending, and upstream's BubbleWidgetObserver -- an object the delegate
+  // OWNS -- keeps using `owner_` after the call that reaches us:
+  //
+  //     owner_->OnBubbleWidgetActivationChanged(active);
+  //     owner_->OnWidgetActivationChanged(widget, active);
+  //
+  // Freeing the delegate on the first line leaves the second dereferencing
+  // freed memory. That is not a theory either: destroying it synchronously
+  // here crashed with `owner_` reading 0xbadbad00badbad00, PartitionAlloc's
+  // poison, on nothing more exotic than pressing ctrl-t with the bubble open.
+  // Next loop turn is late enough for every frame below us to have unwound.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
+      FROM_HERE, std::move(bubble_delegate_));
 }
 
 AstroAdBlockTabHelper* AstroAdBlockToolbarButton::GetActiveTabHelper() {

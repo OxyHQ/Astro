@@ -146,14 +146,42 @@ signal to stop and report it on the issue.
     `worktree: clean` into the permanent record of what a build was made
     from, and `fetch-cross-deps.sh`, whose `find -maxdepth 4` also missed 62
     of the 260 submodules it claims to reset.
-- **A patch applied by hand is invisible to the guards.** They attribute dirty
-  paths from `build/reports/patch-report.json`, which only
-  `tools/apply-patches.sh` writes. Apply a patch with `git apply` — the
-  sanctioned way to test one — and the report keeps describing the previous
-  run, so `sync-overlay.sh` later refuses the tree and names files that Astro's
-  own patches wrote. Measured 2026-08-09 with the report at
-  `applied_count: 168` against a tree carrying 176. The cure is a real
-  pipeline run, not an override.
+- **A patch applied by hand, or written since the last full run, is invisible
+  to the guards.** `astro::unattributable_paths` attributes a dirty path from
+  the overlay allowlist, the pruning declaration, or a MANIFEST an earlier
+  pipeline step emitted — and the manifest `sync-overlay.sh` passes is
+  `build/reports/patch-report.json`, which only `tools/apply-patches.sh`
+  writes. Any patch the report predates therefore has its own legitimate
+  output reported as "modified path(s) Astro did not write". The cure is a
+  real pipeline run, not an override.
+
+  **Do not read this entry for a pair of numbers — read it for the
+  discriminator.** It used to say `applied_count: 168` against a tree carrying
+  176, and by 2026-08-09 the report read 177 against a series of 178, so two
+  agents in one evening hit exactly this and neither recognised the entry as
+  describing them; both reached for `ASTRO_ALLOW_DIRTY_CHROMIUM=1`. The
+  discriminator does not go stale: compare the patch NAMES the report records
+  against `patches/astro/series`. On that day exactly ONE name was missing —
+  the report recorded `069` but not `070`, 177 entries against the series'
+  178 — and that one patch is the whole flag: the single path the guard named
+  was patch 070's own output, provable in one command,
+  `git apply --check -R patches/astro/070-*.patch` against the tree. Note how
+  small the gap that produces a refusal is: one patch written after the last
+  full run is enough, so "the report looks about right" is not a reading.
+
+  **What this cost, which is the reason it is worth this many words.** A
+  genuinely foreign 113 KB file — `chrome/browser/resources/
+  new_tab_page_third_party/new_tab_page_third_party.html`, left by the deleted
+  `webui/ntp/merge-for-chromium.ts` — sat in the shared checkout across
+  multiple sessions with this guard pointing straight at it, waved through
+  every time alongside the false positive. It then went into a user's binary,
+  because `tools/install-local.sh` recompiles and its log shows
+  `new_tab_page_third_party:preprocess_static_files` and
+  `chrome:packed_resources_extra` re-running: the file carried `wttr.in` and
+  `source.unsplash.com`, two hosts `docs/astro-next/policy/endpoints.json` had
+  just stopped declaring on the grounds that nothing references them. A gate
+  that cries wolf gets waved through, and the thing it was right about goes
+  through with it.
 - **Every overlay destination is declared** in `tools/overlay.allowlist`. An
   undeclared path, or an undeclared overwrite of an upstream-tracked file,
   fails the sync.
@@ -575,9 +603,10 @@ do not let a build imply they are resolved:
   checks 067 and 069 were each admitted on — a patch that applies against a
   pristine tree can still fail in series, which is the whole reason the replay
   runs the series in order rather than one patch at a time.
-  `build/reports/patch-report.json` is OLDER than that and says so —
-  `applied_count: 168` from the last full run against the real checkout — so
-  read the replay, not the report, for whether the series applies. Also,
+  `build/reports/patch-report.json` is OLDER than that and says so — it
+  records only what the last full run against the real checkout applied: 177
+  entries, the newest Astro one `069`, when the series already carried `070` —
+  so read the replay, not the report, for whether the series applies. Also,
   `docs/astro-next/policy/endpoints.json` declares the non-applying list
   EMPTY, with the replay that emptied it and the three waves of repairs
   written up there. Read it there rather than here; what belongs here is the
@@ -607,18 +636,20 @@ do not let a build imply they are resolved:
     somebody else's patch, so it applies to the pristine file and fails in
     series. A per-patch check against a pristine tree calls the second kind
     healthy, which is why the replay runs the series in order.
-- The three LEGACY pages (`ntp`, `alia`, `whats-new`) still serve their assets
-  by reading a directory next to the executable at runtime (`base::DIR_EXE` +
-  `resources/astro-<page>`) rather than from a `.pak`, so none of them carries
+- The two LEGACY pages (`alia`, `whats-new`) still serve their assets by
+  reading a directory next to the executable at runtime (`base::DIR_EXE` +
+  `resources/astro-<page>`) rather than from a `.pak`, so neither carries
   Chromium's resource-bundling guarantees, and each still renders BLANK, with
   no error, when its directory is missing. Moving them into the app is the
-  remainder of #14.
+  remainder of #14. It was three; the new tab page left the arrangement when
+  it became an entry of the app.
 
   Pages built on `astro_webui_page.cc` no longer do any of that:
   `067-astro-webui-pak-repack.patch` put `astro_webui_resources.pak` into
   chrome's repack list, and the base serves every page out of the GRIT
   resource map (`AddResourcePaths` plus a `SetDefaultResource` fallback that
-  makes client-side routes resolve). Settings is the only such page today.
+  makes client-side routes resolve). Settings and the new tab page are the
+  two such pages today.
   The single remaining filesystem path, `astro_webui_dev_source.cc`, is
   compiled only under `astro_webui_dev_tools` — off in every committed
   configuration, so a release binary contains neither the reader nor the
@@ -631,7 +662,7 @@ do not let a build imply they are resolved:
   `CreateAndAddInlineSource` sets `SetDefaultResource(-1)` — the comment on
   that line reads "No grit resource, we use RequestFilter" — beside a
   `SetRequestFilter` whose predicate claims every path. So it is NOT a
-  `DIR_EXE` finding and correctly does not appear beside the three legacy
+  `DIR_EXE` finding and correctly does not appear beside the legacy
   pages in the security baseline: the bytes are compiled into the binary and
   nothing is read off disk. It is also not in the pak, so it carries none of
   the resource-bundling guarantees, and it is the same catch-all-filter shape
@@ -727,13 +758,21 @@ src/chrome/browser/oxy/
     │                                #   bound by every Astro page.
     ├── astro_settings.mojom         # SetThemeMode / SetColorPreset. Named
     │                                #   methods only — never SetPref(string,…).
+    ├── astro_ntp.mojom              # The new tab page's data plane: widgets,
+    │                                #   quick links, notes, tiles, search,
+    │                                #   the two side panels. Bound by that
+    │                                #   page and no other.
     ├── astro_webui_page.*           # Shared base: asset serving (the one seam
     │                                #   #16 replaces), per-host CSP, and the
     │                                #   plain and Mojo controller bases.
     ├── astro_theme_provider.*       # Serves astro_theme.mojom for one page.
     ├── astro_settings_ui.*          # astro://settings controller + config
     ├── astro_settings_page_handler.* # Browser side of astro_settings.mojom
-    ├── astro_ntp_ui.*               # chrome://astro-ntp controller
+    ├── astro_ntp_ui.*               # chrome://astro-ntp controller + config
+    ├── astro_ntp_page_handler.*     # Browser side of astro_ntp.mojom. Owns
+    │                                #   the pref watchers, the MostVisitedSites
+    │                                #   observer and the TemplateURLService
+    │                                #   observer; validates every URL.
     ├── astro_alia_ui.*              # chrome://alia controller
     └── astro_whats_new_ui.*         # chrome://whats-new controller
 ```
@@ -749,13 +788,18 @@ webui/
 │                  #   action into astro_webui_resources.pak and served to
 │                  #   astro://settings today; manifest.json is committed and
 │                  #   is the authority for what it emits.
-├── ntp/           # New Tab Page (Vite + Tailwind v4)
 ├── alia/          # Alia AI Panel
 └── whats-new/     # What's New Page
 ```
 
-The three legacy pages keep their current from-disk serving until the app
-absorbs them; do not start a fourth one beside them.
+`webui/ntp` is GONE, not moved: the new tab page is `app/src/pages/newtab/`
+and the old directory was deleted in the same change, along with its
+`REQUIRED_WEBUI_PAGES` entry, its `build.sh` staging and its
+`merge-for-chromium.ts`. A clean cut, per the no-compat-shim rule — a page
+left behind is a page someone edits.
+
+The two legacy pages keep their current from-disk serving until the app
+absorbs them; do not start a third one beside them.
 
 ### Other directories
 
@@ -898,6 +942,78 @@ Five things to know before touching it:
   `tools/tests/cases/theme-pref-ids-match-across-the-boundary.sh` is the only
   thing that compares them.
 
+## The new tab page: an entry of the app, on a typed data plane
+
+`webui/ntp` is deleted. The new tab page is `webui/app/src/pages/newtab/`,
+React + Bloom, served from `astro_webui_resources.pak` by `AstroNtpUI` on the
+shared `astro_webui_page` base — the same pak, the same shell and the same
+BloomThemeProvider as `astro://settings`, which is what makes a colour change
+in settings repaint the new tab page live, in every open tab, with no reload.
+
+What it speaks is `astro_ntp.mojom`: `GetState` plus six push callbacks and
+eleven named methods. What it replaced was six `chrome.send` messages, a
+`data-ntp-prefs` attribute the controller spliced into the `<html>` tag, and
+five localStorage keys. Rules that came out of the port:
+
+- **No localStorage anywhere in the page.** The notes, the links, the widget
+  order and the chosen search engine are profile prefs now, so the browser can
+  see them: it validates a URL before the page renders it as a link, the same
+  note is in every window (each WebUI host is its own origin, so localStorage
+  never could be), and none of it is lost when the origin's storage is
+  cleared. #22 requires it and nothing under `pages/newtab/` writes to it.
+- **The search engine is the browser's, not the page's.** The page it replaced
+  carried a table of five providers and its own choice, so searching from the
+  new tab page and searching from the omnibox used different engines and
+  nothing said so. The page now sends a query string and
+  `AstroNtpPageHandler::SearchWithDefaultEngine` resolves it against
+  `TemplateURLService`; the picker lists the profile's own engines and sets the
+  real default, refusing when policy pins it. No search endpoint is spelled
+  anywhere in the page.
+- **Most-visited tiles come from `ntp_tiles::MostVisitedSites`**, which is
+  Chromium's own infrastructure, and NOT in an off-the-record profile — the
+  handler does not construct it there at all. `ChromeMostVisitedSitesFactory`
+  is a source of `//chrome/browser`, which already depends on
+  `//chrome/browser/oxy:webui_controllers`, so the include needs the
+  `allow_circular_includes_from` entry patch 063 adds rather than a dependency
+  edge that would be a cycle.
+- **Every URL is validated in the browser, in both directions.** `IsLinkableUrl`
+  admits http and https only, on the way in from the page AND on the way out of
+  the pref store — the store is a profile file that can be edited, synced or
+  written by an older build, and this is the last place before a URL becomes an
+  anchor in a privileged page.
+- **Two widgets are declared rather than working, and say so on the card.**
+  Weather has no data source: a trusted page may not fetch, and #22 requires a
+  browser-process broker with a declared endpoint before one exists. Discover
+  is shipped static content, not a feed. Both were already non-functional in
+  the shipped browser — weather rendered `--` with no explanation — so the port
+  keeps the cards and puts the reason in them. Do not "fix" either by adding a
+  fetch to the page; `connect-src 'none'` is on that page deliberately.
+- **The customize panel exists because the controls did not.** The old page's
+  markup carried a whole settings panel — wallpaper, engine, seven toggles, a
+  link editor — and both buttons that were supposed to open it navigated to
+  `chrome://settings` instead, which had no new-tab controls either. So the
+  prefs were registered, watched and pushed live to a page nobody could
+  adjust. The panel is on the new tab page rather than in settings so that
+  `astro_ntp.mojom` stays bound by one surface.
+- **Reordering is buttons, not drag,** and that is the one interaction the port
+  did not preserve. react-native-web forwards no HTML5 drag props, and
+  `onLayout` never fires for a className'd component on this NativeWind
+  preview's web runtime, so the measurement a pointer-driven drag needs never
+  arrives. The buttons are also the only version that was ever reachable from a
+  keyboard.
+- **Two things the port dropped outright**, both dead: the wallpaper setting
+  (`applyWallpaper()` was an empty function, so the control never did anything
+  even when it was reachable) and the temperature unit (weather-only, and
+  weather has no data). The sidebar's Search/Discover tab pair and its empty
+  "Recent" list went too — the tabs moved an indicator and nothing else, and
+  the list was never populated by any code path.
+- **The NTP prefs are spelled TWICE, not three times** — `astro_pref_names.h`
+  and `020-register-oxy-prefs.patch`. There is no TypeScript spelling because
+  the page names a decision rather than a pref path, which is the concrete
+  benefit of the typed interface over the pref bridge it replaced.
+  `tools/tests/cases/ntp-pref-ids-match-the-registration.sh` joins the two
+  that remain, strictly, in both directions.
+
 ## How to Add a New WebUI Page
 
 1. **Create the controller** (`astro_foo_ui.h` / `.cc`) in `src/chrome/browser/oxy/webui/`:
@@ -937,13 +1053,13 @@ Five things to know before touching it:
    agree about, and a resource the map names but GRIT did not compile is a
    LINK error rather than a blank page found by a user.
 
-   The three LEGACY pages still work the old way: the controllers read
+   The two LEGACY pages still work the old way: the controllers read
    `<DIR_EXE>/resources/astro-<page>/`, `tools/build.sh` stages
    `webui/<page>/dist` to exactly that path, and the page name must be in
-   `REQUIRED_WEBUI_PAGES` or nothing stages it. Those three have to agree and
-   nothing checks that they do — when the controllers read one path and
-   build.sh wrote another, every page rendered blank and the build reported
-   success. Do not add a fourth page to that arrangement.
+   `REQUIRED_WEBUI_PAGES` or nothing stages it. Those three things have to
+   agree and nothing checks that they do — when the controllers read one path
+   and build.sh wrote another, every page rendered blank and the build
+   reported success. Do not add a third page to that arrangement.
 
 ## WebUI Page URLs
 
@@ -957,6 +1073,17 @@ Five things to know before touching it:
 Settings is Astro's since `060-settings-webui-takeover.patch`, on upstream's
 own host and by swapping upstream's registration — see the settings section
 above, including the part where it has no assets to serve yet.
+
+The new tab page keeps the host `astro-ntp` and did NOT move to `newtab` when
+it was ported, which #22 lists as a requirement. `newtab` is upstream's own
+host string and `WebUIConfigMap::AddWebUIConfigImpl` CHECKs on a duplicate
+origin, so taking it means swapping a registration rather than adding one —
+the whats-new situation below. It also buys nothing yet:
+`056-ntp-redirect-to-astro.patch` already points `search::GetNewTabPageURL` at
+this host and teaches `IsInstantNTPURL` to recognise it, so every
+browser-created new tab lands here and the omnibox already shows `newtab`.
+The canonical spelling is settled by the scheme composition of #12; until
+then a rename is a CHECK away from a browser that will not start.
 
 `chrome://astro-error` is NOT in this table: the error page was deleted and
 nothing replaced it.
@@ -1074,8 +1201,7 @@ Rules that follow:
 
 ```bash
 cd webui/app && bun run dev          # http://localhost:5178  (strictPort)
-cd webui/ntp && bun run dev          # Vite default: 5173, or the next free port
-cd webui/alia && bun run dev
+cd webui/alia && bun run dev         # Vite default: 5173, or the next free port
 cd webui/whats-new && bun run dev
 ```
 
@@ -1083,7 +1209,7 @@ Only `webui/app` pins a port, and the two reasons are worth carrying: 5173 is
 taken by `~/Oxy/website`'s dev server on this machine, and Vite's default
 behaviour on a busy port is to silently take the next one — which already
 produced a session that curled another project's app and read its HTML as this
-one's. The other three set no port at all, so their numbers depend on start
+one's. The other two set no port at all, so their numbers depend on start
 order. Read the port Vite prints; do not trust a number written down anywhere,
 including here.
 

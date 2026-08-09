@@ -14,7 +14,7 @@ Astro is a Chromium fork by [Oxy](https://oxy.so) that strips every Google servi
 
 Astro is built on top of [ungoogled-chromium](https://github.com/ungoogled-software/ungoogled-chromium) (112 inherited patches that remove Google service dependencies) plus 65 Astro-specific patches that add Oxy integrations, branding, and a custom URL scheme. All Astro-only C++ code lives in a self-contained overlay at `src/chrome/browser/oxy/`, following the Brave-style approach of keeping custom source separate from upstream Chromium.
 
-The internal pages Astro owns (New Tab, Settings, Alia AI, What's New) are not Polymer like in upstream Chrome — they are standalone Vite + Tailwind v4 apps. Settings is the newest and the least finished: Astro serves the host, but the page has no assets staged yet ([#16](https://github.com/OxyHQ/Astro/issues/16)). The error page was deleted in `c9c4383` and nothing replaced it. All of these are being consolidated into a single Vite + Tailwind + Bloom application in `webui/app/`.
+The internal pages Astro owns (New Tab, Settings, Alia AI, What's New) are not Polymer like in upstream Chrome — they are Vite + Tailwind v4 apps. Settings and the New Tab page have been consolidated into a single Vite + Tailwind + Bloom application in `webui/app/`, packaged into `astro_webui_resources.pak` by a GN action and served from inside the binary; Alia and What's New are still separate apps read off the disk beside the executable. The error page was deleted in `c9c4383` and nothing replaced it.
 
 | Aspect | Astro |
 |--------|-------|
@@ -65,9 +65,9 @@ Custom C++ services that live alongside Chrome's existing services, registered t
 
 ### 3. Vite-built WebUI pages, not Polymer
 
-Chrome's stock internal pages use Polymer 3 + Lit + chrome:// resources baked into the binary. Astro replaces the pages above with standalone Vite + Tailwind v4 apps in `webui/`. The C++ WebUI controllers serve the pre-built `dist/` by reading it off disk at request time, so the assets are in no `.pak`. The three legacy pages render blank, silently, when the directory was not staged; settings, which is built on the shared `astro_webui_page.cc` base, logs the path it tried and serves a page naming it instead. Removing `DIR_EXE` entirely is [issue #14](https://github.com/OxyHQ/Astro/issues/14); packaging the app is [#16](https://github.com/OxyHQ/Astro/issues/16).
+Chrome's stock internal pages use Polymer 3 + Lit + chrome:// resources baked into the binary. Astro replaces the pages above with Vite + Tailwind v4 apps. Settings and the New Tab page are entries of one such app and are compiled into `astro_webui_resources.pak` through GN and GRIT, so they carry Chromium's own resource guarantees and read nothing from disk. Alia and What's New are the two still served by reading their `dist/` at request time, and each renders blank, silently, when its directory was not staged. Folding them in is the remainder of [issue #14](https://github.com/OxyHQ/Astro/issues/14).
 
-Settings uses Mojo; the others do not. Astro's first two interfaces landed on 2026-08-09: `astro_theme.mojom` (read-only — `GetTheme` plus an `OnThemeChanged` observer, so every page follows the browser's theme live) and `astro_settings.mojom` (`SetThemeMode`, `SetColorPreset`). They are narrow and named on purpose — there is no `SetPref(string, value)`, and the page that carried one was deleted in `c9c4383`. Chromium's own prefs still reach settings through `chrome.settingsPrivate`, which is the only transport carrying a pref's policy state. The New Tab page talks to the browser through a `WebUIMessageHandler` (`chrome.send`); Alia and What's New are static bundles.
+Settings and the New Tab page use Mojo; the others do not. Astro's first interfaces landed on 2026-08-09: `astro_theme.mojom` (read-only — `GetTheme` plus an `OnThemeChanged` observer, bound by every Astro page, which is what makes a colour change re-theme all of them live), `astro_settings.mojom` (`SetThemeMode`, `SetColorPreset`) and `astro_ntp.mojom` (the new tab page's widgets, links, notes, tiles and search). They are narrow and named on purpose — there is no `SetPref(string, value)`, and the page that carried one was deleted in `c9c4383`. Chromium's own prefs still reach settings through `chrome.settingsPrivate`, which is the only transport carrying a pref's policy state. Alia and What's New are static bundles.
 
 ## URL scheme
 
@@ -124,8 +124,7 @@ For incremental WebUI work you do **not** need to rebuild Chromium — point a d
 
 ```sh
 cd webui/app        && bun run dev    # http://localhost:5178  (strictPort)
-cd webui/ntp        && bun run dev    # Vite default: 5173, or the next free port
-cd webui/alia       && bun run dev
+cd webui/alia       && bun run dev    # Vite default: 5173, or the next free port
 cd webui/whats-new  && bun run dev
 ```
 

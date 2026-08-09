@@ -9,37 +9,73 @@ frame binder map: `RenderFrameHostImpl` looks the interface up there, finds
 nothing, and drops the request. The page sees a pipe that never answers. There
 is no error, on either side.
 
-This registers Astro's two interfaces for `astro://settings`, and registers
-them SEPARATELY rather than as one, because they are not the same grant:
+This registers Astro's three interfaces, and the split between them IS the
+grant -- which is the whole reason there are three:
 
-  astro.mojom.ThemeProvider              read-only. Every Astro page binds it,
-                                         so the theme is live everywhere -- new
-                                         tab page, side panels, settings.
+  astro.mojom.ThemeProvider              read-only. EVERY Astro page binds it,
+                                         so a colour change re-themes settings,
+                                         the new tab page and the native UI at
+                                         once.
 
-  astro.settings.mojom.PageHandlerFactory  writes the theme. Granted here to
-                                         the settings controller alone, which
-                                         is also the only surface holding the
+  astro.settings.mojom.PageHandlerFactory  writes the theme. Granted to the
+                                         settings controller alone, which is
+                                         also the only surface holding the
                                          settingsPrivate grant (patch 060).
+
+  astro.ntp.mojom.PageHandlerFactory     the new tab page's own data plane --
+                                         widgets, links, notes, tiles, search.
+                                         Granted to that page and nothing else.
 
 A single read-write interface would have made every page that wants to READ
 the theme able to CHANGE it, which is a grant nobody would have written down
 deliberately.
 
+Note the shape of the ThemeProvider line: ONE registration listing both
+controllers. `RegisterWebUIControllerInterfaceBinder` DCHECKs on a second
+registration of the same interface, so adding a page as its own line aborts a
+developer build at startup rather than widening the grant.
+
+The `allow_circular_includes_from` entry is a separate matter from the binders
+and is here because it is the same patch's dependency edge. Astro's new tab
+page builds its most-visited tiles from `ntp_tiles::MostVisitedSites`, and the
+only way to construct one is `ChromeMostVisitedSitesFactory`, which is a source
+of `//chrome/browser` itself. `//chrome/browser` already depends on
+`//chrome/browser/oxy:webui_controllers` (below), so a dependency back would be
+a cycle; this is Chromium's own mechanism for exactly that, and the list it
+joins is forty entries of the same shape.
+
 Registered in the desktop parts file, not the all-platforms one, to match
-where `AstroSettingsUIConfig` itself is registered: inside the non-Android
-branch of chrome_web_ui_configs.cc. The `//chrome/browser` dependency on
+where the configs themselves are registered: inside the non-Android branch of
+chrome_web_ui_configs.cc. The `//chrome/browser` dependency on
 `//chrome/browser/oxy:webui_controllers` is in the same non-Android branch and
-covers both halves of what this file needs -- the controller's own header, and
+covers both halves of what this file needs -- the controllers' own headers, and
 the generated mojom headers, which arrive through that target's `public_deps`
 on `//chrome/browser/oxy/webui:mojo_bindings` and must EXIST before this file
 compiles, not merely link afterwards.
 
-Owned by https://github.com/OxyHQ/Astro/issues/15.
+Owned by https://github.com/OxyHQ/Astro/issues/15 and
+https://github.com/OxyHQ/Astro/issues/22.
 ---
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -4255,6 +4255,7 @@ static_library("browser") {
+@@ -1552,7 +1552,15 @@ static_library("browser") {
+     # TODO(crbug.com/394204688): Remove this once we ensure that
+     # `PreconnectFromKeyedService` does not cause any regressions.
+     "//chrome/browser/navigation_predictor:navigation_predictor",
+     "//chrome/browser/optimization_guide:impl",
++
++    # Astro's new tab page builds its most-visited tiles from
++    # ntp_tiles::MostVisitedSites, and the only way to construct one is
++    # ChromeMostVisitedSitesFactory, which is a source of THIS target rather
++    # than of a component. Same reason as the entries above and the same
++    # mechanism: the dependency edge already runs this way, so the include
++    # needs permission rather than a second edge back.
++    "//chrome/browser/oxy:webui_controllers",
+     "//chrome/browser/passage_embeddings",
+     "//chrome/browser/permissions",
+     "//chrome/browser/policy/messaging_layer/storage_selector",
+@@ -4255,6 +4262,7 @@ static_library("browser") {
        "//chrome/browser/media/router/discovery/access_code:access_code_sink_service",
        "//chrome/browser/metrics/desktop_session_duration",
        "//chrome/browser/new_tab_page/chrome_colors",
@@ -50,17 +86,19 @@ diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
 diff --git a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
 --- a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
 +++ b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
-@@ -22,6 +22,9 @@
+@@ -22,6 +22,11 @@
  #include "chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption.mojom.h"
  #include "chrome/browser/new_tab_page/modules/v2/tab_groups/tab_groups.mojom.h"
  #include "chrome/browser/new_tab_page/new_tab_page_util.h"
++#include "chrome/browser/oxy/webui/astro_ntp.mojom.h"
++#include "chrome/browser/oxy/webui/astro_ntp_ui.h"
 +#include "chrome/browser/oxy/webui/astro_settings.mojom.h"
 +#include "chrome/browser/oxy/webui/astro_settings_ui.h"
 +#include "chrome/browser/oxy/webui/astro_theme.mojom.h"
  #include "chrome/browser/ui/lens/lens_overlay_untrusted_ui.h"
  #include "chrome/browser/ui/lens/lens_side_panel_untrusted_ui.h"
  #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
-@@ -597,6 +600,20 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
+@@ -597,6 +600,34 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
          DefaultBrowserModalUI>(map);
    }
  #endif
@@ -70,14 +108,28 @@ diff --git a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop
 +  // called and the request is dropped, which the page sees as a pipe that
 +  // never answers rather than as a missing registration.
 +  //
-+  // The two are granted separately and to different scopes on purpose.
-+  // ThemeProvider is READ-only and every Astro page gets it; PageHandler
-+  // WRITES the theme and is granted here only to the settings controller,
-+  // which is also the only surface holding the settingsPrivate grant.
++  // They are granted separately and to different scopes on purpose.
++  // ThemeProvider is READ-only and EVERY Astro page gets it -- which is what
++  // makes a colour change in settings re-theme the new tab page live, in every
++  // open tab, with no reload. The interface is registered ONCE with the whole
++  // list of controllers that may bind it: the helper DCHECKs on a second
++  // registration of the same interface, so a page added as its own line here
++  // would not merely be redundant, it would abort a developer build at
++  // startup.
 +  RegisterWebUIControllerInterfaceBinder<astro::mojom::ThemeProvider,
-+                                         astro::AstroSettingsUI>(map);
++                                         astro::AstroSettingsUI,
++                                         astro::AstroNtpUI>(map);
++
++  // Writing the theme is the settings page's alone, and so is the
++  // settingsPrivate grant that comes with upstream's host (patch 060).
 +  RegisterWebUIControllerInterfaceBinder<
 +      astro::settings::mojom::PageHandlerFactory, astro::AstroSettingsUI>(map);
++
++  // The new tab page's own data plane -- its widgets, links, notes, tiles and
++  // search. Granted to that page and to nothing else, which is why it is a
++  // separate interface from the theme it also reads.
++  RegisterWebUIControllerInterfaceBinder<astro::ntp::mojom::PageHandlerFactory,
++                                         astro::AstroNtpUI>(map);
  }
  
  void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(

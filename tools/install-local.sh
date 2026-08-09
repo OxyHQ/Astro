@@ -29,7 +29,13 @@ BUILD_DIR="$PROJECT_ROOT/chromium/src/out/Release"
 ICON_SRC="$PROJECT_ROOT/branding/web/icon-512.png"
 DESKTOP_SRC="$PROJECT_ROOT/branding/astro-browser.desktop"
 
-WEBUI_PAGES=(ntp alia whats-new)
+# The pages still served from disk. Settings and the new tab page are NOT here:
+# they are entries of `webui/app`, which a GN action compiles into
+# astro_webui_resources.pak during the build, so they arrive inside the binary
+# and there is nothing to stage. `tools/build.sh`'s REQUIRED_WEBUI_PAGES is the
+# same list and the two must agree — this one kept `ntp` after the port deleted
+# `webui/ntp`, and the install then failed on a manifest that no longer exists.
+WEBUI_PAGES=(alia whats-new)
 
 astro::require_cmd rsync bun ninja sed find
 astro::require_dir "$BUILD_DIR" "build output (run tools/build.sh first)"

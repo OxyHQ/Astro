@@ -30,15 +30,19 @@ class AstroAdBlockService;
 // latter is deprecated upstream and its constructor is private behind a closed
 // friend list marked "DO NOT ADD TO THIS LIST". The contents live in a separate
 // View built by Init().
+//
+// Being a delegate that is NOT a View has a consequence worth stating here,
+// because getting it wrong crashed the browser: nothing deletes this object on
+// its own. A View-derived delegate is owned by the widget's view hierarchy;
+// this one is owned by whoever constructs it, which is
+// AstroAdBlockToolbarButton, and it MUST outlive the widget built from it.
+// There is deliberately no static "show" helper: the one that used to be here
+// created the delegate, handed it to CreateBubble and returned, leaving an
+// object nobody owned and whose anchor observation outlived its widget. See
+// the ownership comment on AstroAdBlockToolbarButton's members.
 class AstroAdBlockBubbleDelegate : public views::BubbleDialogDelegate,
                                    public AstroAdBlockTabHelper::Observer {
  public:
-  // Shows the bubble anchored to the given view.
-  static void ShowBubble(views::View* anchor_view,
-                         Browser* browser,
-                         content::WebContents* web_contents,
-                         AstroAdBlockService* service);
-
   AstroAdBlockBubbleDelegate(views::View* anchor_view,
                              Browser* browser,
                              content::WebContents* web_contents,

@@ -119,6 +119,18 @@
       "status": "legacy-baseline",
       "purpose": "New Tab Page widget visibility: Alia entry point."
     },
+    "astro.ntp_widget_order": {
+      "status": "legacy-baseline",
+      "purpose": "The order the New Tab Page lays its widgets out, as a list of widget ids. Normalised on every read, so a profile written by a build with a different widget set still opens: an unknown name is dropped and a missing one appended in its canonical position."
+    },
+    "astro.ntp_quick_links": {
+      "status": "legacy-baseline",
+      "purpose": "The user's own New Tab Page links, as a list of {title, url}. Registered EMPTY: the shipped defaults live in the overlay and are used only while the preference is at its default value, so a user who deletes every link keeps none rather than having them handed back. Every URL is re-validated on read, since a profile file can be edited or synced from a build with looser rules."
+    },
+    "astro.ntp_notes": {
+      "status": "legacy-baseline",
+      "purpose": "The New Tab Page's scratch note. A profile preference rather than page storage, so the same note is in every window -- each WebUI host is its own origin, so localStorage never could be -- and so the browser can bound its length."
+    },
     "oxy.adblock.lifetime_blocked_count": {
       "status": "legacy-baseline",
       "purpose": "Cumulative count of requests the ad blocker has blocked, for the shield UI."

@@ -35,6 +35,12 @@ const PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
   settings: lazy(() =>
     import('./pages/settings/settings-page.tsx').then(module => ({default: module.SettingsPage})),
   ),
+  // Keyed by the HOST the browser serves it from, which is not `newtab` — see
+  // kAstroNtpHost in astro_ntp_ui.h for why the canonical spelling has to wait
+  // for the scheme composition.
+  'astro-ntp': lazy(() =>
+    import('./pages/newtab/new-tab-page.tsx').then(module => ({default: module.NewTabPage})),
+  ),
 };
 
 /**

@@ -302,13 +302,21 @@ PY
 harness::assert_status 0 "the disposition join is strict in both directions"
 harness::assert_output_contains "disposition join checks passed" "the join driver ran"
 
-# --- Mutation: the strict parse misses exactly one registration --------------
+# --- Mutation: the strict parse misses the registrations with no default -----
 #
-# `oxy.adblock.site_overrides` is the only committed registration with no
-# default argument, so making the optional default group REQUIRED loses that one
-# and nothing else. A mutation that broke every registration would be caught by
-# the "no registrations parsed" guard instead, and would prove nothing about the
-# pairing.
+# Making the optional default group REQUIRED loses exactly the registrations
+# that state no default, and nothing else. A mutation that broke every
+# registration would be caught by the "no registrations parsed" guard instead,
+# and would prove nothing about the pairing.
+#
+# WHICH registrations those are is DERIVED below, not written down. This block
+# used to name `oxy.adblock.site_overrides` because it was the only one, and
+# that premise stopped being true the moment the new tab page port added two
+# list preferences with no default. The mutation was still caught -- by an
+# earlier patch -- and the assertion that read the message failed, which is a
+# test breaking while the thing it guards still works. The probe now computes
+# the first patch that loses anything and what it loses, so adding or removing a
+# no-default registration moves the expectation with the source.
 
 mutate() {
     local search="$1" replace="$2"
@@ -338,6 +346,55 @@ assert_mutation_applied() {
     fi
 }
 
+# What the mutation will lose, read out of the committed patches with the
+# generator's OWN parser rather than restated here. `read_text` reads from HEAD,
+# so this describes the commit -- the same source the generator uses.
+harness::run python3 - "$BASELINE_DIR" "$tmp" <<'DERIVE'
+import importlib.util
+import pathlib
+import sys
+
+baseline_dir, out_dir = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+sys.path.insert(0, str(baseline_dir))
+spec = importlib.util.spec_from_file_location(
+    "generator", baseline_dir / "make_profile_fixtures.py"
+)
+generator = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(generator)
+
+first_patch = None
+lost = []
+for source in generator.PREF_PATCHES:
+    text = generator.added_lines(generator.read_text(source))
+    missing = [
+        match.group("name")
+        for match in generator.PREF_RE.finditer(text)
+        if match.group("default") is None
+    ]
+    if missing:
+        first_patch, lost = pathlib.Path(source).name, missing
+        break
+
+# A vacuity floor. With no no-default registration anywhere the mutation loses
+# nothing, the generator succeeds, and every assertion after it reads as a pass
+# while measuring an unbroken tool.
+if first_patch is None:
+    raise SystemExit(
+        "no committed registration states no default, so making the default "
+        "group required would lose nothing and this mutation would prove "
+        "nothing. Give the probe a registration to lose, or delete it."
+    )
+
+(out_dir / "expected-patch").write_text(first_patch + "\n", encoding="utf-8")
+(out_dir / "expected-prefs").write_text("\n".join(lost) + "\n", encoding="utf-8")
+print(
+    f"the mutation will lose {len(lost)} declaration(s) in {first_patch}: "
+    + ", ".join(lost)
+)
+DERIVE
+harness::assert_status 0 "deriving what the strict-parse mutation will lose"
+harness::assert_output_contains "the mutation will lose" "the derivation ran"
+
 harness::run mutate \
     '(?:\s*,\s*(?P<default>.*?))?\s*\)\s*;' \
     '(?:\s*,\s*(?P<default>.*?))\s*\)\s*;'
@@ -347,9 +404,12 @@ assert_mutation_applied '(?:\s*,\s*(?P<default>.*?))\s*\)\s*;'
 harness::run python3 "$GENERATOR" --output "$tmp/mutated"
 harness::assert_nonzero_status "a strict parse that misses a registration"
 harness::assert_output_contains "losing declarations" "names the failure"
-harness::assert_output_contains "oxy.adblock.site_overrides" "names the lost preference"
-harness::assert_output_contains "046-adblock-prefs.patch" "names the patch it was lost from"
 harness::assert_output_contains "not parsed" "says the declaration was not parsed"
+harness::assert_output_contains "$(cat "$tmp/expected-patch")" \
+    "names the patch the declaration was lost from"
+while read -r lost_pref; do
+    harness::assert_output_contains "$lost_pref" "names the lost preference $lost_pref"
+done < "$tmp/expected-prefs"
 harness::assert_file_missing "$tmp/mutated/manifest.json"
 
 # --- Mutation: the loose recogniser stops being a superset -------------------

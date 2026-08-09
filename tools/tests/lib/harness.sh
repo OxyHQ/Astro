@@ -638,7 +638,7 @@ harness::make_build_root() {
     printf '! filter list\n' > "$root/src/chrome/browser/oxy/adblock/resources/easylist.txt"
 
     local page
-    for page in ntp alia whats-new; do
+    for page in alia whats-new; do
         mkdir -p "$root/webui/$page/dist"
         printf '<!doctype html><title>%s</title>\n' "$page" > "$root/webui/$page/dist/index.html"
     done

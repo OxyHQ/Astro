@@ -61,21 +61,22 @@ All Astro C++ lives in a self contained overlay at `src/chrome/browser/oxy/`, th
 
 ## Internal pages
 
-The three `astro://` pages are standalone Vite and Tailwind v4 apps, built to static assets that the browser process serves from a `WebUIDataSource`. The New Tab Page exchanges messages with C++ through `chrome.send`; the other two are presentation only.
+Astro's internal pages are converging on ONE Vite + Tailwind v4 + Bloom application, `webui/app`, with an entry per WebUI host. A GN action builds it and GRIT packs it into `astro_webui_resources.pak`, so those pages are served from inside the binary with Chromium's own resource guarantees rather than read off the disk beside it.
 
-| Page | Source | What it does |
-|---|---|---|
-| New Tab | [`webui/ntp/`](webui/ntp) | Clock, notes, quick links, weather, wallpaper, an Alia prompt, and a badge counting what the ad blocker stopped |
-| Alia | [`webui/alia/`](webui/alia) | The AI side panel |
-| What's New | [`webui/whats-new/`](webui/whats-new) | Release notes |
+| Page | Source | Served from | What it does |
+|---|---|---|---|
+| New Tab | [`webui/app/src/pages/newtab/`](webui/app/src/pages/newtab) | the pak | Clock, notes, quick links, most-visited tiles, search, an Alia prompt, and a badge counting what the ad blocker stopped |
+| Settings | [`webui/app/src/pages/settings/`](webui/app/src/pages/settings) | the pak | The browser's settings |
+| Alia | [`webui/alia/`](webui/alia) | a directory beside the executable | The AI side panel |
+| What's New | [`webui/whats-new/`](webui/whats-new) | a directory beside the executable | Release notes |
 
-Settings is Astro's again: `060-settings-webui-takeover.patch` swaps upstream's registration for `AstroSettingsUIConfig`, on upstream's own host so the `settingsPrivate` grant is inherited. The browser side is done — typed Mojo for Astro's own controls, upstream's handlers adopted for browsing data, search engines and about — but **the page has no assets yet**: `webui/app` is not staged by `tools/build.sh`, so the page currently serves a document naming the directory it could not read. Packaging is [#16](https://github.com/OxyHQ/Astro/issues/16). The error page was deleted in `c9c4383` and nothing replaced it. Consolidating every surface into one Vite + Tailwind + Bloom application is issues #15, #14, #22, #17 and #24.
+Settings is Astro's again: `060-settings-webui-takeover.patch` swaps upstream's registration for `AstroSettingsUIConfig`, on upstream's own host so the `settingsPrivate` grant is inherited. The New Tab Page followed it into the app, and with it went the last of its `chrome.send` messages and its localStorage — what it shows and what it can change are `astro_ntp.mojom`, a typed interface bound by that page and no other. The error page was deleted in `c9c4383` and nothing replaced it. Alia and What's New are the two still reading their assets off the disk; folding them in is issues [#14](https://github.com/OxyHQ/Astro/issues/14) and [#17](https://github.com/OxyHQ/Astro/issues/17).
 
 ```bash
-cd webui/ntp && bun install && bun run dev
+cd webui/app && bun install && bun run dev
 ```
 
-Each page is its own Bun workspace with its own dev server, so you can iterate on one without rebuilding the browser.
+The app's dev server runs every page against in-memory mocks of the browser APIs, so you can iterate on one without rebuilding the browser. The two legacy pages are still Bun workspaces of their own.
 
 ## Building
 

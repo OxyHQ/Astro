@@ -1,7 +1,7 @@
 diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browser_prefs.cc
 --- a/chrome/browser/prefs/browser_prefs.cc
 +++ b/chrome/browser/prefs/browser_prefs.cc
-@@ -1713,6 +1713,35 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
+@@ -1713,6 +1713,49 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
    enterprise_connectors::RegisterProfilePrefs(registry);
    enterprise_promotion::RegisterProfilePrefs(registry);
    enterprise_reporting::RegisterProfilePrefs(registry);
@@ -22,6 +22,20 @@ diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browse
 +  registry->RegisterBooleanPref("astro.ntp_show_sites", true);
 +  registry->RegisterBooleanPref("astro.ntp_show_discover", true);
 +  registry->RegisterBooleanPref("astro.ntp_show_alia", true);
++
++  // The rest of what the new tab page remembers. All three replace a
++  // localStorage key on the page: the browser could not see those, could not
++  // validate a URL before the page rendered it, and each WebUI host being its
++  // own origin meant the note in one window was not the note in another.
++  //
++  // The quick links list is registered EMPTY on purpose. The shipped default
++  // links are in the overlay (kDefaultQuickLinks in
++  // chrome/browser/oxy/webui/astro_ntp_page_handler.cc) and are used only
++  // while the pref IsDefaultValue(), so a user who deletes every link keeps an
++  // empty list instead of having the defaults handed back on next launch.
++  registry->RegisterListPref("astro.ntp_widget_order");
++  registry->RegisterListPref("astro.ntp_quick_links");
++  registry->RegisterStringPref("astro.ntp_notes", "");
 +
 +  // The active Bloom colour preset, by name. Spelled here as a literal
 +  // because a patch edits an upstream file and cannot reach the overlay's

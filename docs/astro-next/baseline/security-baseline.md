@@ -25,10 +25,10 @@ violations that do not exist.
 
 | Rule | Source | Controllers |
 |---|---|---|
-| No privileged WebUI loading remote scripts, styles or fonts | epic #3, non-negotiable rules | `astro_alia_ui.cc`, `astro_ntp_ui.cc`, `astro_whats_new_ui.cc` |
-| No privileged WebUI reads mutable application files from beside the executable | epic #3, global definition of done | `astro_alia_ui.cc`, `astro_ntp_ui.cc`, `astro_whats_new_ui.cc` |
+| No privileged WebUI loading remote scripts, styles or fonts | epic #3, non-negotiable rules | `astro_alia_ui.cc`, `astro_whats_new_ui.cc` |
+| No privileged WebUI reads mutable application files from beside the executable | epic #3, global definition of done | `astro_alia_ui.cc`, `astro_whats_new_ui.cc` |
 | No blanket disabling of Trusted Types | epic #3, non-negotiable rules | `astro_alia_ui.cc`, `astro_ntp_ui.cc`, `astro_whats_new_ui.cc` |
-| No `unsafe-inline` unless a narrowly documented temporary exception has an owner and removal issue | epic #3, non-negotiable rules | `astro_adblock_ui.cc`, `astro_settings_ui.cc` |
+| No `unsafe-inline` unless a narrowly documented temporary exception has an owner and removal issue | epic #3, non-negotiable rules | `astro_adblock_ui.cc`, `astro_ntp_ui.cc`, `astro_settings_ui.cc` |
 
 None of these is a new finding introduced by this baseline — they are the
 current state, recorded so that later issues can show they were fixed
@@ -68,16 +68,21 @@ CSP and Trusted Types is
 
 ### `src/chrome/browser/oxy/webui/astro_ntp_ui.cc`
 
+Declares a `WebUIPage`; its data source, CSP and asset serving are
+`astro_webui_page.cc`'s. Both are reported below.
+
 | Directive | Value |
 |---|---|
-| `FontSrc` | `font-src 'self' https://fonts.gstatic.com;` |
+| `ConnectSrc` | `connect-src 'none';` |
+| `FontSrc` | `font-src data:;` |
+| `StyleSrc` | `style-src 'self' 'unsafe-inline';` |
 
 | Property | Value |
 |---|---|
 | Trusted Types enforced | **no** — `DisableTrustedTypesCSP()` |
-| Remote origins allowed | `https://fonts.gstatic.com` |
-| Unsafe CSP tokens | none |
-| Serves resources from `DIR_EXE` | **yes** — mutable files beside the executable |
+| Remote origins allowed | none |
+| Unsafe CSP tokens | `'unsafe-inline'` |
+| Serves resources from `DIR_EXE` | no |
 
 ### `src/chrome/browser/oxy/webui/astro_settings_ui.cc`
 

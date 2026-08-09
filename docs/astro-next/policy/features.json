@@ -1,6 +1,6 @@
 {
   "_comment": [
-    "Astro Next feature manifest \u2014 issue #10.",
+    "Astro Next feature manifest — issue #10.",
     "",
     "Every capability Astro must take a decision about, with the decision, the evidence for",
     "what the current build does, and the owner.",
@@ -8,7 +8,7 @@
     "TWO STATE FIELDS. `observed_state` is what the CURRENT legacy build does and is",
     "evidence-backed. `state` is the Astro Next DECISION. They are separate so that 'an",
     "inherited patch disables this' is never silently promoted into 'we decided to disable",
-    "this' \u2014 most of the entries below inherit a behaviour nobody chose.",
+    "this' — most of the entries below inherit a behaviour nobody chose.",
     "",
     "`observed_state: NOT_BUILT` is not a synonym for DORMANT. Baseline finding 1 measured",
     "that nothing links the Astro overlay into the build graph, so every Astro capability is",
@@ -44,7 +44,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//ui/accessibility",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -64,7 +64,7 @@
       "area": "astro-product",
       "observed_state": "NOT_BUILT",
       "observed_evidence": [
-        "src/chrome/browser/oxy/adblock/ \u2014 engine, service, tab helper, throttle, Rust FFI",
+        "src/chrome/browser/oxy/adblock/ — engine, service, tab helper, throttle, Rust FFI",
         "patches/astro/045 (throttle), 052 (tab helper) and 053 (toolbar button) were structurally malformed and had applied nowhere; repaired in 76466c6, and all three now apply. 053 still assigns to an `adblock_button_` that nothing declares, so it applies and cannot compile.",
         "Baseline finding 1: the overlay is not in the build graph"
       ],
@@ -153,10 +153,10 @@
       "observed_state": "UNREACHABLE",
       "observed_evidence": [
         "src/chrome/browser/oxy/adblock/webui/astro_adblock_ui.cc is committed",
-        "patches/astro/054-adblock-webui-register.patch was structurally malformed; repaired in 7bb07f4 and it now applies. The page is unreachable regardless, because a whole-file overlay copy of chrome_web_ui_configs.cc reverts it \u2014 declared defect 2 in AGENTS.md, reaching a compiler for the first time in baseline finding 9"
+        "patches/astro/054-adblock-webui-register.patch was structurally malformed; repaired in 7bb07f4 and it now applies. The page is unreachable regardless, because a whole-file overlay copy of chrome_web_ui_configs.cc reverts it — declared defect 2 in AGENTS.md, reaching a compiler for the first time in baseline finding 9"
       ],
       "state": "REPLACE",
-      "rationale": "The page exists and is registered by nothing. This is the clearest DORMANT-shaped capability in the repository \u2014 and it is not DORMANT, because two known defects cause it rather than a design. Recording it as dormant would hide #7's work.",
+      "rationale": "The page exists and is registered by nothing. This is the clearest DORMANT-shaped capability in the repository — and it is not DORMANT, because two known defects cause it rather than a design. Recording it as dormant would hide #7's work.",
       "owner_issue": 18,
       "upstream_component": "//chrome/browser/oxy/adblock/webui",
       "user_surface": "none today",
@@ -243,7 +243,7 @@
       "area": "astro-product",
       "observed_state": "PRESENT",
       "observed_evidence": [
-        "patches/astro/011-astro-url-scheme-alias.patch \u2014 described in docs/astro-next/baseline/patch-inventory.md as 'a cosmetic alias, not a real scheme'",
+        "patches/astro/011-astro-url-scheme-alias.patch — described in docs/astro-next/baseline/patch-inventory.md as 'a cosmetic alias, not a real scheme'",
         "Twelve further patches (021-030, 037, 040-043) carry the alias through the omnibox, URL fixer, session restore, navigation controller and web-app code",
         "Two of them, 023 and 027, did not apply at the locked revision; repaired in 3310e14. Every patch in both declared series now applies (endpoints.json non_applying_patches)"
       ],
@@ -302,12 +302,12 @@
       "area": "astro-product",
       "observed_state": "NOT_BUILT",
       "observed_evidence": [
-        "src/chrome/browser/oxy/webui/astro_ntp_ui.cc",
+        "src/chrome/browser/oxy/webui/astro_ntp_ui.cc and astro_ntp_page_handler.cc",
         "patches/astro/055-ntp-webui-register.patch and 056-ntp-redirect-to-astro.patch were both structurally malformed; repaired in 7bb07f4 and 76466c6 respectively, and both now apply",
-        "Baseline finding 1: nothing in the committed patch stack links src/chrome/browser/oxy into the build graph, so no Astro WebUI controller is compiled into any binary built from committed source."
+        "The page renders from the pak in a real browser: navigating to chrome://astro-ntp reports 149 rendered elements, zero console problems and zero CSP blocks, and changing the colour preset in astro://settings re-themes it live in an already-open tab"
       ],
       "state": "REPLACE",
-      "rationale": "Served today from `chrome://astro-ntp` by a controller that reads its assets from disk beside the executable. The epic requires privileged resources be packaged through GN/GRIT with strict CSP and Trusted Types, and requires there be no canonical chrome://astro-* product URLs. REPLACE covers both moves.",
+      "rationale": "Ported. Served from `chrome://astro-ntp` by AstroNtpUI on the shared astro_webui_page base, out of astro_webui_resources.pak — packaged through GN/GRIT, strict CSP with Trusted Types enforced, `connect-src 'none'`, and no filesystem read. What it reads and writes is astro_ntp.mojom, a typed interface bound by that page alone; the chrome.send messages and the localStorage are gone. What REPLACE still covers is the canonical URL: the host is `astro-ntp` rather than `newtab`, because `newtab` is upstream's own host string and taking it means swapping a registration. That is #12's rename, and patch 056 already makes every browser-created new tab land here.",
       "owner_issue": 22,
       "upstream_component": "//chrome/browser/oxy/webui",
       "user_surface": "chrome://astro-ntp",
@@ -435,7 +435,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//components/autofill",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -485,7 +485,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//components/bookmarks",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -625,7 +625,7 @@
         "Removed by the inherited ungoogled core set (see patch-dispositions.json); components/sync/service/sync_prefs.cc is among the files it touches"
       ],
       "state": "DISABLE_BUILD",
-      "rationale": "Google Sync is gone. Whether Astro ships its own sync is #23's decision and is a different capability \u2014 see `oxy-sync`. The epic is explicit that Sync must be either a real versioned secure protocol or explicitly disabled with no misleading UI and no network activity.",
+      "rationale": "Google Sync is gone. Whether Astro ships its own sync is #23's decision and is a different capability — see `oxy-sync`. The epic is explicit that Sync must be either a real versioned secure protocol or explicitly disabled with no misleading UI and no network activity.",
       "owner_issue": 23,
       "upstream_component": "//components/sync",
       "user_surface": "not-captured",
@@ -703,7 +703,7 @@
         "update.googleapis.com is referenced by 2 files in chromium/src at the locked commit and by no Astro patch"
       ],
       "state": "INVESTIGATE",
-      "rationale": "Components carry security-relevant data \u2014 CRLSets, certificate revocation, the Widevine and origin-trial configurations. A browser that cannot update them is not merely less convenient; it is a browser whose revocation data is frozen at build time.",
+      "rationale": "Components carry security-relevant data — CRLSets, certificate revocation, the Widevine and origin-trial configurations. A browser that cannot update them is not merely less convenient; it is a browser whose revocation data is frozen at build time.",
       "owner_issue": 10,
       "upstream_component": "//components/component_updater",
       "user_surface": "not-captured",
@@ -735,7 +735,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//components/content_settings",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -756,16 +756,14 @@
       "observed_state": "PRESENT",
       "observed_evidence": [
         "patches/astro/004-default-search-duckduckgo.patch, disposition `keep` in docs/astro-next/baseline/patch-dispositions.json",
-        "webui/ntp/src/main.ts offers Google, Bing, Brave Search and Startpage alongside the DuckDuckGo default"
+        "webui/app/src/pages/newtab/search-box.tsx offers whatever TemplateURLService reports, and names no provider itself"
       ],
       "state": "REPLACE",
-      "rationale": "DuckDuckGo replaces Google as the prepopulated default, and the prepopulated list is curated. The alternatives remain user-selectable, which is a different decision from the default and is why the endpoint entries for them are KEEP.",
+      "rationale": "DuckDuckGo replaces Google as the prepopulated default, and the prepopulated list is curated. The alternatives remain user-selectable, which is a different decision from the default. The new tab page no longer carries a provider list of its own: it renders TemplateURLService's engines and sets the real default, so Bing and Brave Search stopped being hosts this repository references at all and their endpoint entries went with the table that named them.",
       "owner_issue": 10,
       "upstream_component": "//components/search_engines",
       "user_surface": "omnibox, settings, NTP search box",
       "network": [
-        "search-bing",
-        "search-brave",
         "search-duckduckgo",
         "search-google",
         "search-startpage"
@@ -787,7 +785,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//third_party/devtools-frontend",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -835,14 +833,14 @@
       "observed_state": "PRESENT",
       "observed_evidence": [
         "patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform in services/network/public/cpp/features.cc",
-        "the same patch deletes only the Google and GoogleDns64 entries from net/dns/public/doh_provider_entry.cc; of the 23 providers upstream carries at the locked commit ae03f7fb2c, 21 survive and 4 are shown globally \u2014 Cloudflare, Quad9, OpenDNS and CleanBrowsing (Family Filter), whose doh.cleanbrowsing.org template no committed Astro text names, so the seed cannot see it and this manifest carries the other three only",
+        "the same patch deletes only the Google and GoogleDns64 entries from net/dns/public/doh_provider_entry.cc; of the 23 providers upstream carries at the locked commit ae03f7fb2c, 21 survive and 4 are shown globally — Cloudflare, Quad9, OpenDNS and CleanBrowsing (Family Filter), whose doh.cleanbrowsing.org template no committed Astro text names, so the seed cannot see it and this manifest carries the other three only",
         "Astro ships no provider list of its own: the Secure DNS control in webui/app/src/pages/settings/sections/privacy-security.tsx:142 consumes the real SecureDnsHandler through its `secure-dns-setting-changed` event, and webui/app/src/pages/settings/sections/privacy.fixtures.ts:32-34 is a DEV-ONLY stand-in for it, absent from both production build modes of webui/app"
       ],
       "state": "INVESTIGATE",
       "rationale": "The Secure DNS surface is upstream's, wired to the real dns_over_https prefs; Astro's only contribution today is ungoogled's inherited default of kOff. Whether DoH is ON by default decides between 'the operating system's resolver sees every hostname the user resolves' and 'one company does'.",
       "owner_issue": 10,
       "upstream_component": "//net/dns",
-      "user_surface": "Settings, Privacy and security, Secure DNS \u2014 upstream's control",
+      "user_surface": "Settings, Privacy and security, Secure DNS — upstream's control",
       "network": [
         "doh-cloudflare",
         "doh-opendns",
@@ -856,7 +854,7 @@
       ],
       "routed_to_issue": 20,
       "investigate": {
-        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing \u2014 the difference between the operating system's resolver seeing every lookup and one company seeing it.",
+        "question": "Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing — the difference between the operating system's resolver seeing every lookup and one company seeing it.",
         "answered_by": "#20's transport-security decision on the shipped value of dns_over_https.mode, then a measured trace from tools/baseline/capture-network.sh, which is blocked until an Astro binary exists (baseline finding 1)."
       }
     },
@@ -921,7 +919,7 @@
       "observed_state": "DISABLED_BY_PATCH",
       "observed_evidence": [
         "chrome/browser/safe_browsing/download_protection/download_feedback.cc is trk-prefixed",
-        "The historic 007-oxy-auth-build-hook.patch also deleted download_danger_prompt \u2014 the dangerous-download UI \u2014 which is why baseline finding 1 refuses to restore it"
+        "The historic 007-oxy-auth-build-hook.patch also deleted download_danger_prompt — the dangerous-download UI — which is why baseline finding 1 refuses to restore it"
       ],
       "state": "INVESTIGATE",
       "rationale": "Dangerous-download warnings are the last line between a user and a malware executable. Security-relevant capabilities are #20's decision. This entry exists so the matrix is complete and so the capability is routed rather than forgotten; it is deliberately not classified here.",
@@ -955,7 +953,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//components/download",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -1010,7 +1008,7 @@
         "patches/ungoogled/core/ungoogled-chromium/disable-webstore-urls.patch"
       ],
       "state": "KEEP",
-      "rationale": "The epic requires extension support survives. The delivery and update path is a separate decision and is routed to #20 \u2014 see `web-store-and-update-urls`.",
+      "rationale": "The epic requires extension support survives. The delivery and update path is a separate decision and is routed to #20 — see `web-store-and-update-urls`.",
       "owner_issue": 3,
       "upstream_component": "//extensions",
       "user_surface": "extensions UI",
@@ -1063,7 +1061,7 @@
         "patches/ungoogled/extra/ungoogled-chromium/first-run-page.patch adds chrome://ungoogled-first-run AND opens it in a tab on first run (chrome/browser/chrome_browser_main.cc)"
       ],
       "state": "REPLACE",
-      "rationale": "Astro's first run opens a page branded for a different project. The page is local, so first run makes no network request \u2014 but it is an internal page in Astro's host list that nobody chose.",
+      "rationale": "Astro's first run opens a page branded for a different project. The page is local, so first run makes no network request — but it is an internal page in Astro's host list that nobody chose.",
       "owner_issue": 24,
       "upstream_component": "//chrome/browser/ui/webui/ungoogled_first_run.h",
       "user_surface": "a tab on first launch",
@@ -1234,7 +1232,7 @@
         "patches/ungoogled/core/ungoogled-chromium/replace-google-search-engine-with-nosearch.patch"
       ],
       "state": "REPLACE",
-      "rationale": "DuckDuckGo is the default. Google survives only as a user-selectable engine in the Astro New Tab Page \u2014 the endpoint entry `search-google` is KEEP for that reason, and the two are not in conflict: the default is a decision, a user's choice is not.",
+      "rationale": "DuckDuckGo is the default. Google survives only as a user-selectable engine in the Astro New Tab Page — the endpoint entry `search-google` is KEEP for that reason, and the two are not in conflict: the default is a decision, a user's choice is not.",
       "owner_issue": 10,
       "upstream_component": "//components/search_engines",
       "user_surface": "omnibox, settings, NTP search box",
@@ -1258,7 +1256,7 @@
         "ssl.gstatic.com and www.gstatic.com are trk-prefixed by the inherited iridium patch"
       ],
       "state": "INVESTIGATE",
-      "rationale": "Two hosts serving several unrelated upstream features \u2014 interstitial imagery, connectivity probes, translate assets. A host-level disposition is meaningless until the features behind them are enumerated.",
+      "rationale": "Two hosts serving several unrelated upstream features — interstitial imagery, connectivity probes, translate assets. A host-level disposition is meaningless until the features behind them are enumerated.",
       "owner_issue": 10,
       "upstream_component": "several //components",
       "user_surface": "not-captured",
@@ -1285,7 +1283,7 @@
         "src/chrome/browser/oxy/webui/astro_settings_handler.cc:58-59 maps two Astro settings ids (`search-suggestions`, `search-autocomplete`) to the SAME pref, search.suggest_enabled"
       ],
       "state": "INVESTIGATE",
-      "rationale": "Suggestions send every keystroke in the omnibox to the search provider. The provider follows the default engine, so this is DuckDuckGo rather than Google \u2014 but the endpoint is undeclared, and Astro's settings show two independent-looking switches that are one pref.",
+      "rationale": "Suggestions send every keystroke in the omnibox to the search provider. The provider follows the default engine, so this is DuckDuckGo rather than Google — but the endpoint is undeclared, and Astro's settings show two independent-looking switches that are one pref.",
       "owner_issue": 10,
       "upstream_component": "//components/omnibox/browser/search_suggestion_parser.cc",
       "user_surface": "omnibox dropdown, Astro settings",
@@ -1312,7 +1310,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//components/history",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -1443,7 +1441,7 @@
         "patches/ungoogled/core/ungoogled-chromium/move-js-optimizer-unfamiliar-sites.patch"
       ],
       "state": "INVESTIGATE",
-      "rationale": "Changes when the JIT is enabled per site. This is a security-relevant tradeoff \u2014 the JIT is a large attack surface \u2014 and belongs with #20.",
+      "rationale": "Changes when the JIT is enabled per site. This is a security-relevant tradeoff — the JIT is a large attack surface — and belongs with #20.",
       "owner_issue": 8,
       "upstream_component": "//chrome/browser/content_settings",
       "user_surface": "not-captured",
@@ -1457,7 +1455,7 @@
         "not-captured"
       ],
       "investigate": {
-        "question": "Changes when the JIT is enabled per site. This is a security-relevant tradeoff \u2014 the JIT is a large attack surface \u2014 and belongs with #20. Nothing in the committed repository records why it was taken.",
+        "question": "Changes when the JIT is enabled per site. This is a security-relevant tradeoff — the JIT is a large attack surface — and belongs with #20. Nothing in the committed repository records why it was taken.",
         "answered_by": "#8's curation of the aggregate inherited behaviour, with #20 for the security-relevant half."
       },
       "routed_to_issue": 20
@@ -1521,7 +1519,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//content/browser/picture_in_picture",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -1544,7 +1542,7 @@
         "Removed by the inherited ungoogled core set; see patch-dispositions.json"
       ],
       "state": "DISABLE_BUILD",
-      "rationale": "No metrics are sent. If Astro ever wants telemetry it is a new, opt-in, declared endpoint \u2014 see `astro-metrics`. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
+      "rationale": "No metrics are sent. If Astro ever wants telemetry it is a new, opt-in, declared endpoint — see `astro-metrics`. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
       "owner_issue": 8,
       "upstream_component": "//components/metrics",
       "user_surface": "not-captured",
@@ -1566,7 +1564,7 @@
       "observed_evidence": [
         "patches/astro/019-ntp-default-sites.patch replaces all three prepopulated tile resources",
         "The removed defaults included eight favicon CDN hosts the NTP fetched on render; the replacement set carries titles and URLs only, with no icon URLs",
-        "webui/ntp/src/main.ts carries a further default quick-link set"
+        "src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc carries the shipped default quick-link set; the most-visited tiles beside them come from ntp_tiles::MostVisitedSites and are not shipped data at all"
       ],
       "state": "REPLACE",
       "rationale": "Chromium's prepopulated tiles came with large_icon_url and favicon_url fields pointing at eight third-party CDNs, so opening a new tab fetched from them. Astro's replacement set has no icon URLs at all, which is the substantive privacy change hiding inside what looks like a cosmetic patch.",
@@ -1602,7 +1600,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//components/omnibox",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -1623,7 +1621,7 @@
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
         "optimizationguide-pa.googleapis.com is referenced by 1 file in chromium/src at the locked commit and by no Astro patch",
-        "gn_args: build_with_tflite_lib is false wherever it is set \u2014 docs/astro-next/baseline/platform-matrix.md"
+        "gn_args: build_with_tflite_lib is false wherever it is set — docs/astro-next/baseline/platform-matrix.md"
       ],
       "state": "INVESTIGATE",
       "rationale": "The optimization guide downloads models and configuration from a Google host. It is also load-bearing for several upstream features, so switching it off is not free.",
@@ -1656,7 +1654,7 @@
         "Baseline finding 1: the overlay is not in the build graph"
       ],
       "state": "REPLACE",
-      "rationale": "Astro's account system. REPLACE and not KEEP for a reason that is not stylistic: oxy_auth_callback_handler.cc:31-32 reads `access_token` and `refresh_token` out of URL query parameters, which the epic forbids outright \u2014 such a URL reaches history, the omnibox, the referrer and anything the user copies. #16 rebuilds it on Authorization Code + PKCE with state and nonce.",
+      "rationale": "Astro's account system. REPLACE and not KEEP for a reason that is not stylistic: oxy_auth_callback_handler.cc:31-32 reads `access_token` and `refresh_token` out of URL query parameters, which the epic forbids outright — such a URL reaches history, the omnibox, the referrer and anything the user copies. #16 rebuilds it on Authorization Code + PKCE with state and nonce.",
       "owner_issue": 16,
       "upstream_component": "//chrome/browser/oxy",
       "user_surface": "profile menu, settings",
@@ -1674,7 +1672,7 @@
       "blocks": [
         11
       ],
-      "blocks_reason": "May a remote origin reach the trusted scheme? Decided: NO, and the scheme must not ship an auth host until the mechanism exists to enforce it. Measured: Chromium's guard against a web redirect chain landing on a privileged URL is content::IsSafeRedirectTarget (content/public/common/url_utils.cc:81-107), which rejects a target via HasWebUIScheme at :95 \u2014 and HasWebUIScheme reads a three-element literal, {chrome, chrome-untrusted, devtools}, at :27-31. That literal is in //content/public/common, has no ContentBrowserClient extension point (the renderer has none), and `astro` is not in it, nor in the function's kUnsafeSchemes set at :82-94. So IsSafeRedirectTarget returns TRUE for an https:// -> astro:// redirect and content/browser/loader/navigation_url_loader_impl.cc:1575-1577 does not raise net::ERR_UNSAFE_REDIRECT. Any HTTPS site \u2014 not merely auth.oxy.so \u2014 could 302 a top-level navigation to astro://auth/callback?access_token=<attacker's>, against a handler that reads credentials out of its own query string (src/chrome/browser/oxy/oxy_auth_service.h:22-23, oxy_auth_callback_handler.h:15): session fixation straight into the browser's identity store. Consequences for #11, in order: (a) milestone 1 registers the schemes with a diagnostic host and NO auth host, which needs nothing from #16; (b) no host that consumes a credential may ship on astro:// until IsWebUIScheme is generalised into a common-layer scheme store; (c) #16 rebuilds the flow on Authorization Code + PKCE so no token rides a URL, which removes the payload but not the redirect reachability \u2014 both are needed. What is NOT decided here is #16's identity architecture; only the scheme-transport bit is."
+      "blocks_reason": "May a remote origin reach the trusted scheme? Decided: NO, and the scheme must not ship an auth host until the mechanism exists to enforce it. Measured: Chromium's guard against a web redirect chain landing on a privileged URL is content::IsSafeRedirectTarget (content/public/common/url_utils.cc:81-107), which rejects a target via HasWebUIScheme at :95 — and HasWebUIScheme reads a three-element literal, {chrome, chrome-untrusted, devtools}, at :27-31. That literal is in //content/public/common, has no ContentBrowserClient extension point (the renderer has none), and `astro` is not in it, nor in the function's kUnsafeSchemes set at :82-94. So IsSafeRedirectTarget returns TRUE for an https:// -> astro:// redirect and content/browser/loader/navigation_url_loader_impl.cc:1575-1577 does not raise net::ERR_UNSAFE_REDIRECT. Any HTTPS site — not merely auth.oxy.so — could 302 a top-level navigation to astro://auth/callback?access_token=<attacker's>, against a handler that reads credentials out of its own query string (src/chrome/browser/oxy/oxy_auth_service.h:22-23, oxy_auth_callback_handler.h:15): session fixation straight into the browser's identity store. Consequences for #11, in order: (a) milestone 1 registers the schemes with a diagnostic host and NO auth host, which needs nothing from #16; (b) no host that consumes a credential may ship on astro:// until IsWebUIScheme is generalised into a common-layer scheme store; (c) #16 rebuilds the flow on Authorization Code + PKCE so no token rides a URL, which removes the payload but not the redirect reachability — both are needed. What is NOT decided here is #16's identity architecture; only the scheme-transport bit is."
     },
     {
       "id": "oxy-sync",
@@ -1712,7 +1710,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//components/password_manager",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -1735,7 +1733,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//pdf, //printing",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -1805,7 +1803,7 @@
       "area": "astro-product",
       "observed_state": "PRESENT",
       "observed_evidence": [
-        "patches/astro/038-dino-game-astro-scheme.patch rewrites kRedirectLoopLearnMoreUrl to https://support.9oo91e.qjz9zk/chrome?p=rl_error in components/error_page/common/localized_error.cc \u2014 and that patch APPLIES",
+        "patches/astro/038-dino-game-astro-scheme.patch rewrites kRedirectLoopLearnMoreUrl to https://support.9oo91e.qjz9zk/chrome?p=rl_error in components/error_page/common/localized_error.cc — and that patch APPLIES",
         "webui/settings/src/sections.ts:450 hard-coded https://astrobrowser.org until c9c4383 deleted that settings app; no committed text names the host now and it is not an upstream endpoint either, so its manifest entry is gone and patch 038's substituted link is the only hard-coded product URL left that cannot resolve"
       ],
       "state": "REPLACE",
@@ -1860,7 +1858,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//chrome/browser/profiles",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -1883,7 +1881,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//components/custom_handlers",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -2038,7 +2036,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//components/sessions",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -2085,7 +2083,7 @@
       "area": "google-provider",
       "observed_state": "DISABLED_BY_PATCH",
       "observed_evidence": [
-        "gn_args: enable_supervised_users is false on five of six platform configurations and true on linux \u2014 see docs/astro-next/baseline/platform-matrix.md"
+        "gn_args: enable_supervised_users is false on five of six platform configurations and true on linux — see docs/astro-next/baseline/platform-matrix.md"
       ],
       "state": "DISABLE_BUILD",
       "rationale": "Supervision is a Google-account feature. The platform disagreement is itself a defect: the same capability must not be present on one platform and absent on the others. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration.",
@@ -2111,7 +2109,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//chrome/browser/ui/tabs",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -2134,7 +2132,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//chrome/browser/task_manager",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -2216,7 +2214,7 @@
         "patches/ungoogled/core/iridium-browser/all-add-trk-prefixes-to-possibly-evil-connections.patch"
       ],
       "state": "REPLACE",
-      "rationale": "The mechanism that makes 20 Google hosts unreachable \u2014 every entry in the endpoint manifest carrying observed_state RUNTIME_BLOCKED \u2014 while leaving their calling code compiled and reachable. It is a net-layer backstop standing in for build configuration, and it is the reason those hosts are RUNTIME_BLOCKED rather than removed. REPLACE: the property survives \u2014 Astro contacts none of those hosts \u2014 the mechanism does not, because #8 removes patch-based construction and a URL-rewriting backstop is not a build configuration.",
+      "rationale": "The mechanism that makes 20 Google hosts unreachable — every entry in the endpoint manifest carrying observed_state RUNTIME_BLOCKED — while leaving their calling code compiled and reachable. It is a net-layer backstop standing in for build configuration, and it is the reason those hosts are RUNTIME_BLOCKED rather than removed. REPLACE: the property survives — Astro contacts none of those hosts — the mechanism does not, because #8 removes patch-based construction and a URL-rewriting backstop is not a build configuration.",
       "owner_issue": 8,
       "upstream_component": "//components/url_formatter",
       "user_surface": "not-captured",
@@ -2317,7 +2315,7 @@
         "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
       ],
       "state": "KEEP",
-      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement \u2014 the behavioural baseline that would confirm it needs a running Astro.",
+      "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
       "owner_issue": 3,
       "upstream_component": "//chrome/browser/web_applications",
       "user_surface": "upstream Chromium UI, unchanged",
@@ -2431,12 +2429,12 @@
       "area": "astro-product",
       "observed_state": "PRESENT",
       "observed_evidence": [
-        "src/chrome/browser/oxy/webui/astro_ntp_ui.cc:104 and astro_alia_ui.cc:99 both call DisableTrustedTypesCSP()",
-        "astro_ntp_ui.cc:91 permits 'unsafe-inline' in script-src",
+        "src/chrome/browser/oxy/webui/astro_alia_ui.cc:99 calls DisableTrustedTypesCSP()",
+        "astro_settings_ui.cc and astro_ntp_ui.cc declare their CSP through the WebUIPageCsp struct, which has no way to reach DisableTrustedTypesCSP at all, and neither widens script-src; both were the opposite until the ports",
         "docs/astro-next/baseline/security-baseline.md"
       ],
       "state": "REPLACE",
-      "rationale": "Trusted Types are disabled and script-src permits unsafe-inline, on privileged pages that hold the user's Oxy session. The epic forbids blanket Trusted Types disabling and permits unsafe-inline only under a narrowly documented temporary exception with an owner and a removal issue \u2014 neither of which exists.",
+      "rationale": "Trusted Types are disabled and script-src permits unsafe-inline on privileged pages that hold the user's Oxy session. The epic forbids blanket Trusted Types disabling and permits unsafe-inline only under a narrowly documented temporary exception with an owner and a removal issue. Settings and the new tab page are now on the shared page base, which cannot express either: Trusted Types stay on and script-src stays at Chromium's default. Their one widening is `style-src 'unsafe-inline'`, declared and dated in each controller, for Bloom's <style> injection, and it comes out when Bloom ships constructable stylesheets. Alia is the page this still describes.",
       "owner_issue": 14,
       "upstream_component": "//chrome/browser/oxy/webui",
       "user_surface": "every Astro WebUI page",
@@ -2453,7 +2451,7 @@
       "inputs_to": [
         11
       ],
-      "inputs_reason": "Its own blocks_reason argued #11 -> #14 ('#11 has to fix the floor before #14 packages pages onto it') while the field encoded #14 -> #11; the prose was right, and the edge now sits on astro-internal-schemes. What #11 reads here is a trap, not a decision: content/public/browser/url_data_source.cc:19-28 decides the untrusted CSP branch by testing whether the SOURCE NAME starts with `chrome-untrusted://`, so an astro:// or astro-untrusted:// source takes the trusted branch of every directive \u2014 script-src naming chrome://resources (:74-79) and an EMPTY default-src (:69-71) where chrome-untrusted would get `default-src 'self'`. The script-src half is self-punishing: the subresource factory is scheme-bound and calls mojo::ReportBadMessage(\"Incorrect scheme\") on anything else (content/browser/webui/web_ui_url_loader_factory.cc:284-299), so the default CSP grants an astro:// page a scheme its own loader kills it for using. Upstream's answer is a per-scheme resources host (url_data_manager_backend.cc:87-99 registers both chrome://resources and chrome-untrusted://resources); Astro must do the same or override the directives."
+      "inputs_reason": "Its own blocks_reason argued #11 -> #14 ('#11 has to fix the floor before #14 packages pages onto it') while the field encoded #14 -> #11; the prose was right, and the edge now sits on astro-internal-schemes. What #11 reads here is a trap, not a decision: content/public/browser/url_data_source.cc:19-28 decides the untrusted CSP branch by testing whether the SOURCE NAME starts with `chrome-untrusted://`, so an astro:// or astro-untrusted:// source takes the trusted branch of every directive — script-src naming chrome://resources (:74-79) and an EMPTY default-src (:69-71) where chrome-untrusted would get `default-src 'self'`. The script-src half is self-punishing: the subresource factory is scheme-bound and calls mojo::ReportBadMessage(\"Incorrect scheme\") on anything else (content/browser/webui/web_ui_url_loader_factory.cc:284-299), so the default CSP grants an astro:// page a scheme its own loader kills it for using. Upstream's answer is a per-scheme resources host (url_data_manager_backend.cc:87-99 registers both chrome://resources and chrome-untrusted://resources); Astro must do the same or override the directives."
     },
     {
       "id": "webui-fonts",
@@ -2461,12 +2459,12 @@
       "area": "astro-product",
       "observed_state": "PRESENT",
       "observed_evidence": [
-        "src/chrome/browser/oxy/webui/astro_ntp_ui.cc:94,97 widen style-src and font-src for fonts.googleapis.com and fonts.gstatic.com",
-        "webui/{ntp,settings,alia}/src/index.html each carry a preconnect and a stylesheet link",
+        "webui/{alia,whats-new}/src/index.html each carry a preconnect and a stylesheet link",
+        "src/chrome/browser/oxy/webui/astro_ntp_ui.cc and astro_settings_ui.cc declare `font-src data:` and no style-src host: their fonts are data-URIs inside astro_webui_resources.pak",
         "docs/astro-next/baseline/security-baseline.md records the per-WebUI directives"
       ],
       "state": "REPLACE",
-      "rationale": "The Inter typeface survives, packaged into browser resources. The remote provider does not. This is the most visible contradiction in the current product: a browser that exists to remove Google contacts Google on every new tab.",
+      "rationale": "The Inter typeface survives, packaged into browser resources. The remote provider does not. This was the most visible contradiction in the product — a browser that exists to remove Google contacting Google on every new tab — and the new tab page half of it is fixed: that page's fonts are data-URIs in the pak and its controller allows `font-src data:` only. Alia and What's New still carry the links, which is what keeps this REPLACE rather than done.",
       "owner_issue": 14,
       "upstream_component": "//chrome/browser/oxy/webui",
       "user_surface": "every Astro WebUI page",
@@ -2488,11 +2486,11 @@
       "inputs_to": [
         11
       ],
-      "inputs_reason": "REPLACE means self-hosted WOFF2, so no Astro page fetches a font. #11 reads that as one input to the per-page network posture in webui-scheme-trust-split: it is why the six trusted pages can be trusted at all. It is not a decision #11 waits on \u2014 it is already taken."
+      "inputs_reason": "REPLACE means self-hosted WOFF2, so no Astro page fetches a font. #11 reads that as one input to the per-page network posture in webui-scheme-trust-split: it is why the six trusted pages can be trusted at all. It is not a decision #11 waits on — it is already taken."
     },
     {
       "id": "chrome-search-scheme",
-      "title": "chrome-search:// \u2014 Instant Extended / third-party NTP tiles",
+      "title": "chrome-search:// — Instant Extended / third-party NTP tiles",
       "area": "google-provider",
       "observed_state": "PRESENT",
       "observed_evidence": [
@@ -2503,14 +2501,14 @@
         "Zero Astro consumers: `git grep -n 'chrome-search\\|most-visited' -- src/ webui/` at Astro HEAD returns nothing"
       ],
       "state": "DISABLE_BUILD",
-      "rationale": "Instant Extended is the Google-provider NTP. Astro's new tab is astro-newtab (REPLACE, #22) and its tiles are ntp-tiles (REPLACE, #22), so the scheme has no consumer here \u2014 and what it carries is a security relaxation, not a feature. chrome-search://most-visited is exempted from the WebUI process lock (chrome_content_browser_client.cc:2001-2017), and that exemption is consumed twice: child_process_security_policy_impl.cc:1523-1534 skips the lock check outright for an exempt WebUI URL, and :281-294 (AllowProcessLockMismatchForNTP) tolerates a lock mismatch. Both exist so a THIRD-PARTY NTP's tiles can stay in the third-party NTP's web process, which is a shape Astro does not have. Inheriting it by copy-paste would be a relaxation nobody chose.",
+      "rationale": "Instant Extended is the Google-provider NTP. Astro's new tab is astro-newtab (REPLACE, #22) and its tiles are ntp-tiles (REPLACE, #22), so the scheme has no consumer here — and what it carries is a security relaxation, not a feature. chrome-search://most-visited is exempted from the WebUI process lock (chrome_content_browser_client.cc:2001-2017), and that exemption is consumed twice: child_process_security_policy_impl.cc:1523-1534 skips the lock check outright for an exempt WebUI URL, and :281-294 (AllowProcessLockMismatchForNTP) tolerates a lock mismatch. Both exist so a THIRD-PARTY NTP's tiles can stay in the third-party NTP's web process, which is a shape Astro does not have. Inheriting it by copy-paste would be a relaxation nobody chose.",
       "owner_issue": 10,
       "upstream_component": "//chrome/browser/chrome_content_browser_client.cc, //chrome/common/chrome_content_client.cc",
       "user_surface": "none in Astro; in Chrome, the most-visited tile iframe on a third-party NTP",
       "network": [
         "none"
       ],
-      "persistence": "none \u2014 no chrome-search:// URL is produced by Astro, so none can be persisted",
+      "persistence": "none — no chrome-search:// URL is produced by Astro, so none can be persisted",
       "incognito": "not-applicable",
       "build_flags": [],
       "tests": [
@@ -2520,23 +2518,23 @@
       "blocks": [
         11
       ],
-      "blocks_reason": "#11 writes AstroContentBrowserClient::GetAdditionalWebUISchemes, and that function's return value IS the WebUI scheme set (url_data_manager_backend.cc:63-67). The list is memoised into a process-lifetime NoDestructor (:70-84, read at :282-288) and url::LockSchemeRegistries() closes the URL registry (content/common/url_schemes.cc:128-129), so neither this row nor the process-lock exemption it drags in is revocable at runtime \u2014 changing it later is a code change plus a restart. #11 has to know whether the scheme survives before it writes the function."
+      "blocks_reason": "#11 writes AstroContentBrowserClient::GetAdditionalWebUISchemes, and that function's return value IS the WebUI scheme set (url_data_manager_backend.cc:63-67). The list is memoised into a process-lifetime NoDestructor (:70-84, read at :282-288) and url::LockSchemeRegistries() closes the URL registry (content/common/url_schemes.cc:128-129), so neither this row nor the process-lock exemption it drags in is revocable at runtime — changing it later is a code change plus a restart. #11 has to know whether the scheme survives before it writes the function."
     },
     {
       "id": "dom-distiller-scheme",
-      "title": "chrome-distiller:// \u2014 Reader Mode transport",
+      "title": "chrome-distiller:// — Reader Mode transport",
       "area": "core-browser",
       "observed_state": "PRESENT",
       "observed_evidence": [
         "chrome/common/chrome_content_client.cc:197 registers it standard and :226 savable (Chromium 146.0.7680.177 (ae03f7fb2cf1215853896d6a4c15fdceee2badb7), pristine HEAD line numbers)",
         "chrome/browser/chrome_content_browser_client.cc:2092 emits it from GetAdditionalWebUISchemes; :2117-2118 maps it to IPAddressSpace::kPublic",
         "chrome/browser/profiles/profile_io_data.cc:42 lists it in IsHandledProtocol",
-        "dom_distiller::RegisterViewerSource is called unconditionally for every regular profile (chrome/browser/profiles/profile_impl.cc:766) AND every off-the-record profile (chrome/browser/profiles/off_the_record_profile_impl.cc:225) \u2014 no BUILDFLAG, no feature check",
+        "dom_distiller::RegisterViewerSource is called unconditionally for every regular profile (chrome/browser/profiles/profile_impl.cc:766) AND every off-the-record profile (chrome/browser/profiles/off_the_record_profile_impl.cc:225) — no BUILDFLAG, no feature check",
         "The only non-test producers of a chrome-distiller:// URL are the Android JNI entry points chrome/browser/dom_distiller/tab_utils_android.cc:31,40,48, calling chrome/browser/dom_distiller/tab_utils.cc:211,235,247. `git grep -n 'DistillCurrentPage\\|DistillAndView\\|GetDistillerViewUrlFromUrl' HEAD -- chrome/` finds no other caller.",
         "Two inherited ungoogled patches still touch the distiller (fix-distilled-icons.patch, disable-fonts-googleapis-references.patch), both listed `investigate` in docs/astro-next/baseline/patch-inventory.md"
       ],
       "state": "INVESTIGATE",
-      "rationale": "Measured, and it splits by platform, which is why this is not a decision this manifest can take alone. On Linux, Windows and macOS the scheme is a live, addressable, incognito-registered WebUI data source with NO product entry point \u2014 nothing in chrome/ can produce a chrome-distiller:// URL on desktop, yet RegisterViewerSource runs on every profile. That half is pure inherited surface. On Android it is Reader Mode's real transport, and Astro ships an Android build (.github/workflows/release.yml:417-495, gn_args/android.gn). So the answer is one product bit \u2014 does Astro ship Reader Mode on Android \u2014 and guessing it is wrong in one direction either way: guess KEEP and desktop inherits dead privileged surface; guess DISABLE_BUILD and the Android build ships a Reader Mode whose viewer cannot be addressed.",
+      "rationale": "Measured, and it splits by platform, which is why this is not a decision this manifest can take alone. On Linux, Windows and macOS the scheme is a live, addressable, incognito-registered WebUI data source with NO product entry point — nothing in chrome/ can produce a chrome-distiller:// URL on desktop, yet RegisterViewerSource runs on every profile. That half is pure inherited surface. On Android it is Reader Mode's real transport, and Astro ships an Android build (.github/workflows/release.yml:417-495, gn_args/android.gn). So the answer is one product bit — does Astro ship Reader Mode on Android — and guessing it is wrong in one direction either way: guess KEEP and desktop inherits dead privileged surface; guess DISABLE_BUILD and the Android build ships a Reader Mode whose viewer cannot be addressed.",
       "owner_issue": 10,
       "upstream_component": "//components/dom_distiller, //chrome/browser/dom_distiller",
       "user_surface": "Reader Mode on Android; nothing reachable on desktop",
@@ -2547,16 +2545,16 @@
       "incognito": "same-as-normal",
       "build_flags": [],
       "tests": [
-        "not-captured \u2014 the test follows the decision: either assert the scheme is absent from GetAdditionalWebUISchemes, or assert the viewer source is reachable only from the Android entry point"
+        "not-captured — the test follows the decision: either assert the scheme is absent from GetAdditionalWebUISchemes, or assert the viewer source is reachable only from the Android entry point"
       ],
       "investigate": {
-        "question": "Does Astro ship Reader Mode on Android? Desktop is already measured (no entry point exists), so this is only about the Android build \u2014 and it decides one row of AstroContentBrowserClient::GetAdditionalWebUISchemes.",
+        "question": "Does Astro ship Reader Mode on Android? Desktop is already measured (no entry point exists), so this is only about the Android build — and it decides one row of AstroContentBrowserClient::GetAdditionalWebUISchemes.",
         "answered_by": "A product answer from the Astro Android owner, recorded here. The measurement behind it is already done and reproduces with: `git -C chromium/src grep -n 'DistillCurrentPage\\|DistillAndView' HEAD -- chrome/ | grep -v test` (only tab_utils.cc and tab_utils_android.cc) and `git -C chromium/src grep -n RegisterViewerSource HEAD -- chrome/` (profile_impl.cc:766, off_the_record_profile_impl.cc:225, both unconditional)."
       },
       "blocks": [
         11
       ],
-      "blocks_reason": "Same mechanism as chrome-search-scheme: it is a row of GetAdditionalWebUISchemes, memoised for the process lifetime (url_data_manager_backend.cc:70-84) behind a locked URL registry (content/common/url_schemes.cc:128-129). It blocks #11's Android build only \u2014 #11's desktop milestone 1 can proceed on the measured desktop half, which is that the scheme has no entry point there. Recorded as a blocker rather than guessed, because the wrong guess is unfixable without a rebuild."
+      "blocks_reason": "Same mechanism as chrome-search-scheme: it is a row of GetAdditionalWebUISchemes, memoised for the process lifetime (url_data_manager_backend.cc:70-84) behind a locked URL registry (content/common/url_schemes.cc:128-129). It blocks #11's Android build only — #11's desktop milestone 1 can proceed on the measured desktop half, which is that the scheme has no entry point there. Recorded as a blocker rather than guessed, because the wrong guess is unfixable without a rebuild."
     },
     {
       "id": "page-saving-savable-schemes",
@@ -2565,10 +2563,10 @@
       "observed_state": "PRESENT",
       "observed_evidence": [
         "patches/ungoogled/extra/ungoogled-chromium/enable-page-saving-on-more-pages.patch, applied in this working tree, has FOUR hunks and not one:",
-        "  (1) content/public/common/url_utils.cc \u2014 IsSavableURL's body becomes `return true` (verified: `git -C chromium/src diff HEAD -- content/public/common/url_utils.cc`)",
-        "  (2) chrome/browser/ui/browser_commands.cc \u2014 deletes the IsSavableURL content restriction at :675-680 AND rewrites CanSavePage (:2050-2058) to `return true`, dropping the devtools exclusion with it",
-        "  (3) content/common/url_schemes.cc \u2014 kDefaultSavableSchemes gains about, blob, content, javascript, mailto, ws, wss and view-source",
-        "  (4) components/offline_pages/core/offline_page_model.cc \u2014 CanSaveURL drops its HTTP(S) check",
+        "  (1) content/public/common/url_utils.cc — IsSavableURL's body becomes `return true` (verified: `git -C chromium/src diff HEAD -- content/public/common/url_utils.cc`)",
+        "  (2) chrome/browser/ui/browser_commands.cc — deletes the IsSavableURL content restriction at :675-680 AND rewrites CanSavePage (:2050-2058) to `return true`, dropping the devtools exclusion with it",
+        "  (3) content/common/url_schemes.cc — kDefaultSavableSchemes gains about, blob, content, javascript, mailto, ws, wss and view-source",
+        "  (4) components/offline_pages/core/offline_page_model.cc — CanSaveURL drops its HTTP(S) check",
         "Upstream mechanism the patch displaces: content/public/common/content_client.h:121 declares Schemes::savable_schemes; content/common/url_schemes.cc:131-136 assigns it once inside RegisterContentSchemes; content/public/common/url_utils.cc:43-49 reads it",
         "Consumers of the upstream gate: chrome/browser/ui/browser_commands.cc:679, chrome/browser/renderer_context_menu/render_view_context_menu.cc:4007, content/child/blink_platform_impl.cc:229; and of the UI gate, chrome/browser/ui/browser_command_controller.cc:2256 (IDC_SAVE_PAGE) and chrome/browser/sharing_hub/sharing_hub_model.cc:82"
       ],
@@ -2576,7 +2574,7 @@
       "rationale": "#11's scheme policy table says the Astro schemes are not savable, and savable_schemes is the mechanism that enforces it. Astro Next deletes the inherited patch stack (#8), so the default is that this behaviour goes with it; this entry exists so that is a recorded decision rather than an accident of curation. The measured detail that matters: restoring IsSavableURL is NOT sufficient. Hunk (2) rewrote chrome::CanSavePage to `return true`, so the gate behind IDC_SAVE_PAGE and the sharing hub no longer consults IsSavableURL at all. Both hunks must go or the row is still unenforced while looking fixed.",
       "owner_issue": 8,
       "upstream_component": "//content/common/url_schemes.cc, //content/public/common/url_utils.cc, //chrome/browser/ui/browser_commands.cc",
-      "user_surface": "Ctrl+S / Save page as\u2026, the page context menu, the sharing hub",
+      "user_surface": "Ctrl+S / Save page as…, the page context menu, the sharing hub",
       "network": [
         "none"
       ],
@@ -2585,12 +2583,12 @@
       "build_flags": [],
       "tests": [
         "#11: content::IsSavableURL() is false for astro:// and astro-untrusted:// URLs",
-        "#11: chrome::CanSavePage() is false on a committed astro:// document \u2014 asserted separately, because hunk (2) is what makes the first assertion insufficient on its own"
+        "#11: chrome::CanSavePage() is false on a committed astro:// document — asserted separately, because hunk (2) is what makes the first assertion insufficient on its own"
       ],
       "blocks": [
         11
       ],
-      "blocks_reason": "savable_schemes is a ContentClient::Schemes row, assigned once in RegisterContentSchemes behind the g_registered_url_schemes early return (content/common/url_schemes.cc:54-57, :131-136), so it is a startup-time decision like every other row. Without this bit answered, #11 ships a scheme descriptor asserting `not savable` whose enforcement path has been stubbed to `return true` \u2014 a registry stating something false about the product, which is the exact failure #10's separation of `state` from `observed_state` exists to prevent."
+      "blocks_reason": "savable_schemes is a ContentClient::Schemes row, assigned once in RegisterContentSchemes behind the g_registered_url_schemes early return (content/common/url_schemes.cc:54-57, :131-136), so it is a startup-time decision like every other row. Without this bit answered, #11 ships a scheme descriptor asserting `not savable` whose enforcement path has been stubbed to `return true` — a registry stating something false about the product, which is the exact failure #10's separation of `state` from `observed_state` exists to prevent."
     },
     {
       "id": "webui-scheme-trust-split",
@@ -2600,33 +2598,33 @@
       "observed_evidence": [
         "There is no split today: patches/astro/011-astro-url-scheme-alias.patch makes astro:// a display alias for chrome://, so every Astro page is a chrome:// page",
         "Baseline finding 1: nothing links src/chrome/browser/oxy into the build graph, so no Astro WebUI controller is compiled into any binary built from committed source",
-        "The deciding mechanism (Chromium 146.0.7680.177 (ae03f7fb2cf1215853896d6a4c15fdceee2badb7), pristine HEAD line numbers): content/browser/renderer_host/render_frame_host_impl.cc:12627-12663 \u2014 for a WebUI-scheme document, `enabled_bindings_.HasAny(kWebUIBindingsPolicySet) && !IsWebUIAllowedToMakeNetworkRequests(origin)` moves the WebUI factory into the DEFAULT slot (:12645-12657), leaving no network factory; the else branch at :12658-12662 keeps the network default for a WebUI scheme WITHOUT bindings",
+        "The deciding mechanism (Chromium 146.0.7680.177 (ae03f7fb2cf1215853896d6a4c15fdceee2badb7), pristine HEAD line numbers): content/browser/renderer_host/render_frame_host_impl.cc:12627-12663 — for a WebUI-scheme document, `enabled_bindings_.HasAny(kWebUIBindingsPolicySet) && !IsWebUIAllowedToMakeNetworkRequests(origin)` moves the WebUI factory into the DEFAULT slot (:12645-12657), leaving no network factory; the else branch at :12658-12662 keeps the network default for a WebUI scheme WITHOUT bindings",
         "Chrome's escape hatch is four hosts and is bug-tracked as debt: chrome/browser/ui/webui/chrome_web_ui_controller_factory.cc:347-362 (crbug.com/829412)",
-        "Bindings require the process lock to be on a scheme in GetWebUISchemes(): content/browser/renderer_host/render_frame_host_impl.cc:7895-7905 NOTREACHEDs otherwise \u2014 so astro:// must be in GetAdditionalWebUISchemes for a bound page to exist at all",
+        "Bindings require the process lock to be on a scheme in GetWebUISchemes(): content/browser/renderer_host/render_frame_host_impl.cc:7895-7905 NOTREACHEDs otherwise — so astro:// must be in GetAdditionalWebUISchemes for a bound page to exist at all",
         "Chrome's untrusted rows, which Astro must decide for astro-untrusted BEFORE url::LockSchemeRegistries(): cors_enabled_schemes at content/common/url_schemes.cc:93, service_worker_schemes at :121, secure_schemes at :73",
-        "MEASURED GAP, renderer side: content/renderer/render_thread_impl.cc:815-878 hard-codes chrome, chrome-untrusted, devtools, view-source, chrome-error and googlechrome, with NO embedder hook \u2014 the renderer has no ContentBrowserClient"
+        "MEASURED GAP, renderer side: content/renderer/render_thread_impl.cc:815-878 hard-codes chrome, chrome-untrusted, devtools, view-source, chrome-error and googlechrome, with NO embedder hook — the renderer has no ContentBrowserClient"
       ],
       "state": "REPLACE",
-      "rationale": "The split is not a style choice, it is forced by the loader. A document holding WebUI bindings has its network factory revoked (render_frame_host_impl.cc:12645-12657), so the rule is: a page whose own JavaScript must reach the network cannot be bound, and therefore lives on astro-untrusted://; every other page is bound and lives on astro://. Applying that rule to the manifest's own `network` column gives the per-page assignment, recorded as `scheme_trust` on each page entry: alia is untrusted (its panel calls api.alia.onl from the page); astro-newtab, astro-settings, astro-whats-new, astro-error-page, astro-adblock-webui and first-run-page are trusted (their endpoints are either `none` or user-initiated link navigations away from the page, not requests the page makes). The untrusted scheme's registration rows, decided: cors_enabled YES (mirroring url_schemes.cc:93 \u2014 without it a cross-origin API call from the untrusted page is not even reachable), secure YES for both schemes (:71-74; otherwise neither is a secure context), service_worker NO for both (Chrome pushes both at :120-121 but the renderer only honours it behind features::kEnableServiceWorkersForChromeScheme / kEnableServiceWorkersForChromeUntrusted, render_thread_impl.cc:824-827, :834-838; no Astro page needs one and a service worker is persistent code on a privileged-adjacent origin), savable NO for both (page-saving-savable-schemes), and no_access / local / csp_bypassing / empty_document NO for both.",
+      "rationale": "The split is not a style choice, it is forced by the loader. A document holding WebUI bindings has its network factory revoked (render_frame_host_impl.cc:12645-12657), so the rule is: a page whose own JavaScript must reach the network cannot be bound, and therefore lives on astro-untrusted://; every other page is bound and lives on astro://. Applying that rule to the manifest's own `network` column gives the per-page assignment, recorded as `scheme_trust` on each page entry: alia is untrusted (its panel calls api.alia.onl from the page); astro-newtab, astro-settings, astro-whats-new, astro-error-page, astro-adblock-webui and first-run-page are trusted (their endpoints are either `none` or user-initiated link navigations away from the page, not requests the page makes). The untrusted scheme's registration rows, decided: cors_enabled YES (mirroring url_schemes.cc:93 — without it a cross-origin API call from the untrusted page is not even reachable), secure YES for both schemes (:71-74; otherwise neither is a secure context), service_worker NO for both (Chrome pushes both at :120-121 but the renderer only honours it behind features::kEnableServiceWorkersForChromeScheme / kEnableServiceWorkersForChromeUntrusted, render_thread_impl.cc:824-827, :834-838; no Astro page needs one and a service worker is persistent code on a privileged-adjacent origin), savable NO for both (page-saving-savable-schemes), and no_access / local / csp_bypassing / empty_document NO for both.",
       "owner_issue": 10,
       "upstream_component": "//content/common/url_schemes.cc, //content/browser/renderer_host/render_frame_host_impl.cc, //content/renderer/render_thread_impl.cc",
       "user_surface": "every Astro internal page",
       "network": [
         "none"
       ],
-      "persistence": "the scheme of every persisted internal-page URL \u2014 history, bookmarks, session restore \u2014 so a page that changes side later invalidates those entries (#13)",
+      "persistence": "the scheme of every persisted internal-page URL — history, bookmarks, session restore — so a page that changes side later invalidates those entries (#13)",
       "incognito": "same-as-normal",
       "build_flags": [],
       "tests": [
-        "#11: a bound astro:// document has no network URLLoaderFactory \u2014 assert a fetch() to a remote origin fails",
-        "#11: an astro-untrusted:// document has no WebUI bindings \u2014 assert chrome.send and Mojo.bindInterface are absent",
+        "#11: a bound astro:// document has no network URLLoaderFactory — assert a fetch() to a remote origin fails",
+        "#11: an astro-untrusted:// document has no WebUI bindings — assert chrome.send and Mojo.bindInterface are absent",
         "#11: Astro registers no equivalent of IsWebUIAllowedToMakeNetworkRequests, i.e. the allowlist is empty and stays empty"
       ],
       "blocks": [
         11
       ],
-      "blocks_reason": "Two reasons, both registration-time. First, the untrusted scheme's rows \u2014 CORS, service workers, secure, savable \u2014 are ContentClient::Schemes vectors applied once in RegisterContentSchemes and then sealed by url::LockSchemeRegistries() (content/common/url_schemes.cc:59, :92-95, :120-121, :128-129), so they cannot be decided after the fact, and they cannot be decided at all without knowing what the untrusted scheme is FOR. Second, a page assumed trusted and later found to need the network has three exits and all three are bad: move it to the untrusted scheme (a different origin, so persisted URLs, bookmarks and session entries break), add it to an Astro copy of IsWebUIAllowedToMakeNetworkRequests (re-creating crbug.com/829412's debt on day one), or ship a privileged page with a network loader.",
-      "notes": "A gap #11 must close before the untrusted half works at all, measured here rather than left to be discovered: content/renderer/render_thread_impl.cc:815-878 is a hard-coded list with no embedder hook. Without a content-layer change, astro-untrusted:// is not RegisterURLSchemeAsSupportingFetchAPI (:841-842 does this for chrome-untrusted), so fetch() from an astro-untrusted:// document fails at third_party/blink/renderer/core/fetch/fetch_manager.cc:978-983 with kCorsDisabledScheme and XHR at third_party/blink/renderer/core/xmlhttprequest/xml_http_request.cc:812 \u2014 i.e. the untrusted scheme's whole purpose is inoperable. In the same function, astro:// gets none of RegisterURLSchemeAsDisplayIsolated (:818), RegisterURLSchemeAsNotAllowingJavascriptURLs (:819-820) or RegisterURLSchemeAsWebUI (:821); the second of those means javascript: URLs would NOT be blocked on the trusted scheme. This is the same shape as content/public/common/url_utils.cc:27-31's IsWebUIScheme literal (see oxy-identity): a common/renderer-layer scheme store is the fix for both, and it is #11's work, not a #10 decision."
+      "blocks_reason": "Two reasons, both registration-time. First, the untrusted scheme's rows — CORS, service workers, secure, savable — are ContentClient::Schemes vectors applied once in RegisterContentSchemes and then sealed by url::LockSchemeRegistries() (content/common/url_schemes.cc:59, :92-95, :120-121, :128-129), so they cannot be decided after the fact, and they cannot be decided at all without knowing what the untrusted scheme is FOR. Second, a page assumed trusted and later found to need the network has three exits and all three are bad: move it to the untrusted scheme (a different origin, so persisted URLs, bookmarks and session entries break), add it to an Astro copy of IsWebUIAllowedToMakeNetworkRequests (re-creating crbug.com/829412's debt on day one), or ship a privileged page with a network loader.",
+      "notes": "A gap #11 must close before the untrusted half works at all, measured here rather than left to be discovered: content/renderer/render_thread_impl.cc:815-878 is a hard-coded list with no embedder hook. Without a content-layer change, astro-untrusted:// is not RegisterURLSchemeAsSupportingFetchAPI (:841-842 does this for chrome-untrusted), so fetch() from an astro-untrusted:// document fails at third_party/blink/renderer/core/fetch/fetch_manager.cc:978-983 with kCorsDisabledScheme and XHR at third_party/blink/renderer/core/xmlhttprequest/xml_http_request.cc:812 — i.e. the untrusted scheme's whole purpose is inoperable. In the same function, astro:// gets none of RegisterURLSchemeAsDisplayIsolated (:818), RegisterURLSchemeAsNotAllowingJavascriptURLs (:819-820) or RegisterURLSchemeAsWebUI (:821); the second of those means javascript: URLs would NOT be blocked on the trusted scheme. This is the same shape as content/public/common/url_utils.cc:27-31's IsWebUIScheme literal (see oxy-identity): a common/renderer-layer scheme store is the fix for both, and it is #11's work, not a #10 decision."
     },
     {
       "id": "webui-host-namespace",
@@ -2643,7 +2641,7 @@
         "WebUIConfigMap does not catch it, twice over: AddWebUIConfigImpl keys on url::Origin (content/public/browser/webui_config_map.cc:83-89), and GetConfig returns nullptr for any scheme other than chrome/chrome-untrusted (:97-100) while AddWebUIConfig CHECK_EQs kChromeUIScheme (:72-75)"
       ],
       "state": "REPLACE",
-      "rationale": "The rule: no Astro-owned WebUI data source may register under a host name that Chromium's ChromeURLHosts() (chrome/common/webui_url_constants.cc:75-242) contains. Adopting it is what turns this from a blocker on most of #10 into a naming constraint \u2014 #11 does not need to know WHICH chrome:// hosts survive if no astro:// host name is a chrome:// host name, and that holds at any point in #10's lifetime. It is strictly stronger than the question it replaces, not weaker. Where Astro reuses a Chromium page rather than registering its own source there is no collision and no rename, because there is only one registration; the rule constrains Astro-OWNED sources. The two colliding names are recorded as `webui_host: not-determined` on their entries, because whether astro-settings renames or reuses Chromium Settings is #15's call and whats-new is #14's.",
+      "rationale": "The rule: no Astro-owned WebUI data source may register under a host name that Chromium's ChromeURLHosts() (chrome/common/webui_url_constants.cc:75-242) contains. Adopting it is what turns this from a blocker on most of #10 into a naming constraint — #11 does not need to know WHICH chrome:// hosts survive if no astro:// host name is a chrome:// host name, and that holds at any point in #10's lifetime. It is strictly stronger than the question it replaces, not weaker. Where Astro reuses a Chromium page rather than registering its own source there is no collision and no rename, because there is only one registration; the rule constrains Astro-OWNED sources. The two colliding names are recorded as `webui_host: not-determined` on their entries, because whether astro-settings renames or reuses Chromium Settings is #15's call and whats-new is #14's.",
       "owner_issue": 10,
       "upstream_component": "//content/browser/webui/url_data_manager_backend.cc",
       "user_surface": "every internal page URL the user sees or bookmarks",
@@ -2654,13 +2652,13 @@
       "incognito": "same-as-normal",
       "build_flags": [],
       "tests": [
-        "#11: a repo test asserting Astro's declared host catalog (the `webui_host` column of this manifest) is disjoint from ChromeURLHosts(). It needs a Chromium checkout, so it belongs with the real-checkout cases rather than the checkout-free suite; the cheap half \u2014 that Astro's own host names are unique among themselves \u2014 is enforced by tools/policy/manifest.py."
+        "#11: a repo test asserting Astro's declared host catalog (the `webui_host` column of this manifest) is disjoint from ChromeURLHosts(). It needs a Chromium checkout, so it belongs with the real-checkout cases rather than the checkout-free suite; the cheap half — that Astro's own host names are unique among themselves — is enforced by tools/policy/manifest.py."
       ],
       "blocks": [
         11
       ],
-      "blocks_reason": "#11 deletes the astro://-to-chrome:// alias, and the moment it does, `settings` and `whats-new` become two pages sharing one map key. The winner is whichever of chrome://settings and astro://settings the user opened last in that profile, because the source is added when the controller is constructed; the loser returns net::ERR_INVALID_URL. Order-dependent, per-profile, per-session, silent. #11 needs the rule before it removes the alias \u2014 not the full list of surviving chrome:// hosts, which is the point of adopting a rule instead.",
-      "notes": "Measured once and worth carrying: no chrome:// host constant begins with `astro` (`git -C chromium/src show HEAD:chrome/common/webui_url_constants.cc | grep -c '\"astro'` -> 0), so an astro- prefix is a sufficient condition for disjointness \u2014 but it is not the rule, because `alia` and `adblock` are already disjoint without it and astro://astro-settings reads badly. Disjointness is the rule; the prefix is one way to satisfy it."
+      "blocks_reason": "#11 deletes the astro://-to-chrome:// alias, and the moment it does, `settings` and `whats-new` become two pages sharing one map key. The winner is whichever of chrome://settings and astro://settings the user opened last in that profile, because the source is added when the controller is constructed; the loser returns net::ERR_INVALID_URL. Order-dependent, per-profile, per-session, silent. #11 needs the rule before it removes the alias — not the full list of surviving chrome:// hosts, which is the point of adopting a rule instead.",
+      "notes": "Measured once and worth carrying: no chrome:// host constant begins with `astro` (`git -C chromium/src show HEAD:chrome/common/webui_url_constants.cc | grep -c '\"astro'` -> 0), so an astro- prefix is a sufficient condition for disjointness — but it is not the rule, because `alia` and `adblock` are already disjoint without it and astro://astro-settings reads badly. Disjointness is the rule; the prefix is one way to satisfy it."
     }
   ]
 }

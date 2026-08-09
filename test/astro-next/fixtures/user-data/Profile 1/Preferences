@@ -1,5 +1,7 @@
 {
   "astro": {
+    "ntp_notes": "astro-fixture-astro-ntp-notes",
+    "ntp_quick_links": [],
     "ntp_show_alia": true,
     "ntp_show_clock": true,
     "ntp_show_discover": true,
@@ -7,6 +9,7 @@
     "ntp_show_quick_links": true,
     "ntp_show_sites": true,
     "ntp_show_weather": true,
+    "ntp_widget_order": [],
     "theme": {
       "preset": "astro-fixture-astro-theme-preset"
     }

@@ -106,6 +106,8 @@ source_set("webui_controllers") {
     "webui/astro_settings_ui.h",
 
     # NTP WebUI (astro://newtab -> chrome://astro-ntp)
+    "webui/astro_ntp_page_handler.cc",
+    "webui/astro_ntp_page_handler.h",
     "webui/astro_ntp_ui.cc",
     "webui/astro_ntp_ui.h",
 
@@ -159,6 +161,21 @@ source_set("webui_controllers") {
     # says so.
     "//chrome/browser/ui/webui/settings",
     "//chrome/browser/ui/views/side_panel",
+
+    # The new tab page's badge reports the ad blocker's lifetime count, so it
+    # depends on the ad blocker's pref contract. Declared as an edge rather
+    # than by copying the pref path: a fourth spelling of a string neither
+    # compiler checks is exactly the drift astro_pref_names.h exists to stop.
+    "//chrome/browser/oxy/adblock",
+
+    # Most-visited tiles and the profile's configured search engines, both for
+    # the new tab page. ChromeMostVisitedSitesFactory itself lives in
+    # //chrome/browser, which cannot be depended on from here without a cycle —
+    # see the allow_circular_includes_from entry that patch 063 adds.
+    "//components/ntp_tiles",
+    "//components/search_engines",
+    "//chrome/browser/search_engines",
+
     "//components/prefs",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
