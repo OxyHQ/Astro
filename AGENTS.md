@@ -145,6 +145,17 @@ signal to stop and report it on the issue.
   patch is uncommitted. Bump the literal in the same commit as the patch, and
   re-run the suite AFTER committing and before regenerating the baseline —
   that window is where this class of miss lives.
+- **Stage by explicit path. The index is shared, so a bare `git commit` takes
+  whatever somebody else staged.** Several agents routinely work this one
+  checkout at once, and `AGENTS.md`, `patches/astro/series` and
+  `patch-dispositions.json` are the files two waves reach for simultaneously —
+  all three have carried another agent's uncommitted hunks mid-session. A
+  commit built from `HEAD` plus explicit blobs (a temporary index) is the
+  robust form; `git add -A` is never correct here. What is NOT a hazard,
+  because it was claimed and then tested on four staged shapes including
+  deletions: `git commit --dry-run -- <paths>` does not disturb the index. The
+  report that it did was a staged deletion being consumed by its own author's
+  commit, which git then rendered as a rename.
 
 **Source revisions are declared, never discovered.** `browser.lock.json` holds
 the full commit SHA of Chromium, depot_tools and the ungoogled patch set.
