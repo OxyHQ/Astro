@@ -68,6 +68,18 @@ source_set("theming") {
     "//ui/color",
     "//ui/native_theme",
   ]
+
+  # A preset change has to repaint the windows that are already open, and on
+  # Linux those observe ui::LinuxUiTheme's NativeTheme rather than the one
+  # NativeTheme::GetInstanceForNativeUi() returns — see ApplyPresetToNativeUi.
+  # Same two targets //chrome/browser/themes takes for the same reason, and
+  # neither reaches //chrome/browser/ui, so the mixers edge stays acyclic.
+  if (is_linux) {
+    deps += [
+      "//ui/linux:linux_ui",
+      "//ui/linux:linux_ui_factory",
+    ]
+  }
 }
 
 # Oxy WebUI controllers (NTP, Settings, Alia, etc.) — CAN depend on

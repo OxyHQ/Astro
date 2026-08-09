@@ -8,6 +8,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "build/build_config.h"
 #include "chrome/browser/oxy/astro_pref_names.h"
 #include "chrome/browser/oxy/ui/astro_color_mixer.h"
 #include "chrome/browser/oxy/ui/astro_color_tokens.h"
@@ -16,6 +17,11 @@
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "ui/native_theme/native_theme.h"
+
+#if BUILDFLAG(IS_LINUX)
+#include "ui/linux/linux_ui.h"
+#include "ui/linux/linux_ui_factory.h"
+#endif
 
 namespace astro {
 
@@ -107,12 +113,41 @@ void AstroThemeService::ApplyPresetToNativeUi(bool repaint) {
   CHECK(preset.has_value());
 
   SetActiveColorPreset(*preset);
-  if (repaint) {
-    // The mixer input is process-global (see astro_color_mixer.h), so every
-    // cached ColorProvider in the process is now stale. This is what makes the
-    // toolbar, tab strip and menus change colour with no restart.
-    ui::NativeTheme::GetInstanceForNativeUi()->NotifyOnNativeThemeUpdated();
+  if (!repaint) {
+    return;
   }
+
+  // The mixer input is process-global (see astro_color_mixer.h), so every
+  // cached ColorProvider in the process is now stale. NotifyOnNativeThemeUpdated
+  // does two things that are both needed: it drops that cache, and it tells the
+  // theme's own observers to repaint. This is what makes the toolbar, tab strip
+  // and menus change colour with no restart.
+  //
+  // It reaches a window only if the window observes the instance it is sent to,
+  // and on Linux most windows do not observe this one:
+  // BrowserWidget::SelectNativeTheme points every non-incognito window at
+  // ui::LinuxUiTheme's NativeTheme (GTK or Qt) whenever one exists, and only
+  // incognito stays on the instance below. Sending it here alone therefore
+  // dropped the cache -- so anything that asked for a ColorProvider afterwards
+  // got the new preset -- while the open windows kept the pixels they already
+  // had. Measured on the built browser: after picking green, the toolbar stayed
+  // oxy's #211922 while chrome://theme/colors.css already reported green's
+  // #131E18, and the window only caught up when a resize forced it to paint.
+  //
+  // Both instances are notified, which is the same shape ThemeServiceAuraLinux
+  // uses when it starts and stops using the system theme, and for the same
+  // reason: whichever one a given window is not observing still owns windows
+  // that are.
+  ui::NativeTheme::GetInstanceForNativeUi()->NotifyOnNativeThemeUpdated();
+#if BUILDFLAG(IS_LINUX)
+  if (ui::LinuxUiTheme* linux_ui_theme = ui::GetDefaultLinuxUiTheme()) {
+    ui::NativeTheme* native_theme = linux_ui_theme->GetNativeTheme();
+    if (native_theme &&
+        native_theme != ui::NativeTheme::GetInstanceForNativeUi()) {
+      native_theme->NotifyOnNativeThemeUpdated();
+    }
+  }
+#endif
 }
 
 }  // namespace astro
