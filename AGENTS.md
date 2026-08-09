@@ -161,10 +161,13 @@ signal to stop and report it on the issue.
   agents in one evening hit exactly this and neither recognised the entry as
   describing them; both reached for `ASTRO_ALLOW_DIRTY_CHROMIUM=1`. The
   discriminator does not go stale: compare the patch NAMES the report records
-  against `patches/astro/series`. On that day the report's highest Astro entry
-  was `067` while the series carried `069` and `070`, and the one path the
-  guard named was patch 070's own output — provable in one command,
-  `git apply --check -R patches/astro/070-*.patch` against the tree.
+  against `patches/astro/series`. On that day exactly ONE name was missing —
+  the report recorded `069` but not `070`, 177 entries against the series'
+  178 — and that one patch is the whole flag: the single path the guard named
+  was patch 070's own output, provable in one command,
+  `git apply --check -R patches/astro/070-*.patch` against the tree. Note how
+  small the gap that produces a refusal is: one patch written after the last
+  full run is enough, so "the report looks about right" is not a reading.
 
   **What this cost, which is the reason it is worth this many words.** A
   genuinely foreign 113 KB file — `chrome/browser/resources/
@@ -601,9 +604,9 @@ do not let a build imply they are resolved:
   pristine tree can still fail in series, which is the whole reason the replay
   runs the series in order rather than one patch at a time.
   `build/reports/patch-report.json` is OLDER than that and says so — it
-  records only what the last full run against the real checkout applied, and
-  its highest Astro entry was `067` when the series already carried `070` — so
-  read the replay, not the report, for whether the series applies. Also,
+  records only what the last full run against the real checkout applied: 177
+  entries, the newest Astro one `069`, when the series already carried `070` —
+  so read the replay, not the report, for whether the series applies. Also,
   `docs/astro-next/policy/endpoints.json` declares the non-applying list
   EMPTY, with the replay that emptied it and the three waves of repairs
   written up there. Read it there rather than here; what belongs here is the
