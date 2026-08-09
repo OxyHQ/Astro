@@ -81,6 +81,27 @@ signal to stop and report it on the issue.
   *whose top level is the path itself* — a `chromium/src` holding only the
   overlay resolves to the Astro repository, so an unguarded `git reset --hard`
   aimed at "the Chromium checkout" destroys the developer's own work.
+- **That rule guards the scripts. Nothing guards a bare `git` you type
+  yourself, so use `git -C /home/nate/Oxy/Astro` for every one of them.**
+  `gn gen` and `ninja` want `chromium/src` as the working directory, the shell
+  keeps that directory between commands, and a later `git` then runs against
+  the Chromium checkout while looking exactly like a repository command. It has
+  happened twice, to two agents, presenting differently each time: a
+  `tools/baseline/generate-all.sh --check` dying with "No such file or
+  directory", and a `git commit` executing inside `chromium/src`. Both were
+  harmless — the commit had an empty index, so git printed status and exited
+  non-zero — and that is the whole problem, because **`chromium/src` carries
+  4,253 dirty paths** from binary pruning and vendoring. There is no
+  empty-index reprieve for `git add -A` or `git commit -a`: either one puts
+  those 4,253 files onto the pinned revision, breaking "checkouts are detached
+  at the locked commit" and every pristine-tree guard downstream. Prefer
+  `git -C <path>` over `cd` for the build commands too, so the directory never
+  drifts in the first place.
+- **To prove nothing was committed there, read the REFLOG, not `HEAD`.** A
+  `HEAD` matching `browser.lock.json` is consistent with a commit that was made
+  and then reset away, which is the case you actually care about. The intact
+  state is a reflog holding exactly one entry — the original detached checkout —
+  alongside an empty index.
 - **Preserve developer work by default.** Mutating scripts refuse a checkout
   carrying changes Astro did not write. `ASTRO_ALLOW_DIRTY_CHROMIUM=1` is a
   developer-only override; CI asserts it is never set.
