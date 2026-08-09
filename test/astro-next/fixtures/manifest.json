@@ -389,8 +389,8 @@
         "parsed": 11
       },
       "preference registrations": {
-        "detected": 19,
-        "parsed": 19
+        "detected": 22,
+        "parsed": 22
       }
     }
   },
@@ -398,7 +398,7 @@
     "Default",
     "Profile 1"
   ],
-  "registered_pref_count": 19,
+  "registered_pref_count": 22,
   "revision_authority": "browser.lock.json",
   "tool": "tools/baseline/make_profile_fixtures.py"
 }

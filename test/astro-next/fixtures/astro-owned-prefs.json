@@ -2,6 +2,16 @@
   "_generated_by": "tools/baseline/make_profile_fixtures.py",
   "astro_owned": [
     {
+      "kind": "String",
+      "name": "astro.ntp_notes",
+      "registered_in": "patches/astro/020-register-oxy-prefs.patch"
+    },
+    {
+      "kind": "List",
+      "name": "astro.ntp_quick_links",
+      "registered_in": "patches/astro/020-register-oxy-prefs.patch"
+    },
+    {
       "kind": "Boolean",
       "name": "astro.ntp_show_alia",
       "registered_in": "patches/astro/020-register-oxy-prefs.patch"
@@ -34,6 +44,11 @@
     {
       "kind": "Boolean",
       "name": "astro.ntp_show_weather",
+      "registered_in": "patches/astro/020-register-oxy-prefs.patch"
+    },
+    {
+      "kind": "List",
+      "name": "astro.ntp_widget_order",
       "registered_in": "patches/astro/020-register-oxy-prefs.patch"
     },
     {

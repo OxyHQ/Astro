@@ -26,7 +26,7 @@ the same way: regenerate and review the diff.
 15 file(s) are **generated**. Their values come from parsing
 the code that defines them - the preference registrations in
 `patches/astro/020-register-oxy-prefs.patch` and
-`patches/astro/046-adblock-prefs.patch` (19 preferences), the WebUI
+`patches/astro/046-adblock-prefs.patch` (22 preferences), the WebUI
 host constants, the adblock filter catalog and the token store - so they
 cannot drift from the browser without `--verify` noticing.
 
