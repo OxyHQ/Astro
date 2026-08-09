@@ -10,7 +10,7 @@ Dispositions live in `patch-dispositions.json` and are joined in strictly:
 a patch with no disposition, or a disposition for a patch that no longer
 exists, fails generation. This inventory therefore cannot silently rot.
 
-## `patches/astro` — 63 patches
+## `patches/astro` — 64 patches
 
 | # | Patch | Files | Hunks | Disposition | Purpose |
 |---|---|---|---|---|---|
@@ -77,6 +77,7 @@ exists, fails generation. This inventory therefore cannot silently rot.
 | 61 | `064-rand-chacha-macro-unsafe.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml` | 1 | **replace** | Sets allow_unsafe = true for rand_chacha in gnrt_config.toml. gnrt auto-fills the value and guesses wrong: both vendored epochs hold their single unsafe block inside the body of macro_rules! chacha_impl, and the syn-based detector never descends into syn::Macro::tokens, which its own doc comment names as a known miss to be corrected by exactly this build failure. The content is a security claim about third-party source rather than code, so the patch header carries the audit behind it. Both epochs are host build tooling only, reached through the two phf code generators. |
 | 62 | `065-thiserror-epoch-scoped-config.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml`<br>`tools/crates/gnrt/vendor.rs` | 2 | **replace** | Splits thiserror's gnrt_config.toml entry into per-epoch tables, because the two vendored epochs disagree: 2.x's build script writes $OUT_DIR/private.rs and includes it, 1.x writes no file, and one unversioned build_script_outputs makes run_build_script.py fail with FileNotFoundError on 1.x. Also teaches fill_allow_unsafe_settings to write into an existing epoch-scoped table instead of creating an unversioned one beside it, which BuildConfig::validate then rejects on the next load — the narrow half of upstream's own TODO on crbug.com/419104870, without which a per-epoch config is unusable for any crate in the dependency graph. |
 | 63 | `066-vendored-crate-build-inputs.patch` | `third_party/rust/chromium_crates_io/gnrt_config.toml` | 3 | **replace** | Declares the build inputs and outputs gnrt cannot discover by walking a crate's source directory, for three crates the adblock engine pulls in: cssparser's #[path] build-script module and its generated tokenizer.rs, rmp's README reached by #![doc = include_str!], and selectors' generated phf set. Same declarations upstream already makes for clap, image, prost, typed-path and read-fonts; the whole 103-crate closure was scanned for the four shapes rather than found one round trip at a time. |
+| 64 | `067-astro-webui-pak-repack.patch` | `chrome/chrome_paks.gni`<br>`tools/gritsettings/resource_ids.spec` | 3 | **replace** | Puts astro_webui_resources.pak into chrome's repack list and reserves its fake start id in resource_ids.spec, which is what makes the resources the Astro WebUI app is compiled into reachable at runtime. Without it the grit target still builds a .pak, nothing loads it, and every astro:// page resolves its resource ids to nothing — a blank page with no error, the exact failure the disk-served settings surface was deleted for. Both files are upstream's and churn every roll, so a two-hunk patch is the reviewable form; a whole-file overlay copy of either is defect #7's shape. |
 
 ### Overlapping patches (4)
 
