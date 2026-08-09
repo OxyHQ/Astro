@@ -270,6 +270,7 @@ patches:
       - "patches/astro/062-astro-theme-service-register.patch"
       - "patches/astro/063-astro-webui-mojo-binders.patch"
       - "patches/astro/067-astro-webui-pak-repack.patch"
+      - "patches/astro/070-theme-color-picker-astro-presets.patch"
       - "patches/ungoogled/core/ungoogled-chromium/disable-gaia.patch"
       - "patches/ungoogled/core/ungoogled-chromium/disable-network-time-tracker.patch"
       - "patches/ungoogled/extra/bromite/fingerprinting-flags-client-rects-and-measuretext.patch"

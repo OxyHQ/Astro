@@ -22,6 +22,13 @@ export const appearanceStrings = {
   'settings.appearance.preset.description':
     'Applies to every Astro page and to the browser window itself.',
 
+  'settings.appearance.group.customize': 'Customise',
+  'settings.appearance.customize': 'Customise Astro',
+  'settings.appearance.customize.sublabel':
+    'Opens the side panel, where the New Tab page background and the toolbar are ' +
+    'set. Its wallpaper controls appear only while a New Tab page is open.',
+  'settings.appearance.customize.action': 'Open',
+
   'settings.appearance.group.homeButton': 'Home button',
   'settings.appearance.homeButton': 'Show home button',
   'settings.appearance.homepageIsNewTab': 'Open the New Tab page from the home button',
@@ -87,6 +94,7 @@ export const appearanceControls: readonly SettingsControl[] = [
   'settings.appearance.mode.light',
   'settings.appearance.mode.dark',
   'settings.appearance.preset',
+  'settings.appearance.customize',
   'settings.appearance.homeButton',
   'settings.appearance.homepageIsNewTab',
   'settings.appearance.homepage',

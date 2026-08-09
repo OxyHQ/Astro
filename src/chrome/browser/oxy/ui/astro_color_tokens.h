@@ -149,6 +149,52 @@ inline constexpr std::array<std::string_view, kColorPresetCount>
         "yellow",
 }};
 
+// Who may pick a preset, as Bloom DECLARES it. Bloom only declares:
+// whether a given viewer satisfies a gate is the consuming app's
+// question, since only the app knows who is signed in and what they pay
+// for. Astro's answer is astro::IsColorPresetOffered, in
+// astro_theme_service.h -- that is policy and does not belong in a
+// transcription.
+//
+// This is DATA rather than the comment it used to be. A C++ consumer
+// reading kColorPresetNames had no way to see a gate at all, and the
+// first one to iterate the table offered another organisation's reserved
+// brand colour to everybody. A comment cannot be filtered on.
+enum class ColorPresetGate : size_t {
+  // Nobody is excluded.
+  kNone = 0,
+  // Reserved for the account whose brand it is -- not purchasable.
+  kHandle = 1,
+  // Sold with a subscription.
+  kPremium = 2,
+};
+
+inline constexpr std::array<ColorPresetGate, kColorPresetCount>
+    kColorPresetGates = {{
+        ColorPresetGate::kNone,           // blue
+        ColorPresetGate::kNone,           // brown
+        ColorPresetGate::kHandle,         // faircoin
+        ColorPresetGate::kNone,           // gray
+        ColorPresetGate::kNone,           // green
+        ColorPresetGate::kNone,           // mint
+        ColorPresetGate::kPremium,        // mono
+        ColorPresetGate::kNone,           // orange
+        ColorPresetGate::kHandle,         // oxy
+        ColorPresetGate::kNone,           // peach
+        ColorPresetGate::kNone,           // pink
+        ColorPresetGate::kNone,           // pumpkin
+        ColorPresetGate::kNone,           // purple
+        ColorPresetGate::kNone,           // red
+        ColorPresetGate::kNone,           // rose
+        ColorPresetGate::kNone,           // sky
+        ColorPresetGate::kNone,           // teal
+        ColorPresetGate::kNone,           // yellow
+}};
+
+constexpr ColorPresetGate ColorPresetGateFor(ColorPreset preset) {
+  return kColorPresetGates[static_cast<size_t>(preset)];
+}
+
 inline constexpr std::array<std::string_view, kColorTokenCount>
     kColorTokenNames = {{
         "accent",

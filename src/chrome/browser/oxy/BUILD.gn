@@ -152,6 +152,12 @@ source_set("webui_controllers") {
     "//chrome/browser:shell_integration",
     "//chrome/browser/themes",
     "//chrome/browser/ui",
+
+    # SafetyHubHandler, the one settings handler AstroSettingsUI adopts that
+    # does NOT live in //chrome/browser/ui. That target depends on this one
+    # privately, so the header does not reach us through it and `gn check`
+    # says so.
+    "//chrome/browser/ui/webui/settings",
     "//chrome/browser/ui/views/side_panel",
     "//components/prefs",
     "//content/public/browser",

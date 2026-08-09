@@ -239,6 +239,73 @@ signal to stop and report it on the issue.
   Recovering from it is `git reset --soft HEAD~1` — but check first that HEAD
   is still your commit, or the reset eats whatever landed on top. It restores
   the index exactly as it was, so the other agent's staging survives.
+- **Nobody here can be identified by git, so attribute by mtime, task title and
+  content — never by `git log`.** Every commit on this branch carries the same
+  author, so `--format=%an` separates nothing and any guess built on it lands
+  on whoever was active nearby. Five wrong attributions happened in one
+  session. The two that mattered were not naming quibbles: one nearly took
+  authorship of another agent's unfinished analysis, and one routed "please
+  bump this red gate" to an agent that knew nothing about the change the gate
+  certifies — twice. An uncommitted hunk in a shared file has no queryable
+  owner at all: call it unclaimed and leave it, rather than handing it to a
+  name.
+- **Two builds must not share one output directory, and the dirty-tree
+  override is not what makes that safe.** `ASTRO_ALLOW_DIRTY_CHROMIUM=1` exists
+  so somebody looks at the dirty state and vouches for it; it governs the
+  overlay sync and nothing else. It does not stop a file changing under a
+  running compile, and it does not stop two `ninja` runs interleaving in one
+  `out/`. When two agents have complementary changes, land both sources first
+  and build ONCE — a relink here is 20-40 minutes, so serialising two is an
+  hour thrown away and racing them is worse.
+- **`pkill -f <your own scratchpad path>` kills other agents' processes.** The
+  scratchpad is per SESSION, not per agent, so several agents share that
+  directory string and a pattern meant to match only your browsers matches
+  theirs. Measured: one agent's cleanup killed another's browser mid-run, and
+  the X window id was then REUSED by a later process — which is how the two of
+  them ended up recording the same window id for different pids, and why a
+  screenshot can be of somebody else's browser. Kill by pid you captured at
+  launch, and resolve a window with `wmctrl -lp` matching that pid exactly,
+  refusing to proceed unless exactly one row matches. `wmctrl -l | grep Astro`
+  and `xdotool search --pid` both misidentify windows here — the latter
+  returned eight windows, from three processes, for a pid that had one.
+  Better still, drive the browser through CDP against a named target: it is
+  focus-independent, so another agent stealing focus cannot corrupt the run.
+- **Two browsers can hold "the same" debugging port, and your CDP client then
+  drives somebody else's.** The port binds per stack, so one process on IPv4
+  and another on IPv6 both succeed on 9333 and neither reports a conflict.
+  That is how one agent came to read one browser's log while driving another,
+  and reported a control as inert — a conclusion that happened to be wrong for
+  a reason that had nothing to do with the control.
+
+  Do not pick a port and hope: launch with `--remote-debugging-port=0` and
+  read the port out of `<your-user-data-dir>/DevToolsActivePort`, whose two
+  lines are the port and that browser's unique WebSocket path. The file is
+  inside YOUR profile, so both values are your browser's by construction and
+  no collision can point you at somebody else's. Measured. And do NOT try to
+  confirm identity from `/json/version` — an earlier revision of this entry
+  suggested it and was wrong: it returns Browser, Protocol-Version,
+  User-Agent, V8-Version, WebKit-Version and webSocketDebuggerUrl, and no
+  process id.
+- **`import -window ""` writes a plausible screenshot of something you never
+  identified**, so a window lookup that returns nothing still produces a PNG
+  and the run looks like it worked. It happened: `pgrep -f
+  "remote-debugging-port=9340"` matched the BASH WRAPPER whose own command
+  line contains the pattern rather than the browser, `wmctrl -lp` then matched
+  no window, and the capture succeeded anyway — with three Astro windows from
+  three different agents on the display, one of them titled "Customize Astro"
+  and not the author's. Guard the lookup (`test -n "$WIN"`) rather than
+  trusting that a failed resolution produces a failed capture.
+- **The side panel is per TAB, so CDP reporting it `visible` is not the same
+  as it being on screen.** A capture taken while another tab is in front shows
+  no panel while every programmatic check says it opened. Bring the owning
+  target to the front before capturing.
+- **Count from the DOM, not from the pixels.** Two people, twice, miscounted
+  the picker's swatches off a screenshot and nearly reported a working gate
+  filter as broken: the picker draws Default, Grey and Custom on top of the
+  dynamic list, so a correct filter shows 19 elements for 16 presets. Query
+  the elements and compare the NAMED SETS — the honest assertion is that
+  `faircoin` and `mono` are absent from both surfaces, not that a total
+  matches.
 - **`git commit --dry-run -- <paths>` does not disturb the index — but read
   the exit status before believing a test that says so.** It was claimed as a
   hazard, and the first round of testing could not have caught it either way:

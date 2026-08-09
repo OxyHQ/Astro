@@ -73,3 +73,4 @@
 066-vendored-crate-build-inputs.patch
 067-astro-webui-pak-repack.patch
 069-rmp-serde-rmpread-backport.patch
+070-theme-color-picker-astro-presets.patch

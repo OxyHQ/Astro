@@ -1,0 +1,364 @@
+{
+  "comment": [
+    "Which upstream settings handler services which chrome.send message, and which",
+    "handlers astro://settings installs.",
+    "",
+    "Hand-maintained, and the only hand-maintained input to",
+    "tools/tests/cases/settings-sends-reach-an-adopted-handler.sh. The gate joins",
+    "three things and is strict in every direction:",
+    "",
+    "  * every message the app sends (src/pages/settings/**, via send /",
+    "    sendWithPromise) is registered by a handler declared below;",
+    "  * every event the app listens for (addWebUIListener) is fired by one;",
+    "  * every handler declared below is instantiated by AstroSettingsUI, and",
+    "    every handler AstroSettingsUI instantiates is declared below.",
+    "",
+    "WHY IT IS WORTH A GATE. chrome.send to a message no installed handler",
+    "registered reaches DUMP_WILL_BE_NOTREACHED in",
+    "content/browser/webui/web_ui_impl.cc. That is fatal in a DCHECK build and a",
+    "SILENT NO-OP in the release build users get: the control draws, the button",
+    "depresses, nothing happens, nothing is logged. Four of this page's sections",
+    "shipped in that state -- appearance, downloads, on-startup and import --",
+    "before the join existed. tsc cannot see it, the dev fixtures answer every",
+    "message themselves, and a browser run only finds the buttons someone thought",
+    "to press.",
+    "",
+    "`messages` and `events` are the handler's FULL registration, read out of the",
+    "file named in `source` at the locked Chromium revision -- not the subset",
+    "Astro happens to call. Adopting a handler really does install all of them, so",
+    "declaring less would make the gate refuse a call that in fact works.",
+    "",
+    "Regenerate a handler's lists after a Chromium roll by reading its source:",
+    "  grep -oE 'RegisterMessageCallback\\(\\s*\"[^\"]+\"' <source>",
+    "  grep -oE 'FireWebUIListener\\(\\s*\"[^\"]+\"' <source>",
+    "The second misses events pushed through a named constant; the four in this",
+    "file that are (profile-info-changed, profile-stats-count-ready and",
+    "notification-permission-review-list-maybe-changed) were resolved by hand.",
+    "",
+    "`class` is the fully-qualified name the controller must spell, and it is not",
+    "derivable: every handler in that directory is in `namespace settings` except",
+    "SafetyHubHandler, which is declared at global scope and derives from",
+    "settings::SettingsPageUIHandler without joining the namespace. settings_ui.cc",
+    "uses the bare name because it is itself inside `namespace settings`; an",
+    "overlay file is not, so it needs `::SafetyHubHandler`. Getting it wrong is a",
+    "compile error rather than a silent one, but only once -- the gate joins on",
+    "this field so the manifest carries the answer."
+  ],
+  "handlers": {
+    "AboutHandler": {
+      "class": "settings::AboutHandler",
+      "source": "chrome/browser/ui/webui/settings/about_handler.cc",
+      "note": "The version, the channel and the update flow. Astro's About section reads it for the update status it pushes on `update-status-changed`.",
+      "messages": [
+        "aboutPageReady",
+        "applyDeferredUpdateAdvanced",
+        "canChangeChannel",
+        "canChangeFirmware",
+        "checkInternetConnection",
+        "getChannelInfo",
+        "getEndOfLifeInfo",
+        "getFirmwareUpdateCount",
+        "getRegulatoryInfo",
+        "getVersionInfo",
+        "isConsumerAutoUpdateEnabled",
+        "isExtendedUpdatesOptInEligible",
+        "isManagedAutoUpdateEnabled",
+        "launchReleaseNotes",
+        "openDiagnostics",
+        "openExtendedUpdatesDialog",
+        "openFeedbackDialog",
+        "openFirmwareUpdatesPage",
+        "openHelpPage",
+        "openOsHelpPage",
+        "openProductLicenseOther",
+        "promoteUpdater",
+        "recordExtendedUpdatesShown",
+        "refreshTPMFirmwareUpdateStatus",
+        "refreshUpdateStatus",
+        "requestUpdate",
+        "requestUpdateOverCellular",
+        "setChannel",
+        "setConsumerAutoUpdate"
+      ],
+      "events": [
+        "extended-updates-setting-changed",
+        "promotion-state-changed",
+        "tpm-firmware-update-status-changed",
+        "update-status-changed"
+      ]
+    },
+    "AppearanceHandler": {
+      "class": "settings::AppearanceHandler",
+      "source": "chrome/browser/ui/webui/settings/appearance_handler.cc",
+      "note": "The half of Appearance that is the browser rather than a pref: the Customize side panel and the pinned-toolbar set. `openCustomizeChrome` runs IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL on the last active browser.",
+      "messages": [
+        "openCustomizeChrome",
+        "openCustomizeChromeToolbarSection",
+        "pinnedToolbarActionsAreDefault",
+        "resetPinnedToolbarActions",
+        "useDefaultTheme",
+        "useGtkTheme",
+        "useQtTheme"
+      ],
+      "events": []
+    },
+    "BrowserLifetimeHandler": {
+      "class": "settings::BrowserLifetimeHandler",
+      "source": "chrome/browser/ui/webui/settings/browser_lifetime_handler.cc",
+      "note": "Relaunch. The System section's relaunch row is the only caller.",
+      "messages": [
+        "factoryReset",
+        "getRelaunchConfirmationDialogDescription",
+        "relaunch",
+        "restart",
+        "shouldShowRelaunchConfirmationDialog",
+        "signOutAndRestart"
+      ],
+      "events": []
+    },
+    "ClearBrowsingDataHandler": {
+      "class": "settings::ClearBrowsingDataHandler",
+      "source": "chrome/browser/ui/webui/settings/settings_clear_browsing_data_handler.cc",
+      "note": "Browsing-data deletion and the byte counters beside each checkbox. A correctness surface Astro has no reason to own.",
+      "messages": [
+        "clearBrowsingData",
+        "getSyncState",
+        "initializeClearBrowsingData",
+        "restartClearBrowsingDataCounters"
+      ],
+      "events": [
+        "browsing-data-counter-text-update",
+        "update-sync-state"
+      ]
+    },
+    "DefaultBrowserHandler": {
+      "class": "settings::DefaultBrowserHandler",
+      "source": "chrome/browser/ui/webui/settings/settings_default_browser_handler.cc",
+      "note": "Whether Astro is the system default, and asking to become it. There is no pref for this on any platform.",
+      "messages": [
+        "requestDefaultBrowserState",
+        "requestUserValueStringsFeatureState",
+        "setAsDefaultBrowser"
+      ],
+      "events": [
+        "browser-default-state-changed"
+      ]
+    },
+    "DownloadsHandler": {
+      "class": "settings::DownloadsHandler",
+      "source": "chrome/browser/ui/webui/settings/downloads_handler.cc",
+      "note": "The download-folder picker, and whether any auto-open file types are set -- the latter has no allowlisted pref, only this handler's `auto-open-downloads-changed`.",
+      "messages": [
+        "getDownloadLocationText",
+        "initializeDownloads",
+        "resetAutoOpenFileTypes",
+        "selectDownloadLocation"
+      ],
+      "events": [
+        "auto-open-downloads-changed"
+      ]
+    },
+    "ImportDataHandler": {
+      "class": "settings::ImportDataHandler",
+      "source": "chrome/browser/ui/webui/settings/import_data_handler.cc",
+      "note": "Importing bookmarks, history, passwords and search engines from another installed browser, plus the HTML-file path.",
+      "messages": [
+        "importData",
+        "importFromBookmarksFile",
+        "initializeImportDialog"
+      ],
+      "events": [
+        "import-data-status-changed"
+      ]
+    },
+    "ManageProfileHandler": {
+      "class": "settings::ManageProfileHandler",
+      "source": "chrome/browser/ui/webui/settings/settings_manage_profile_handler.cc",
+      "note": "Renaming the local profile. CHECKs that the trimmed name is non-empty, which is why the You and Astro row disables its button rather than sending an empty string.",
+      "messages": [
+        "addProfileShortcut",
+        "getAvailableIcons",
+        "removeProfileShortcut",
+        "requestProfileShortcutStatus",
+        "setProfileIconToDefaultAvatar",
+        "setProfileIconToGaiaAvatar",
+        "setProfileName"
+      ],
+      "events": [
+        "available-icons-changed"
+      ]
+    },
+    "ProfileInfoHandler": {
+      "class": "settings::ProfileInfoHandler",
+      "source": "chrome/browser/ui/webui/settings/profile_info_handler.cc",
+      "note": "The local profile's name and avatar, and the push that follows a rename.",
+      "messages": [
+        "getProfileInfo",
+        "getProfileStatsCount"
+      ],
+      "events": [
+        "profile-info-changed",
+        "profile-stats-count-ready"
+      ]
+    },
+    "ResetSettingsHandler": {
+      "class": "settings::ResetSettingsHandler",
+      "source": "chrome/browser/ui/webui/settings/reset_settings_handler.cc",
+      "note": "Resetting the profile to its defaults, and the list of tampered preference paths the reset banner is built from.",
+      "messages": [
+        "getReportedSettings",
+        "getTamperedPreferencePaths",
+        "getTriggeredResetToolName",
+        "onHideResetProfileBanner",
+        "onHideResetProfileDialog",
+        "onShowResetProfileDialog",
+        "onShowSanitizeDialog",
+        "performResetProfileSettings"
+      ],
+      "events": []
+    },
+    "SafetyHubHandler": {
+      "class": "SafetyHubHandler",
+      "source": "chrome/browser/ui/webui/settings/safety_hub_handler.cc",
+      "note": "Site permissions automatically revoked for disuse, and the version card. The password and Safe Browsing cards it also serves are Google-service surfaces Astro does not render; registering a message costs nothing until something sends it.",
+      "messages": [
+        "acknowledgeRevokedUnusedSitePermissionsList",
+        "allowNotificationPermissionForOrigins",
+        "allowPermissionsAgainForUnusedSite",
+        "blockNotificationPermissionForOrigins",
+        "dismissActiveMenuNotification",
+        "dismissSafetyHubExtensionsMenuNotification",
+        "dismissSafetyHubPasswordMenuNotification",
+        "getNotificationPermissionReview",
+        "getNumberOfExtensionsThatNeedReview",
+        "getPasswordCardData",
+        "getRevokedUnusedSitePermissionsList",
+        "getSafeBrowsingCardData",
+        "getSafetyHubEntryPointData",
+        "getVersionCardData",
+        "ignoreNotificationPermissionReviewForOrigins",
+        "recordSafetyHubInteraction",
+        "recordSafetyHubPageVisit",
+        "resetNotificationPermissionForOrigins",
+        "undoAcknowledgeRevokedUnusedSitePermissionsList",
+        "undoAllowPermissionsAgainForUnusedSite",
+        "undoIgnoreNotificationPermissionReviewForOrigins"
+      ],
+      "events": [
+        "extensions-review-list-maybe-changed",
+        "notification-permission-review-list-maybe-changed",
+        "unused-permission-review-list-maybe-changed"
+      ]
+    },
+    "SearchEnginesHandler": {
+      "class": "settings::SearchEnginesHandler",
+      "source": "chrome/browser/ui/webui/settings/search_engines_handler.cc",
+      "note": "The search-engine list and which one is default. Astro's own defaults are seeded elsewhere; this is the editor.",
+      "messages": [
+        "getSaveGuestChoice",
+        "getSearchEnginesList",
+        "openBrowserSearchSettings",
+        "removeSearchEngine",
+        "searchEngineEditCancelled",
+        "searchEngineEditCompleted",
+        "searchEngineEditStarted",
+        "setDefaultSearchEngine",
+        "setIsActiveSearchEngine",
+        "validateSearchEngineInput"
+      ],
+      "events": [
+        "search-engines-changed"
+      ]
+    },
+    "SecureDnsHandler": {
+      "class": "settings::SecureDnsHandler",
+      "source": "chrome/browser/ui/webui/settings/settings_secure_dns_handler.cc",
+      "note": "The DoH resolver list and the current secure-DNS mode, which is a generated pref pair no settingsPrivate key exposes.",
+      "messages": [
+        "getSecureDnsResolverList",
+        "getSecureDnsSetting",
+        "isValidConfig",
+        "probeConfig"
+      ],
+      "events": [
+        "secure-dns-setting-changed"
+      ]
+    },
+    "SiteSettingsHandler": {
+      "class": "settings::SiteSettingsHandler",
+      "source": "chrome/browser/ui/webui/settings/site_settings_handler.cc",
+      "note": "Per-site permissions. Astro reads only the per-category DEFAULT today; the rest of its surface arrives with the exceptions lists.",
+      "messages": [
+        "clearPartitionedUsage",
+        "clearSiteGroupDataAndCookies",
+        "clearUnpartitionedUsage",
+        "fetchBlockAutoplayStatus",
+        "fetchUsageTotal",
+        "fetchZoomLevels",
+        "getAllSites",
+        "getCategoryList",
+        "getChooserExceptionList",
+        "getDefaultValueForContentType",
+        "getExceptionList",
+        "getFileSystemGrants",
+        "getFormattedBytes",
+        "getNumCookiesString",
+        "getOriginPermissions",
+        "getRecentSitePermissions",
+        "getRwsMembershipLabel",
+        "getStorageAccessExceptionList",
+        "getSystemDeniedPermissions",
+        "isOriginValid",
+        "isPatternValidForType",
+        "openSystemPermissionSettings",
+        "recordAction",
+        "removeZoomLevel",
+        "resetCategoryPermissionForPattern",
+        "resetChooserExceptionForSite",
+        "revokeFileSystemGrant",
+        "revokeFileSystemGrants",
+        "setBlockAutoplayEnabled",
+        "setCategoryPermissionForPattern",
+        "setDefaultValueForContentType",
+        "setOriginPermissions",
+        "updateIncognitoStatus"
+      ],
+      "events": [
+        "contentSettingCategoryChanged",
+        "contentSettingChooserPermissionChanged",
+        "contentSettingSitePermissionChanged",
+        "notification-permission-review-list-maybe-changed",
+        "onBlockAutoplayStatusChanged",
+        "onIncognitoStatusChanged",
+        "onStorageListFetched",
+        "onZoomLevelsChanged",
+        "osGlobalPermissionChanged",
+        "usage-total-changed"
+      ]
+    },
+    "StartupPagesHandler": {
+      "class": "settings::StartupPagesHandler",
+      "source": "chrome/browser/ui/webui/settings/settings_startup_pages_handler.cc",
+      "note": "The on-startup page list, which is a table model in the browser rather than a pref the page can edit.",
+      "messages": [
+        "addStartupPage",
+        "editStartupPage",
+        "onStartupPrefsPageLoad",
+        "removeStartupPage",
+        "setStartupPagesToCurrentPages"
+      ],
+      "events": [
+        "update-startup-pages"
+      ]
+    },
+    "SystemHandler": {
+      "class": "settings::SystemHandler",
+      "source": "chrome/browser/ui/webui/settings/system_handler.cc",
+      "note": "One message: hand the user to the desktop environment's own proxy settings. There has never been an in-browser proxy editor on Linux.",
+      "messages": [
+        "showProxySettings"
+      ],
+      "events": []
+    }
+  }
+}

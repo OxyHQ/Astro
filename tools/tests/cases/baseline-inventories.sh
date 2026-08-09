@@ -19,7 +19,7 @@ tmp="$(harness::tmpdir)"
 
 harness::run python3 "$BASELINE/inventory_patches.py" --verify
 harness::assert_status 0 "patch inventory over the real patch stack"
-# 65 files, but the series numbers them to 069, and four numbers are unused:
+# 66 files, but the series numbers them to 070, and four numbers are unused:
 # 007 and 035 were 0 bytes and were removed from the stack — an empty file is
 # not a patch, `git apply` rejects it outright — 012 was retired by 060, and
 # 068 was never written (two agents were landing patches at once, so 069 was
@@ -31,8 +31,8 @@ harness::assert_status 0 "patch inventory over the real patch stack"
 # to notice a patch that arrived without a disposition — so a new patch is
 # meant to fail here once, deliberately, and be counted in by hand. It did
 # exactly that for 067, whose commit updated the generated baseline but not
-# this line, and this run counts in both 067 and 069.
-harness::assert_output_contains "astro 65" "every Astro patch is covered"
+# this line, then again for 070; this run counts in 067, 069 and 070.
+harness::assert_output_contains "astro 66" "every Astro patch is covered"
 harness::assert_output_contains "ungoogled 112" "every inherited patch is covered"
 
 harness::run python3 "$BASELINE/inventory_patches.py" --json "$tmp/patches.json"

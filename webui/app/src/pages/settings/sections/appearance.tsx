@@ -150,6 +150,27 @@ export function AppearanceSection() {
         </SectionCard>
       </ControlAnchor>
 
+      {/* The rest of "appearance" is the browser's own, and it is not a page:
+          Chromium keeps the New Tab background and the toolbar composition in
+          the Customize side panel, and `openCustomizeChrome` (AppearanceHandler)
+          is upstream's own way in -- `chrome::ExecuteCommand(browser,
+          IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL)` on the last active browser.
+
+          The panel decides for itself how much of that to show. Opened from a
+          tab that is not the New Tab page, `ShouldEnableEditTheme`
+          (side_panel_controller_views.cc) is false and the wallpaper and
+          "change theme" controls are withheld, leaving the colour picker;
+          upstream behaves identically from its own settings page. The sublabel
+          says so rather than letting a user conclude the panel is broken. */}
+      <RowGroup title="settings.appearance.group.customize">
+        <ActionRow
+          label="settings.appearance.customize"
+          sublabel="settings.appearance.customize.sublabel"
+          actionLabel="settings.appearance.customize.action"
+          onPress={() => send('openCustomizeChrome')}
+        />
+      </RowGroup>
+
       <RowGroup title="settings.appearance.group.homeButton">
         <ToggleRow prefKey="browser.show_home_button" label="settings.appearance.homeButton" />
         <ToggleRow
