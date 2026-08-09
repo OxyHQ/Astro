@@ -151,11 +151,30 @@ signal to stop and report it on the issue.
   `patch-dispositions.json` are the files two waves reach for simultaneously —
   all three have carried another agent's uncommitted hunks mid-session. A
   commit built from `HEAD` plus explicit blobs (a temporary index) is the
-  robust form; `git add -A` is never correct here. What is NOT a hazard,
-  because it was claimed and then tested on four staged shapes including
-  deletions: `git commit --dry-run -- <paths>` does not disturb the index. The
-  report that it did was a staged deletion being consumed by its own author's
-  commit, which git then rendered as a rename.
+  robust form; `git add -A` is never correct here.
+- **`git commit --dry-run -- <paths>` does not disturb the index — but read
+  the exit status before believing a test that says so.** It was claimed as a
+  hazard, and the first round of testing could not have caught it either way:
+  every shape staged files the pathspec did NOT match, so git printed "no
+  changes added to commit" and exited 1 before it ever built the
+  partial-commit tree. A check whose machinery never runs cannot fail. The
+  case that carries the verdict stages files both inside and outside the
+  pathspec, exits 0, and still leaves every index entry intact.
+
+  What makes anyone believe otherwise is the DISPLAY, not the index.
+  `--dry-run --short` renders out-of-pathspec staged entries as though they
+  were not staged, with the real index unchanged either side of it:
+
+      real index:    M mine.txt   D oldfile.txt   A theirnew.txt   M theirs.txt
+      dry run shows: M  mine.txt
+                     D  oldfile.txt
+                      M theirs.txt      <- staged, shown as unstaged
+                     ?? theirnew.txt    <- staged, shown as untracked
+
+  On screen that is indistinguishable from somebody having reset the index.
+  Trust `git diff --cached`; never a dry run's own status output. What had
+  actually emptied the index was another agent's commits landing first and
+  consuming their own entries, which git then rendered as a rename.
 - **Every agent commits as the same git user, so `git log` cannot tell you
   whose work something is — and adjacency in time is not evidence.** Six
   attributions were made wrongly in one session, in both directions: an
