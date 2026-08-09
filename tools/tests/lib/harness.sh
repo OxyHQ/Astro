@@ -607,12 +607,27 @@ harness::make_build_root() {
         printf '<!doctype html><title>%s</title>\n' "$page" > "$root/webui/$page/dist/index.html"
     done
 
-    # gn and autoninja must RESOLVE — build.sh requires them — but must never
-    # run during a dry run, so they announce themselves and fail loudly.
+    # The Astro WebUI app. Unlike the pages above it is an input the BUILD
+    # consumes rather than one this script stages: a GN action runs Vite in it
+    # and packs the result into a .pak. So the fixture provides what build.sh
+    # checks — the source directory, the committed resource manifest, and the
+    # installed dependencies the offline GN action cannot install for itself.
+    mkdir -p "$root/webui/app/node_modules"
+    printf '{"name":"astro-webui-app","private":true}\n' > "$root/webui/app/package.json"
+    printf '{"builds":{"app":{"out_dir":"dist/app","entry":"index.html","files":["index.html"]}}}\n' \
+        > "$root/webui/app/manifest.json"
+
+    # gn, autoninja and bun must RESOLVE — build.sh requires all three — but
+    # none of them may run during a dry run, so they announce themselves and
+    # fail loudly. bun lives here rather than being taken from the machine so
+    # the build cases measure build.sh on a runner without it installed; the
+    # build-safety workflow is one.
     printf '#!/usr/bin/env bash\necho "gn was executed during a dry run" >&2\nexit 99\n' \
         > "$root/depot_tools/gn"
     cp "$root/depot_tools/gn" "$root/depot_tools/autoninja"
-    chmod +x "$root/depot_tools/gn" "$root/depot_tools/autoninja"
+    printf '#!/usr/bin/env bash\necho "bun was executed during a dry run" >&2\nexit 99\n' \
+        > "$root/depot_tools/bun"
+    chmod +x "$root/depot_tools/gn" "$root/depot_tools/autoninja" "$root/depot_tools/bun"
 }
 
 # --------------------------------------------------------------------------

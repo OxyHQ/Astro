@@ -1,6 +1,8 @@
 # Copyright 2026 Oxy. All rights reserved.
 # Use of this source code is governed by a BSD-style license.
 
+import("webui/astro_webui.gni")
+
 # Core Oxy services (auth, tokens, cookies) — NO dependency on //chrome/browser/ui.
 source_set("oxy") {
   sources = [
@@ -106,6 +108,18 @@ source_set("webui_controllers") {
 
   ]
 
+  # The only code in Astro that serves a WebUI page off the filesystem, and it
+  # is not compiled at all unless a build asks for it. A release binary
+  # therefore contains neither the switch name nor the reader — which is
+  # checkable with `grep`, and is checked: see
+  # tools/tests/cases/webui-assets-come-from-the-pak.sh.
+  if (astro_webui_dev_tools) {
+    sources += [
+      "webui/astro_webui_dev_source.cc",
+      "webui/astro_webui_dev_source.h",
+    ]
+  }
+
   public_deps = [
     # public_deps rather than deps: the mojom's generated headers appear in
     # this target's own public headers, so every dependent needs them too.
@@ -115,6 +129,12 @@ source_set("webui_controllers") {
   deps = [
     ":oxy",
     ":theming",
+
+    # The Astro WebUI app's .pak and the resource map astro_webui_page.cc
+    # serves from, and the flag deciding whether the disk-serving developer
+    # override is compiled in at all.
+    "webui:buildflags",
+    "webui:resources",
     "//base",
     "//chrome/browser/profiles",
     "//chrome/browser:shell_integration",

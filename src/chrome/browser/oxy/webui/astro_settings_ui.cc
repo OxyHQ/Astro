@@ -13,6 +13,8 @@
 #include "chrome/browser/ui/webui/settings/search_engines_handler.h"
 #include "chrome/browser/ui/webui/settings/settings_clear_browsing_data_handler.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/astro_webui_resources.h"
+#include "chrome/grit/astro_webui_resources_map.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/common/url_constants.h"
 
@@ -20,18 +22,19 @@ namespace astro {
 
 namespace {
 
-// The assets directory tools/build.sh stages this page's bundle into. Read by
-// ServeAstroWebUIResource until issue #16 moves the bundle into a .pak; the
-// two spellings agreeing is a contract with the build and nothing but
-// agreement enforces it.
-constexpr char kSettingsResourceDirectory[] = "astro-settings";
-
 const WebUIPage& SettingsPage() {
   // The host is upstream's constant, not a literal, and not a host of Astro's
   // own — see the class comment in the header for why the grant depends on it.
   static const WebUIPage kPage{
       .host = chrome::kChromeUISettingsHost,
-      .resource_directory = kSettingsResourceDirectory,
+
+      // The whole Astro WebUI app, compiled into astro_webui_resources.pak by
+      // //chrome/browser/oxy/webui:resources. Every Astro surface is one
+      // multi-entry Vite build, so every page serves the same resource set and
+      // routes to its own entry from the document.
+      .resources = kAstroWebuiResources,
+      .default_resource = IDR_ASTRO_WEBUI_INDEX_HTML,
+
       .csp =
           {
               // script-src is left at Chromium's default for trusted WebUI

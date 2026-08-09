@@ -496,6 +496,12 @@
       "effect": "build-only",
       "purpose": "Declares the build inputs and outputs gnrt cannot discover by walking a crate's source directory, for three crates the adblock engine pulls in: cssparser's #[path] build-script module and its generated tokenizer.rs, rmp's README reached by #![doc = include_str!], and selectors' generated phf set. Same declarations upstream already makes for clap, image, prost, typed-path and read-fonts; the whole 103-crate closure was scanned for the four shapes rather than found one round trip at a time.",
       "replacement_issue": 7
+    },
+    "067-astro-webui-pak-repack.patch": {
+      "disposition": "replace",
+      "effect": "build-only",
+      "purpose": "Puts astro_webui_resources.pak into chrome's repack list and reserves its fake start id in resource_ids.spec, which is what makes the resources the Astro WebUI app is compiled into reachable at runtime. Without it the grit target still builds a .pak, nothing loads it, and every astro:// page resolves its resource ids to nothing — a blank page with no error, the exact failure the disk-served settings surface was deleted for. Both files are upstream's and churn every roll, so a two-hunk patch is the reviewable form; a whole-file overlay copy of either is defect #7's shape.",
+      "replacement_issue": 14
     }
   }
 }

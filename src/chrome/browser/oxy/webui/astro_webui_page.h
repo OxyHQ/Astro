@@ -7,7 +7,9 @@
 #include <string>
 #include <string_view>
 
+#include "base/containers/span.h"
 #include "content/public/browser/web_ui_controller.h"
+#include "ui/base/webui/resource_path.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 
 namespace content {
@@ -45,9 +47,19 @@ struct WebUIPage {
   // WebUIConfigMap CHECKs for duplicates, so both belong in one place each.
   std::string_view host;
 
-  // Directory holding this page's built assets. See ServeAstroWebUIResource
-  // for what it is relative to and why that is temporary.
-  std::string_view resource_directory;
+  // The page's assets, as GRIT compiled them into astro_webui_resources.pak.
+  //
+  // This is the whole of how an Astro page finds its bundle. There is no path
+  // on disk, no directory beside the executable and no filesystem read: the
+  // resources are inside the binary's resource bundle, which is what gives
+  // them Chromium's own integrity, compression and load-order guarantees. A
+  // resource named here that GRIT did not compile is a LINK error, not a blank
+  // page discovered by a user.
+  base::span<const webui::ResourcePath> resources;
+
+  // The resource served for any request the map above does not answer, which
+  // is what makes a client-side route like astro://settings/privacy work.
+  int default_resource = 0;
 
   WebUIPageCsp csp;
 };

@@ -1,0 +1,26 @@
+# Copyright 2026 Oxy. All rights reserved.
+# Use of this source code is governed by a BSD-style license.
+
+declare_args() {
+  # Absolute path to the Vite app at `webui/app` in the Astro repository.
+  #
+  # Empty means "derive it": the action script walks up from its own location
+  # in the Chromium checkout to <astro repo>/webui/app, which is the layout
+  # tools/sync-sources.sh produces. Set this only when the Chromium checkout
+  # is somewhere other than <astro repo>/chromium/src, and set it to an
+  # absolute path — GN cannot express a path above the source root, which is
+  # the whole reason this argument exists.
+  astro_webui_app_dir = ""
+
+  # Compiles in the `--astro-webui-dir` command-line switch, which serves the
+  # Astro WebUI pages from a directory on disk instead of from the .pak.
+  #
+  # Off by default and off in every committed release configuration. A release
+  # binary must contain no path that reads WebUI assets off the filesystem:
+  # the last one shipped a settings page that rendered blank, with no error, on
+  # any machine where the directory beside the executable was missing.
+  #
+  # Turn it on in a local args file or in gn_args/linux_debug.gn, never in
+  # gn_args/linux.gn.
+  astro_webui_dev_tools = false
+}
