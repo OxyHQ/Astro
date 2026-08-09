@@ -41,7 +41,7 @@ GN_ARGS_OVERRIDE=""
 # astro_webui_resources.pak by a GN action, so the build produces it rather than
 # consuming it; what this script checks for the app is the one thing that action
 # cannot do for itself, below.
-REQUIRED_WEBUI_PAGES=(ntp alia whats-new)
+REQUIRED_WEBUI_PAGES=(alia whats-new)
 
 # The Vite app every astro:// surface is served from.
 ASTRO_WEBUI_APP_DIR_NAME="webui/app"

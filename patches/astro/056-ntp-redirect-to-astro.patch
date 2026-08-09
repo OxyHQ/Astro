@@ -17,7 +17,7 @@ diff --git a/chrome/browser/search/search.cc b/chrome/browser/search/search.cc
 -    const GURL local_url(default_is_google
 -                             ? chrome::kChromeUINewTabPageURL
 -                             : chrome::kChromeUINewTabPageThirdPartyURL);
-+    const GURL local_url(std::string("chrome://") + oxy::kAstroNtpHost + "/");
++    const GURL local_url(std::string("chrome://") + astro::kAstroNtpHost + "/");
  #endif
      return NewTabURLDetails(local_url, NEW_TAB_URL_VALID);
    }
@@ -28,7 +28,7 @@ diff --git a/chrome/browser/search/search.cc b/chrome/browser/search/search.cc
 +  // Recognize chrome://astro-ntp as an NTP URL so the URL bar shows
 +  // chrome://newtab (displayed as astro://newtab via scheme alias).
 +  if (MatchesOrigin(url, GURL(std::string("chrome://") +
-+                              oxy::kAstroNtpHost))) {
++                              astro::kAstroNtpHost))) {
 +    return true;
 +  }
    if (MatchesOrigin(url, GURL(chrome::kChromeUINewTabPageURL))) {

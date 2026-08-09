@@ -53,7 +53,7 @@ run_build
 
 harness::assert_status 0 "dry run with every required input present"
 harness::assert_output_contains "Syncing the Astro overlay" "the overlay sync is a required step"
-harness::assert_output_contains "all 3 bundles present" "webui bundle check ran"
+harness::assert_output_contains "all 2 bundles present" "webui bundle check ran"
 harness::assert_output_contains "gn gen" "planned generation"
 harness::assert_output_contains "gn check" "gn check is a required step"
 harness::assert_output_lacks "gn was executed during a dry run" "dry run must not invoke gn"
@@ -77,14 +77,14 @@ printf '<!doctype html>\n' > "$fake_root/webui/whats-new/dist/index.html"
 
 # --- A bundle directory without index.html is equally fatal -----------------
 
-rm -f "$fake_root/webui/ntp/dist/index.html"
+rm -f "$fake_root/webui/alia/dist/index.html"
 
 run_build
 
 harness::assert_nonzero_status "WebUI bundle without index.html"
 harness::assert_output_contains "no index.html" "refusal reason"
 
-printf '<!doctype html>\n' > "$fake_root/webui/ntp/dist/index.html"
+printf '<!doctype html>\n' > "$fake_root/webui/alia/dist/index.html"
 
 # --- The Astro WebUI app's dependencies are a build precondition ------------
 #

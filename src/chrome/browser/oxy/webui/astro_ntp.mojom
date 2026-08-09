@@ -1,0 +1,189 @@
+// Copyright 2026 Oxy. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+
+// The new tab page's data plane.
+//
+// One narrow interface per domain, and this is the new tab page's. It carries
+// what the page shows and what the page can change about itself — nothing
+// else. The theme is NOT here: it is astro_theme.mojom, read-only, bound by
+// every Astro page, so the new tab page re-colours from the same source as
+// settings and the native toolbar.
+//
+// There is deliberately no generic pref accessor. The page names a decision
+// ("hide the clock", "reorder the widgets", "search for this"), never a pref
+// path and a value — so the set of things the new tab page can reach is the
+// set someone wrote down here, and every write has somewhere to be validated.
+// The surface it replaces was six `chrome.send` messages, a `data-ntp-prefs`
+// attribute injected into the document, and three localStorage keys the
+// browser could neither see nor police.
+//
+// URLs are STRINGS in both directions, which is not the reflex choice — the
+// reflex is `url.mojom.Url`, whose typemap hands C++ a parsed GURL. Two
+// reasons not to, one per direction. Page -> browser, a page sending an
+// unparseable URL has to get an answer saying so, and a typemapped GURL
+// instead fails deserialization and kills the renderer for what is really a
+// validation result. Browser -> page, importing another mojom makes the
+// generated bundle import `//resources/mojo/url/mojom/url.mojom-webui.js` at
+// runtime, so the new tab page would stop loading altogether if that resource
+// were ever absent from webui_resources.pak — a whole failure mode bought for
+// a parse the page does not perform.
+//
+// Nothing is lost by it: every URL leaving the browser here is the `spec()` of
+// a GURL this handler already validated, and everything arriving is parsed and
+// checked before it is stored. The validation is explicit rather than implied
+// by a type, and it is in one place.
+
+module astro.ntp.mojom;
+
+// The widgets the grid can lay out.
+//
+// An enum rather than a string id because the browser stores the order and the
+// visibility, so an unknown widget has to be a compile error on one side or a
+// dropped value on the other — never a pref that quietly accumulates names
+// nothing renders.
+enum WidgetId {
+  kWeather = 0,
+  kClock = 1,
+  kQuickLinks = 2,
+  kNotes = 3,
+  kDiscover = 4,
+  kAlia = 5,
+  kSites = 6,
+};
+
+// One widget, in the order the array carries it.
+//
+// Order and visibility travel together because they are one arrangement: a
+// page that received them separately would render a frame of the old order
+// with the new visibility every time either changed.
+struct Widget {
+  WidgetId id;
+  bool visible;
+};
+
+// A link the user put there. Distinct from a Tile, which the browser derived.
+struct QuickLink {
+  string title;
+  string url;
+};
+
+// A most-visited site, from Chromium's own top-sites infrastructure.
+//
+// Never editable from the page: these are derived from browsing history, and
+// the way to change them is to visit somewhere else. What the user curates is
+// QuickLink.
+struct Tile {
+  string title;
+  string url;
+};
+
+// A search engine the profile has configured.
+//
+// The list is the browser's — TemplateURLService's — never a table in the
+// page. A hard-coded list is how a de-Googled browser ends up offering an
+// engine the user removed, or missing the one they added.
+struct SearchEngine {
+  // TemplateURLID. 64-bit, and kept 64-bit: settings narrows it to `int` on
+  // its way through base::Value, which this interface has no reason to repeat.
+  int64 id;
+  string name;
+  string keyword;
+  bool is_default;
+
+  // Whether the browser would accept being asked to use this one.
+  //
+  // NOT `TemplateURLService::CanMakeDefault` as sent: that returns false for
+  // the engine that already IS the default, since there is nothing to make.
+  // Sending it raw made the page report every browser as policy-managed —
+  // there is always a default, and it always answered false. What the page
+  // needs is whether the control works, so the current default answers true
+  // and only a policy-pinned or extension-controlled provider answers false.
+  bool selectable;
+};
+
+// Everything the page needs to draw its first frame, in one round trip.
+//
+// Top sites are NOT in here. They arrive from an asynchronous observer that
+// may answer after the first paint, so pretending they are part of the initial
+// state would mean either blocking the page on history or reporting an empty
+// list as though it were the answer.
+struct NewTabState {
+  array<Widget> widgets;
+  array<QuickLink> quick_links;
+  string notes;
+  uint32 blocked_count;
+  array<SearchEngine> search_engines;
+};
+
+// The browser pushing a change the page did not make.
+//
+// Every one of these can fire for a reason outside this page — another window,
+// a policy, the ad blocker cancelling a request on a different tab — which is
+// why the page renders from the echo rather than from its own optimistic
+// guess.
+interface Page {
+  OnWidgetsChanged(array<Widget> widgets);
+  OnQuickLinksChanged(array<QuickLink> links);
+  OnNotesChanged(string notes);
+  OnBlockedCountChanged(uint32 count);
+  OnTopSitesChanged(array<Tile> tiles);
+  OnSearchEnginesChanged(array<SearchEngine> engines);
+};
+
+interface PageHandler {
+  // The initial state. Called once, before the first paint.
+  GetState() => (NewTabState state);
+
+  // Show or hide one widget. Fire-and-forget: every value is valid, and the
+  // echo on Page::OnWidgetsChanged is the confirmation.
+  SetWidgetVisible(WidgetId id, bool visible);
+
+  // Reorder the grid. The browser normalises what it is given — duplicates
+  // dropped, absent widgets appended in their canonical order — so a page
+  // built against a different widget set cannot corrupt the stored order.
+  SetWidgetOrder(array<WidgetId> order);
+
+  // A link the user typed. `accepted` false means nothing was stored: the URL
+  // did not parse, named a scheme the new tab page will not link to, exceeded
+  // the length bound, or the list is full. Deliberately not a silent
+  // correction — a page that showed a link the browser had rewritten would be
+  // showing something the user did not ask for.
+  AddQuickLink(string title, string url) => (bool accepted);
+  UpdateQuickLink(uint32 index, string title, string url) => (bool accepted);
+  RemoveQuickLink(uint32 index);
+
+  // The note. Stored in the profile, so it survives a reload and is the same
+  // note in every window — which the localStorage it replaces was not, since
+  // each WebUI host is its own origin.
+  SetNotes(string notes);
+
+  // Make this the profile's default search provider. `accepted` false means
+  // the id is not one this profile has, or policy pins the default.
+  //
+  // This changes the BROWSER's default, not a new-tab-only preference. The
+  // page it replaces kept its own engine choice, so searching from the new tab
+  // page and searching from the omnibox used different engines and neither
+  // said so.
+  SetDefaultSearchEngine(int64 id) => (bool accepted);
+
+  // Run a search in this tab with the configured default provider.
+  //
+  // The browser builds the URL from the TemplateURL, so no search endpoint is
+  // ever spelled in the page — which is what stops the new tab page from being
+  // the one place a de-Googled browser still hard-codes a search engine.
+  SearchWithDefaultEngine(string query);
+
+  // Open a side panel of this window.
+  //
+  // Two named methods rather than one `ShowSidePanel(id)`, for the same reason
+  // there is no SetPref: an id parameter makes every panel the browser has
+  // reachable from the new tab page, including ones whose entry it should not
+  // be able to conjure. Two methods are two decisions someone made.
+  OpenCustomizeChrome();
+  OpenAliaSidePanel();
+};
+
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};

@@ -39,6 +39,44 @@ inline constexpr char kDefaultThemePreset[] = "oxy";
 // policy-manageable. A second pref would be a second source of truth for the
 // same fact.
 
+// -- New tab page ----------------------------------------------------------
+//
+// Everything the new tab page remembers. It reaches all of it through
+// astro_ntp.mojom, which names a decision rather than a pref path, so unlike
+// the theme preset above these are spelled in TWO places rather than three —
+// here, and the registration in patches/astro/020-register-oxy-prefs.patch.
+// The page has no third spelling to drift from because it never sees one.
+// tools/tests/cases/ntp-pref-ids-match-the-registration.sh is what keeps the
+// two that remain in agreement; a pref path is still a string on both sides of
+// a patch boundary, and PrefService returns the type's empty value rather than
+// failing for a path nobody registered.
+
+// Per-widget visibility. One boolean each rather than one dictionary: a
+// dictionary pref has no per-key default, so a profile written by a build with
+// six widgets would report the seventh as absent rather than as shown.
+inline constexpr char kNtpShowWeather[] = "astro.ntp_show_weather";
+inline constexpr char kNtpShowClock[] = "astro.ntp_show_clock";
+inline constexpr char kNtpShowQuickLinks[] = "astro.ntp_show_quick_links";
+inline constexpr char kNtpShowNotes[] = "astro.ntp_show_notes";
+inline constexpr char kNtpShowSites[] = "astro.ntp_show_sites";
+inline constexpr char kNtpShowDiscover[] = "astro.ntp_show_discover";
+inline constexpr char kNtpShowAlia[] = "astro.ntp_show_alia";
+
+// The order of the grid, as a list of the widget ids in astro_ntp.mojom
+// spelled the way WidgetIdToStorageKey spells them. Normalised on every read:
+// an unknown name is dropped and a missing one is appended, so a profile from
+// a build with a different widget set still opens.
+inline constexpr char kNtpWidgetOrder[] = "astro.ntp_widget_order";
+
+// The user's own links, as a list of {title, url} dictionaries. Was
+// localStorage on the page, which meant the browser could not see them, could
+// not validate the URLs it was about to render, and lost them whenever the
+// page's origin was cleared.
+inline constexpr char kNtpQuickLinks[] = "astro.ntp_quick_links";
+
+// The scratch note. Also localStorage before; also invisible to the browser.
+inline constexpr char kNtpNotes[] = "astro.ntp_notes";
+
 }  // namespace astro::prefs
 
 #endif  // CHROME_BROWSER_OXY_ASTRO_PREF_NAMES_H_

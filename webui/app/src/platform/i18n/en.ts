@@ -22,6 +22,9 @@ import {autofillStrings} from '../../pages/settings/sections/autofill.strings.ts
 import {defaultBrowserStrings} from '../../pages/settings/sections/default-browser.strings.ts';
 import {downloadsStrings} from '../../pages/settings/sections/downloads.strings.ts';
 import {languagesStrings} from '../../pages/settings/sections/languages.strings.ts';
+// The new tab page is not a settings section; it is an entry of its own, so
+// its catalogue lives beside its components rather than under sections/.
+import {newTabStrings} from '../../pages/newtab/newtab.strings.ts';
 import {onStartupStrings} from '../../pages/settings/sections/on-startup.strings.ts';
 import {performanceStrings} from '../../pages/settings/sections/performance.strings.ts';
 import {privacyStrings} from '../../pages/settings/sections/privacy.strings.ts';
@@ -82,6 +85,7 @@ export const en = {
   ...defaultBrowserStrings,
   ...downloadsStrings,
   ...languagesStrings,
+  ...newTabStrings,
   ...onStartupStrings,
   ...performanceStrings,
   ...privacyStrings,
