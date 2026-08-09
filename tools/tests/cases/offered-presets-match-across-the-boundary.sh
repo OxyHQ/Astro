@@ -297,11 +297,28 @@ mutate() {
         "$dir/astro_pref_names.h" "$dir/appearance.tsx" "$dir/070.patch"
 }
 
-# A reserved brand read as ungated. This is the regression itself.
-mutate faircoin-ungated astro_color_tokens.h \
-    's|ColorPresetGate::kHandle,         // faircoin|ColorPresetGate::kNone,           // faircoin|'
-harness::assert_status 1 "a gated preset flipped to ungated in the table"
+# NOT tested here: a wrong gate VALUE in the table. Both sides of this
+# comparison read the same table, so flipping `faircoin` to ungated moves both
+# sets together and they still agree — measured, not assumed. That property is
+# drift from Bloom and belongs to color-tokens-are-generated-from-bloom.sh,
+# which asserts the three gates by name in a compiled translation unit; the
+# same flip fails there with "static assertion failed". Writing a mutation here
+# that this case cannot catch would have left a passing assertion certifying
+# nothing.
+
+# The settings page adds a reserved brand of its own. This is the drift the
+# case exists for: one surface widened, nothing else changed.
+mutate tsx-offers-reserved appearance.tsx \
+    "s|\\['oxy', \\.\\.\\.FREE_COLOR_NAMES\\]|['oxy', 'faircoin', ...FREE_COLOR_NAMES]|"
+harness::assert_status 1 "one surface offering a reserved brand the other withholds"
 harness::assert_output_contains "faircoin" "names the preset that would leak"
+
+# The gates go back to being comments. The whole mechanism rests on them being
+# data, so their absence has to be a failure and not an empty comparison.
+mutate gates-are-comments-again astro_color_tokens.h \
+    '/kColorPresetGates = {{/,/^}};/d'
+harness::assert_status 1 "a table with no gate data in it"
+harness::assert_output_contains "kColorPresetGates" "names what went missing"
 
 # The settings page's list written out by hand instead of derived.
 mutate hand-listed-tsx appearance.tsx \
@@ -311,7 +328,7 @@ harness::assert_output_contains "FREE_COLOR_NAMES" "says the palette stopped bei
 
 # The C++ rule stops reading the gates.
 mutate rule-ignores-gates astro_theme_service.h \
-    's|return ColorPresetGateFor(preset) == ColorPresetGate::kNone ||return (preset == preset) ||'
+    's#ColorPresetGateFor(preset) == ColorPresetGate::kNone#true#'
 harness::assert_status 1 "a rule that no longer reads the gate table"
 harness::assert_output_contains "ColorPresetGateFor" "names what the rule stopped doing"
 
