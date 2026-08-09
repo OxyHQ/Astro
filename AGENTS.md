@@ -146,14 +146,39 @@ signal to stop and report it on the issue.
     `worktree: clean` into the permanent record of what a build was made
     from, and `fetch-cross-deps.sh`, whose `find -maxdepth 4` also missed 62
     of the 260 submodules it claims to reset.
-- **A patch applied by hand is invisible to the guards.** They attribute dirty
-  paths from `build/reports/patch-report.json`, which only
-  `tools/apply-patches.sh` writes. Apply a patch with `git apply` — the
-  sanctioned way to test one — and the report keeps describing the previous
-  run, so `sync-overlay.sh` later refuses the tree and names files that Astro's
-  own patches wrote. Measured 2026-08-09 with the report at
-  `applied_count: 168` against a tree carrying 176. The cure is a real
-  pipeline run, not an override.
+- **A patch applied by hand, or written since the last full run, is invisible
+  to the guards.** `astro::unattributable_paths` attributes a dirty path from
+  the overlay allowlist, the pruning declaration, or a MANIFEST an earlier
+  pipeline step emitted — and the manifest `sync-overlay.sh` passes is
+  `build/reports/patch-report.json`, which only `tools/apply-patches.sh`
+  writes. Any patch the report predates therefore has its own legitimate
+  output reported as "modified path(s) Astro did not write". The cure is a
+  real pipeline run, not an override.
+
+  **Do not read this entry for a pair of numbers — read it for the
+  discriminator.** It used to say `applied_count: 168` against a tree carrying
+  176, and by 2026-08-09 the report read 177 against a series of 178, so two
+  agents in one evening hit exactly this and neither recognised the entry as
+  describing them; both reached for `ASTRO_ALLOW_DIRTY_CHROMIUM=1`. The
+  discriminator does not go stale: compare the patch NAMES the report records
+  against `patches/astro/series`. On that day the report's highest Astro entry
+  was `067` while the series carried `069` and `070`, and the one path the
+  guard named was patch 070's own output — provable in one command,
+  `git apply --check -R patches/astro/070-*.patch` against the tree.
+
+  **What this cost, which is the reason it is worth this many words.** A
+  genuinely foreign 113 KB file — `chrome/browser/resources/
+  new_tab_page_third_party/new_tab_page_third_party.html`, left by the deleted
+  `webui/ntp/merge-for-chromium.ts` — sat in the shared checkout across
+  multiple sessions with this guard pointing straight at it, waved through
+  every time alongside the false positive. It then went into a user's binary,
+  because `tools/install-local.sh` recompiles and its log shows
+  `new_tab_page_third_party:preprocess_static_files` and
+  `chrome:packed_resources_extra` re-running: the file carried `wttr.in` and
+  `source.unsplash.com`, two hosts `docs/astro-next/policy/endpoints.json` had
+  just stopped declaring on the grounds that nothing references them. A gate
+  that cries wolf gets waved through, and the thing it was right about goes
+  through with it.
 - **Every overlay destination is declared** in `tools/overlay.allowlist`. An
   undeclared path, or an undeclared overwrite of an upstream-tracked file,
   fails the sync.
@@ -575,8 +600,9 @@ do not let a build imply they are resolved:
   checks 067 and 069 were each admitted on — a patch that applies against a
   pristine tree can still fail in series, which is the whole reason the replay
   runs the series in order rather than one patch at a time.
-  `build/reports/patch-report.json` is OLDER than that and says so —
-  `applied_count: 168` from the last full run against the real checkout — so
+  `build/reports/patch-report.json` is OLDER than that and says so — it
+  records only what the last full run against the real checkout applied, and
+  its highest Astro entry was `067` when the series already carried `070` — so
   read the replay, not the report, for whether the series applies. Also,
   `docs/astro-next/policy/endpoints.json` declares the non-applying list
   EMPTY, with the replay that emptied it and the three waves of repairs
