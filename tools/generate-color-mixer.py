@@ -77,6 +77,14 @@ HEX_COLOR = re.compile(r"^#(?P<digits>[0-9a-f]{6}(?:[0-9a-f]{2})?)$")
 # Bloom's own extension namespace inside the DTCG document.
 BLOOM_EXTENSION = "so.oxy.bloom"
 
+# Bloom's `ColorPresetGate` union, in the order the generated enumeration
+# declares them after `kNone`. Closed on purpose: an unrecognised gate is
+# refused rather than transcribed, because the two ways of guessing are not
+# symmetric. Treating an unknown gate as "no gate" hands out a preset somebody
+# reserved, silently, and that is the regression Bloom's own file records
+# having shipped once already. Stopping costs a build and a decision.
+GATES = ("handle", "premium")
+
 GUARD = "CHROME_BROWSER_OXY_UI_ASTRO_COLOR_TOKENS_H_"
 
 EXIT_DRIFT = 1
@@ -192,12 +200,21 @@ def read_tokens(tokens_path: Path) -> dict:
                 for name in names
             }
 
+        gate = extension.get("gate")
+        if gate is not None and gate not in GATES:
+            fail(
+                f"color.{preset} is gated on {gate!r}, which is not one of\n"
+                f"      {list(GATES)}. Bloom has added a kind of gate this\n"
+                f"      transcription does not know how to enforce; decide what\n"
+                f"      Astro does with it rather than letting it read as ungated"
+            )
+
         entries.append(
             {
                 "name": preset,
                 "seed": extension.get("seed"),
                 "variant": extension.get("variant"),
-                "gate": extension.get("gate"),
+                "gate": gate,
                 "values": values,
             }
         )
@@ -356,6 +373,46 @@ def emit(model: dict) -> str:
         "kColorPresetNames", "kColorPresetCount", [preset["name"] for preset in presets]
     )
     lines += [""]
+    lines += [
+        "// Who may pick a preset, as Bloom DECLARES it. Bloom only declares:",
+        "// whether a given viewer satisfies a gate is the consuming app's",
+        "// question, since only the app knows who is signed in and what they pay",
+        "// for. Astro's answer is astro::IsColorPresetOffered, in",
+        "// astro_theme_service.h -- that is policy and does not belong in a",
+        "// transcription.",
+        "//",
+        "// This is DATA rather than the comment it used to be. A C++ consumer",
+        "// reading kColorPresetNames had no way to see a gate at all, and the",
+        "// first one to iterate the table offered another organisation's reserved",
+        "// brand colour to everybody. A comment cannot be filtered on.",
+        "enum class ColorPresetGate : size_t {",
+        "  // Nobody is excluded.",
+        "  kNone = 0,",
+        "  // Reserved for the account whose brand it is -- not purchasable.",
+        "  kHandle = 1,",
+        "  // Sold with a subscription.",
+        "  kPremium = 2,",
+        "};",
+        "",
+        "inline constexpr std::array<ColorPresetGate, kColorPresetCount>",
+        "    kColorPresetGates = {{",
+    ]
+    width = max(len(preset["name"]) for preset in presets)
+    for preset in presets:
+        gate = preset.get("gate")
+        symbol = "k" + gate.capitalize() if gate else "kNone"
+        lines.append(
+            f"        ColorPresetGate::{symbol},".ljust(width + 34)
+            + f"// {preset['name']}"
+        )
+    lines += [
+        "}};",
+        "",
+        "constexpr ColorPresetGate ColorPresetGateFor(ColorPreset preset) {",
+        "  return kColorPresetGates[static_cast<size_t>(preset)];",
+        "}",
+        "",
+    ]
     lines += names_block("kColorTokenNames", "kColorTokenCount", tokens)
     lines += [
         "",

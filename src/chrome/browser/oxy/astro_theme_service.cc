@@ -72,10 +72,17 @@ std::string AstroThemeService::GetColorPreset() const {
 }
 
 bool AstroThemeService::SetColorPreset(const std::string& preset) {
-  if (!ColorPresetFromName(preset).has_value()) {
+  const std::optional<ColorPreset> resolved = ColorPresetFromName(preset);
+  if (!resolved.has_value()) {
     LOG(ERROR) << "Astro: refusing to store unknown colour preset '" << preset
                << "'; this build of Bloom ships " << kColorPresetCount
                << " presets and that is not one of them";
+    return false;
+  }
+  if (!IsColorPresetOffered(*resolved)) {
+    LOG(ERROR) << "Astro: refusing to store gated colour preset '" << preset
+               << "'; Bloom reserves it and Astro is not the one who may hand "
+                  "it out";
     return false;
   }
   profile_->GetPrefs()->SetString(prefs::kThemePreset, preset);

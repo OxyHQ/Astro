@@ -256,6 +256,50 @@ harness::assert_output_contains "color.teal.light.background" "names the token"
 harness::assert_output_contains "shape contract" "explains what was violated"
 harness::assert_file_missing "$tmp/still-must-not-exist.h"
 
+# A gate kind this transcription does not know is refused, not transcribed. The
+# alternative is the one that ships a defect: an unrecognised gate read as "no
+# gate" puts a reserved preset in the picker, and the picker looks correct.
+python3 - "$FIXTURE_TOKENS" "$malformed/unknown-gate.json" <<'UNKNOWNGATE'
+import json
+import sys
+
+source, destination = sys.argv[1], sys.argv[2]
+with open(source, encoding="utf-8") as handle:
+    document = json.load(handle)
+document["color"]["teal"]["$extensions"]["so.oxy.bloom"]["gate"] = "enterprise"
+with open(destination, "w", encoding="utf-8") as handle:
+    json.dump(document, handle, indent=2)
+UNKNOWNGATE
+
+harness::run python3 "$GENERATOR" --tokens "$malformed/unknown-gate.json" \
+    --output "$tmp/gate-must-not-exist.h"
+harness::assert_status 2 "a gate kind Bloom did not have when this was written"
+harness::assert_output_contains "enterprise" "names the gate it did not recognise"
+harness::assert_output_contains "ungated" "says which way the guess would have gone"
+harness::assert_file_missing "$tmp/gate-must-not-exist.h"
+
+# --- The gates are DATA, and the table is complete ---------------------------
+#
+# They were C++ comments until a consumer iterated kColorPresetNames and offered
+# every preset in it, reserved brands included. A comment cannot be filtered on,
+# so the emission is asserted here rather than read.
+
+gate_entries="$(grep -cE '^ +ColorPresetGate::k[A-Za-z]+,' "$HEADER")"
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if [ "$gate_entries" -ne "$presets" ]; then
+    harness::fail "the header carries $gate_entries gate entries for $presets presets.
+      A short table indexes out of range or silently mis-attributes a gate."
+fi
+
+# At least one preset must actually be gated. Every consumer's filter is a
+# no-op otherwise, and a no-op filter passes every test written about it.
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if ! grep -qE '^ +ColorPresetGate::k(Handle|Premium),' "$HEADER"; then
+    harness::fail "no preset in the committed header is gated. Bloom gates three;
+      if that has genuinely changed, every gate filter in Astro is now vacuous
+      and this case is the only thing that would have said so."
+fi
+
 # --- Drift is detected, and says how to fix it -------------------------------
 #
 # Mutated in a temp copy: the committed header is never touched by this suite,
@@ -357,6 +401,18 @@ static_assert(astro::ColorTokenValue(astro::ColorPreset::kMono,
 static_assert(astro::ColorPresetFromName("mono") == astro::ColorPreset::kMono);
 static_assert(!astro::ColorPresetFromName("nonesuch").has_value(),
               "an unknown preset name is absent, never a silent default");
+
+// The fixture carries one ungated preset and one gated one, which is the pair
+// a reader has to be able to tell apart. A fixture where every preset sat on
+// the same side of that line would pass whether the gate was transcribed or
+// dropped on the floor.
+static_assert(astro::ColorPresetGateFor(astro::ColorPreset::kTeal) ==
+                  astro::ColorPresetGate::kNone,
+              "an absent gate is kNone");
+static_assert(astro::ColorPresetGateFor(astro::ColorPreset::kMono) ==
+                  astro::ColorPresetGate::kPremium,
+              "a declared gate reaches the table as data");
+static_assert(astro::kColorPresetGates.size() == astro::kColorPresetCount);
 EOF
 
 harness::run "$CXX" -std=c++20 -fsyntax-only -Wall -Wextra \
@@ -379,6 +435,22 @@ harness::run "$CXX" -std=c++20 -fsyntax-only -I "$tmp" -I "$SKIA_STUB" \
     "$tmp/wrong-tu.cc"
 harness::assert_nonzero_status "a translation unit asserting the byte-swapped value"
 harness::assert_output_contains "static assertion" "the compiler rejected it for the stated reason"
+
+# The same, for the gate. This is the regression stated as an assertion: a
+# gated preset reading as ungated is what put a reserved brand in the picker,
+# so the check that would catch it must be shown to fail when it is wrong.
+cat > "$tmp/wrong-gate-tu.cc" <<'EOF'
+#include "fixture_color_tokens.h"
+
+// mono is gated on premium in the fixture. This must NOT compile.
+static_assert(astro::ColorPresetGateFor(astro::ColorPreset::kMono) ==
+              astro::ColorPresetGate::kNone);
+EOF
+
+harness::run "$CXX" -std=c++20 -fsyntax-only -I "$tmp" -I "$SKIA_STUB" \
+    "$tmp/wrong-gate-tu.cc"
+harness::assert_nonzero_status "a translation unit reading a gated preset as ungated"
+harness::assert_output_contains "static assertion" "the compiler rejected it"
 
 # And the compile step must be reading the generated header, rather than passing
 # because the compiler found something else by that name — a quoted include
@@ -411,6 +483,20 @@ static_assert(astro::ColorPresetFromName("oxy").has_value());
 static_assert(astro::ColorTokenValue(astro::ColorPreset::kOxy,
                                      astro::ColorScheme::kDark,
                                      astro::ColorToken::kBackground) != 0u);
+
+// The three gates Bloom declares today, named individually because each one is
+// a different claim and they are not interchangeable. `faircoin` is the one
+// that matters most: it is another organisation's reserved brand, it is the
+// preset the colour picker offered by mistake, and this is the assertion that
+// notices if it ever reads as ungated again.
+static_assert(astro::ColorPresetGateFor(astro::ColorPreset::kFaircoin) ==
+                  astro::ColorPresetGate::kHandle);
+static_assert(astro::ColorPresetGateFor(astro::ColorPreset::kOxy) ==
+                  astro::ColorPresetGate::kHandle);
+static_assert(astro::ColorPresetGateFor(astro::ColorPreset::kMono) ==
+                  astro::ColorPresetGate::kPremium);
+static_assert(astro::ColorPresetGateFor(astro::ColorPreset::kGreen) ==
+                  astro::ColorPresetGate::kNone);
 EOF
 
 harness::run "$CXX" -std=c++20 -fsyntax-only -Wall -Wextra \
