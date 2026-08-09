@@ -257,6 +257,19 @@ signal to stop and report it on the issue.
   `out/`. When two agents have complementary changes, land both sources first
   and build ONCE — a relink here is 20-40 minutes, so serialising two is an
   hour thrown away and racing them is worse.
+- **`pkill -f <your own scratchpad path>` kills other agents' processes.** The
+  scratchpad is per SESSION, not per agent, so several agents share that
+  directory string and a pattern meant to match only your browsers matches
+  theirs. Measured: one agent's cleanup killed another's browser mid-run, and
+  the X window id was then REUSED by a later process — which is how the two of
+  them ended up recording the same window id for different pids, and why a
+  screenshot can be of somebody else's browser. Kill by pid you captured at
+  launch, and resolve a window with `wmctrl -lp` matching that pid exactly,
+  refusing to proceed unless exactly one row matches. `wmctrl -l | grep Astro`
+  and `xdotool search --pid` both misidentify windows here — the latter
+  returned eight windows, from three processes, for a pid that had one.
+  Better still, drive the browser through CDP against a named target: it is
+  focus-independent, so another agent stealing focus cannot corrupt the run.
 - **`git commit --dry-run -- <paths>` does not disturb the index — but read
   the exit status before believing a test that says so.** It was claimed as a
   hazard, and the first round of testing could not have caught it either way:
