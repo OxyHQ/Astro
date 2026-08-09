@@ -40,7 +40,7 @@ larger half of Astro's delta.
 | | |
 |---|---|
 | Overlay files (committed) | 80 |
-| Overlay bytes (committed) | 4,151,307 |
+| Overlay bytes (committed) | 4,151,400 |
 
 Counts and byte sizes are read from committed content, not from the
 working tree. A working tree may carry uncommitted overlay files, or
