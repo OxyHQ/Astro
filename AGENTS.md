@@ -239,6 +239,24 @@ signal to stop and report it on the issue.
   Recovering from it is `git reset --soft HEAD~1` — but check first that HEAD
   is still your commit, or the reset eats whatever landed on top. It restores
   the index exactly as it was, so the other agent's staging survives.
+- **Nobody here can be identified by git, so attribute by mtime, task title and
+  content — never by `git log`.** Every commit on this branch carries the same
+  author, so `--format=%an` separates nothing and any guess built on it lands
+  on whoever was active nearby. Five wrong attributions happened in one
+  session. The two that mattered were not naming quibbles: one nearly took
+  authorship of another agent's unfinished analysis, and one routed "please
+  bump this red gate" to an agent that knew nothing about the change the gate
+  certifies — twice. An uncommitted hunk in a shared file has no queryable
+  owner at all: call it unclaimed and leave it, rather than handing it to a
+  name.
+- **Two builds must not share one output directory, and the dirty-tree
+  override is not what makes that safe.** `ASTRO_ALLOW_DIRTY_CHROMIUM=1` exists
+  so somebody looks at the dirty state and vouches for it; it governs the
+  overlay sync and nothing else. It does not stop a file changing under a
+  running compile, and it does not stop two `ninja` runs interleaving in one
+  `out/`. When two agents have complementary changes, land both sources first
+  and build ONCE — a relink here is 20-40 minutes, so serialising two is an
+  hour thrown away and racing them is worse.
 - **`git commit --dry-run -- <paths>` does not disturb the index — but read
   the exit status before believing a test that says so.** It was claimed as a
   hazard, and the first round of testing could not have caught it either way:
