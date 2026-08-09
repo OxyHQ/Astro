@@ -69,5 +69,9 @@ export const appearanceFixtures: SectionFixtures = {
     // toolbar to reset; answering at all is what proves the call reached a
     // handler instead of falling through to the mock's unknown-message failure.
     resetPinnedToolbarActions: () => undefined,
+    // Likewise fire-and-forget. There is no side panel in the dev browser, so
+    // what this fixture is for is the same thing: the call resolving rather
+    // than hitting the mock's unknown-message failure.
+    openCustomizeChrome: () => undefined,
   },
 };
