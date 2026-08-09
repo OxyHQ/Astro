@@ -142,8 +142,12 @@ assert_checkout_is_clean_enough() {
     # This distinction only showed up against a real checkout: build.sh gates on
     # --verify-only, and a pristine requirement made a correctly patched tree
     # unbuildable.
+    # astro::_dirty_paths rather than git directly: it descends into submodules,
+    # which a plain `git status --porcelain` cannot do in a gclient checkout.
+    # This check answering "clean" over a tree still carrying the last run's
+    # patches is how a reset reached apply-patches and died at ungoogled 12/112.
     local dirty
-    dirty="$(git -C "$dir" status --porcelain --untracked-files=all)"
+    dirty="$(astro::_dirty_paths "$dir")"
     if [ -n "$dirty" ]; then
         local count
         count="$(printf '%s\n' "$dirty" | wc -l | tr -d '[:space:]')"
@@ -178,10 +182,11 @@ assert_checkout_is_clean_enough() {
     # above already honours, so the artifact scan asks the same question rather
     # than keeping a second, narrower answer to it.
     local artifacts
-    artifacts="$(git -C "$dir" status --porcelain --untracked-files=all \
-        | sed -n 's/^?? //p' | grep -E '\.(rej|orig|porig)$')" || true   # astro-allow:suppressed-failure grep finding nothing is the normal case
+    artifacts="$(astro::_untracked_paths "$dir" \
+        | grep -E '\.(rej|orig|porig)$')" || true   # astro-allow:suppressed-failure grep finding nothing is the normal case
     if [ -n "$artifacts" ]; then
         artifacts="$(printf '%s\n' "$artifacts" | astro::unattributable_paths \
+            --declared-absent "$(astro::_declared_absent_list)" \
             "$ASTRO_ROOT/tools/overlay.allowlist" \
             "$ASTRO_REPORT_DIR/patch-report.json" \
             "$ASTRO_REPORT_DIR/overlay-manifest.json" \

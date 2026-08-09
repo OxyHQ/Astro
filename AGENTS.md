@@ -105,21 +105,39 @@ signal to stop and report it on the issue.
 - **Preserve developer work by default.** Mutating scripts refuse a checkout
   carrying changes Astro did not write. `ASTRO_ALLOW_DIRTY_CHROMIUM=1` is a
   developer-only override; CI asserts it is never set.
-- **Every "is the checkout pristine" answer this repository can currently give
-  is blind to submodules.** `gclient` writes `diff.ignoreSubmodules = dirty`
-  into `chromium/src/.git/config`, so `git status --porcelain` prints nothing
-  for a dirty submodule, and both the dirty-checkout guard in
-  `astro-common.sh` and `tools/check-upstream-delta.sh` inherit that blindness
-  — they answer "clean" in unison over a tree that still carries the last
-  run's patches. Ask with `--ignore-submodules=none`. Measured 2026-08-09: a
-  reset that satisfied both checks then died at ungoogled patch 12 of 112 on a
-  `prepopulated_engines.json` that was already patched. The exposure is
-  bounded and known — **13 files in 2 submodules**, `devtools-frontend/src`
-  (12) and `search_engines_data/resources` (1), the same 13 the patch replay
-  reads from DEPS sub-repositories — so a reset must `checkout -- .` inside
-  both. `docs/recovery.mdx` §3 carries the procedure. The guards themselves
-  are not fixed yet: a check that cannot fail for a whole class of content is
-  the shape this repository keeps finding, and this is one.
+- **Never ask git whether a Chromium checkout is clean without descending into
+  submodules.** `gclient` writes `diff.ignoreSubmodules = dirty` into
+  `chromium/src/.git/config`, so a plain `git status --porcelain` prints
+  NOTHING for a submodule carrying modified or untracked content. Measured
+  2026-08-09: a reset that satisfied both the dirty-checkout guard and
+  `tools/check-upstream-delta.sh` then died at ungoogled patch 12 of 112 on a
+  `prepopulated_engines.json` that was already patched — two independent
+  pristine assertions agreeing, both wrong. Both guards now descend, via
+  `tools/lib/dirty_paths.py` and `submodule_scan` in
+  `tools/lib/upstream_delta.py`, and `docs/recovery.mdx` §3 carries the reset
+  procedure. Three things about the fix are worth keeping:
+  - **`--ignore-submodules=none` alone is not enough.** It reports one line
+    per submodule — `third_party/devtools-frontend/src` — and says nothing
+    about which file changed, and no declaration in this repository is
+    written in that vocabulary. Both guards descend to FILE level and re-root
+    onto the superproject, which is why neither carries a list of "submodule
+    paths the series may write": the patch report and `pruning.list` that
+    attribute the other paths attribute these too.
+  - **The numbers grow by more than the patch series suggests.** 13 files in
+    2 submodules are PATCHED (`devtools-frontend/src` 12,
+    `search_engines_data/resources` 1, the same 13 the patch replay reads from
+    DEPS sub-repositories) — but 9,171 of the 12,392 files binary pruning
+    deletes also live inside submodules, across 52 of them. Measured on the
+    built tree: the dirty-path count went 5,804 → 14,988, and the delta gate's
+    deletions 3,220 → 12,391, all still declared. That is why
+    `ASTRO_MAX_MODIFIED_UPSTREAM_PATHS` is 20,000 rather than 6,000.
+  - **Attribution has to read `pruning.list`, not just the report.** Pruning
+    is idempotent, so a file already gone is not recorded again, and a
+    checkout produced before the reset learned about submodules carries 9,147
+    deletions no report claims. Before that input was added the guard refused
+    the tree saying "Astro did not write" about files Astro's own pruning step
+    is what removed. `upstream_delta.py` had always attributed deletions from
+    that declaration; `astro::unattributable_paths` now does too.
 - **A patch applied by hand is invisible to the guards.** They attribute dirty
   paths from `build/reports/patch-report.json`, which only
   `tools/apply-patches.sh` writes. Apply a patch with `git apply` — the

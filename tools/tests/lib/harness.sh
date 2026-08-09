@@ -453,6 +453,42 @@ harness::make_chromium_fixture() {
     git -C "$dir" commit --quiet -m "upstream chromium fixture"
 }
 
+# harness::add_submodule_fixture <superproject> <path> <file> <content>
+#
+# A REAL git submodule inside a fixture checkout, carrying one tracked file.
+#
+# The last line is what makes this fixture worth building rather than faking:
+# gclient writes `diff.ignoreSubmodules = dirty` into chromium/src/.git/config,
+# and with it a plain `git status --porcelain` prints NOTHING over a submodule
+# holding modified content. A fixture without that config would pass a case the
+# real checkout fails, which is the only way this test could be worse than
+# useless.
+#
+# `protocol.file.allow=always` is required because git refuses `file://`
+# submodule transport by default since CVE-2022-39253; the origin here is a
+# throwaway repository in the case's own tmpdir.
+HARNESS_SUBMODULE_ORIGINS=0
+
+harness::add_submodule_fixture() {
+    local superproject="$1" path="$2" file="$3" content="$4"
+    # One origin repository per call, never per submodule path: a case that
+    # builds two fixtures at the same path would otherwise re-init an existing
+    # origin, find nothing to commit, and fail somewhere else entirely.
+    HARNESS_SUBMODULE_ORIGINS=$((HARNESS_SUBMODULE_ORIGINS + 1))
+    local origin="$HARNESS_TMPDIR/submodule-origins/$HARNESS_SUBMODULE_ORIGINS"
+
+    mkdir -p "$origin/$(dirname "$file")"
+    printf '%s\n' "$content" > "$origin/$file"
+    harness::setup_run git -C "$origin" init --quiet
+    harness::setup_run git -C "$origin" add -A
+    harness::setup_run git -C "$origin" commit --quiet -m "submodule fixture"
+
+    harness::setup_run git -C "$superproject" -c protocol.file.allow=always \
+        submodule add --quiet "$origin" "$path"
+    harness::setup_run git -C "$superproject" commit --quiet -m "add submodule $path"
+    harness::setup_run git -C "$superproject" config diff.ignoreSubmodules dirty
+}
+
 # Creates an overlay + matching allowlist mirroring the real repository layout.
 harness::make_overlay_fixture() {
     local dir="$1" allowlist="$2"

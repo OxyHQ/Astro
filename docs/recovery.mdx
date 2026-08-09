@@ -111,15 +111,27 @@ python3 tools/lib/lock.py --get chromium.commit
 git -C chromium/src status --short --ignore-submodules=none
 git -C chromium/src diff --stat
 
-# 4. Discard it, in the superproject AND in the two submodules the series edits.
+# 4. Discard it, in the superproject AND in EVERY submodule. Not just the two
+#    the patch series edits: 52 of them carry deletions from binary pruning.
 git -C chromium/src checkout -- .
 git -C chromium/src clean -fd
-git -C chromium/src/third_party/devtools-frontend/src checkout -- .
-git -C chromium/src/third_party/search_engines_data/resources checkout -- .
+git -C chromium/src submodule foreach --recursive --quiet 'git checkout -- .'
 
-# 5. Confirm it worked, again with submodules visible.
-git -C chromium/src status --porcelain --ignore-submodules=none | wc -l   # expect 0
+# 5. Confirm it worked, with the enumeration the guards themselves use. It
+#    descends to file level, so a leftover names the file rather than the
+#    submodule; `git status --ignore-submodules=none` only ever names the
+#    submodule, and plain `git status` names nothing at all.
+python3 tools/lib/dirty_paths.py chromium/src | wc -l   # expect 0
 ```
+
+`checkout -- .` restores tracked content and nothing else. If step 5 still
+names an untracked path inside a submodule — a `.rej` from a partial
+application is the usual one — remove it by hand; `clean -fd` is deliberately
+not run inside submodules, where there is nothing it is needed for and plenty
+it could take. And if it names a submodule *directory* rather than a file
+inside one, that submodule's HEAD has moved away from the commit the
+superproject records, which content restoration cannot fix:
+`git -C chromium/src submodule update --checkout <path>`.
 
 Step 3 is not optional. `clean -fd` removes untracked files, and a Chromium
 checkout accumulates plenty of them that are expensive to recreate.
@@ -130,9 +142,13 @@ checkout accumulates plenty of them that are expensive to recreate.
 `diff.ignoreSubmodules = dirty` into `chromium/src/.git/config`, so
 `git status --porcelain` omits dirty submodules entirely — it prints zero
 lines over a tree that still carries the last run's patches.
-`tools/check-upstream-delta.sh` inherits the same blindness and reports zero
-undeclared beside it. Two independent "pristine" assertions, both wrong at
-once.
+
+The guards no longer inherit that: the dirty-checkout guard enumerates through
+`tools/lib/dirty_paths.py` and `tools/check-upstream-delta.sh` descends via
+`submodule_scan`, both to file level. A reset that misses a submodule is now
+caught by the next command that touches the checkout, naming the file rather
+than the submodule. What follows is still the way to fix it — and `git status`
+typed by hand is still blind, which is why step 3 spells the flag.
 
 Measured 2026-08-09: a reset that passed both checks then failed
 `apply-patches.sh` at ungoogled patch 12 of 112, because
@@ -143,6 +159,13 @@ already. Cross-referencing every `+++ b/` path in both series against
 **13 files in 2 submodules**: `third_party/devtools-frontend/src` (12) and
 `third_party/search_engines_data/resources` (1) — the same 13 the patch replay
 already reads from DEPS sub-repositories. The replay knows; the reset did not.
+
+Those 13 are the files a PATCH writes. They are not the whole exposure: 9,171
+of the 12,392 files binary pruning deletes also live inside submodules, spread
+across 52 of them, which is why a submodule-aware count of the built tree is
+14,988 changed paths rather than 5,804. The two commands in step 3 restore both
+kinds, because `checkout -- .` inside a submodule is what brings a pruned file
+back.
 
 Also expect a few vendored-crate directories to survive `clean -fd` holding
 nothing but a gitignored `Cargo.lock`. Remove those by hand. Do **not** reach
