@@ -69,6 +69,29 @@ RULES: list[tuple[str, re.Pattern[str], str]] = [
         re.compile(r"2>\s*/dev/null|&>\s*/dev/null|>&\s*/dev/null"),
         "discarded stderr hides the reason a required step failed",
     ),
+    # Scoped to a MACHINE-READ status — one carrying --porcelain, --short or -s
+    # — for two reasons. It is the only form a script parses, so it is the only
+    # form that can silently answer "clean" about a dirty submodule; and a bare
+    # `git status` is what a human runs, where the missing lines are visible.
+    #
+    # The scoping is also what keeps the rule off `git merge-base … ||
+    # status=$?`. Matching on the position of the word `status` cannot: this
+    # scanner strips string literals before matching, so `-C "$REPO"` loses its
+    # argument and `-C merge-base --is-ancestor || status` reads as three
+    # option groups followed by the subcommand. Three lines of
+    # tools/check-merge-base.sh were reported that way before this was scoped.
+    (
+        "blind-git-status",
+        re.compile(
+            r"\bgit\b[^\n]*\bstatus\b"
+            r"(?=[^\n]*(?:--porcelain|--short|\s-s\b))"
+            r"(?![^\n]*--ignore-submodules)"
+        ),
+        "a `git status` that does not spell --ignore-submodules inherits the "
+        "`diff.ignoreSubmodules = dirty` gclient writes into the checkout, and "
+        "then prints nothing at all for a submodule carrying the last run's "
+        "patches; ask through astro::_dirty_paths, or state the value you mean",
+    ),
 ]
 
 # Applies to shell scripts AND to CI workflow files (ASTRO-NEXT-002, issue #5).

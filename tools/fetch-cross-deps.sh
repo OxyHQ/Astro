@@ -120,10 +120,26 @@ astro::require_attributable_chromium \
 git -C "$CHROMIUM_SRC" checkout -- .
 
 # Nested dependency repositories have their own .git and are untouched by the
-# reset above.
+# reset above. Two mechanisms, because neither covers the other.
+#
+# Registered submodules, at any depth. The find below cannot reach all of them:
+# `-maxdepth 4` sees a submodule whose PATH depth is 3 or less, and the checkout
+# has 260 submodules of which 62 sit deeper than that — so the loop silently
+# left them holding the previous run's content while reporting nothing. This
+# says what the comment above already claimed the step did.
+git -C "$CHROMIUM_SRC" submodule foreach --recursive --quiet 'git checkout -- .'
+
+# And nested repositories that are NOT gitlinks — gclient fetches some DEPS
+# entries that .gitmodules does not register, and `submodule foreach` never
+# visits those.
+#
+# --ignore-submodules=none on the probe: each nested repository carries its own
+# copy of gclient's `diff.ignoreSubmodules = dirty` (verified on the real
+# checkout), so without it this asks a question that cannot see a nested
+# submodule's content and skips a repository that needs resetting.
 while IFS= read -r -d '' gitdir; do
     repo_dir="$(dirname "$gitdir")"
-    if [ -n "$(git -C "$repo_dir" status --porcelain)" ]; then
+    if [ -n "$(git -C "$repo_dir" status --porcelain --ignore-submodules=none)" ]; then
         git -C "$repo_dir" checkout -- .
     fi
 done < <(find "$CHROMIUM_SRC" -maxdepth 4 -name ".git" -type d \
