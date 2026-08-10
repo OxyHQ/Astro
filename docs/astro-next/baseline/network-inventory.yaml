@@ -9,11 +9,6 @@ note: >-
   A measured baseline needs a running browser behind a recorder; tools/baseline/capture-network.sh is that harness and it refuses to emit a trace it did not record.
 
 overlay:
-  - host: "api.alia.oxy.so"
-    component: webui
-    substituted_shape: false
-    references:
-      - "src/chrome/browser/oxy/webui/astro_alia_ui.cc"
   - host: "api.oxy.so"
     component: oxy-identity
     substituted_shape: false
@@ -305,6 +300,7 @@ patches:
       - "patches/astro/063-astro-webui-mojo-binders.patch"
       - "patches/astro/067-astro-webui-pak-repack.patch"
       - "patches/astro/070-theme-color-picker-astro-presets.patch"
+      - "patches/astro/071-whats-new-webui-takeover.patch"
       - "patches/ungoogled/core/ungoogled-chromium/disable-gaia.patch"
       - "patches/ungoogled/core/ungoogled-chromium/disable-network-time-tracker.patch"
       - "patches/ungoogled/extra/bromite/fingerprinting-flags-client-rects-and-measuretext.patch"

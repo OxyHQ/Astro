@@ -61,22 +61,22 @@ All Astro C++ lives in a self contained overlay at `src/chrome/browser/oxy/`, th
 
 ## Internal pages
 
-Astro's internal pages are converging on ONE Vite + Tailwind v4 + Bloom application, `webui/app`, with an entry per WebUI host. A GN action builds it and GRIT packs it into `astro_webui_resources.pak`, so those pages are served from inside the binary with Chromium's own resource guarantees rather than read off the disk beside it.
+Astro's internal pages are ONE Vite + Tailwind v4 + Bloom application, `webui/app`, with an entry per WebUI host. A GN action builds it and GRIT packs it into `astro_webui_resources.pak`, so every page is served from inside the binary with Chromium's own resource guarantees. Nothing is read off the disk beside the executable any more.
 
-| Page | Source | Served from | What it does |
-|---|---|---|---|
-| New Tab | [`webui/app/src/pages/newtab/`](webui/app/src/pages/newtab) | the pak | Clock, notes, quick links, most-visited tiles, search, an Alia prompt, and a badge counting what the ad blocker stopped |
-| Settings | [`webui/app/src/pages/settings/`](webui/app/src/pages/settings) | the pak | The browser's settings |
-| Alia | [`webui/alia/`](webui/alia) | a directory beside the executable | The AI side panel |
-| What's New | [`webui/whats-new/`](webui/whats-new) | a directory beside the executable | Release notes |
+| Page | Source | What it does |
+|---|---|---|
+| New Tab | [`webui/app/src/pages/newtab/`](webui/app/src/pages/newtab) | Clock, notes, quick links, most-visited tiles, search, an Alia prompt, and a badge counting what the ad blocker stopped |
+| Settings | [`webui/app/src/pages/settings/`](webui/app/src/pages/settings) | The browser's settings |
+| Alia | [`webui/app/src/pages/alia/`](webui/app/src/pages/alia) | The AI side panel — the shell only; it declares `connect-src 'none'` and says on itself what [#17](https://github.com/OxyHQ/Astro/issues/17) still owes it |
+| What's New | [`webui/app/src/pages/whatsnew/`](webui/app/src/pages/whatsnew) | What Astro does that Chromium does not |
 
-Settings is Astro's again: `060-settings-webui-takeover.patch` swaps upstream's registration for `AstroSettingsUIConfig`, on upstream's own host so the `settingsPrivate` grant is inherited. The New Tab Page followed it into the app, and with it went the last of its `chrome.send` messages and its localStorage — what it shows and what it can change are `astro_ntp.mojom`, a typed interface bound by that page and no other. The error page was deleted in `c9c4383` and nothing replaced it. Alia and What's New are the two still reading their assets off the disk; folding them in is issues [#14](https://github.com/OxyHQ/Astro/issues/14) and [#17](https://github.com/OxyHQ/Astro/issues/17).
+Two of the four are on hosts upstream already owns, and both were taken by SWAPPING upstream's registration rather than adding one — `WebUIConfigMap::AddWebUIConfigImpl` CHECKs on a duplicate origin. `060-settings-webui-takeover.patch` does it for settings, on upstream's own host so the `settingsPrivate` grant is inherited; `071-whats-new-webui-takeover.patch` does it for What's New, which upstream's own config had been declining to serve at all outside a Google-branded build. The New Tab Page's `chrome.send` messages and localStorage are gone with its port — what it shows and what it can change are `astro_ntp.mojom`, a typed interface bound by that page and no other. The error page was deleted in `c9c4383` and nothing replaced it.
 
 ```bash
 cd webui/app && bun install && bun run dev
 ```
 
-The app's dev server runs every page against in-memory mocks of the browser APIs, so you can iterate on one without rebuilding the browser. The two legacy pages are still Bun workspaces of their own.
+The app's dev server runs every page against in-memory mocks of the browser APIs, so you can iterate on one without rebuilding the browser. There is one workspace and one port; the pages that used to be Bun workspaces of their own are gone.
 
 ## Building
 

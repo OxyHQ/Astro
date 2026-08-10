@@ -41,6 +41,17 @@ const PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
   'astro-ntp': lazy(() =>
     import('./pages/newtab/new-tab-page.tsx').then(module => ({default: module.NewTabPage})),
   ),
+  alia: lazy(() =>
+    import('./pages/alia/alia-page.tsx').then(module => ({default: module.AliaPage})),
+  ),
+  // Upstream's own host, taken over by 071-whats-new-webui-takeover.patch
+  // rather than registered beside it — WebUIConfigMap CHECKs on a duplicate
+  // origin.
+  'whats-new': lazy(() =>
+    import('./pages/whatsnew/whats-new-page.tsx').then(module => ({
+      default: module.WhatsNewPage,
+    })),
+  ),
 };
 
 /**

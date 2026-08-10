@@ -184,50 +184,65 @@ documented here when they exist, and not before.
 
 Four internal pages have a controller in `src/chrome/browser/oxy/webui/` —
 NTP, Settings, Alia and What's New — plus the ad blocker's under
-`adblock/webui/`. The three legacy ones inherit `content::WebUIController`
-directly and use no Mojo. Settings is the first built on the shared base in
+`adblock/webui/`. All four are built on the shared base in
 `astro_webui_page.{h,cc}`, which owns the data source, the per-host CSP table
-and the single function that knows where a page's assets come from — the one
-thing #16 replaces when the bundle moves into a `.pak`.
+and the resource map every page is served from; only the ad blocker's is still
+its own thing, serving a string of inline HTML.
+
+A page is a `WebUIPage` value and a controller that passes it up. The value is
+the whole of what distinguishes one surface from another:
 
 ```cpp
-class AstroNtpUI : public content::WebUIController {
- public:
-  explicit AstroNtpUI(content::WebUI* web_ui) : WebUIController(web_ui) {
-    auto* source = content::WebUIDataSource::CreateAndAdd(
-        web_ui->GetWebContents()->GetBrowserContext(), kAstroNtpHost);
-    // Serves the Vite-built dist/ by reading it off disk at request time.
-    // See the warning below.
-  }
-};
+const WebUIPage& AliaPage() {
+  static const WebUIPage kPage{
+      .host = kAstroAliaHost,
+      // The same multi-entry bundle every Astro surface serves; the document
+      // picks its entry from the host it was served under.
+      .resources = kAstroWebuiResources,
+      .default_resource = IDR_ASTRO_WEBUI_INDEX_HTML,
+      .csp = {.style_src = "style-src 'self' 'unsafe-inline';",
+              .img_src = "img-src 'self' data:;",
+              .font_src = "font-src data:;",
+              .connect_src = "connect-src 'none';"},
+  };
+  return kPage;
+}
 
-class AstroNtpUIConfig : public content::DefaultWebUIConfig<AstroNtpUI> {
+class AstroAliaUIConfig : public content::DefaultWebUIConfig<AstroAliaUI> {
  public:
-  AstroNtpUIConfig()
-      : DefaultWebUIConfig(content::kChromeUIScheme, kAstroNtpHost) {}
+  AstroAliaUIConfig()
+      : DefaultWebUIConfig(content::kChromeUIScheme, kAstroAliaHost) {}
 };
 ```
 
-<Warning>
-These pages read their assets from a directory beside the executable at
-runtime (`base::DIR_EXE` + `resources/astro-<page>/`) rather than from a
-`.pak`, so they carry none of Chromium's resource-bundling guarantees. Three
-things have to agree — the path the controller reads, the path
-`tools/build.sh` stages to, and the page's presence in
-`REQUIRED_WEBUI_PAGES` — and nothing checks that they do.
+A null CSP field leaves Chromium's default in place, which is not the same as
+leaving it open: trusted WebUI already ships `script-src chrome://resources
+'self'` with Trusted Types enforced, and has no default at all for
+style/img/font/connect. The fields are not symmetric and a page has to say what
+it needs.
 
-The three legacy pages render blank, with no error, when they disagree. Pages
-on the shared base do not: it logs the absolute path it tried and serves a
-document naming it. Settings is the only one today, and it is also the only
-page whose bundle is not staged at all — `webui/app` is not in
-`REQUIRED_WEBUI_PAGES`, so `astro://settings` currently serves exactly that
-diagnostic. Packaging it is #16; removing `DIR_EXE` entirely is #14.
-</Warning>
+<Note>
+No page reads its assets from disk any more. Every `astro://` surface is an
+entry of `webui/app`, compiled into `astro_webui_resources.pak` by
+`//chrome/browser/oxy/webui:resources` and repacked into the browser's own
+`resources.pak` by `067-astro-webui-pak-repack.patch`, so a resource a
+controller names and GRIT did not compile is a link error during the build.
+
+What this replaced needed three things to agree — the path the controller
+read, the path `tools/build.sh` staged to, and the page's presence in a
+`REQUIRED_WEBUI_PAGES` array — with nothing checking that they did, and the
+failure was a blank page with no error. One disk-reading path survives,
+`astro_webui_dev_source.cc`, and it is not compiled at all unless the
+`astro_webui_dev_tools` GN argument is on; that it is off in every committed
+configuration is checked by
+`tools/tests/cases/webui-assets-come-from-the-pak.sh`.
+</Note>
 
 `UIConfig` registration happens in the patched `chrome_web_ui_configs.cc`, one
 numbered patch per page: `054-adblock-webui-register`, `055-ntp-webui-register`,
 `058-alia-webui-register` for hosts Astro invents, and
-`060-settings-webui-takeover` for one upstream already owns.
+`060-settings-webui-takeover` and `071-whats-new-webui-takeover` for two
+upstream already owns.
 
 That last one is a different operation and the difference is not cosmetic.
 `WebUIConfigMap::AddWebUIConfigImpl` CHECKs on a duplicate origin, so a second

@@ -13,7 +13,7 @@ diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/u
  
    auto& map = content::WebUIConfigMap::GetInstance();
    map.AddWebUIConfig(std::make_unique<oxy::adblock::AstroAdBlockUIConfig>());
-+  map.AddWebUIConfig(std::make_unique<oxy::AstroAliaUIConfig>());
-   map.AddWebUIConfig(std::make_unique<oxy::AstroNtpUIConfig>());
++  map.AddWebUIConfig(std::make_unique<astro::AstroAliaUIConfig>());
+   map.AddWebUIConfig(std::make_unique<astro::AstroNtpUIConfig>());
    map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
    map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());

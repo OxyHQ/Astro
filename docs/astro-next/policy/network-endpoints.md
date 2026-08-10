@@ -29,50 +29,47 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 |---|---|
 | `REMOVED_BY_PATCH` | 32 |
 | `NOT_AN_ENDPOINT` | 27 |
-| `NOT_BUILT` | 22 |
 | `RUNTIME_BLOCKED` | 20 |
+| `NOT_BUILT` | 18 |
 | `PRESENT` | 16 |
+| `UNREACHABLE` | 4 |
 | `NOT_MEASURED` | 3 |
 
 ### Contact
 
 | Contact | Hosts |
 |---|---|
-| `never` | 86 |
-| `user-initiated` | 22 |
-| `automatic` | 6 |
+| `never` | 89 |
+| `user-initiated` | 21 |
 | `unknown` | 6 |
+| `automatic` | 4 |
 
 ### Why each host appears in committed text
 
 | `reference_kind` | Hosts |
 |---|---|
 | `deleted-by-patch` | 38 |
-| `documentation` | 21 |
+| `documentation` | 25 |
 | `blocklist-literal` | 20 |
 | `default-content` | 16 |
-| `request-literal` | 11 |
+| `request-literal` | 8 |
 | `help-link` | 7 |
 | `dev-fixture` | 4 |
 | `not-a-host` | 2 |
-| `csp-allowlist` | 1 |
 
-## Contacted automatically (6)
+## Contacted automatically (4)
 
 | Host | Observed | State | Kind | Feature | Owner | Trigger | Rationale |
 |---|---|---|---|---|---|---|---|
 | `api.oxy.so` | NOT_BUILT | **REPLACE** | request-literal | `oxy-identity` | #16 | an Oxy session cookie appears on auth.oxy.so | Oxy platform API. Called after sign-in to exchange the session for tokens and fetch the profile (oxy_cookie_signin_observer.cc:39-42, 63-65). REPLACE for the same reason as auth.oxy.so: #16 rebuilds the credential exchange. |
 | `easylist-downloads.adblockplus.org` | NOT_BUILT | **REPLACE** | request-literal | `adblock-list-updates` | #19 | filter-list updater schedule | Filter-list source in the shipped catalog (src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc). REPLACE rather than KEEP: #19 requires signed, integrity-checked, atomic and recoverable list updates, and a plain HTTPS fetch of a third-party text file provides none of those. The list CONTENT survives; the transport and the trust root do not. |
 | `easylist.to` | NOT_BUILT | **REPLACE** | request-literal | `adblock-list-updates` | #19 | filter-list updater schedule | Filter-list source in the shipped catalog (src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc). REPLACE rather than KEEP: #19 requires signed, integrity-checked, atomic and recoverable list updates, and a plain HTTPS fetch of a third-party text file provides none of those. The list CONTENT survives; the transport and the trust root do not. |
-| `fonts.googleapis.com` | NOT_BUILT | **REPLACE** | request-literal | `webui-fonts` | #14 | any Astro WebUI page loads | A de-Googled browser whose internal pages contact Google for a typeface. The new tab page no longer does: its controller declares `font-src data:` and its fonts are data-URIs inside the pak, and the widened style-src it used to carry went with the port. What remains is webui/{alia,whats-new}/src/index.html, which still carry a preconnect and a stylesheet link. REPLACE: the Inter typeface survives, packaged into browser resources; the remote provider does not. The epic forbids a privileged WebUI loading remote fonts, so this is not a preference. |
-| `fonts.gstatic.com` | NOT_BUILT | **REPLACE** | request-literal | `webui-fonts` | #14 | any Astro WebUI page loads | A de-Googled browser whose internal pages contact Google for a typeface. The new tab page no longer does: its controller declares `font-src data:` and its fonts are data-URIs inside the pak, and the widened font-src it used to carry went with the port. What remains is webui/{alia,whats-new}/src/index.html, which still carry a preconnect and a stylesheet link. REPLACE: the Inter typeface survives, packaged into browser resources; the remote provider does not. The epic forbids a privileged WebUI loading remote fonts, so this is not a preference. |
 | `pgl.yoyo.org` | NOT_BUILT | **REPLACE** | request-literal | `adblock-list-updates` | #19 | filter-list updater schedule | Filter-list source in the shipped catalog (src/chrome/browser/oxy/adblock/astro_adblock_filter_list_catalog.cc). REPLACE rather than KEEP: #19 requires signed, integrity-checked, atomic and recoverable list updates, and a plain HTTPS fetch of a third-party text file provides none of those. The list CONTENT survives; the transport and the trust root do not. |
 
-## Contacted only on a user action (22)
+## Contacted only on a user action (21)
 
 | Host | Observed | State | Kind | Feature | Owner | Trigger | Rationale |
 |---|---|---|---|---|---|---|---|
-| `api.alia.onl` | NOT_BUILT | **REPLACE** | request-literal | `alia` | #17 | user sends a message in the Alia side panel | The host the Alia panel actually calls (webui/alia/src/alia-panel.ts:31). REPLACE: #17 rebuilds Alia as a trusted shell with isolated content and explicit context consent, which changes what is sent here and from which process. |
 | `auth.oxy.so` | NOT_BUILT | **REPLACE** | request-literal | `oxy-identity` | #16 | user starts sign-in from the profile menu | Oxy Identity's authorisation host. REPLACE, not KEEP: the current flow returns access_token and refresh_token as URL query parameters (src/chrome/browser/oxy/oxy_auth_callback_handler.cc:31-32), which the epic forbids outright. #16 rebuilds it on Authorization Code + PKCE, which changes the request shape at this host. |
 | `chromium.googlesource.com` | PRESENT | **REPLACE** | help-link | `first-run-page` | #24 | user clicks a link on the first-run page | the Chromium source host, linked from the same first-run page and from Astro's Linux package metadata. The page itself is local (`chrome://ungoogled-first-run`), so first run makes no request; these hosts are links inside it. REPLACE: Astro must not open a page branded for another project on first run, and #24 owns first run. |
 | `developer.chrome.com` | PRESENT | **REPLACE** | help-link | `product-help-links` | #9 | user clicks a link | Chrome developer documentation, linked from settings strings. REPLACE for the same reason as support.google.com: help destinations are Astro product constants. |
@@ -81,7 +78,7 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 | `duckduckgo.com` | NOT_BUILT | **KEEP** | default-content | `default-search-engine` | #10 | user submits a search | Astro's default search engine (patches/astro/004-default-search-duckduckgo.patch). Contacted when the user searches. The new tab page no longer names it: its search box sends a query to the browser, which resolves it against whatever TemplateURLService reports as the default provider. |
 | `github.com` | NOT_BUILT | **KEEP** | default-content | `ntp-tiles` | #22 | user clicks the tile | GitHub — a prepopulated New Tab Page tile added by patches/astro/019-ntp-default-sites.patch. Shipped data, not a request: the browser contacts it only when the user clicks the tile. Astro's tile set replaced Chromium's Google-owned defaults; the removed ones are in this manifest as `deleted-by-patch`. |
 | `news.ycombinator.com` | NOT_BUILT | **KEEP** | default-content | `ntp-tiles` | #22 | user clicks the link | A default quick link in the Astro New Tab Page (kDefaultQuickLinks in src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc). Shipped data, used only until the user edits their links; contacted only when the user clicks it. |
-| `oxy.so` | PRESENT | **KEEP** | help-link | `product-help-links` | #9 | user clicks a product link | Astro's own product and package-metadata host (patches/astro/003-branding-linux-package.patch, webui/whats-new/src/index.html). User-initiated navigation only. |
+| `oxy.so` | PRESENT | **KEEP** | help-link | `product-help-links` | #9 | user clicks a product link | Astro's own product and package-metadata host (patches/astro/003-branding-linux-package.patch, webui/app/src/pages/whatsnew/whats-new-page.tsx). User-initiated navigation only. |
 | `reddit.com` | NOT_BUILT | **KEEP** | default-content | `ntp-tiles` | #22 | user clicks the link | A default quick link in the Astro New Tab Page (kDefaultQuickLinks in src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc). Shipped data, used only until the user edits their links; contacted only when the user clicks it. |
 | `stackoverflow.com` | NOT_BUILT | **KEEP** | default-content | `ntp-tiles` | #22 | user clicks the link | A default quick link in the Astro New Tab Page (kDefaultQuickLinks in src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc). Shipped data, used only until the user edits their links; contacted only when the user clicks it. |
 | `support.9oo91e.qjz9zk` | PRESENT | **REPLACE** | help-link | `product-help-links` | #9 | user clicks 'learn more' on a redirect-loop error page | THE ONE SUBSTITUTED HOST THAT REACHES SHIPPED UI. patches/astro/038-dino-game-astro-scheme.patch rewrites kRedirectLoopLearnMoreUrl in components/error_page/common/localized_error.cc to `https://support.9oo91e.qjz9zk/chrome?p=rl_error` — the 'learn more' link on the ERR_TOO_MANY_REDIRECTS interstitial. That patch APPLIES, so today's build ships a link to a host that does not resolve and that block-trk-and-subdomains.patch blocks anyway. The other eleven substituted-shape hosts in this manifest sit in translator notes, `<ex>` placeholders and C++ comments, and are `documentation`. REPLACE: the link survives, pointing at an Astro destination. |
@@ -106,7 +103,7 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 | `optimizationguide-pa.googleapis.com` | NOT_MEASURED | **INVESTIGATE** | request-literal | `on-device-models` | #8 | not-captured | Chromium's optimization-guide/on-device-model host. 1 file in chromium/src references it at the locked commit. |
 | `update.googleapis.com` | NOT_MEASURED | **INVESTIGATE** | request-literal | `component-updater` | #20 → **#20** | not-captured | Chromium's component and extension update host. 2 C++ sources in chromium/src reference it at the locked commit ae03f7fb2c (6 files of any type). |
 
-## Never contacted (86)
+## Never contacted (89)
 
 | Host | Observed | State | Kind | Feature | Owner | Trigger | Rationale |
 |---|---|---|---|---|---|---|---|
@@ -116,7 +113,8 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 | `a.espncdn.com` | REMOVED_BY_PATCH | **DISABLE_BUILD** | deleted-by-patch | `ntp-tiles` | #22 | none | Part of Chromium's prepopulated New Tab Page data, deleted by patches/astro/019-ntp-default-sites.patch. Present in this manifest because the host appears in patch TEXT; it appears only on removed lines, so the patched tree does not contain it. Several of these were favicon URLs the NTP fetched on render, which is why removing them is a network change and not only a cosmetic one. DISABLE_BUILD: the string is absent from the shipped resource, which a `strings` scan can falsify. |
 | `accounts.google.com` | RUNTIME_BLOCKED | **DISABLE_BUILD** | blocklist-literal | `google-account-gaia` | #8 | the owning feature's own trigger, if it runs | GAIA sign-in. ungoogled's disable-gaia.patch removes the account infrastructure. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'. |
 | `android.clients.google.com` | RUNTIME_BLOCKED | **DISABLE_BUILD** | blocklist-literal | `gcm-push` | #8 | the owning feature's own trigger, if it runs | Android device/GCM registration. Not a desktop endpoint; Android is scoped separately. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'. |
-| `api.alia.oxy.so` | NOT_BUILT | **INVESTIGATE** | csp-allowlist | `alia` | #17 | — | The only host astro://alia's connect-src permits (src/chrome/browser/oxy/webui/astro_alia_ui.cc:95), and nothing calls it. The panel calls api.alia.onl, which that CSP blocks. One of the two is wrong and the manifest will not guess which. |
+| `api.alia.onl` | UNREACHABLE | **REPLACE** | documentation | `alia` | #17 | — | The host the Alia panel used to call. It no longer does: the panel is an entry of webui/app with no fetch of any kind, and its controller declares `connect-src 'none'`, so nothing this origin runs can open a socket. The only remaining reference is the comment in webui/app/src/pages/alia/alia-page.tsx recording what was removed. REPLACE stands: #17 rebuilds Alia as a trusted shell over isolated content with a browser-process broker, so this host will be contacted again, from a different process and under a context-permission model. |
+| `api.alia.oxy.so` | UNREACHABLE | **INVESTIGATE** | documentation | `alia` | #17 | — | The host astro://alia's connect-src used to permit, while the page called api.alia.onl. Neither half survives: the panel makes no request, and its CSP now names no host at all (`connect-src 'none'`). The reference is the comment recording that mismatch. |
 | `assets-cdn.github.com` | REMOVED_BY_PATCH | **DISABLE_BUILD** | deleted-by-patch | `ntp-tiles` | #22 | none | Part of Chromium's prepopulated New Tab Page data, deleted by patches/astro/019-ntp-default-sites.patch. Present in this manifest because the host appears in patch TEXT; it appears only on removed lines, so the patched tree does not contain it. Several of these were favicon URLs the NTP fetched on render, which is why removing them is a network change and not only a cosmetic one. DISABLE_BUILD: the string is absent from the shipped resource, which a `strings` scan can falsify. |
 | `beacons.gcp.gvt2.com` | REMOVED_BY_PATCH | **DISABLE_BUILD** | deleted-by-patch | `domain-reliability` | #8 | none | Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one. |
 | `beacons.gvt2.com` | REMOVED_BY_PATCH | **DISABLE_BUILD** | deleted-by-patch | `domain-reliability` | #8 | none | Deleted from the Chromium source by an inherited ungoogled patch; the host appears only on removed lines, so the patched tree does not contain it. The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one. |
@@ -142,6 +140,8 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 | `dns64.dns.google` | REMOVED_BY_PATCH | **DISABLE_BUILD** | deleted-by-patch | `dns-over-https` | #10 | none | Google Public DNS64, deleted by the same patch The mechanism today is a patch, which #8 must re-express as build configuration or owned data — DISABLE_BUILD describes the intended end state, not the current one. |
 | `edition.cnn.com` | REMOVED_BY_PATCH | **DISABLE_BUILD** | deleted-by-patch | `ntp-tiles` | #22 | none | Part of Chromium's prepopulated New Tab Page data, deleted by patches/astro/019-ntp-default-sites.patch. Present in this manifest because the host appears in patch TEXT; it appears only on removed lines, so the patched tree does not contain it. Several of these were favicon URLs the NTP fetched on render, which is why removing them is a network change and not only a cosmetic one. DISABLE_BUILD: the string is absent from the shipped resource, which a `strings` scan can falsify. |
 | `en.m.wikipedia.org` | REMOVED_BY_PATCH | **DISABLE_BUILD** | deleted-by-patch | `ntp-tiles` | #22 | none | Part of Chromium's prepopulated New Tab Page data, deleted by patches/astro/019-ntp-default-sites.patch. Present in this manifest because the host appears in patch TEXT; it appears only on removed lines, so the patched tree does not contain it. Several of these were favicon URLs the NTP fetched on render, which is why removing them is a network change and not only a cosmetic one. DISABLE_BUILD: the string is absent from the shipped resource, which a `strings` scan can falsify. |
+| `fonts.googleapis.com` | UNREACHABLE | **REPLACE** | documentation | `webui-fonts` | #14 | — | A de-Googled browser whose internal pages contacted Google for a typeface. None of them does any more. Every astro:// surface is an entry of webui/app, whose fonts are data-URIs inside the bundle, and all four controllers declare `font-src data:`. The last two references were webui/{{alia,whats-new}}/src/index.html, deleted with those pages; what remains is the comment in each controller saying what the directive replaced. REPLACE is the decision and it is now carried out: the Inter typeface survives, packaged into the browser's own resources; the remote provider does not. |
+| `fonts.gstatic.com` | UNREACHABLE | **REPLACE** | documentation | `webui-fonts` | #14 | — | A de-Googled browser whose internal pages contacted Google for a typeface. None of them does any more. Every astro:// surface is an entry of webui/app, whose fonts are data-URIs inside the bundle, and all four controllers declare `font-src data:`. The last two references were webui/{{alia,whats-new}}/src/index.html, deleted with those pages; what remains is the comment in each controller saying what the directive replaced. REPLACE is the decision and it is now carried out: the Inter typeface survives, packaged into the browser's own resources; the remote provider does not. |
 | `footprints-pa.googleapis.com` | RUNTIME_BLOCKED | **DISABLE_BUILD** | blocklist-literal | `google-history-footprints` | #8 | the owning feature's own trigger, if it runs | Web & App Activity ('footprints'). The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'. |
 | `freenode.net` | REMOVED_BY_PATCH | **DISABLE_BUILD** | deleted-by-patch | `ntp-tiles` | #22 | none | Part of Chromium's prepopulated New Tab Page data, deleted by patches/astro/019-ntp-default-sites.patch. Present in this manifest because the host appears in patch TEXT; it appears only on removed lines, so the patched tree does not contain it. Several of these were favicon URLs the NTP fetched on render, which is why removing them is a network change and not only a cosmetic one. DISABLE_BUILD: the string is absent from the shipped resource, which a `strings` scan can falsify. |
 | `goo.gle` | REMOVED_BY_PATCH | **DISABLE_BUILD** | deleted-by-patch | `product-help-links` | #9 | none | A Google host in Chromium's string resources, replaced by an Astro branding patch (009/013/034/001). Appears only on removed lines. Most of these are translator `desc=` notes and `<ex>` placeholders that are never shipped as URLs; they are recorded because the same patches also rewrite real links, and only the diff side tells them apart. |
@@ -202,15 +202,15 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 | Source | Hosts | What it reads |
 |---|---|---|
 | `baseline-inventory` | 98 | `src/**/*.{cc,h,mojom,rs}` and `patches/**/*.patch`, via `tools/baseline/inventory_endpoints.py` |
-| `webui-scan` | 9 | `webui/*/src/**` — not read by the baseline generator |
-| both | 10 | referenced from each |
+| `webui-scan` | 10 | `webui/*/src/**` — not read by the baseline generator |
+| both | 9 | referenced from each |
 | `declared` | 3 | no committed reference; each entry says why it cannot be derived |
 
 ## Open questions
 
 | Host | Owner | Question | Answered by |
 |---|---|---|---|
-| `api.alia.oxy.so` | #17 | Is api.alia.oxy.so a planned alias for api.alia.onl, or a mistake in the CSP? As committed, Alia's panel cannot reach its API: the CSP allows a host nothing calls and blocks the one it does. | Ask the Alia service owner which host is canonical, then fix whichever of astro_alia_ui.cc:95 or alia-panel.ts:31 is wrong. Measured input: the Alia repository references api.alia.onl 47 times and api.alia.oxy.so 0. |
+| `api.alia.oxy.so` | #17 | Which host is canonical for Alia, api.alia.onl or api.alia.oxy.so? No longer urgent -- nothing in Astro contacts either -- but #17 has to name one when it builds the browser-process broker, and an allowlist is the wrong place to discover the answer. | Ask the Alia service owner. Measured input: the Alia repository references api.alia.onl 47 times and api.alia.oxy.so 0. The old defect this entry recorded -- a CSP permitting a host nothing called while blocking the one it did -- is closed by the panel having no network access at all. |
 | `chrome.cloudflare-dns.com` | #20 | Astro inherits ungoogled-chromium's DoH default rather than choosing one: patches/ungoogled/core/ungoogled-chromium/doh-changes.patch registers net::SecureDnsMode::kOff as the default for dns_over_https.mode in chrome/browser/net/default_dns_over_https_config_source.cc, where upstream registers kAutomatic, and disables kDnsOverHttpsUpgrade on every platform. Out of the box, therefore, no query reaches this host. What is undecided is whether Astro KEEPS that inherited off-by-default or ships a resolver of its own choosing — the difference between the operating system's resolver seeing every lookup and one company seeing it. | #20's transport-security decision on the shipped value of dns_over_https.mode, then a measured trace from tools/baseline/capture-network.sh, which is blocked until an Astro binary exists (baseline finding 1). |
 | `chrome.google.com` | #20 | Legacy Web Store host. Extensions and components that never update are a security problem, and the epic forbids disabling a protection merely to remove a provider dependency. So this is not a privacy decision to take here: it is update integrity, which is #20's. | #20's update-integrity design, then #25 for the transport that delivers it. |
 | `chromewebstore.google.com` | #20 | The Chrome Web Store. Extensions and components that never update are a security problem, and the epic forbids disabling a protection merely to remove a provider dependency. So this is not a privacy decision to take here: it is update integrity, which is #20's. | #20's update-integrity design, then #25 for the transport that delivers it. |

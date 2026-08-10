@@ -637,17 +637,13 @@ harness::make_build_root() {
     printf 'is_debug = false\n' > "$root/gn_args/linux.gn"
     printf '! filter list\n' > "$root/src/chrome/browser/oxy/adblock/resources/easylist.txt"
 
-    local page
-    for page in alia whats-new; do
-        mkdir -p "$root/webui/$page/dist"
-        printf '<!doctype html><title>%s</title>\n' "$page" > "$root/webui/$page/dist/index.html"
-    done
-
-    # The Astro WebUI app. Unlike the pages above it is an input the BUILD
-    # consumes rather than one this script stages: a GN action runs Vite in it
-    # and packs the result into a .pak. So the fixture provides what build.sh
-    # checks — the source directory, the committed resource manifest, and the
-    # installed dependencies the offline GN action cannot install for itself.
+    # The Astro WebUI app, and no per-page `dist` beside it. Those existed
+    # while build.sh staged each page's bundle to a directory beside the
+    # executable; the app is an input the BUILD consumes instead — a GN action
+    # runs Vite in it and packs the result into a .pak. So the fixture provides
+    # what build.sh checks — the source directory, the committed resource
+    # manifest, and the installed dependencies the offline GN action cannot
+    # install for itself.
     mkdir -p "$root/webui/app/node_modules"
     printf '{"name":"astro-webui-app","private":true}\n' > "$root/webui/app/package.json"
     printf '{"builds":{"app":{"out_dir":"dist/app","entry":"index.html","files":["index.html"]}}}\n' \

@@ -33,7 +33,43 @@ namespace astro {
 // with the protection switched off.
 struct WebUIPageCsp {
   const char* script_src = nullptr;
+
+  // WHY EVERY ASTRO PAGE WIDENS THIS, AND WHY THE WIDENING CANNOT COME OUT.
+  //
+  // Spelled here once rather than four times: each page states the directive
+  // it uses, and this is the reason behind all of them.
+  //
+  // The note this replaces blamed Bloom's web forks injecting a <style>
+  // element on mount, and promised the widening came out when Bloom shipped
+  // constructable stylesheets. Bloom HAS shipped them — measured on a running
+  // page, `document.adoptedStyleSheets` holds Bloom's sheet and needs no CSP
+  // allowance at all. The widening still cannot come out, and anyone following
+  // that removal condition would have shipped a browser whose internal pages
+  // have no layout.
+  //
+  // What needs it is react-native-web and Reanimated. Both create <style>
+  // ELEMENTS and fill them through CSSOM `insertRule`. CSP polices the
+  // element, not the CSSOM writes, so under `style-src 'self'` all three come
+  // back with a null `sheet` and their 365 rules never exist. Measured by
+  // building it and comparing screenshots of astro://whats-new at a fixed
+  // 1200x900 viewport: 417,820 pixels of 1,080,000 differ. The page keeps its
+  // COLOURS — Bloom's tokens are CSSOM property writes on <html> and Tailwind's
+  // utilities arrive in a linked stylesheet, both allowed — and loses its
+  // LAYOUT entirely: nothing centred, no column cap, the timeline detached
+  // from its rows. The browser reports three violations, each naming
+  // `sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=`, which is the tell:
+  // that is the hash of the EMPTY STRING, so the blocked content is an empty
+  // <style> element rather than any stylesheet a page wrote.
+  //
+  // The narrowing that IS available and is deliberately not taken here: no
+  // Astro page sets a style ATTRIBUTE. A recorder installed before any page
+  // script counted zero `setAttribute('style', …)` calls on astro://whats-new,
+  // so `style-src-attr` could be closed independently of `style-src-elem`,
+  // which Chromium's CSPDirectiveName already offers. It needs its own
+  // measurement per page — including the animated surfaces What's New does not
+  // have — and belongs to F5 of the Astro Next plan, issue #14.
   const char* style_src = nullptr;
+
   const char* img_src = nullptr;
   const char* font_src = nullptr;
   const char* connect_src = nullptr;

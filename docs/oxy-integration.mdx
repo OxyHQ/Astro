@@ -138,9 +138,8 @@ Alia is Oxy's general-purpose AI assistant. In Astro it surfaces as a side panel
 
 ```
 oxy_alia_side_panel.{h,cc}                Registers the panel in the side-panel registry
-webui/                                    chrome://alia controller
-  astro_alia_ui.{h,cc}
-webui/alia/                               Vite + Tailwind app (the actual UI)
+webui/astro_alia_ui.{h,cc}                chrome://alia controller
+webui/app/src/pages/alia/                 The page, as an entry of the single WebUI app
 ```
 
 The panel is registered via:
@@ -151,7 +150,31 @@ The panel is registered via:
 - Patch `050-alia-side-panel-register.patch` — registers the panel factory with the global side-panel registry.
 - Patch `051-alia-vector-icon.patch` — adds the toolbar vector icon.
 
-When the user opens the panel, Chrome creates a `WebContents` pointed at `chrome://alia`, which loads the Vite-built app from `webui/alia/dist/`. The app talks to `https://alia.oxy.so` over HTTPS — there is no special Mojo wiring for Alia. The auth token from `OxyAuthService` is attached as a `Bearer` header in the panel's fetch calls (the panel reads it via a small `chrome.send`-style helper exposed by `AstroAliaUI`).
+When the user opens the panel, Chrome creates a `WebContents` pointed at
+`chrome://alia`, which `AstroAliaUI` serves out of `astro_webui_resources.pak`.
+`BuildAliaUrlWithContext` appends the active tab's address and title as
+`context_url` and `context_title` query parameters, for an http or https tab
+only, and the page displays them.
+
+**The panel cannot answer anything yet, and says so on itself.** It binds one
+interface — `astro.mojom.ThemeProvider`, read-only — and declares
+`connect-src 'none'`, so it has no way to reach a server at all. That is
+deliberate and it is issue #17's precondition, not an oversight: a document
+holding WebUI bindings must not also be the thing holding a conversation with a
+model. #17 adds an unprivileged `astro-untrusted://alia-content` document
+inside this shell, a typed bridge to a browser-process broker, and a permission
+model for the tab context.
+
+What the shell replaced never worked either, which is worth knowing before
+anyone tries to restore it. It fetched `https://api.alia.onl` from the page
+while the page's own CSP permitted only `https://api.alia.oxy.so`, so the
+browser refused every send; it read its access token from `chrome.storage`,
+which a WebUI page does not have; and it waited for the tab context on a
+`postMessage` nobody sends, so the context bar never appeared. Worse, the
+side panel's own URL failed outright: the disk-serving handler fell back to
+`index.html` only for request paths containing no `.`, and a percent-encoded
+`context_url` has several, so opening the panel over any ordinary web page
+produced `net::ERR_FAILED`. All four measured against the shipped binary.
 
 ## NTP and customization
 

@@ -79,12 +79,11 @@ if [ -d "$BUILD_DIR/MEIPreload" ]; then
 fi
 
 # WebUI pages
-for page in ntp alia whats-new; do
-    if [ -d "$BUILD_DIR/resources/astro-$page" ]; then
-        mkdir -p "$STAGING/astro/resources/astro-$page"
-        cp -r "$BUILD_DIR/resources/astro-$page/"* "$STAGING/astro/resources/astro-$page/"
-    fi
-done
+# No per-page resource tree is staged. Every astro:// surface is compiled into
+# astro_webui_resources.pak and repacked into the browser's own resources.pak by
+# 067-astro-webui-pak-repack.patch, so the pages travel inside the binary this
+# artifact already carries. What stood here copied `resources/astro-<page>/`
+# directories that no controller reads any more.
 
 # Build provenance: a release artifact must carry the exact source revisions,
 # GN args and toolchain identity it was produced from (ASTRO-NEXT-002, #5), plus

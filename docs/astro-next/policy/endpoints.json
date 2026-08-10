@@ -227,55 +227,36 @@
     {
       "host": "api.alia.onl",
       "id": "alia-api",
-      "observed_state": "NOT_BUILT",
+      "observed_state": "UNREACHABLE",
       "state": "REPLACE",
-      "rationale": "The host the Alia panel actually calls (webui/alia/src/alia-panel.ts:31). REPLACE: #17 rebuilds Alia as a trusted shell with isolated content and explicit context consent, which changes what is sent here and from which process.",
+      "rationale": "The host the Alia panel used to call. It no longer does: the panel is an entry of webui/app with no fetch of any kind, and its controller declares `connect-src 'none'`, so nothing this origin runs can open a socket. The only remaining reference is the comment in webui/app/src/pages/alia/alia-page.tsx recording what was removed. REPLACE stands: #17 rebuilds Alia as a trusted shell over isolated content with a browser-process broker, so this host will be contacted again, from a different process and under a context-permission model.",
       "owning_feature": "alia",
       "owner_issue": 17,
-      "reference_kind": "request-literal",
-      "contact": "user-initiated",
-      "environment": "production",
-      "scheme": "https",
-      "path_pattern": "not-captured",
-      "methods": [
-        "POST"
-      ],
-      "trigger": "user sends a message in the Alia side panel",
-      "cadence": "per user message",
-      "data_categories": [
-        "user prompt",
-        "page context when consented"
-      ],
-      "auth": "unknown",
-      "cookies": "unknown",
-      "response_purpose": "model response",
-      "user_control": "panel is user-opened",
-      "incognito": "undecided",
-      "retry_backoff": "not-captured",
-      "traffic_annotation": "not-captured",
-      "test_fixture": "not-captured",
-      "notes": "Astro's own CSP for this page does not permit this host — see api.alia.oxy.so. NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition.",
+      "reference_kind": "documentation",
+      "contact": "never",
+      "environment": "none",
+      "notes": "Measured before removal, against the shipped binary: the page's own CSP named api.alia.oxy.so while its code called api.alia.onl, so every send answered \"Refused to connect because it violates the document's Content Security Policy\". The chat this endpoint served has therefore never worked in a build this pipeline produced.",
       "inputs_to": [
         11
       ],
-      "inputs_reason": "Answered rather than pending: webui-scheme-trust-split assigns the Alia panel to astro-untrusted:// precisely because the page's own JavaScript reaches this host, and a bound document has no network factory (content/browser/renderer_host/render_frame_host_impl.cc:12645-12657). So what #11 reads here is the fact that this endpoint is contacted from the page at all — one input to the trust split, not a decision #11 has to take."
+      "inputs_reason": "Answered rather than pending, and now answered from the other side: the Alia panel is a TRUSTED page precisely because it makes no request at all, and #17's untrusted astro-untrusted://alia-content document is what will contact this host. What #11 reads here is that the trusted scheme's CSP baseline has to be able to express `connect-src 'none'`, which is what this page declares today."
     },
     {
       "host": "api.alia.oxy.so",
       "id": "alia-api-csp-allow",
-      "observed_state": "NOT_BUILT",
+      "observed_state": "UNREACHABLE",
       "state": "INVESTIGATE",
-      "rationale": "The only host astro://alia's connect-src permits (src/chrome/browser/oxy/webui/astro_alia_ui.cc:95), and nothing calls it. The panel calls api.alia.onl, which that CSP blocks. One of the two is wrong and the manifest will not guess which.",
+      "rationale": "The host astro://alia's connect-src used to permit, while the page called api.alia.onl. Neither half survives: the panel makes no request, and its CSP now names no host at all (`connect-src 'none'`). The reference is the comment recording that mismatch.",
       "owning_feature": "alia",
       "owner_issue": 17,
-      "reference_kind": "csp-allowlist",
+      "reference_kind": "documentation",
       "contact": "never",
       "environment": "none",
       "investigate": {
-        "question": "Is api.alia.oxy.so a planned alias for api.alia.onl, or a mistake in the CSP? As committed, Alia's panel cannot reach its API: the CSP allows a host nothing calls and blocks the one it does.",
-        "answered_by": "Ask the Alia service owner which host is canonical, then fix whichever of astro_alia_ui.cc:95 or alia-panel.ts:31 is wrong. Measured input: the Alia repository references api.alia.onl 47 times and api.alia.oxy.so 0."
+        "question": "Which host is canonical for Alia, api.alia.onl or api.alia.oxy.so? No longer urgent -- nothing in Astro contacts either -- but #17 has to name one when it builds the browser-process broker, and an allowlist is the wrong place to discover the answer.",
+        "answered_by": "Ask the Alia service owner. Measured input: the Alia repository references api.alia.onl 47 times and api.alia.oxy.so 0. The old defect this entry recorded -- a CSP permitting a host nothing called while blocking the one it did -- is closed by the panel having no network access at all."
       },
-      "notes": "Not DORMANT: dormancy describes code that cannot run. This is an allowlist entry that permits a request nothing makes, which is a different defect. NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition."
+      "notes": "Not DORMANT: dormancy describes code that cannot run. This records a CSP allowlist entry that permitted a request nothing made, which is a different defect, and which is now removed rather than reconciled."
     },
     {
       "host": "api.oxy.so",
@@ -1303,84 +1284,36 @@
     {
       "host": "fonts.googleapis.com",
       "id": "google-fonts-css",
-      "observed_state": "NOT_BUILT",
+      "observed_state": "UNREACHABLE",
       "state": "REPLACE",
-      "rationale": "A de-Googled browser whose internal pages contact Google for a typeface. The new tab page no longer does: its controller declares `font-src data:` and its fonts are data-URIs inside the pak, and the widened style-src it used to carry went with the port. What remains is webui/{alia,whats-new}/src/index.html, which still carry a preconnect and a stylesheet link. REPLACE: the Inter typeface survives, packaged into browser resources; the remote provider does not. The epic forbids a privileged WebUI loading remote fonts, so this is not a preference.",
+      "rationale": "A de-Googled browser whose internal pages contacted Google for a typeface. None of them does any more. Every astro:// surface is an entry of webui/app, whose fonts are data-URIs inside the bundle, and all four controllers declare `font-src data:`. The last two references were webui/{{alia,whats-new}}/src/index.html, deleted with those pages; what remains is the comment in each controller saying what the directive replaced. REPLACE is the decision and it is now carried out: the Inter typeface survives, packaged into the browser's own resources; the remote provider does not.",
       "owning_feature": "webui-fonts",
       "owner_issue": 14,
-      "reference_kind": "request-literal",
-      "contact": "automatic",
-      "environment": "production",
-      "scheme": "https",
-      "path_pattern": "/css2?family=Inter…, /s/inter/*",
-      "methods": [
-        "GET"
-      ],
-      "trigger": "any Astro WebUI page loads",
-      "cadence": "every page load not served from cache",
-      "data_categories": [
-        "IP address",
-        "User-Agent",
-        "Referer"
-      ],
-      "auth": "none",
-      "cookies": "none",
-      "response_purpose": "webfont stylesheet and font files",
-      "user_control": "none — no setting disables it",
-      "incognito": "same-as-normal",
-      "retry_backoff": "browser default",
-      "traffic_annotation": "none — subresource of a WebUI page, not an annotated browser fetch",
-      "test_fixture": "not-captured",
-      "blocks": [
-        14
-      ],
-      "blocks_reason": "The remote font provider is #14's to remove when it packages the WebUI resources into GN/GRIT.",
-      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition.",
+      "reference_kind": "documentation",
+      "contact": "never",
+      "environment": "none",
+      "notes": "No longer blocking #14. The packaging that discharges it has landed: the WebUI app is compiled into astro_webui_resources.pak by //chrome/browser/oxy/webui:resources and repacked by 067-astro-webui-pak-repack.patch, fonts included.",
       "inputs_to": [
         11
       ],
-      "inputs_reason": "REPLACE — self-hosted WOFF2 — is already decided, so #11 does not wait on it. What #11 reads is the consequence: no Astro page fetches a font, so the trusted scheme's CSP baseline is not designed around a remote host. The remaining work is #14's packaging."
+      "inputs_reason": "REPLACE -- self-hosted WOFF2 -- is done, so #11 does not wait on it. What #11 reads is the consequence: no Astro page fetches a font, so the trusted scheme's CSP baseline is not designed around a remote host and `font-src data:` is sufficient."
     },
     {
       "host": "fonts.gstatic.com",
       "id": "google-fonts-files",
-      "observed_state": "NOT_BUILT",
+      "observed_state": "UNREACHABLE",
       "state": "REPLACE",
-      "rationale": "A de-Googled browser whose internal pages contact Google for a typeface. The new tab page no longer does: its controller declares `font-src data:` and its fonts are data-URIs inside the pak, and the widened font-src it used to carry went with the port. What remains is webui/{alia,whats-new}/src/index.html, which still carry a preconnect and a stylesheet link. REPLACE: the Inter typeface survives, packaged into browser resources; the remote provider does not. The epic forbids a privileged WebUI loading remote fonts, so this is not a preference.",
+      "rationale": "A de-Googled browser whose internal pages contacted Google for a typeface. None of them does any more. Every astro:// surface is an entry of webui/app, whose fonts are data-URIs inside the bundle, and all four controllers declare `font-src data:`. The last two references were webui/{{alia,whats-new}}/src/index.html, deleted with those pages; what remains is the comment in each controller saying what the directive replaced. REPLACE is the decision and it is now carried out: the Inter typeface survives, packaged into the browser's own resources; the remote provider does not.",
       "owning_feature": "webui-fonts",
       "owner_issue": 14,
-      "reference_kind": "request-literal",
-      "contact": "automatic",
-      "environment": "production",
-      "scheme": "https",
-      "path_pattern": "/css2?family=Inter…, /s/inter/*",
-      "methods": [
-        "GET"
-      ],
-      "trigger": "any Astro WebUI page loads",
-      "cadence": "every page load not served from cache",
-      "data_categories": [
-        "IP address",
-        "User-Agent",
-        "Referer"
-      ],
-      "auth": "none",
-      "cookies": "none",
-      "response_purpose": "webfont stylesheet and font files",
-      "user_control": "none — no setting disables it",
-      "incognito": "same-as-normal",
-      "retry_backoff": "browser default",
-      "traffic_annotation": "none — subresource of a WebUI page, not an annotated browser fetch",
-      "test_fixture": "not-captured",
-      "blocks": [
-        14
-      ],
-      "blocks_reason": "The remote font provider is #14's to remove when it packages the WebUI resources into GN/GRIT.",
-      "notes": "NOT_BUILT: baseline finding 1 — nothing links src/chrome/browser/oxy into the build graph, so no binary built from committed source contains this code. That is a build defect owned by #7, not a disposition.",
+      "reference_kind": "documentation",
+      "contact": "never",
+      "environment": "none",
+      "notes": "No longer blocking #14. The packaging that discharges it has landed: the WebUI app is compiled into astro_webui_resources.pak by //chrome/browser/oxy/webui:resources and repacked by 067-astro-webui-pak-repack.patch, fonts included.",
       "inputs_to": [
         11
       ],
-      "inputs_reason": "REPLACE — self-hosted WOFF2 — is already decided, so #11 does not wait on it. What #11 reads is the consequence: no Astro page fetches a font, so the trusted scheme's CSP baseline is not designed around a remote host. The remaining work is #14's packaging."
+      "inputs_reason": "REPLACE -- self-hosted WOFF2 -- is done, so #11 does not wait on it. What #11 reads is the consequence: no Astro page fetches a font, so the trusted scheme's CSP baseline is not designed around a remote host and `font-src data:` is sufficient."
     },
     {
       "host": "footprints-pa.googleapis.com",
@@ -1949,7 +1882,7 @@
       "id": "oxy-website",
       "observed_state": "PRESENT",
       "state": "KEEP",
-      "rationale": "Astro's own product and package-metadata host (patches/astro/003-branding-linux-package.patch, webui/whats-new/src/index.html). User-initiated navigation only.",
+      "rationale": "Astro's own product and package-metadata host (patches/astro/003-branding-linux-package.patch, webui/app/src/pages/whatsnew/whats-new-page.tsx). User-initiated navigation only.",
       "owning_feature": "product-help-links",
       "owner_issue": 9,
       "reference_kind": "help-link",

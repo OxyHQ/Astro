@@ -16,6 +16,10 @@
 import {aboutStrings} from '../../pages/settings/sections/about.strings.ts';
 import {accessibilityStrings} from '../../pages/settings/sections/accessibility.strings.ts';
 import {adblockStrings} from '../../pages/settings/sections/adblock.strings.ts';
+// The Alia PANEL, which is a page of its own; the settings section about it is
+// `alia.strings.ts` below, and the two are deliberately separate catalogues
+// because they are separate surfaces.
+import {aliaPageStrings} from '../../pages/alia/alia.strings.ts';
 import {aliaStrings} from '../../pages/settings/sections/alia.strings.ts';
 import {appearanceStrings} from '../../pages/settings/sections/appearance.strings.ts';
 import {autofillStrings} from '../../pages/settings/sections/autofill.strings.ts';
@@ -32,6 +36,9 @@ import {resetStrings} from '../../pages/settings/sections/reset.strings.ts';
 import {searchStrings} from '../../pages/settings/sections/search.strings.ts';
 import {siteSettingsStrings} from '../../pages/settings/sections/site-settings.strings.ts';
 import {systemStrings} from '../../pages/settings/sections/system.strings.ts';
+// Same reason as the new tab page's: an entry of its own, so its catalogue
+// lives beside its components rather than under sections/.
+import {whatsNewStrings} from '../../pages/whatsnew/whatsnew.strings.ts';
 import {youAndAstroStrings} from '../../pages/settings/sections/you-and-astro.strings.ts';
 
 /**
@@ -79,6 +86,7 @@ export const en = {
   ...aboutStrings,
   ...accessibilityStrings,
   ...adblockStrings,
+  ...aliaPageStrings,
   ...aliaStrings,
   ...appearanceStrings,
   ...autofillStrings,
@@ -93,6 +101,7 @@ export const en = {
   ...searchStrings,
   ...siteSettingsStrings,
   ...systemStrings,
+  ...whatsNewStrings,
   ...youAndAstroStrings,
 } as const;
 

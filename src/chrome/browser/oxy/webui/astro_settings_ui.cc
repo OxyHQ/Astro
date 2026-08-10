@@ -54,15 +54,11 @@ const WebUIPage& SettingsPage() {
               // ships one bundle from its own origin and needs nothing more.
               .script_src = nullptr,
 
-              // WIDENING, DECLARED AND DATED — 2026-08-09.
-              //
-              // Bloom's web forks inject a <style> element on mount for their
-              // keyframes and pseudo-classes, which `style-src 'self'` blocks.
-              // React and react-native-web write through the CSSOM, which CSP
-              // does not police, so this covers Bloom's injection and nothing
-              // else. It comes out when Bloom ships constructable stylesheets
-              // (new CSSStyleSheet + adoptedStyleSheets); tracked on the F5
-              // step of the Astro Next plan, issue #14.
+              // WIDENING, MEASURED. Not Bloom's doing and not removable:
+              // react-native-web and Reanimated create <style> elements and
+              // fill them through CSSOM, and CSP blocks the element. See
+              // WebUIPageCsp::style_src in astro_webui_page.h for the
+              // measurement and for the narrowing that is available instead.
               .style_src = "style-src 'self' 'unsafe-inline';",
 
               // Astro's own assets plus inlined images from the bundle. No

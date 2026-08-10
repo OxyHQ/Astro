@@ -143,6 +143,18 @@ PREF_RE = re.compile(
     re.DOTALL,
 )
 HOST_RE = re.compile(r'inline constexpr char kAstro(\w+)Host\[\]\s*=\s*"([^"]+)"\s*;')
+
+# A page Astro serves on a host UPSTREAM owns declares `.host =
+# chrome::kChromeUI<Name>Host` instead of defining a constant of its own, and
+# the value of that constant lives in the Chromium tree, which this generator
+# deliberately cannot read. Settings and What's New are both in that position.
+#
+# They are recorded by CONSTANT rather than dropped. Dropping them is what
+# happened when What's New moved onto upstream's host: two rows left the corpus,
+# `astro://whats-new/` among them, and nothing said so -- a URL that can sit in a
+# bookmark written by an older build simply stopped being covered. A corpus that
+# shrinks silently is the failure mode this whole fixture set exists to prevent.
+TAKEOVER_HOST_RE = re.compile(r"\.host\s*=\s*chrome::kChromeUI(\w+)Host\s*,")
 CATALOG_RE = re.compile(
     r'\.id = "(?P<id>[^"]+)".*?\.default_enabled = (?P<enabled>true|false)', re.DOTALL
 )
@@ -602,6 +614,31 @@ def parse_webui_hosts() -> tuple[list[dict], int]:
                 }
             )
     return sorted(hosts, key=lambda entry: entry["host"]), detected
+
+
+def parse_takeover_hosts() -> list[dict]:
+    """Pages served on a host upstream owns, by the constant that names it.
+
+    No literal, because there is no honest way to produce one from this
+    repository alone. `not-derivable` says which command answers it, in the same
+    shape every other unmeasured field in the baseline uses.
+    """
+    takeovers: list[dict] = []
+    for source in committed_state.list_files(WEBUI_DIR, (".cc",)):
+        text = committed_state.read_text(source)
+        for symbol in TAKEOVER_HOST_RE.findall(text):
+            takeovers.append(
+                {
+                    "constant": f"chrome::kChromeUI{symbol}Host",
+                    "declared_in": source,
+                    "host": "not-derivable",
+                    "resolve_with": (
+                        "grep -n 'kChromeUI%sHost' chromium/src/chrome/common/"
+                        "webui_url_constants.h" % symbol
+                    ),
+                }
+            )
+    return sorted(takeovers, key=lambda entry: entry["constant"])
 
 
 def parse_filter_catalog() -> tuple[list[dict], int]:
@@ -1211,6 +1248,7 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
     """Every fixture entry, the bytes of the generated ones, and the metadata."""
     prefs, prefs_detected = parse_registered_prefs()
     hosts, hosts_detected = parse_webui_hosts()
+    takeover_hosts = parse_takeover_hosts()
     catalog, catalog_detected = parse_filter_catalog()
     adblock = parse_adblock_layout()
     tokens = parse_token_store()
@@ -1423,9 +1461,15 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
                     "the shapes that exist. "
                     "'urls_in_generated_fixtures' indexes every URL of any scheme "
                     "actually present in the generated profiles, so a migration test "
-                    "knows which file to assert against."
+                    "knows which file to assert against. "
+                    "'hosts_taken_from_upstream' is the gap: a page Astro serves on "
+                    "a host Chromium owns names that host with Chromium's own "
+                    "constant, whose value is not readable from this repository, so "
+                    "those URLs are NOT in 'urls' and a migration test must add them "
+                    "by hand."
                 ),
                 "hosts": hosts,
+                "hosts_taken_from_upstream": takeover_hosts,
                 "ntp_alias_host": NTP_ALIAS_HOST,
                 "urls": urls,
                 "urls_in_generated_fixtures": appearances,
@@ -1436,7 +1480,8 @@ def build_fixture_set() -> tuple[list[dict], dict[str, bytes], dict]:
             }
         ),
         ["legacy chrome://astro-* and astro:// URLs"],
-        [entry["defined_in"] for entry in hosts],
+        [entry["defined_in"] for entry in hosts]
+        + [entry["declared_in"] for entry in takeover_hosts],
     )
 
     generated(

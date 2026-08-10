@@ -64,19 +64,26 @@ harness::assert_tree_unchanged "$chromium" "$before"
 # that validated inputs first would spend its time on a tree it was going to
 # reject anyway, and — worse — would report an input problem as the reason a
 # drifted checkout failed.
+#
+# The input check this is measured against is the FIRST one build.sh performs,
+# whatever that happens to be. It used to be the per-page WebUI bundle check,
+# which went with the last page served from a directory beside the executable;
+# it is now the Astro WebUI app's own preconditions. Repointed rather than
+# deleted: the ordering is the property under test, and the bundle check was
+# only ever the marker it was read from.
 gate_line="$(grep -nF 'Verifying source revisions' "$RUN_STDOUT" "$RUN_STDERR" | head -1 | cut -d: -f2)"
-bundles_line="$(grep -nF 'Checking required WebUI bundles' "$RUN_STDOUT" "$RUN_STDERR" | head -1 | cut -d: -f2)"
+inputs_line="$(grep -nF 'Checking the Astro WebUI app' "$RUN_STDOUT" "$RUN_STDERR" | head -1 | cut -d: -f2)"
 
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 2))
-for line_number in "$gate_line" "$bundles_line"; do
+for line_number in "$gate_line" "$inputs_line"; do
     case "$line_number" in
         ''|*[!0-9]*)
-            harness::fail "could not locate both ordering lines (gate: '$gate_line', bundles: '$bundles_line')"
+            harness::fail "could not locate both ordering lines (gate: '$gate_line', inputs: '$inputs_line')"
             ;;
     esac
 done
-if [ "$gate_line" -ge "$bundles_line" ]; then
-    harness::fail "the lock gate (line $gate_line) does not run before the input checks (line $bundles_line)"
+if [ "$gate_line" -ge "$inputs_line" ]; then
+    harness::fail "the lock gate (line $gate_line) does not run before the input checks (line $inputs_line)"
 fi
 
 # --- A checkout off the locked revision stops the build ---------------------

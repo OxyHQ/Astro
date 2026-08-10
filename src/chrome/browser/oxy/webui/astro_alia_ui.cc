@@ -3,122 +3,97 @@
 
 #include "chrome/browser/oxy/webui/astro_alia_ui.h"
 
-#include <string>
+#include <utility>
 
-#include "base/files/file_path.h"
-#include "base/files/file_util.h"
-#include "base/logging.h"
-#include "base/memory/ref_counted_memory.h"
-#include "base/path_service.h"
-#include "base/strings/strcat.h"
-#include "chrome/browser/oxy/webui/astro_webui_page.h"
-#include "content/public/browser/web_contents.h"
-#include "content/public/common/bindings_policy.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/grit/astro_webui_resources.h"
+#include "chrome/grit/astro_webui_resources_map.h"
 #include "content/public/browser/web_ui.h"
-#include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
-#include "services/network/public/mojom/content_security_policy.mojom.h"
 
-namespace oxy {
+namespace astro {
 
 namespace {
 
-base::FilePath GetAliaResourcesDir() {
-  base::FilePath exe_dir;
-  base::PathService::Get(base::DIR_EXE, &exe_dir);
-  return exe_dir.AppendASCII("resources").AppendASCII("astro-alia");
-}
+const WebUIPage& AliaPage() {
+  static const WebUIPage kPage{
+      .host = kAstroAliaHost,
 
-void HandleAliaRequest(
-    const std::string& path,
-    content::WebUIDataSource::GotDataCallback callback) {
-  base::FilePath resources_dir = GetAliaResourcesDir();
+      // The same resource set every Astro surface serves. One multi-entry Vite
+      // build; the document picks its entry from the host it was served under.
+      //
+      // Serving from the pak also repairs the side panel, which is how this
+      // page is normally opened. `oxy_alia_side_panel.cc` appends the tab's
+      // address as a query parameter, and the disk-serving handler this
+      // replaces fell back to index.html only for request paths containing no
+      // '.' — so `context_url=https%3A%2F%2F<any real site>` fell through to
+      // "file not found" and the panel showed net::ERR_FAILED on every ordinary
+      // web page. Measured against the shipped binary. SetDefaultResource
+      // answers every unmatched path with the document and has no such
+      // heuristic to get wrong.
+      .resources = kAstroWebuiResources,
+      .default_resource = IDR_ASTRO_WEBUI_INDEX_HTML,
 
-  std::string file_path_str = path.empty() ? "index.html" : path;
+      .csp =
+          {
+              // Chromium's default for trusted WebUI (`chrome://resources
+              // 'self'`, Trusted Types enforced). What this replaces widened
+              // script-src with `'unsafe-inline'` and then called
+              // `DisableTrustedTypesCSP()` outright, on the one Astro page that
+              // rendered a remote model's output as HTML.
+              .script_src = nullptr,
 
-  // Security: reject paths that attempt directory traversal.
-  if (file_path_str.find("..") != std::string::npos) {
-    LOG(WARNING) << "Astro Alia: rejected path with directory traversal: "
-                 << file_path_str;
-    std::move(callback).Run(nullptr);
-    return;
-  }
+              // WIDENING, MEASURED. Not Bloom's doing and not removable:
+              // react-native-web and Reanimated create <style> elements and
+              // fill them through CSSOM, and CSP blocks the element. See
+              // WebUIPageCsp::style_src in astro_webui_page.h for the
+              // measurement and for the narrowing that is available instead.
+              .style_src = "style-src 'self' 'unsafe-inline';",
 
-  base::FilePath file_path = resources_dir.AppendASCII(file_path_str);
+              // The mark is inline SVG and there are no other images.
+              .img_src = "img-src 'self' data:;",
 
-  std::string contents;
-  if (!base::ReadFileToString(file_path, &contents)) {
-    // SPA fallback: serve index.html for paths without file extensions
-    if (file_path_str.find('.') == std::string::npos) {
-      file_path = resources_dir.AppendASCII("index.html");
-      if (base::ReadFileToString(file_path, &contents)) {
-        auto bytes = base::MakeRefCounted<base::RefCountedString>(
-            std::move(contents));
-        std::move(callback).Run(bytes);
-        return;
-      }
-    }
-    LOG(WARNING) << "Astro Alia: failed to read resource: "
-                 << file_path.value();
-    std::move(callback).Run(nullptr);
-    return;
-  }
+              // Fonts are data-URIs inside the bundle, which is also where this
+              // page stops asking fonts.gstatic.com for a typeface — the
+              // previous one declared `font-src 'self' https://fonts.gstatic.com`
+              // on a de-Googled browser's own surface.
+              .font_src = "font-src data:;",
 
-  auto bytes =
-      base::MakeRefCounted<base::RefCountedString>(std::move(contents));
-  std::move(callback).Run(bytes);
-}
-
-void CreateAndAddDataSource(content::WebUI* web_ui) {
-  content::WebUIDataSource* source =
-      content::WebUIDataSource::CreateAndAdd(
-          web_ui->GetWebContents()->GetBrowserContext(), kAstroAliaHost);
-
-  // Intercept all requests and serve from disk.
-  source->SetRequestFilter(
-      base::BindRepeating(
-          [](const std::string& path) -> bool { return true; }),
-      base::BindRepeating(&HandleAliaRequest));
-
-  // The Vite build produces inline scripts and external JS/CSS modules.
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ScriptSrc,
-      base::StrCat({"script-src ", astro::WebUIOrigin("resources"), " ",
-                    astro::WebUIOrigin("webui-test"), " 'self' 'unsafe-inline';"}));
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::StyleSrc,
-      base::StrCat({"style-src 'self' 'unsafe-inline' ",
-                    astro::WebUIOrigin("theme"), ";"}));
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::FontSrc,
-      "font-src 'self' https://fonts.gstatic.com;");
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ImgSrc,
-      base::StrCat({"img-src 'self' ", astro::WebUIOrigin("favicon2"), " ",
-                    astro::WebUIOrigin("theme"), " data:;"}));
-
-  // Allow connections to the Alia AI API.
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ConnectSrc,
-      "connect-src 'self' https://api.alia.oxy.so;");
-
-  // Disable Trusted Types enforcement since the Vite build output
-  // doesn't use Trusted Types.
-  source->DisableTrustedTypesCSP();
+              // THE LOAD-BEARING DIRECTIVE.
+              //
+              // A trusted page that can reach the network is what issue #17
+              // exists to remove, so the shell is built without that ability
+              // from the start rather than having it taken away later. The
+              // conversation belongs to an unprivileged document reached
+              // through a browser-process broker; nothing this origin runs may
+              // open a socket of its own.
+              .connect_src = "connect-src 'none';",
+          },
+  };
+  return kPage;
 }
 
 }  // namespace
 
 AstroAliaUI::AstroAliaUI(content::WebUI* web_ui)
-    : ui::MojoWebUIController(web_ui, /*enable_chrome_send=*/true) {
-  CreateAndAddDataSource(web_ui);
-}
+    // chrome.send is NOT enabled: this page adopts no upstream handler and
+    // speaks one typed interface.
+    : AstroMojoWebUIPageController(web_ui,
+                                   AliaPage(),
+                                   /*enable_chrome_send=*/false),
+      theme_provider_(Profile::FromWebUI(web_ui)) {}
 
 AstroAliaUI::~AstroAliaUI() = default;
 
-AstroAliaUIConfig::AstroAliaUIConfig()
-    : content::DefaultWebUIConfig<AstroAliaUI>(
-          content::kChromeUIScheme,
-          kAstroAliaHost) {}
+void AstroAliaUI::BindInterface(
+    mojo::PendingReceiver<mojom::ThemeProvider> receiver) {
+  theme_provider_.Bind(std::move(receiver));
+}
 
-}  // namespace oxy
+WEB_UI_CONTROLLER_TYPE_IMPL(AstroAliaUI)
+
+AstroAliaUIConfig::AstroAliaUIConfig()
+    : content::DefaultWebUIConfig<AstroAliaUI>(content::kChromeUIScheme,
+                                               kAstroAliaHost) {}
+
+}  // namespace astro

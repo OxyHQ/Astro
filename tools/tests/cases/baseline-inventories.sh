@@ -31,8 +31,8 @@ harness::assert_status 0 "patch inventory over the real patch stack"
 # to notice a patch that arrived without a disposition — so a new patch is
 # meant to fail here once, deliberately, and be counted in by hand. It did
 # exactly that for 067, whose commit updated the generated baseline but not
-# this line, then again for 070; this run counts in 067, 069 and 070.
-harness::assert_output_contains "astro 66" "every Astro patch is covered"
+# this line, then again for 070; this run counts in 067, 069, 070 and 071.
+harness::assert_output_contains "astro 67" "every Astro patch is covered"
 harness::assert_output_contains "ungoogled 112" "every inherited patch is covered"
 
 harness::run python3 "$BASELINE/inventory_patches.py" --json "$tmp/patches.json"
@@ -168,15 +168,49 @@ harness::assert_output_contains "partially set" "reports keys set on some platfo
 
 harness::run python3 "$BASELINE/inventory_webui_security.py" --verify
 harness::assert_status 0 "WebUI security baseline"
-harness::assert_output_contains "trusted-types-disabled" "detects DisableTrustedTypesCSP"
 harness::assert_output_contains "unsafe-inline" "detects relaxed CSP"
-harness::assert_output_contains "remote-origins" "detects remote font origins"
-harness::assert_output_contains "serves-from-exe-dir" "detects serving from DIR_EXE"
+
+# Three assertions used to sit here requiring the REAL tree to report
+# trusted-types-disabled, remote-origins and serves-from-exe-dir. Every one of
+# them was satisfied only because the repository still HAD that defect, and all
+# three are now fixed: no controller calls DisableTrustedTypesCSP, no page names
+# a remote origin, and no page reads from DIR_EXE. Asserting a defect persists is
+# not a guarantee worth keeping, so they are inverted rather than deleted — the
+# detector's positive direction is exercised against the `dirty` fixture below,
+# which is where a positive belongs.
+harness::assert_output_lacks "trusted-types-disabled" \
+    "no Astro controller may disable Trusted Types"
+harness::assert_output_lacks "remote-origins" \
+    "no Astro page may name a remote origin in its CSP"
+harness::assert_output_lacks "serves-from-exe-dir" \
+    "no Astro page may read its assets from beside the executable"
 
 # unsafe-eval appears twice in this repository and NEITHER is Astro's: both are
 # $csp= rules inside the shipped easylist data. Reporting them would be a false
 # positive on an epic rule, and a baseline that cries wolf is one nobody trusts.
 harness::assert_output_lacks "unsafe-eval" "must not report filter-list data as an Astro CSP violation"
+
+# Same class, and the reason strip_comments() exists: a controller EXPLAINING in
+# a comment that the page it replaced disabled Trusted Types must not be read as
+# a page that disables Trusted Types. Both the Alia and New Tab controllers carry
+# that sentence today.
+commented="$tmp/commented-source"
+mkdir -p "$commented"
+cat > "$commented/astro_commented_ui.cc" <<'CONTROLLER'
+void Configure(content::WebUIDataSource* source) {
+  // What this replaces widened script-src and then called
+  // DisableTrustedTypesCSP() outright, and read base::DIR_EXE for its assets
+  // with a CSP naming https://fonts.gstatic.com.
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::FontSrc, "font-src data:;");
+}
+CONTROLLER
+
+harness::run python3 "$BASELINE/inventory_webui_security.py" --verify --worktree-source "$commented"
+harness::assert_status 0 "a controller whose comments describe the defects it fixed"
+harness::assert_output_lacks "trusted-types-disabled" "a comment is not a call"
+harness::assert_output_lacks "serves-from-exe-dir" "a comment is not a DIR_EXE read"
+harness::assert_output_lacks "remote-origins" "a host named in prose is not a CSP source"
 
 # The other direction: a controller WITHOUT the problems must come back clean,
 # otherwise the detector could be passing by always reporting a violation.
