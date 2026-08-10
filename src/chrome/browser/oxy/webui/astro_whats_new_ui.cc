@@ -31,13 +31,11 @@ const WebUIPage& WhatsNewPage() {
               // Chromium's default for trusted WebUI.
               .script_src = nullptr,
 
-              // WIDENING, DECLARED AND DATED — 2026-08-09.
-              //
-              // Bloom's web forks inject a <style> element on mount for their
-              // keyframes and pseudo-classes. Same widening, same reason and
-              // same removal condition as astro://settings; it comes out when
-              // Bloom ships constructable stylesheets. F5 of the Astro Next
-              // plan, issue #14.
+              // WIDENING, MEASURED. Not Bloom's doing and not removable:
+              // react-native-web and Reanimated create <style> elements and
+              // fill them through CSSOM, and CSP blocks the element. See
+              // WebUIPageCsp::style_src in astro_webui_page.h for the
+              // measurement and for the narrowing that is available instead.
               .style_src = "style-src 'self' 'unsafe-inline';",
 
               // The mark is inline SVG and there are no other images.
