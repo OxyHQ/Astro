@@ -121,13 +121,13 @@ chrome-version      chrome://version        command_line
 chrome-newtab       chrome://newtab         id="root"
 chrome-astro-ntp    chrome://astro-ntp      id="root"
 astro-newtab        astro://newtab          id="root"
-chrome-settings     chrome://settings       id="app"
-astro-settings      astro://settings        id="app"
+chrome-settings     chrome://settings       id="root"
+astro-settings      astro://settings        id="root"
 chrome-history      chrome://history        history-app
 chrome-downloads    chrome://downloads      downloads-manager
-chrome-alia         chrome://alia           id="app"
-astro-alia          astro://alia            id="app"
-chrome-whats-new    chrome://whats-new      New in Astro
+chrome-alia         chrome://alia           id="root"
+astro-alia          astro://alia            id="root"
+chrome-whats-new    chrome://whats-new      id="root"
 chrome-astro-error  chrome://astro-error    id="root"
 EOF
 }

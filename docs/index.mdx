@@ -123,10 +123,16 @@ astro --no-sandbox
 For incremental WebUI work you do **not** need to rebuild Chromium — point a dev server at each Vite app and reload:
 
 ```sh
-cd webui/app        && bun run dev    # http://localhost:5178  (strictPort)
-cd webui/alia       && bun run dev    # Vite default: 5173, or the next free port
-cd webui/whats-new  && bun run dev
+cd webui/app && bun run dev    # http://localhost:5178  (strictPort)
 ```
+
+There is one app and one dev server. Every `astro://` surface is an entry of
+it, chosen from `location.hostname` in the browser and from the first path
+segment on the dev server, so `/settings`, `/astro-ntp`, `/alia` and
+`/whats-new` are all served from that one port. The port is pinned because
+Vite's default is to silently take the next free one, and `5173` is already
+another project's dev server on at least one machine here — which produced a
+session that read a different app's HTML as this one's.
 
 See [Build](./build) for the full workflow, cross-compilation, gotchas, and packaging. See [Architecture](./architecture) for the patch model and overlay layout. See [Oxy integration](./oxy-integration) for the auth, cookie observer, Alia, ad blocker, and update server wiring.
 

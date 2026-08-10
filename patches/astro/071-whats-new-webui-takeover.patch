@@ -1,0 +1,78 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Sun, 10 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Serve astro://whats-new from Astro, under upstream's own host
+
+The page a browser shows after it updates is the browser's own statement about
+itself, so Astro's is Astro's: an entry of the single WebUI app, compiled into
+astro_webui_resources.pak, themed by astro_theme.mojom, and declaring
+`connect-src 'none'`. Upstream's fetches its content from Google.
+
+WHAT THIS FIXES, WHICH IS MORE THAN A SWAP
+
+The host was not merely upstream's, it was DEAD. `WhatsNewUIConfig` overrides
+`IsWebUIEnabled` to return `whats_new::IsEnabled()`, and that function reads
+
+    #if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
+      return true;
+    #elif !BUILDFLAG(IS_CHROMEOS)
+      return base::FeatureList::IsEnabled(whats_new::kForceEnabled);
+
+`kForceEnabled` is `FEATURE_DISABLED_BY_DEFAULT`, and Astro builds with
+`google_chrome_branding = false`, so the config declined every navigation.
+Measured against the binary this tree builds: `chrome://whats-new` answers
+net::ERR_INVALID_URL and commits chrome-error://chromewebdata/. Astro shipped a
+What's New page nobody could reach, in a directory beside the executable, for
+as long as it has had one.
+
+WHY THE REGISTRATION IS SWAPPED AND NOT ADDED
+
+`WebUIConfigMap::AddWebUIConfigImpl` CHECKs on a duplicate origin, so a second
+config for `whats-new` crashes the browser at startup rather than shadowing
+upstream's. `AstroWhatsNewUIConfig` has existed in the overlay since before
+this patch and was never registered anywhere, which is why that crash was
+never observed.
+
+Unlike the settings takeover in 060, no extension grant rides on the host:
+`grep -n 'chrome://whats-new' chrome/common/extensions/api/_api_features.json
+extensions/common/api/_api_features.json` finds nothing. The host is taken
+because it is the address the browser's own affordances navigate to, and a
+page at a different host would leave those pointing at nothing.
+
+WHAT UPSTREAM'S WHAT'S NEW LOSES
+
+Its registration, and nothing else. `WhatsNewUI`, its handler, its fetcher and
+its storage service are still compiled and still linked; the mojom, the
+registrar and the surveys machinery are untouched. This patch removes one line
+and the include that only that line needed.
+
+Owned by https://github.com/OxyHQ/Astro/issues/14.
+---
+diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+--- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
++++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+@@ -11,6 +11,7 @@
+ #include "chrome/browser/oxy/webui/astro_alia_ui.h"
+ #include "chrome/browser/oxy/webui/astro_ntp_ui.h"
+ #include "chrome/browser/oxy/webui/astro_settings_ui.h"
++#include "chrome/browser/oxy/webui/astro_whats_new_ui.h"
+ #include "chrome/browser/ui/webui/about/about_ui.h"
+ #include "chrome/browser/ui/webui/accessibility/accessibility_ui.h"
+ #include "chrome/browser/ui/webui/actor_internals/actor_internals_ui.h"
+@@ -163,7 +164,6 @@
+ #include "chrome/browser/ui/webui/browser_switch/browser_switch_ui.h"
+ #include "chrome/browser/ui/webui/signin/history_sync_optin/history_sync_optin_ui.h"
+ #include "chrome/browser/ui/webui/updater/updater_ui.h"
+-#include "chrome/browser/ui/webui/whats_new/whats_new_ui.h"
+ #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+ 
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \
+@@ -408,7 +408,7 @@ void RegisterChromeWebUIConfigs() {
+   map.AddWebUIConfig(std::make_unique<HistorySyncOptinUIConfig>());
+   map.AddWebUIConfig(std::make_unique<OnDeviceTranslationInternalsUIConfig>());
+   map.AddWebUIConfig(std::make_unique<WebAppSettingsUIConfig>());
+-  map.AddWebUIConfig(std::make_unique<WhatsNewUIConfig>());
++  map.AddWebUIConfig(std::make_unique<astro::AstroWhatsNewUIConfig>());
+ #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+ 
+ #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || \

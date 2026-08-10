@@ -147,43 +147,33 @@ fi
 
 # --- WebUI pages ---
 echo ">>> Copying WebUI pages..."
-for page in ntp alia whats-new; do
-    if [ -d "$BUILD_DIR/resources/astro-$page" ]; then
-        mkdir -p "$INSTALL_PREFIX/resources/astro-$page"
-        cp -r "$BUILD_DIR/resources/astro-$page/"* "$INSTALL_PREFIX/resources/astro-$page/"
-    elif [ -d "$ASTRO_ROOT/webui/$page/dist" ]; then
-        mkdir -p "$INSTALL_PREFIX/resources/astro-$page"
-        cp -r "$ASTRO_ROOT/webui/$page/dist/"* "$INSTALL_PREFIX/resources/astro-$page/"
-    fi
-done
+# No per-page resource tree is staged. Every astro:// surface is compiled into
+# astro_webui_resources.pak and repacked into the browser's own resources.pak by
+# 067-astro-webui-pak-repack.patch, so the pages travel inside the binary this
+# artifact already carries. What stood here copied `resources/astro-<page>/`
+# directories that no controller reads any more.
 
 # --- Launcher script (system-installed version, uses /opt/astro paths) ---
+#
+# It matches tools/astro-launch.sh, which the other Linux artifacts ship
+# verbatim, and differs from it only in INSTALL_DIR. What it replaces started a
+# `python3 -m http.server` on port 19845 over the installation's resources
+# directory and opened `http://127.0.0.1:19845/astro-ntp/index.html` as the new
+# tab — so the browser's own new tab page ran as an ordinary http:// origin with
+# no WebUI privileges, out of a directory the machine was serving to anything
+# that could reach loopback, for the life of the browser. It was already stale
+# before that: the pages have been served from `chrome://` since the app was
+# packed into the pak, and this was the last thing in the repository still
+# reading resources/astro-*.
 cat > "$INSTALL_PREFIX/astro-launch.sh" << 'LAUNCH_EOF'
 #!/usr/bin/env bash
 INSTALL_DIR="/opt/astro"
 DATA_DIR="$HOME/.config/astro"
-PORT=19845
 
-# Kill any existing WebUI server on this port
-fuser -k $PORT/tcp 2>/dev/null
-sleep 0.2
+# All pages are served natively via chrome:// URLs.
+# No HTTP server needed.
 
-# Start local server for WebUI pages
-if [ -d "$INSTALL_DIR/resources" ]; then
-    python3 -m http.server $PORT -d "$INSTALL_DIR/resources" --bind 127.0.0.1 &>/dev/null &
-    SERVER_PID=$!
-    sleep 0.3
-fi
-
-NTP="http://127.0.0.1:$PORT/astro-ntp/index.html"
-
-if [ $# -eq 0 ]; then
-    "$INSTALL_DIR/chrome" --no-sandbox --user-data-dir="$DATA_DIR" "$NTP"
-else
-    "$INSTALL_DIR/chrome" --no-sandbox --user-data-dir="$DATA_DIR" "$@"
-fi
-
-kill $SERVER_PID 2>/dev/null || true
+"$INSTALL_DIR/chrome" --no-sandbox --user-data-dir="$DATA_DIR" "$@"
 LAUNCH_EOF
 chmod 755 "$INSTALL_PREFIX/astro-launch.sh"
 

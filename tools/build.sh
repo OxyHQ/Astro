@@ -33,15 +33,13 @@ PLATFORM="linux"
 # the repository says, not what one machine happens to have.
 GN_ARGS_OVERRIDE=""
 
-# Legacy WebUI pages, each staged as a directory beside the executable and read
-# from there at runtime. A missing bundle is a build failure: the page would
-# render blank, which is not a warning-level event.
-#
-# The Astro WebUI app is NOT one of these and never will be. It is compiled into
-# astro_webui_resources.pak by a GN action, so the build produces it rather than
-# consuming it; what this script checks for the app is the one thing that action
-# cannot do for itself, below.
-REQUIRED_WEBUI_PAGES=(alia whats-new)
+# There is no list of per-page bundles here any more, and there must not be one
+# again. Every astro:// surface is an entry of the Vite app below, compiled into
+# astro_webui_resources.pak by a GN action, so the build PRODUCES its WebUI
+# assets rather than consuming a directory somebody remembered to build. The
+# list this replaces existed because the pages were staged beside the
+# executable and read from there at runtime — the arrangement that made a
+# missing directory a blank page instead of a failed build.
 
 # The Vite app every astro:// surface is served from.
 ASTRO_WEBUI_APP_DIR_NAME="webui/app"
@@ -158,23 +156,6 @@ astro::require_file "$ASTRO_ROOT/tools/gn-check-baseline.json" "committed gn che
 # this run is that the caller's word is not good enough.
 astro::require_file "$ASTRO_ROOT/tools/lib/build_outcome.py" "build outcome detector"
 astro::require_file "$ASTRO_ROOT/tools/verify-build-outcome.sh" "build outcome verifier"
-
-# WebUI bundles. The old script warned and carried on; a build produced that
-# way ships a page that renders nothing.
-astro::info ">>> Checking required WebUI bundles..."
-for page in "${REQUIRED_WEBUI_PAGES[@]}"; do
-    page_dist="$ASTRO_ROOT/webui/$page/dist"
-    if [ ! -d "$page_dist" ]; then
-        astro::die_with_hint \
-            "Required WebUI bundle missing: webui/$page/dist" \
-            "astro://$page would render blank in the resulting build." \
-            "Build it first:  cd webui/$page && bun install && bun run build"
-    fi
-    if [ ! -f "$page_dist/index.html" ]; then
-        astro::die "Required WebUI bundle has no index.html: webui/$page/dist"
-    fi
-done
-astro::info "    all ${#REQUIRED_WEBUI_PAGES[@]} bundles present"
 
 # The Astro WebUI app's dependencies.
 #
@@ -335,27 +316,13 @@ fi
 
 BUILD_OUT="$CHROMIUM_SRC/$OUT_DIR"
 
-# The controllers read <DIR_EXE>/resources/astro-<page>/, so that is where the
-# pages go. Staging them at <DIR_EXE>/astro-<page>/ instead put every page one
-# directory away from the only path its controller looks in, and the failure is
-# silent: WebUIDataSource serves nothing, the page renders blank, and the build
-# reports success. The installers and all four packagers already write the
-# resources/ form, so this is the layout every artifact except the build
-# directory itself already had.
-astro::info ">>> Staging WebUI resources..."
-for page in "${REQUIRED_WEBUI_PAGES[@]}"; do
-    page_dist="$ASTRO_ROOT/webui/$page/dist"
-    if astro::dry_run; then
-        astro::plan "stage webui/$page/dist -> $OUT_DIR/resources/astro-$page/"
-    else
-        mkdir -p "$BUILD_OUT/resources/astro-$page"
-        # No --delete: the destination is inside the build directory, but the
-        # rule is uniform so no future edit can turn one of these into the
-        # destructive shape.
-        rsync -a "$page_dist/" "$BUILD_OUT/resources/astro-$page/"
-    fi
-done
-
+# No WebUI staging step. There used to be one, copying each page's `dist` to
+# <DIR_EXE>/resources/astro-<page>/ because that is where its controller read
+# from; it is gone with the last page that read from disk. Every astro://
+# surface now arrives inside the binary, in astro_webui_resources.pak, which is
+# the whole point: a resource named by a controller that GRIT did not compile is
+# a link error at build time, where the disk arrangement's equivalent was a
+# blank page on a user's machine.
 astro::info ">>> Staging ad blocker filter lists..."
 if astro::dry_run; then
     astro::plan "stage adblock resources -> $OUT_DIR/adblock_resources/"

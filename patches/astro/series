@@ -74,3 +74,4 @@
 067-astro-webui-pak-repack.patch
 069-rmp-serde-rmpread-backport.patch
 070-theme-color-picker-astro-presets.patch
+071-whats-new-webui-takeover.patch

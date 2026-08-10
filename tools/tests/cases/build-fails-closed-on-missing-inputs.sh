@@ -53,38 +53,22 @@ run_build
 
 harness::assert_status 0 "dry run with every required input present"
 harness::assert_output_contains "Syncing the Astro overlay" "the overlay sync is a required step"
-harness::assert_output_contains "all 2 bundles present" "webui bundle check ran"
 harness::assert_output_contains "gn gen" "planned generation"
 harness::assert_output_contains "gn check" "gn check is a required step"
 harness::assert_output_lacks "gn was executed during a dry run" "dry run must not invoke gn"
 harness::assert_tree_unchanged "$chromium" "$before"
 
-# --- A missing WebUI bundle stops the build, before generation --------------
-
-rm -rf "${fake_root:?}/webui/whats-new/dist"
-
-run_build
-
-harness::assert_nonzero_status "missing WebUI bundle"
-harness::assert_output_contains "Required WebUI bundle missing" "refusal reason"
-harness::assert_output_contains "webui/whats-new/dist" "names the missing bundle"
-harness::assert_output_contains "would render blank" "explains the consequence"
-harness::assert_output_lacks "gn gen" "must fail before build generation"
-harness::assert_tree_unchanged "$chromium" "$before"
-
-mkdir -p "$fake_root/webui/whats-new/dist"
-printf '<!doctype html>\n' > "$fake_root/webui/whats-new/dist/index.html"
-
-# --- A bundle directory without index.html is equally fatal -----------------
-
-rm -f "$fake_root/webui/alia/dist/index.html"
-
-run_build
-
-harness::assert_nonzero_status "WebUI bundle without index.html"
-harness::assert_output_contains "no index.html" "refusal reason"
-
-printf '<!doctype html>\n' > "$fake_root/webui/alia/dist/index.html"
+# There are no per-page WebUI bundles left to check for. Three assertions and
+# two refusal cases stood here, and they are DELETED rather than repointed:
+# their subject was `webui/<page>/dist`, a directory staged beside the
+# executable and read at runtime, and the last page on that arrangement is
+# gone. A build cannot fail closed on a missing bundle any more because there
+# is no window in which one can be missing — the pages are compiled into
+# astro_webui_resources.pak, so an absent resource is a GRIT or link failure
+# during the compile.
+#
+# What remains below is the app's own preconditions, which are real and which
+# the GN action genuinely cannot satisfy for itself.
 
 # --- The Astro WebUI app's dependencies are a build precondition ------------
 #

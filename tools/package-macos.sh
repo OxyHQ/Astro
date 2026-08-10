@@ -50,14 +50,11 @@ astro::require_astro_overlay "macos arm64" --bundle "$APP_BUNDLE"
 
 mkdir -p "$RELEASE_DIR"
 
-# --- Copy WebUI resources into the bundle ---
-RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
-for page in ntp alia whats-new; do
-    if [ -d "$BUILD_DIR/resources/astro-$page" ]; then
-        mkdir -p "$RESOURCES_DIR/astro-$page"
-        cp -r "$BUILD_DIR/resources/astro-$page/"* "$RESOURCES_DIR/astro-$page/"
-    fi
-done
+# No per-page resource tree is staged. Every astro:// surface is compiled into
+# astro_webui_resources.pak and repacked into the browser's own resources.pak by
+# 067-astro-webui-pak-repack.patch, so the pages travel inside the binary this
+# artifact already carries. What stood here copied `resources/astro-<page>/`
+# directories that no controller reads any more.
 
 # --- Code signing (optional, requires Apple Developer certificate) ---
 if [ -n "${MACOS_CERTIFICATE_P12:-}" ] && [ -n "${MACOS_CERTIFICATE_PASSWORD:-}" ]; then

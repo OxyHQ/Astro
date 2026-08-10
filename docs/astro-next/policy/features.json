@@ -124,7 +124,7 @@
         "Baseline finding 1: nothing in the committed patch stack links src/chrome/browser/oxy into the build graph, so no Astro WebUI controller is compiled into any binary built from committed source."
       ],
       "state": "REPLACE",
-      "rationale": "Served today from `chrome://alia` by a controller that reads its assets from disk beside the executable. The epic requires privileged resources be packaged through GN/GRIT with strict CSP and Trusted Types, and requires there be no canonical chrome://astro-* product URLs. REPLACE covers both moves.",
+      "rationale": "Ported, as a SHELL. Served from `chrome://alia` by AstroAliaUI on the shared astro_webui_page base, out of astro_webui_resources.pak — packaged through GN/GRIT, Chromium's default trusted-WebUI CSP with Trusted Types enforced, `connect-src 'none'`, and no filesystem read. The chat itself was deliberately NOT carried across: it fetched an AI API directly from a privileged origin, which is the shape #17 exists to forbid, and it had never worked anyway — the page's CSP named a different host than its code called. The entry says so on the page rather than offering an input that answers nothing. What REPLACE still covers is #17's architecture — an unprivileged astro-untrusted://alia-content document, a typed bridge to a browser-process broker, and a context-permission model — plus the canonical URL.",
       "owner_issue": 17,
       "upstream_component": "//chrome/browser/oxy/webui",
       "user_surface": "chrome://alia",
@@ -144,7 +144,7 @@
       "inputs_reason": "#11 reads one row from this entry, not a decision: `scheme_trust` (which of the two internal schemes this page lands on) and `webui_host` (the name its data source registers under). Both are recorded here; the rules that produce them are webui-scheme-trust-split and webui-host-namespace, and those are the entries that block.",
       "webui_host": "alia",
       "scheme_trust": "untrusted",
-      "notes": "untrusted: the panel's own JavaScript calls api.alia.onl (endpoint `alia-api`, contact user-initiated, trigger 'user sends a message in the Alia side panel'), and a bound document has no network factory (render_frame_host_impl.cc:12645-12657). This is the one page where the assignment is a design choice rather than a consequence: if #17 moves the API call into the browser process behind Mojo, the row becomes `trusted`. Recorded as untrusted because that is the fail-safe answer for the design that exists."
+      "notes": "untrusted, and the REASON has changed even though the value has not. The old reason was that the panel's own JavaScript called api.alia.onl, and a bound document has no network factory (render_frame_host_impl.cc:12645-12657). The ported shell makes no request at all and declares `connect-src 'none'`, so by that rule the page as it exists today is trusted. The row stays untrusted because the FEATURE is not one document: #17 adds astro-untrusted://alia-content beside this shell, and that half is what the assignment describes. Whether the split is recorded as two rows is #11's and #17's to settle; untrusted remains the fail-safe single answer until they do."
     },
     {
       "id": "astro-adblock-webui",
@@ -404,7 +404,7 @@
         "Baseline finding 1: nothing in the committed patch stack links src/chrome/browser/oxy into the build graph, so no Astro WebUI controller is compiled into any binary built from committed source."
       ],
       "state": "REPLACE",
-      "rationale": "Served today from `chrome://whats-new` by a controller that reads its assets from disk beside the executable. The epic requires privileged resources be packaged through GN/GRIT with strict CSP and Trusted Types, and requires there be no canonical chrome://astro-* product URLs. REPLACE covers both moves.",
+      "rationale": "Ported. Served from `chrome://whats-new` by AstroWhatsNewUI on the shared astro_webui_page base, out of astro_webui_resources.pak — packaged through GN/GRIT, Chromium's default trusted-WebUI CSP with Trusted Types enforced, `connect-src 'none'`, no remote font and no filesystem read. It was also UNREACHABLE before the port and is not any more: upstream owns this host and its config's IsWebUIEnabled returns whats_new::IsEnabled(), which outside a Google-branded build reads a feature flag that is disabled by default, so the address answered net::ERR_INVALID_URL. 071-whats-new-webui-takeover.patch swaps that registration. What REPLACE still covers is the canonical URL.",
       "owner_issue": 14,
       "upstream_component": "//chrome/browser/oxy/webui",
       "user_surface": "chrome://whats-new",
@@ -424,7 +424,7 @@
       "inputs_reason": "#11 reads one row from this entry, not a decision: `scheme_trust` (which of the two internal schemes this page lands on) and `webui_host` (the name its data source registers under). Both are recorded here; the rules that produce them are webui-scheme-trust-split and webui-host-namespace, and those are the entries that block.",
       "webui_host": "not-determined",
       "scheme_trust": "trusted",
-      "notes": "trusted: `network` is `none`. `webui_host` is not-determined because `whats-new` collides with chrome/common/webui_url_constants.h:579; the rename is #14's."
+      "notes": "trusted: `network` is `none`, and now enforced rather than merely true — the controller declares `connect-src 'none'`. `webui_host` is not-determined because `whats-new` collides with chrome/common/webui_url_constants.h:579; Astro takes that host by swapping upstream's registration, and the rename is #14's."
     },
     {
       "id": "autofill",

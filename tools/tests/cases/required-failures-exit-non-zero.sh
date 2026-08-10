@@ -300,17 +300,12 @@ run_build_missing_gn_args() {
         "$build_gn_root/tools/build.sh" Release linux --dry-run
 }
 
-# --- Missing WebUI bundle ---------------------------------------------------
-
-build_webui_root="$tmp/build-webui-root"
-build_webui_chromium="$tmp/build-webui-chromium"
-harness::make_build_root "$build_webui_root" "$build_webui_chromium"
-rm -rf "${build_webui_root:?}/webui/whats-new/dist"
-
-run_build_missing_webui_bundle() {
-    env ASTRO_CHROMIUM_SRC="$build_webui_chromium" ASTRO_SKIP_LOCK_VERIFY=1 \
-        "$build_webui_root/tools/build.sh" Release linux --dry-run
-}
+# There is no missing-WebUI-bundle row any more. It refused a build whose
+# `webui/<page>/dist` was absent, and no page is served from such a directory:
+# every astro:// surface is compiled into astro_webui_resources.pak, where a
+# resource a controller names and GRIT did not compile is a link error rather
+# than a blank page. The condition cannot occur, so a row asserting a refusal
+# for it would be a row that can only pass by accident.
 
 # --- Missing ad blocker filter lists ----------------------------------------
 #
@@ -404,9 +399,6 @@ harness::register_failure "domain substitution without --skip-domain-substitutio
 harness::register_failure "build with a missing GN args file" \
     run_build_missing_gn_args \
     "GN args file for linux"
-harness::register_failure "build with a missing WebUI bundle" \
-    run_build_missing_webui_bundle \
-    "Required WebUI bundle missing" "webui/whats-new/dist" "would render blank"
 harness::register_failure "build with missing ad blocker filter lists" \
     run_build_missing_adblock_resources \
     "ad blocker filter lists"
@@ -426,7 +418,11 @@ build_requires() {
     grep -qE "astro::require_file \"[^\"]*/tools/${path//./\\.}\"" "$TOOLS/build.sh"
 }
 
-MINIMUM_ROWS=15
+# 14, not 15: the missing-WebUI-bundle row was removed when the last page
+# served from a directory beside the executable was absorbed into the app, and
+# a floor left one above the count is a red about arithmetic rather than about
+# the guarantee.
+MINIMUM_ROWS=14
 
 if build_requires "lib/build_outcome.py"; then
     harness::register_failure "build outcome detector is missing" \
@@ -444,10 +440,11 @@ fi
 # Property 1: every required failure exits non-zero, and says why
 #
 # The floor is this case's own, and it is EXACT at every layer rather than set
-# to the smallest layer's count: 15 rows are unconditional, and each row above
+# to the smallest layer's count: 14 rows are unconditional, and each row above
 # that build.sh's own declarations enable raised it by one as it was
-# registered. A floor pinned at 15 would have let a later layer silently lose
-# its two extra rows; a floor pinned at 17 is the red this pass just removed.
+# registered. A floor pinned at the unconditional count alone would have let a
+# later layer silently lose its two extra rows; a floor pinned one above the
+# real count is a red about arithmetic, which this case has produced twice.
 # ==========================================================================
 
 harness::run_failure_table "$MINIMUM_ROWS"

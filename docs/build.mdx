@@ -27,10 +27,10 @@ All of it is fail-closed. Shared behaviour — strict mode, an `ERR` trap that n
 git clone https://github.com/OxyHQ/Astro.git
 cd Astro
 
-# Install WebUI workspace deps (per page)
-cd webui/app        && bun install && cd -
-cd webui/alia       && bun install && cd -
-cd webui/whats-new  && bun install && cd -
+# Install the WebUI app's deps. A GN action runs Vite during the compile and
+# must not reach the network, so this is a build PRECONDITION; tools/build.sh
+# refuses a build without it rather than failing inside ninja.
+cd webui/app && bun install && cd -
 ```
 
 `tools/sync-sources.sh` will clone Google's `depot_tools` into `./depot_tools/` on first run if it is not already present, and check it out at the commit `browser.lock.json` pins.

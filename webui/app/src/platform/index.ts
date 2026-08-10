@@ -32,6 +32,10 @@ import './global.css';
 // with the provider plainly mounted.
 export {BloomThemeProvider} from '@oxyhq/bloom/theme';
 
+// The product's own mark, drawn by two entries and by neither of them twice.
+export {AstroMark} from './brand/astro-mark.tsx';
+export type {AstroMarkProps} from './brand/astro-mark.tsx';
+
 export {PageShell} from './shell/page-shell.tsx';
 export type {NavEntry, NavGroup, NavIcon, PageShellProps} from './shell/page-shell.tsx';
 

@@ -3,117 +3,82 @@
 
 #include "chrome/browser/oxy/webui/astro_whats_new_ui.h"
 
-#include <string>
+#include <utility>
 
-#include "base/files/file_path.h"
-#include "base/files/file_util.h"
-#include "base/logging.h"
-#include "base/memory/ref_counted_memory.h"
-#include "base/path_service.h"
-#include "base/strings/strcat.h"
-#include "chrome/browser/oxy/webui/astro_webui_page.h"
-#include "content/public/browser/web_contents.h"
-#include "content/public/common/bindings_policy.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/astro_webui_resources.h"
+#include "chrome/grit/astro_webui_resources_map.h"
 #include "content/public/browser/web_ui.h"
-#include "content/public/browser/web_ui_data_source.h"
 #include "content/public/common/url_constants.h"
-#include "services/network/public/mojom/content_security_policy.mojom.h"
 
-namespace oxy {
+namespace astro {
 
 namespace {
 
-base::FilePath GetWhatsNewResourcesDir() {
-  base::FilePath exe_dir;
-  base::PathService::Get(base::DIR_EXE, &exe_dir);
-  return exe_dir.AppendASCII("resources").AppendASCII("astro-whats-new");
-}
+const WebUIPage& WhatsNewPage() {
+  static const WebUIPage kPage{
+      // Upstream's constant, never a literal: this page exists at this address
+      // precisely because it is upstream's, and a hand-spelled copy would let
+      // the two drift into a duplicate registration, which CHECKs at startup.
+      .host = chrome::kChromeUIWhatsNewHost,
 
-void HandleWhatsNewRequest(
-    const std::string& path,
-    content::WebUIDataSource::GotDataCallback callback) {
-  base::FilePath resources_dir = GetWhatsNewResourcesDir();
+      .resources = kAstroWebuiResources,
+      .default_resource = IDR_ASTRO_WEBUI_INDEX_HTML,
 
-  std::string file_path_str = path.empty() ? "index.html" : path;
+      .csp =
+          {
+              // Chromium's default for trusted WebUI.
+              .script_src = nullptr,
 
-  // Security: reject paths that attempt directory traversal.
-  if (file_path_str.find("..") != std::string::npos) {
-    LOG(WARNING) << "Astro What's New: rejected path with directory traversal: "
-                 << file_path_str;
-    std::move(callback).Run(nullptr);
-    return;
-  }
+              // WIDENING, DECLARED AND DATED — 2026-08-09.
+              //
+              // Bloom's web forks inject a <style> element on mount for their
+              // keyframes and pseudo-classes. Same widening, same reason and
+              // same removal condition as astro://settings; it comes out when
+              // Bloom ships constructable stylesheets. F5 of the Astro Next
+              // plan, issue #14.
+              .style_src = "style-src 'self' 'unsafe-inline';",
 
-  base::FilePath file_path = resources_dir.AppendASCII(file_path_str);
+              // The mark is inline SVG and there are no other images.
+              .img_src = "img-src 'self' data:;",
 
-  std::string contents;
-  if (!base::ReadFileToString(file_path, &contents)) {
-    // SPA fallback: serve index.html for paths without file extensions
-    if (file_path_str.find('.') == std::string::npos) {
-      file_path = resources_dir.AppendASCII("index.html");
-      if (base::ReadFileToString(file_path, &contents)) {
-        auto bytes = base::MakeRefCounted<base::RefCountedString>(
-            std::move(contents));
-        std::move(callback).Run(bytes);
-        return;
-      }
-    }
-    LOG(WARNING) << "Astro What's New: failed to read resource: "
-                 << file_path.value();
-    std::move(callback).Run(nullptr);
-    return;
-  }
+              // Fonts are data-URIs inside the bundle. The page this replaces
+              // declared `font-src 'self' https://fonts.gstatic.com`, so the
+              // one page a de-Googled browser shows after an update asked
+              // Google for its typeface.
+              .font_src = "font-src data:;",
 
-  auto bytes =
-      base::MakeRefCounted<base::RefCountedString>(std::move(contents));
-  std::move(callback).Run(bytes);
-}
-
-void CreateAndAddDataSource(content::WebUI* web_ui) {
-  content::WebUIDataSource* source =
-      content::WebUIDataSource::CreateAndAdd(
-          web_ui->GetWebContents()->GetBrowserContext(), kAstroWhatsNewHost);
-
-  // Intercept all requests and serve from disk.
-  source->SetRequestFilter(
-      base::BindRepeating(
-          [](const std::string& path) -> bool { return true; }),
-      base::BindRepeating(&HandleWhatsNewRequest));
-
-  // The Vite build produces inline scripts and external JS/CSS modules.
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ScriptSrc,
-      base::StrCat({"script-src ", astro::WebUIOrigin("resources"), " ",
-                    astro::WebUIOrigin("webui-test"), " 'self' 'unsafe-inline';"}));
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::StyleSrc,
-      base::StrCat({"style-src 'self' 'unsafe-inline' ",
-                    astro::WebUIOrigin("theme"), ";"}));
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::FontSrc,
-      "font-src 'self' https://fonts.gstatic.com;");
-  source->OverrideContentSecurityPolicy(
-      network::mojom::CSPDirectiveName::ImgSrc,
-      base::StrCat({"img-src 'self' ", astro::WebUIOrigin("favicon2"), " ",
-                    astro::WebUIOrigin("theme"), " data:;"}));
-
-  // Disable Trusted Types enforcement since the Vite build output
-  // doesn't use Trusted Types.
-  source->DisableTrustedTypesCSP();
+              // Nothing here talks to a server. The six entries are shipped
+              // editorial content compiled into the binary, not a feed —
+              // upstream's What's New fetches its content from Google, and not
+              // doing that is most of the reason this page exists.
+              .connect_src = "connect-src 'none';",
+          },
+  };
+  return kPage;
 }
 
 }  // namespace
 
 AstroWhatsNewUI::AstroWhatsNewUI(content::WebUI* web_ui)
-    : ui::MojoWebUIController(web_ui, /*enable_chrome_send=*/true) {
-  CreateAndAddDataSource(web_ui);
-}
+    : AstroMojoWebUIPageController(web_ui,
+                                   WhatsNewPage(),
+                                   /*enable_chrome_send=*/false),
+      theme_provider_(Profile::FromWebUI(web_ui)) {}
 
 AstroWhatsNewUI::~AstroWhatsNewUI() = default;
+
+void AstroWhatsNewUI::BindInterface(
+    mojo::PendingReceiver<mojom::ThemeProvider> receiver) {
+  theme_provider_.Bind(std::move(receiver));
+}
+
+WEB_UI_CONTROLLER_TYPE_IMPL(AstroWhatsNewUI)
 
 AstroWhatsNewUIConfig::AstroWhatsNewUIConfig()
     : content::DefaultWebUIConfig<AstroWhatsNewUI>(
           content::kChromeUIScheme,
-          kAstroWhatsNewHost) {}
+          chrome::kChromeUIWhatsNewHost) {}
 
-}  // namespace oxy
+}  // namespace astro

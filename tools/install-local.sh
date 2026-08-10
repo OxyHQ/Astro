@@ -29,13 +29,13 @@ BUILD_DIR="$PROJECT_ROOT/chromium/src/out/Release"
 ICON_SRC="$PROJECT_ROOT/branding/web/icon-512.png"
 DESKTOP_SRC="$PROJECT_ROOT/branding/astro-browser.desktop"
 
-# The pages still served from disk. Settings and the new tab page are NOT here:
-# they are entries of `webui/app`, which a GN action compiles into
-# astro_webui_resources.pak during the build, so they arrive inside the binary
-# and there is nothing to stage. `tools/build.sh`'s REQUIRED_WEBUI_PAGES is the
-# same list and the two must agree — this one kept `ntp` after the port deleted
-# `webui/ntp`, and the install then failed on a manifest that no longer exists.
-WEBUI_PAGES=(alia whats-new)
+# No list of pages to build and stage. There is nothing left to serve from
+# disk: every astro:// surface is an entry of `webui/app`, which a GN action
+# compiles into astro_webui_resources.pak during the build, so the pages arrive
+# inside the binary this script copies. The list that used to be here had to
+# agree with `tools/build.sh`'s, and twice did not — it kept `ntp` after the
+# port deleted `webui/ntp`, and the install failed on a manifest that no longer
+# existed.
 
 astro::require_cmd rsync bun ninja sed find
 astro::require_dir "$BUILD_DIR" "build output (run tools/build.sh first)"
@@ -104,35 +104,17 @@ if command -v gtk-update-icon-cache >/dev/null; then
 fi
 
 # --------------------------------------------------------------------------
-# WebUI pages
+# There is no WebUI step here any more.
 #
-# Each page is built and post-processed. A failure here previously produced a
-# blank astro:// page inside an installation that reported success.
+# What stood here built each page's `dist`, then repaired it with three `sed`
+# passes — stripping `crossorigin`, deleting the Google Fonts <link>, and
+# emptying Vite's `crossOrigin` assignment — because a chrome:// page cannot
+# load a cross-origin sub-resource and the bundler did not know that. Every one
+# of those was a build output being edited after the fact by an installer, which
+# meant the bytes a developer ran and the bytes a packager shipped were repaired
+# by different code. The Vite app emits what a WebUI page can load, and GRIT
+# packs it into the binary; the installer copies a binary and nothing else.
 # --------------------------------------------------------------------------
-
-astro::info "  Building WebUI pages..."
-for page in "${WEBUI_PAGES[@]}"; do
-    page_dir="$PROJECT_ROOT/webui/$page"
-    astro::require_file "$page_dir/package.json" "webui/$page manifest"
-
-    ( cd "$page_dir" && bun run build )
-
-    dist="$page_dir/dist"
-    astro::require_file "$dist/index.html" "webui/$page build output"
-
-    # chrome:// pages cannot load cross-origin sub-resources.
-    sed -i 's/ crossorigin//g' "$dist/index.html"
-    # Strip external font links — chrome:// pages cannot load https:// sub-resources.
-    sed -i '/<link.*fonts.googleapis\|<link.*fonts.gstatic\|preconnect.*fonts/d' "$dist/index.html"
-    # Strip crossOrigin from Vite's preload helper — chrome:// pages reject it.
-    while IFS= read -r -d '' asset; do
-        sed -i 's/\.crossOrigin=``//g' "$asset"
-    done < <(find "$dist" \( -name '*.js' -o -name '*.html' \) -print0)
-
-    rm -rf "$INSTALL_DIR/resources/astro-$page"
-    mkdir -p "$INSTALL_DIR/resources/astro-$page"
-    cp -r "$dist"/. "$INSTALL_DIR/resources/astro-$page/"
-done
 
 # --------------------------------------------------------------------------
 # Recompile resource packs
