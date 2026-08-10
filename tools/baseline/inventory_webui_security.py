@@ -100,7 +100,71 @@ PAGE_CSP_FIELD_DIRECTIVE = {
 }
 
 
+def strip_comments(source: str) -> str:
+    """C++ source with comments blanked out and string literals left alone.
+
+    Every marker below is a substring search over the file, and a substring
+    search reads prose. Measured: the ported Alia and New Tab controllers each
+    explain in a comment that what they replaced "called DisableTrustedTypesCSP()
+    outright" — and the baseline reported both pages as having Trusted Types
+    DISABLED, which is the exact opposite of what they do. A security document
+    that turns a sentence about a fixed defect into a finding is worse than one
+    that says nothing, and it is the same class of false positive this file
+    already refuses for `unsafe-eval` in the shipped filter data.
+
+    Blanked rather than deleted, so offsets and line counts are unchanged, and
+    raw string literals are honoured: astro_adblock_ui.cc serves a page as
+    `R"html(...)html"`, and a stripper that did not know that would eat half of
+    it at the first `//` inside a URL.
+    """
+    out = []
+    index = 0
+    length = len(source)
+    while index < length:
+        char = source[index]
+        pair = source[index:index + 2]
+        if pair == "//":
+            end = source.find("\n", index)
+            end = length if end < 0 else end
+            out.append(" " * (end - index))
+            index = end
+        elif pair == "/*":
+            end = source.find("*/", index + 2)
+            end = length if end < 0 else end + 2
+            out.append("".join(c if c == "\n" else " " for c in source[index:end]))
+            index = end
+        elif char in "\"'":
+            # A raw string is introduced by R, u8R, LR, u8R… — the prefix ends
+            # in R immediately before the quote.
+            raw = source[:index].endswith("R") and source[index] == '"'
+            if raw:
+                close = source.find("(", index + 1)
+                delim = source[index + 1:close] if close > 0 else ""
+                terminator = f"){delim}\""
+                end = source.find(terminator, close + 1) if close > 0 else -1
+                end = length if end < 0 else end + len(terminator)
+            else:
+                end = index + 1
+                while end < length:
+                    if source[end] == "\\":
+                        end += 2
+                        continue
+                    if source[end] == char:
+                        end += 1
+                        break
+                    end += 1
+            out.append(source[index:end])
+            index = end
+        else:
+            out.append(char)
+            index += 1
+    return "".join(out)
+
+
 def analyse(display: str, text: str, base_text: str | None = None) -> dict:
+    text = strip_comments(text)
+    if base_text is not None:
+        base_text = strip_comments(base_text)
     directives = {}
     for name, raw in OVERRIDE_RE.findall(text):
         value = "".join(STRING_PIECE_RE.findall(raw))

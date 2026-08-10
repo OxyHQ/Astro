@@ -202,8 +202,8 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 | Source | Hosts | What it reads |
 |---|---|---|
 | `baseline-inventory` | 98 | `src/**/*.{cc,h,mojom,rs}` and `patches/**/*.patch`, via `tools/baseline/inventory_endpoints.py` |
-| `webui-scan` | 9 | `webui/*/src/**` — not read by the baseline generator |
-| both | 10 | referenced from each |
+| `webui-scan` | 10 | `webui/*/src/**` — not read by the baseline generator |
+| both | 9 | referenced from each |
 | `declared` | 3 | no committed reference; each entry says why it cannot be derived |
 
 ## Open questions

@@ -14,14 +14,23 @@
       "constant": "kAstroNtpHost",
       "defined_in": "src/chrome/browser/oxy/webui/astro_ntp_ui.h",
       "host": "astro-ntp"
-    },
-    {
-      "constant": "kAstroWhatsNewHost",
-      "defined_in": "src/chrome/browser/oxy/webui/astro_whats_new_ui.h",
-      "host": "whats-new"
     }
   ],
-  "note": "'urls' is every spelling of an internal URL that can appear in stored profile data. What a migration should rewrite each one to is a product decision issue #6 does not make; this records only the shapes that exist. 'urls_in_generated_fixtures' indexes every URL of any scheme actually present in the generated profiles, so a migration test knows which file to assert against.",
+  "hosts_taken_from_upstream": [
+    {
+      "constant": "chrome::kChromeUISettingsHost",
+      "declared_in": "src/chrome/browser/oxy/webui/astro_settings_ui.cc",
+      "host": "not-derivable",
+      "resolve_with": "grep -n 'kChromeUISettingsHost' chromium/src/chrome/common/webui_url_constants.h"
+    },
+    {
+      "constant": "chrome::kChromeUIWhatsNewHost",
+      "declared_in": "src/chrome/browser/oxy/webui/astro_whats_new_ui.cc",
+      "host": "not-derivable",
+      "resolve_with": "grep -n 'kChromeUIWhatsNewHost' chromium/src/chrome/common/webui_url_constants.h"
+    }
+  ],
+  "note": "'urls' is every spelling of an internal URL that can appear in stored profile data. What a migration should rewrite each one to is a product decision issue #6 does not make; this records only the shapes that exist. 'urls_in_generated_fixtures' indexes every URL of any scheme actually present in the generated profiles, so a migration test knows which file to assert against. 'hosts_taken_from_upstream' is the gap: a page Astro serves on a host Chromium owns names that host with Chromium's own constant, whose value is not readable from this repository, so those URLs are NOT in 'urls' and a migration test must add them by hand.",
   "ntp_alias_host": "newtab",
   "urls": [
     {
@@ -43,12 +52,6 @@
       "url": "astro://newtab/"
     },
     {
-      "host": "whats-new",
-      "scheme": "astro",
-      "style": "astro-scheme",
-      "url": "astro://whats-new/"
-    },
-    {
       "host": "alia",
       "scheme": "chrome",
       "style": "legacy-chrome-scheme",
@@ -65,12 +68,6 @@
       "scheme": "chrome",
       "style": "legacy-chrome-scheme",
       "url": "chrome://newtab/"
-    },
-    {
-      "host": "whats-new",
-      "scheme": "chrome",
-      "style": "legacy-chrome-scheme",
-      "url": "chrome://whats-new/"
     }
   ],
   "urls_in_generated_fixtures": {
