@@ -35,12 +35,18 @@ CSP and Trusted Types is
 
 ## Per controller
 
-### `src/chrome/browser/oxy/adblock/webui/astro_adblock_ui.cc`
+### `src/chrome/browser/oxy/webui/astro_adblock_ui.cc`
+
+Declares a `WebUIPage`; its data source, CSP and asset serving are
+`astro_webui_page.cc`'s. Both are reported below.
 
 | Directive | Value |
 |---|---|
-| `ScriptSrc` | `script-src 'self' 'unsafe-inline';` |
+| `ConnectSrc` | `connect-src 'none';` |
+| `FontSrc` | `font-src data:;` |
+| `ImgSrc` | `img-src 'self' data:;` |
 | `StyleSrc` | `style-src 'self' 'unsafe-inline';` |
+| `StyleSrcAttr` | `style-src-attr 'none';` |
 
 | Property | Value |
 |---|---|
@@ -60,6 +66,7 @@ Declares a `WebUIPage`; its data source, CSP and asset serving are
 | `FontSrc` | `font-src data:;` |
 | `ImgSrc` | `img-src 'self' data:;` |
 | `StyleSrc` | `style-src 'self' 'unsafe-inline';` |
+| `StyleSrcAttr` | `style-src-attr 'none';` |
 
 | Property | Value |
 |---|---|
@@ -78,6 +85,7 @@ Declares a `WebUIPage`; its data source, CSP and asset serving are
 | `ConnectSrc` | `connect-src 'none';` |
 | `FontSrc` | `font-src data:;` |
 | `StyleSrc` | `style-src 'self' 'unsafe-inline';` |
+| `StyleSrcAttr` | `style-src-attr 'none';` |
 
 | Property | Value |
 |---|---|
@@ -97,6 +105,7 @@ Declares a `WebUIPage`; its data source, CSP and asset serving are
 | `FontSrc` | `font-src data:;` |
 | `ImgSrc` | `img-src 'self' data:;` |
 | `StyleSrc` | `style-src 'self' 'unsafe-inline';` |
+| `StyleSrcAttr` | `style-src-attr 'none';` |
 
 | Property | Value |
 |---|---|
@@ -116,6 +125,7 @@ Declares a `WebUIPage`; its data source, CSP and asset serving are
 | `FontSrc` | `font-src data:;` |
 | `ImgSrc` | `img-src 'self' data:;` |
 | `StyleSrc` | `style-src 'self' 'unsafe-inline';` |
+| `StyleSrcAttr` | `style-src-attr 'none';` |
 
 | Property | Value |
 |---|---|

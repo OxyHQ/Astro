@@ -44,6 +44,7 @@
         "legacy chrome://astro-* and astro:// URLs"
       ],
       "derived_from": [
+        "src/chrome/browser/oxy/webui/astro_adblock_ui.h",
         "src/chrome/browser/oxy/webui/astro_alia_ui.h",
         "src/chrome/browser/oxy/webui/astro_ntp_ui.h",
         "src/chrome/browser/oxy/webui/astro_settings_ui.cc",
@@ -382,8 +383,8 @@
     "note": "'detected' comes from a deliberately loose recogniser and 'parsed' from the strict parser, measured by different rules so they can disagree; generation fails unless they pair one-to-one and unless the same number reaches the generated fixtures. There is no minimum: the only floor is zero, which would satisfy the identity while describing nothing.",
     "surfaces": {
       "WebUI host constants": {
-        "detected": 2,
-        "parsed": 2
+        "detected": 3,
+        "parsed": 3
       },
       "filter list entries": {
         "detected": 11,
