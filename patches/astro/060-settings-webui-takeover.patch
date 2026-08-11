@@ -51,7 +51,7 @@ diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/u
 --- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 +++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 @@ -10,6 +10,7 @@
- #include "chrome/browser/oxy/adblock/webui/astro_adblock_ui.h"
+ #include "chrome/browser/oxy/webui/astro_adblock_ui.h"
  #include "chrome/browser/oxy/webui/astro_alia_ui.h"
  #include "chrome/browser/oxy/webui/astro_ntp_ui.h"
 +#include "chrome/browser/oxy/webui/astro_settings_ui.h"
