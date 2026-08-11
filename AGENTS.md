@@ -636,6 +636,14 @@ do not let a build imply they are resolved:
     somebody else's patch, so it applies to the pristine file and fails in
     series. A per-patch check against a pristine tree calls the second kind
     healthy, which is why the replay runs the series in order.
+  - **A patch is broken by editing the patch BEFORE it, and only the replay
+    sees that.** Later patches quote earlier patches' inserted lines as
+    CONTEXT, so changing what 054 inserts broke 055, 058 and 060 at once —
+    and the BUILD stayed green throughout, because the tree had been edited
+    directly rather than rebuilt through `apply-patches.sh`. A green browser
+    is not evidence that the series still applies. Mutation-tested: reverting
+    one context line in 055 fails four patches; restoring it returns
+    180/180.
 - The two LEGACY pages (`alia`, `whats-new`) still serve their assets by
   reading a directory next to the executable at runtime (`base::DIR_EXE` +
   `resources/astro-<page>`) rather than from a `.pak`, so neither carries
