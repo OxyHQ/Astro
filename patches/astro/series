@@ -76,3 +76,4 @@
 070-theme-color-picker-astro-presets.patch
 071-whats-new-webui-takeover.patch
 072-webui-csp-style-src-attr.patch
+073-management-webui-takeover.patch

@@ -116,3 +116,8 @@ export type {RouteId} from './browser/navigate.ts';
 export {setHashPath, useHashPath} from './browser/hash-route.ts';
 
 export {addWebUIListener, send, sendWithPromise} from './browser/send.ts';
+
+// The browser's own string table, for the message NAMES an adopted upstream
+// handler sends instead of text. See the module for why this is the one
+// exception to strings living in i18n/en.ts.
+export {browserString} from './browser/load-time-data.ts';

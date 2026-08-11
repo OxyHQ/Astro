@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Mon, 11 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Serve astro://management from Astro
+
+Swaps upstream's `ManagementUIConfig` for `astro::AstroManagementUIConfig`,
+under upstream's own host. A SWAP rather than an addition because
+`WebUIConfigMap::AddWebUIConfigImpl` CHECKs on a duplicate origin, so a second
+registration for the same origin aborts the browser at startup.
+
+WHY THIS HOST IS SAFE TO TAKE OVER, when the reading-list panel's is not. A
+registration swap hands the browser a different controller CLASS for the same
+host, so anything outside the config that names the concrete type stops
+working -- and `WebUIController::GetAs<T>()` returns nullptr on a type mismatch
+while the call sites in the views layer routinely dereference it unchecked,
+which makes that a browser-process crash rather than a page that fails to
+load. Measured across the surfaces on the takeover list: `ManagementUI` is
+named in ZERO files under `chrome/browser/ui/views/`, against three for
+`ReadingListUI` (read_later_side_panel_web_view.{h,cc}) and two for `IntroUI`
+(first_run_flow_controller.cc, one of them behind a DCHECK, so a release build
+dereferences null where a developer build asserts). Downloads, history,
+bookmarks and feedback are also zero.
+
+The Astro controller adopts `ManagementUIHandler` wholesale and unmodified, the
+same move the settings page makes with fifteen upstream handlers: what it
+answers is enterprise policy state, and reimplementing it would be
+reimplementing the enterprise management surface.
+
+What the page stops doing is the point of doing this at all. Upstream's
+management page, measured on the shipped binary with an unmanaged profile,
+hands the document a `browserManagementNotice` that is not a sentence but
+HTML -- a whole `<a target="_blank" href="https://support.google.com/chrome?p=
+is_chrome_managed">Learn more</a>` element, injected -- and it says "Activity
+on this device may be managed outside of Chromium" in a browser called Astro.
+Beside it sits a promotion banner whose button opens
+`https://admin.google.com/ac/chrome/guides/?ref=browser&utm_source=chrome_policy_cec`
+and reports two interaction events about the click. The Astro page states the
+same fact in its own words, with no link off the machine and no banner, and
+declares `connect-src 'none'`.
+
+Owned by https://github.com/OxyHQ/Astro/issues/14.
+---
+diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+--- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
++++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
+@@ -9,4 +9,5 @@
+ #include "chrome/browser/oxy/webui/astro_adblock_ui.h"
+ #include "chrome/browser/oxy/webui/astro_alia_ui.h"
++#include "chrome/browser/oxy/webui/astro_management_ui.h"
+ #include "chrome/browser/oxy/webui/astro_ntp_ui.h"
+ #include "chrome/browser/oxy/webui/astro_settings_ui.h"
+@@ -344,4 +345,4 @@ void RegisterChromeWebUIConfigs() {
+   map.AddWebUIConfig(std::make_unique<LegionInternalsUIConfig>());
+-  map.AddWebUIConfig(std::make_unique<ManagementUIConfig>());
++  map.AddWebUIConfig(std::make_unique<astro::AstroManagementUIConfig>());
+   map.AddWebUIConfig(
+       std::make_unique<media_router::MediaRouterInternalsUIConfig>());

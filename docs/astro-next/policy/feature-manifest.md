@@ -10,12 +10,12 @@ Every capability Astro must decide about, with the decision and who owns it. `Ob
 | State | Count |
 |---|---|
 | `KEEP` | 18 |
-| `REPLACE` | 20 |
+| `REPLACE` | 21 |
 | `DISABLE_BUILD` | 22 |
 | `DISABLE_RUNTIME` | 0 |
 | `DORMANT` | 0 |
 | `INVESTIGATE` | 36 |
-| **total** | **96** |
+| **total** | **97** |
 
 ## Core browser product (25)
 
@@ -80,7 +80,7 @@ Every capability Astro must decide about, with the decision and who owns it. `Ob
 | `variations-field-trials` | DISABLED_BY_PATCH | **DISABLE_BUILD** | #8 | `none` | A remote configuration channel that can change browser behaviour after shipping. Astro does not have one and should not acquire one silently. DISABLE_BUILD is the intended end state: the code is absent from the binary and a symbol scan can falsify it. Today the mechanism is a patch, which is precisely what #8 has to re-express as build configuration. |
 | `web-store-and-update-urls` | DISABLED_BY_PATCH | **INVESTIGATE** | #10 → **#20** | `none` | Extensions are KEEP. Where they come from and how they update is unresolved, and an extension that never updates is a security liability rather than a privacy win. |
 
-## Astro product capabilities (21)
+## Astro product capabilities (22)
 
 | Feature | Observed | State | Owner | Endpoints | Rationale |
 |---|---|---|---|---|---|
@@ -97,6 +97,7 @@ Every capability Astro must decide about, with the decision and who owns it. `Ob
 | `astro-updates` | DISABLED_BY_PATCH | **INVESTIGATE** | #25 → **#20** | `none` | Astro has no update path. An un-updatable browser accumulates every Chromium CVE published after its build date, so this is a security decision before it is a product one. |
 | `astro-whats-new` | NOT_BUILT | **REPLACE** | #14 | `none` | Ported. Served from `chrome://whats-new` by AstroWhatsNewUI on the shared astro_webui_page base, out of astro_webui_resources.pak — packaged through GN/GRIT, Chromium's default trusted-WebUI CSP with Trusted Types enforced, `connect-src 'none'`, no remote font and no filesystem read. It was also UNREACHABLE before the port and is not any more: upstream owns this host and its config's IsWebUIEnabled returns whats_new::IsEnabled(), which outside a Google-branded build reads a feature flag that is disabled by default, so the address answered net::ERR_INVALID_URL. 071-whats-new-webui-takeover.patch swaps that registration. What REPLACE still covers is the canonical URL. |
 | `first-run-page` | PRESENT | **REPLACE** | #24 | `first-run-chromium-source`, `first-run-wiki` | Astro's first run opens a page branded for a different project. The page is local, so first run makes no network request — but it is an internal page in Astro's host list that nobody chose. |
+| `management-page` | PRESENT | **REPLACE** | #14 | `none` | The capability is enterprise policy reporting and it survives untouched: the Astro page adopts ManagementUIHandler wholesale, so every fact on it is still the browser's own answer. What is replaced is the PROVIDER of the page, and with it three things a de-Googled browser should not ship — a Google support link embedded as markup in the browser's own explanation of who controls it, the product named as Chromium, and a banner advertising the Google Admin console with a campaign parameter. Three of the handler's ten messages exist only for that banner and are never sent. Safe to take over by a registration swap because ManagementUI is named in zero files under chrome/browser/ui/views/, unlike ReadingListUI (three) and IntroUI (two), where GetAs<T>() returning nullptr is dereferenced unchecked. |
 | `ntp-tiles` | PRESENT | **REPLACE** | #22 | `ntp-quicklink-hn`, `ntp-quicklink-mdn`, `ntp-quicklink-reddit`, `ntp-quicklink-stackoverflow`, `ntp-quicklink-wikipedia`, `ntp-quicklink-x`, `ntp-quicklink-youtube`, `ntp-tile-github`, `ntp-tile-reddit`, `ntp-tile-wikipedia` | Chromium's prepopulated tiles came with large_icon_url and favicon_url fields pointing at eight third-party CDNs, so opening a new tab fetched from them. Astro's replacement set has no icon URLs at all, which is the substantive privacy change hiding inside what looks like a cosmetic patch. |
 | `oxy-identity` | NOT_BUILT | **REPLACE** | #16 | `oxy-api`, `oxy-auth` | Astro's account system. REPLACE and not KEEP for a reason that is not stylistic: oxy_auth_callback_handler.cc:31-32 reads `access_token` and `refresh_token` out of URL query parameters, which the epic forbids outright — such a URL reaches history, the omnibox, the referrer and anything the user copies. #16 rebuilds it on Authorization Code + PKCE with state and nonce. |
 | `oxy-sync` | NOT_MEASURED | **INVESTIGATE** | #23 | `none` | The epic is explicit: Sync is either a real versioned secure protocol or explicitly disabled with no misleading UI and no network activity. There is no third option, and shipping a settings toggle that does nothing is the failure mode it names. |
@@ -190,6 +191,7 @@ A weaker relation than the table above, and the distinction is the point: these 
 | `astro-settings` | #11 | #11 reads one row from this entry, not a decision: `scheme_trust` (which of the two internal schemes this page lands on) and `webui_host` (the name its data source registers under). Both are recorded here; the rules that produce them are webui-scheme-trust-split and webui-host-namespace, and those are the entries that block. |
 | `astro-whats-new` | #11 | #11 reads one row from this entry, not a decision: `scheme_trust` (which of the two internal schemes this page lands on) and `webui_host` (the name its data source registers under). Both are recorded here; the rules that produce them are webui-scheme-trust-split and webui-host-namespace, and those are the entries that block. |
 | `first-run-page` | #11 | #11 reads one row from this entry, not a decision: `scheme_trust` (which of the two internal schemes this page lands on) and `webui_host` (the name its data source registers under). Both are recorded here; the rules that produce them are webui-scheme-trust-split and webui-host-namespace, and those are the entries that block. |
+| `management-page` | #11 | #11 enumerates the astro:// hosts a real scheme has to serve and process-lock. This is one more host Astro owns the controller for, on a name that is upstream's, so the scheme work reads it to know the host is Astro's rather than a page it merely aliases. |
 | `webui-csp-and-trusted-types` | #11 | Its own blocks_reason argued #11 -> #14 ('#11 has to fix the floor before #14 packages pages onto it') while the field encoded #14 -> #11; the prose was right, and the edge now sits on astro-internal-schemes. What #11 reads here is a trap, not a decision: content/public/browser/url_data_source.cc:19-28 decides the untrusted CSP branch by testing whether the SOURCE NAME starts with `chrome-untrusted://`, so an astro:// or astro-untrusted:// source takes the trusted branch of every directive — script-src naming chrome://resources (:74-79) and an EMPTY default-src (:69-71) where chrome-untrusted would get `default-src 'self'`. The script-src half is self-punishing: the subresource factory is scheme-bound and calls mojo::ReportBadMessage("Incorrect scheme") on anything else (content/browser/webui/web_ui_url_loader_factory.cc:284-299), so the default CSP grants an astro:// page a scheme its own loader kills it for using. Upstream's answer is a per-scheme resources host (url_data_manager_backend.cc:87-99 registers both chrome://resources and chrome-untrusted://resources); Astro must do the same or override the directives. |
 | `webui-fonts` | #11 | REPLACE means self-hosted WOFF2, so no Astro page fetches a font. #11 reads that as one input to the per-page network posture in webui-scheme-trust-split: it is why the six trusted pages can be trusted at all. It is not a decision #11 waits on — it is already taken. |
 
