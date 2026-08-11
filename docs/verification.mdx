@@ -1,0 +1,100 @@
+---
+title: Verification
+description: Measuring a running browser without fooling yourself — navigation, negative controls, and telling your own process, window and tab from somebody else's.
+---
+
+# Verification
+
+Every entry here has the same shape: a check whose PASS and whose
+*nothing-was-measured* produce the same output. `AGENTS.md` carries the
+imperatives; this page carries the runs that produced them.
+
+## `tools/cdp-navigate.py` is the only sanctioned way to measure navigation
+
+Three different harnesses reported success while measuring nothing:
+
+- a `--headless --dump-dom` run that never navigated to the requested URL at
+  all;
+- a run that hung and died at an outer timeout having printed nothing, losing
+  every result gathered before it;
+- a harness that read CDP events and discarded them, so a page that loaded but
+  logged a refused resource measured as clean — DOM present, title correct, the
+  browser's own complaint went straight in the bin.
+
+`cdp-navigate.py` collects `Log.entryAdded` and `Runtime.exceptionThrown`,
+prints per-URL as it goes, and gives each CDP call its own timeout.
+
+## A check that can never fail is not a check — prove the negative case fires
+
+A first attempt to provoke a CSP violation used `<script src>`, which Trusted
+Types blocks BEFORE the scheme check runs, so the detector reported zero and
+looked broken rather than clean. `<link rel=stylesheet>` reaches the CSP scheme
+check and is the working provocation.
+
+## A `.pak` stores each resource compressed
+
+Grepping one for a string returns zero even when the string is present. Verify
+branding by reading the live page in a running browser, or by probing for the
+asset's raw bytes directly — PNGs are stored uncompressed inside a `.pak`, so a
+mid-file byte slice does match.
+
+## `pgrep -f <pattern>` matches the command line of the shell running it
+
+So "is my build still going?" answers YES forever, including after you kill it.
+Reported twice in one session as "STILL RUNNING" about a terminated ninja.
+`pgrep -x ninja` asks about the process instead of about a string that
+necessarily contains itself.
+
+## Two browsers can hold "the same" debugging port
+
+The port binds per stack, so one process on IPv4 and another on IPv6 both
+succeed on 9333 and neither reports a conflict. That is how one agent came to
+read one browser's log while driving another, and reported a control as inert —
+a conclusion that happened to be wrong for a reason that had nothing to do with
+the control.
+
+Do not pick a port and hope: launch with `--remote-debugging-port=0` and read
+the port out of `<your-user-data-dir>/DevToolsActivePort`, whose two lines are
+the port and that browser's unique WebSocket path. The file is inside YOUR
+profile, so both values are your browser's by construction and no collision can
+point you at somebody else's. Measured.
+
+And do NOT try to confirm identity from `/json/version` — an earlier revision
+of this entry suggested it and was wrong: it returns Browser, Protocol-Version,
+User-Agent, V8-Version, WebKit-Version and webSocketDebuggerUrl, and no process
+id.
+
+## `import -window ""` writes a plausible screenshot of something you never identified
+
+A window lookup that returns nothing still produces a PNG, and the run looks
+like it worked. It happened: `pgrep -f "remote-debugging-port=9340"` matched
+the BASH WRAPPER whose own command line contains the pattern rather than the
+browser, `wmctrl -lp` then matched no window, and the capture succeeded
+anyway — with three Astro windows from three different agents on the display,
+one of them titled "Customize Astro" and not the author's.
+
+Guard the lookup (`test -n "$WIN"`) rather than trusting that a failed
+resolution produces a failed capture. Resolve a window with `wmctrl -lp`
+matching a pid you captured at launch, and refuse to proceed unless exactly one
+row matches: `wmctrl -l | grep Astro` and `xdotool search --pid` both
+misidentify windows here — the latter returned eight windows, from three
+processes, for a pid that had one.
+
+Better still, drive the browser through CDP against a named target: it is
+focus-independent, so another agent stealing focus cannot corrupt the run.
+
+## The side panel is per TAB
+
+CDP reporting it `visible` is not the same as it being on screen. A capture
+taken while another tab is in front shows no panel while every programmatic
+check says it opened. Bring the owning target to the front before capturing.
+
+## Count from the DOM, not from the pixels
+
+Two people, twice, miscounted the theme picker's swatches off a screenshot and
+nearly reported a working gate filter as broken: the picker draws Default, Grey
+and Custom on top of the dynamic list, so a correct filter shows 19 elements
+for 16 presets.
+
+Query the elements and compare the NAMED SETS — the honest assertion is that
+`faircoin` and `mono` are absent from both surfaces, not that a total matches.
