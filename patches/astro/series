@@ -75,3 +75,4 @@
 069-rmp-serde-rmpread-backport.patch
 070-theme-color-picker-astro-presets.patch
 071-whats-new-webui-takeover.patch
+072-webui-csp-style-src-attr.patch
