@@ -123,7 +123,7 @@ void AstroAdBlockPageHandler::RemoveSiteException(
   // replaces prepended a scheme to whatever it was given and handed the result
   // to the service, so a value that was not a host produced no error and no
   // effect — the row stayed and nothing said why.
-  const base::Value::Dict& overrides =
+  const base::DictValue& overrides =
       profile_->GetPrefs()->GetDict(oxy::adblock::kAdBlockSiteOverrides);
   const base::Value* stored = overrides.Find(host);
   if (!stored || !stored->is_bool() || stored->GetBool()) {

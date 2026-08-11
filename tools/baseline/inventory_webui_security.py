@@ -113,9 +113,12 @@ def strip_comments(source: str) -> str:
     already refuses for `unsafe-eval` in the shipped filter data.
 
     Blanked rather than deleted, so offsets and line counts are unchanged, and
-    raw string literals are honoured: astro_adblock_ui.cc serves a page as
-    `R"html(...)html"`, and a stripper that did not know that would eat half of
-    it at the first `//` inside a URL.
+    raw string literals are honoured. The case that forced the latter was
+    astro_adblock_ui.cc serving a whole page as `R"html(...)html"`: a stripper
+    that did not know about raw strings ate half of it at the first `//` inside
+    a URL. That page is now an entry of the WebUI app and no overlay file holds
+    a document any more, so this is kept for the next one rather than for a
+    file in the tree — dropping it would make the failure return silently.
     """
     out = []
     index = 0

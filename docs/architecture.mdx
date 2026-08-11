@@ -182,12 +182,17 @@ documented here when they exist, and not before.
 
 ## WebUI controllers
 
-Four internal pages have a controller in `src/chrome/browser/oxy/webui/` —
-NTP, Settings, Alia and What's New — plus the ad blocker's under
-`adblock/webui/`. All four are built on the shared base in
-`astro_webui_page.{h,cc}`, which owns the data source, the per-host CSP table
-and the resource map every page is served from; only the ad blocker's is still
-its own thing, serving a string of inline HTML.
+Five internal pages have a controller in `src/chrome/browser/oxy/webui/` —
+NTP, Settings, Alia, What's New and the ad blocker. All five are built on the
+shared base in `astro_webui_page.{h,cc}`, which owns the data source, the
+per-host CSP table and the resource map every page is served from.
+
+The ad blocker's was the last exception, and its move is the reason they are
+all in one directory: it lived under `adblock/webui/` and served a string of
+inline HTML, and `//chrome/browser/oxy:webui_controllers` already depends on
+`//chrome/browser/oxy/adblock` — the new tab page reads the blocked count — so
+a page controller in the adblock target reaching for `astro_webui_page.h`
+would have been a GN dependency cycle.
 
 A page is a `WebUIPage` value and a controller that passes it up. The value is
 the whole of what distinguishes one surface from another:
