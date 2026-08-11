@@ -1102,9 +1102,9 @@ The `astro://` URL scheme is aliased to `chrome://` via patch `011-astro-url-sch
 
 Astro composes its internal WebUI scheme (`astro`) and its untrusted
 counterpart (`astro-untrusted`) at build time. This is NOT a one-place
-setting: the same fact is spelled independently in nine places across the
+setting: the same fact is spelled independently in ten places across the
 build, and each was found by a separate, unrelated failure. Fixing some of
-the nine and not the rest leaves a browser that is broken in ways neither
+the ten and not the rest leaves a browser that is broken in ways neither
 the build nor a test suite reports — the list below exists so the next
 rename of anything hits fewer of these blind.
 
@@ -1154,10 +1154,23 @@ rename of anything hits fewer of these blind.
    and `components/neterror/resources/`. Fixed by making their imports
    SCHEME-RELATIVE (`//resources/js/util.js`) — Chromium's own supported
    form, identical in behavior to an unmodified Chromium.
+10. `content/browser/webui/url_data_manager_backend.cc` — `kAllDirectives`,
+   a hard-coded list of sixteen `CSPDirectiveName` values, decides which
+   directives a data source's `OverrideContentSecurityPolicy` ever reaches a
+   response header. A directive outside that list is STORED and never asked
+   for: no error, no warning, and the source reads as if the policy applied.
+   `StyleSrcAttr` was outside it, so five controllers, the shared page base
+   and the generated security baseline all correctly stated a directive the
+   browser did not have — until a provoked `setAttribute('style', …)` applied
+   anyway and the browser named `style-src 'self' 'unsafe-inline'` as the
+   policy in force. `072-webui-csp-style-src-attr.patch` adds the one line;
+   it is byte-identical for any source that does not set the directive.
+   Anything that reads a CSP out of Astro's source rather than off the wire
+   inherits this blindness, which is why the check is a provoked violation.
 
 Rules that follow:
 
-- Every one of the nine is applied ONLY when the scheme differs from
+- Every one of the ten is applied ONLY when the scheme differs from
   Chromium's default, so an unmodified configuration stays byte-identical.
   Preserve that property in anything new touching this list.
 - Untrusted must be rewritten BEFORE trusted, everywhere (sort candidates by
