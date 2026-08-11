@@ -15,11 +15,11 @@ Every host committed text references, with its disposition. The host set is deri
 |---|---|
 | `KEEP` | 14 |
 | `REPLACE` | 14 |
-| `DISABLE_BUILD` | 50 |
+| `DISABLE_BUILD` | 51 |
 | `DISABLE_RUNTIME` | 0 |
 | `DORMANT` | 22 |
 | `INVESTIGATE` | 20 |
-| **total** | **120** |
+| **total** | **121** |
 
 ### What the current build does — a separate axis
 
@@ -27,7 +27,7 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 
 | Observed | Hosts |
 |---|---|
-| `REMOVED_BY_PATCH` | 32 |
+| `REMOVED_BY_PATCH` | 33 |
 | `NOT_AN_ENDPOINT` | 27 |
 | `RUNTIME_BLOCKED` | 20 |
 | `NOT_BUILT` | 18 |
@@ -39,7 +39,7 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 
 | Contact | Hosts |
 |---|---|
-| `never` | 89 |
+| `never` | 90 |
 | `user-initiated` | 21 |
 | `unknown` | 6 |
 | `automatic` | 4 |
@@ -48,7 +48,7 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 
 | `reference_kind` | Hosts |
 |---|---|
-| `deleted-by-patch` | 38 |
+| `deleted-by-patch` | 39 |
 | `documentation` | 25 |
 | `blocklist-literal` | 20 |
 | `default-content` | 16 |
@@ -103,7 +103,7 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 | `optimizationguide-pa.googleapis.com` | NOT_MEASURED | **INVESTIGATE** | request-literal | `on-device-models` | #8 | not-captured | Chromium's optimization-guide/on-device-model host. 1 file in chromium/src references it at the locked commit. |
 | `update.googleapis.com` | NOT_MEASURED | **INVESTIGATE** | request-literal | `component-updater` | #20 → **#20** | not-captured | Chromium's component and extension update host. 2 C++ sources in chromium/src reference it at the locked commit ae03f7fb2c (6 files of any type). |
 
-## Never contacted (89)
+## Never contacted (90)
 
 | Host | Observed | State | Kind | Feature | Owner | Trigger | Rationale |
 |---|---|---|---|---|---|---|---|
@@ -112,6 +112,7 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 | `9oo91e.qjz9zk` | NOT_AN_ENDPOINT | **DORMANT** | documentation | `none` | #10 | none | A substituted hostname carried as literal text by an Astro branding patch — a translator `desc=` note, an `<ex>` placeholder or a C++ comment. Never rendered as a URL and never fetched. Domain substitution has never run here, so this shape is text somebody committed, not an endpoint the pipeline mangled. Recorded rather than ignored because the shape is embarrassing in shipped translator notes and #9 should clear it. |
 | `a.espncdn.com` | REMOVED_BY_PATCH | **DISABLE_BUILD** | deleted-by-patch | `ntp-tiles` | #22 | none | Part of Chromium's prepopulated New Tab Page data, deleted by patches/astro/019-ntp-default-sites.patch. Present in this manifest because the host appears in patch TEXT; it appears only on removed lines, so the patched tree does not contain it. Several of these were favicon URLs the NTP fetched on render, which is why removing them is a network change and not only a cosmetic one. DISABLE_BUILD: the string is absent from the shipped resource, which a `strings` scan can falsify. |
 | `accounts.google.com` | RUNTIME_BLOCKED | **DISABLE_BUILD** | blocklist-literal | `google-account-gaia` | #8 | the owning feature's own trigger, if it runs | GAIA sign-in. ungoogled's disable-gaia.patch removes the account infrastructure. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'. |
+| `admin.google.com` | REMOVED_BY_PATCH | **DISABLE_BUILD** | deleted-by-patch | `management-page` | #14 | none: the banner that opened it is not rendered | The Google Admin console, advertised by upstream's management-page promotion banner: its button ran window.open on https://admin.google.com/ac/chrome/guides/?ref=browser&utm_source=chrome_policy_cec and then reported the click through the recordBannerRedirected message, with setBannerDismissed recording the other outcome. Astro's management page does not draw the banner and sends none of those three messages, so no path reaches this host; the page declares connect-src 'none' besides. Recorded rather than dropped silently because the handler still registers the three messages — it is upstream's and unmodified — so the capability is absent from the PAGE, not from the binary. |
 | `android.clients.google.com` | RUNTIME_BLOCKED | **DISABLE_BUILD** | blocklist-literal | `gcm-push` | #8 | the owning feature's own trigger, if it runs | Android device/GCM registration. Not a desktop endpoint; Android is scoped separately. The inherited iridium patch `all-add-trk-prefixes-to-possibly-evil-connections.patch` rewrites the URL literal to `trk:NNN:https://…`, and `block-trk-and-subdomains.patch` makes `trk:` unresolvable (components/url_formatter/url_fixer.cc returns an empty GURL). So the host appears on BOTH diff sides: the literal survives, the request cannot. That is DISABLE_RUNTIME as an observed state — the calling code is still compiled and reachable — which is why it may never be asserted as 'cannot happen'. |
 | `api.alia.onl` | UNREACHABLE | **REPLACE** | documentation | `alia` | #17 | — | The host the Alia panel used to call. It no longer does: the panel is an entry of webui/app with no fetch of any kind, and its controller declares `connect-src 'none'`, so nothing this origin runs can open a socket. The only remaining reference is the comment in webui/app/src/pages/alia/alia-page.tsx recording what was removed. REPLACE stands: #17 rebuilds Alia as a trusted shell over isolated content with a browser-process broker, so this host will be contacted again, from a different process and under a context-permission model. |
 | `api.alia.oxy.so` | UNREACHABLE | **INVESTIGATE** | documentation | `alia` | #17 | — | The host astro://alia's connect-src used to permit, while the page called api.alia.onl. Neither half survives: the panel makes no request, and its CSP now names no host at all (`connect-src 'none'`). The reference is the comment recording that mismatch. |
@@ -201,9 +202,9 @@ This is what makes `DISABLE_BUILD` and `DISABLE_RUNTIME` falsifiable rather than
 
 | Source | Hosts | What it reads |
 |---|---|---|
-| `baseline-inventory` | 98 | `src/**/*.{cc,h,mojom,rs}` and `patches/**/*.patch`, via `tools/baseline/inventory_endpoints.py` |
+| `baseline-inventory` | 97 | `src/**/*.{cc,h,mojom,rs}` and `patches/**/*.patch`, via `tools/baseline/inventory_endpoints.py` |
 | `webui-scan` | 10 | `webui/*/src/**` — not read by the baseline generator |
-| both | 9 | referenced from each |
+| both | 11 | referenced from each |
 | `declared` | 3 | no committed reference; each entry says why it cannot be derived |
 
 ## Open questions
