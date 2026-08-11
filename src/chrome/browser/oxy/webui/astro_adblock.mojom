@@ -1,0 +1,127 @@
+// Copyright 2026 Oxy. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+
+// The ad blocker page's data plane.
+//
+// One narrow interface per domain, and this is the ad blocker's. It replaces
+// three `chrome.send` messages — `getAdBlockState`, `removeSiteOverride` and
+// `saveCustomRules` — and the reason it is a typed pipe rather than those three
+// kept as they were is not tidiness. Four separate things were wrong with the
+// untyped shape, and the page is being rebuilt anyway:
+//
+//   * The answer arrived by CallJavascriptFunction("onAdBlockState", …), which
+//     calls a function that must be GLOBAL. The page is now one entry of a
+//     bundled ES module app with no globals at all, so the browser's reply had
+//     nowhere to land.
+//   * chrome.send is enabled per CONTROLLER, not per message. Turning it on
+//     here would open the untyped channel on a page that adopts no upstream
+//     handler; astro://settings is the only Astro surface that enables it, and
+//     only because the fifteen upstream handlers it adopts speak it.
+//   * The state changes from OUTSIDE this page. The blocked count climbs on
+//     every request the throttle cancels in any tab, and the toolbar bubble
+//     writes site overrides from a different window. CallJavascriptFunction can
+//     only answer a message, so the old page went stale the moment it loaded
+//     and had no way to know.
+//   * `removeSiteOverride` took a string, prepended "https://" to it and handed
+//     the result to the service. An unparseable value produced no error and no
+//     effect — the row simply stayed. Every method here that can refuse says so
+//     in its reply.
+//
+// There is deliberately no generic pref accessor, for the same reason as the
+// new tab page's interface: the page names a decision, never a pref path and a
+// value.
+
+module astro.adblock.mojom;
+
+// One list in the compiled-in catalogue.
+//
+// This is a fact about the BUILD, not a state of the profile:
+// `GetFilterListCatalog()` returns a fixed vector, and nothing anywhere writes
+// a per-list preference. `fetched` is that entry's `default_enabled`, which is
+// also exactly the set `CheckForUpdatesNow()` downloads — the other entries are
+// shipped in the catalogue and never fetched. The page reports them that way
+// rather than drawing a switch for each, because there is nothing behind a
+// switch to store.
+struct FilterList {
+  string id;
+  string name;
+  string description;
+  bool fetched;
+};
+
+// Everything the page needs to draw its first frame, in one round trip.
+struct AdBlockState {
+  // `oxy.adblock.enabled`. The engine consults it on every request, so turning
+  // it off stops blocking at once.
+  bool enabled;
+
+  // `oxy.adblock.lifetime_blocked_count`, which the throttle increments. The
+  // page it replaces showed a dash here forever: the field was sent and the
+  // page never read it.
+  uint32 blocked_count;
+
+  array<FilterList> filter_lists;
+
+  // The hosts with blocking switched OFF, from `oxy.adblock.site_overrides`.
+  //
+  // Hosts, not URLs, because that is what the pref is keyed by and what the
+  // service matches against. Only the disabled ones travel: an override set to
+  // true is indistinguishable in effect from no override at all, and sending it
+  // would put a row on an exceptions list for a site that has no exception.
+  array<string> disabled_sites;
+
+  string custom_rules;
+};
+
+// The browser pushing a change the page did not make.
+//
+// Split per field rather than one OnStateChanged, and the custom-rules box is
+// the reason: the blocked count changes while a person is typing in it, and a
+// whole-state push would replace what they had typed with what is stored, once
+// per blocked request.
+interface Page {
+  OnEnabledChanged(bool enabled);
+  OnBlockedCountChanged(uint32 count);
+  OnDisabledSitesChanged(array<string> sites);
+  OnCustomRulesChanged(string rules);
+};
+
+interface PageHandler {
+  // The initial state. Called once, before the first paint.
+  GetState() => (AdBlockState state);
+
+  // Turn blocking on or off for the whole profile.
+  //
+  // Fire-and-forget: both values are always valid and the echo on
+  // Page::OnEnabledChanged is the confirmation. Switching it on starts the
+  // engine if this profile began the session with blocking off — see
+  // AstroAdBlockService::OnEnabledPrefChanged, without which this control would
+  // have worked in one direction only.
+  SetEnabled(bool enabled);
+
+  // Drop a site's exception, so blocking applies there again.
+  //
+  // `accepted` false means nothing changed: the host is not one this profile
+  // has an exception for, or it is not a host at all. The page removes the row
+  // on the echo, never on the click.
+  RemoveSiteException(string host) => (bool accepted);
+
+  // Store the user's own filter rules.
+  //
+  // `accepted` false means the text exceeds the bound the browser will store
+  // and NOTHING was written — not a truncated version of it.
+  //
+  // Storing is all this does today, and the page says so where a person can
+  // read it: no code path anywhere loads `oxy.adblock.custom_rules` into the
+  // engine. The interface still carries it because the pref is real, the value
+  // survives, and the two things that would make it effective — feeding the
+  // text to AstroAdBlockEngine::AddFilterList, and keying the serialized engine
+  // cache on it so a change is not masked by the fast startup path — are a
+  // change to the blocker, not to this page.
+  SetCustomRules(string rules) => (bool accepted);
+};
+
+interface PageHandlerFactory {
+  CreatePageHandler(pending_remote<Page> page,
+                    pending_receiver<PageHandler> handler);
+};

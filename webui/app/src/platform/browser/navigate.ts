@@ -15,6 +15,7 @@ export const ROUTES = {
   settings: {host: 'settings', title: 'Settings'},
   newTab: {host: 'astro-ntp', title: 'New tab'},
   alia: {host: 'alia', title: 'Alia'},
+  adBlock: {host: 'adblock', title: 'Ad blocker'},
   whatsNew: {host: 'whats-new', title: "What's new"},
 } as const;
 

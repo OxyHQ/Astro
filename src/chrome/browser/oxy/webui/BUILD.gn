@@ -19,6 +19,7 @@ import("astro_webui.gni")
 # objects, so nothing ever tried to resolve it. This is that target, for real.
 mojom("mojo_bindings") {
   sources = [
+    "astro_adblock.mojom",
     "astro_ntp.mojom",
     "astro_settings.mojom",
     "astro_theme.mojom",

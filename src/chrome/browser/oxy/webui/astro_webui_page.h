@@ -61,14 +61,52 @@ struct WebUIPageCsp {
   // that is the hash of the EMPTY STRING, so the blocked content is an empty
   // <style> element rather than any stylesheet a page wrote.
   //
-  // The narrowing that IS available and is deliberately not taken here: no
-  // Astro page sets a style ATTRIBUTE. A recorder installed before any page
-  // script counted zero `setAttribute('style', …)` calls on astro://whats-new,
-  // so `style-src-attr` could be closed independently of `style-src-elem`,
-  // which Chromium's CSPDirectiveName already offers. It needs its own
-  // measurement per page — including the animated surfaces What's New does not
-  // have — and belongs to F5 of the Astro Next plan, issue #14.
+  // The narrowing that IS available, and is now taken: see style_src_attr.
   const char* style_src = nullptr;
+
+  // THE HALF OF style-src THAT CAN BE CLOSED, AND THE MEASUREMENT THAT CLOSED
+  // IT.
+  //
+  // `style-src` above is one directive covering two different things. CSP
+  // splits them: `style-src-elem` governs <style> elements and stylesheet
+  // links, `style-src-attr` governs the `style` ATTRIBUTE. Both fall back to
+  // `style-src` when absent, so declaring only the attribute half narrows the
+  // page without touching the element half that react-native-web needs.
+  //
+  // What makes it safe is what CSP does NOT police: a CSSOM property write
+  // (`el.style.color = …`) is not a style attribute even though it REFLECTS
+  // into one, and that is the path React DOM's `style` prop takes, and
+  // Reanimated's web runtime, and react-native-web's inline styles. Only
+  // handing the parser an attribute VALUE is checked — `setAttribute('style',
+  // …)`, `cssText =`, and a `style="…"` inside markup or an innerHTML string.
+  //
+  // Measured per page, not assumed, with a recorder installed through
+  // Page.addScriptToEvaluateOnNewDocument so it was in place before any page
+  // script ran. It hooks exactly those three paths and deliberately does not
+  // hook property writes, because a MutationObserver — the reflex choice —
+  // reports the reflected attribute mutation for every allowed CSSOM write and
+  // so reports every page as needing the directive. Each page was driven
+  // through its real controls from live DOM geometry, and the detector was
+  // required to prove it can fire: one provoked `setAttribute('style', …)` per
+  // page had to move the count by exactly one, or the zero would have meant the
+  // hooks were not installed.
+  //
+  //   astro://settings    0 writes  (six nav sections, a colour preset, a
+  //                                  switch, the clear-browsing-data dialog)
+  //   astro://astro-ntp   0 writes  (search field, customize panel open and
+  //                                  shut, a widget switch)
+  //   astro://alia        0 writes  (static shell; it renders no controls)
+  //   astro://whats-new   0 writes  (the entry, and Get started)
+  //   astro://adblock     0 writes  (the master switch, an exception removed,
+  //                                  the custom-rules box typed into and saved)
+  //
+  // The served document contributes none either: index.html is one file for
+  // every host and carries no style attribute at all.
+  //
+  // So every page closes it. A page that DID set one would be left at the
+  // default — which is `style-src`, i.e. exactly as wide as before — rather
+  // than broken; nothing here has to be all-or-nothing.
+  const char* style_src_attr = nullptr;
 
   const char* img_src = nullptr;
   const char* font_src = nullptr;

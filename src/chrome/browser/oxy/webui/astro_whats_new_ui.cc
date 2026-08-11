@@ -38,6 +38,14 @@ const WebUIPage& WhatsNewPage() {
               // measurement and for the narrowing that is available instead.
               .style_src = "style-src 'self' 'unsafe-inline';",
 
+              // NARROWING, MEASURED. `style-src-attr` is the half of style-src
+              // that covers the `style` ATTRIBUTE, and nothing on this page
+              // ever writes one — React's style prop, Reanimated and
+              // react-native-web all go through CSSOM property writes, which
+              // CSP does not police. The per-page counts and how they were
+              // taken are in WebUIPageCsp::style_src_attr.
+              .style_src_attr = "style-src-attr 'none';",
+
               // The mark is inline SVG and there are no other images.
               .img_src = "img-src 'self' data:;",
 

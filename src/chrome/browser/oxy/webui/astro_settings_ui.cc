@@ -61,6 +61,14 @@ const WebUIPage& SettingsPage() {
               // measurement and for the narrowing that is available instead.
               .style_src = "style-src 'self' 'unsafe-inline';",
 
+              // NARROWING, MEASURED. `style-src-attr` is the half of style-src
+              // that covers the `style` ATTRIBUTE, and nothing on this page
+              // ever writes one — React's style prop, Reanimated and
+              // react-native-web all go through CSSOM property writes, which
+              // CSP does not police. The per-page counts and how they were
+              // taken are in WebUIPageCsp::style_src_attr.
+              .style_src_attr = "style-src-attr 'none';",
+
               // Astro's own assets plus inlined images from the bundle. No
               // remote host: nothing on this page loads over the network.
               .img_src = "img-src 'self' data:;",

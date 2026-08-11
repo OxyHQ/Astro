@@ -111,6 +111,14 @@ source_set("webui_controllers") {
     "webui/astro_ntp_ui.cc",
     "webui/astro_ntp_ui.h",
 
+    # Ad blocker WebUI (astro://adblock). Here rather than under adblock/
+    # because that target is a dependency of this one — see the note in
+    # adblock/BUILD.gn.
+    "webui/astro_adblock_page_handler.cc",
+    "webui/astro_adblock_page_handler.h",
+    "webui/astro_adblock_ui.cc",
+    "webui/astro_adblock_ui.h",
+
 
     # Alia AI WebUI (chrome://alia)
     "webui/astro_alia_ui.cc",

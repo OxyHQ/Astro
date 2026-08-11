@@ -15,6 +15,10 @@
 
 import {aboutStrings} from '../../pages/settings/sections/about.strings.ts';
 import {accessibilityStrings} from '../../pages/settings/sections/accessibility.strings.ts';
+// The ad blocker PAGE, which is an entry of its own; the settings section
+// about ad blocking is `sections/adblock.strings.ts` below, and the two are
+// deliberately separate catalogues because they are separate surfaces.
+import {adblockPageStrings} from '../../pages/adblock/adblock.strings.ts';
 import {adblockStrings} from '../../pages/settings/sections/adblock.strings.ts';
 // The Alia PANEL, which is a page of its own; the settings section about it is
 // `alia.strings.ts` below, and the two are deliberately separate catalogues
@@ -85,6 +89,7 @@ export const en = {
   ...common,
   ...aboutStrings,
   ...accessibilityStrings,
+  ...adblockPageStrings,
   ...adblockStrings,
   ...aliaPageStrings,
   ...aliaStrings,

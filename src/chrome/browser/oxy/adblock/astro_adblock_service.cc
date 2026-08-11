@@ -8,6 +8,7 @@
 #include "base/base_paths.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "chrome/browser/oxy/adblock/astro_adblock_engine.h"
@@ -34,6 +35,7 @@ AstroAdBlockService::AstroAdBlockService(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
     : prefs_(prefs),
       profile_path_(profile_path),
+      url_loader_factory_(std::move(url_loader_factory)),
       engine_(std::make_unique<AstroAdBlockEngine>()) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -42,15 +44,17 @@ AstroAdBlockService::AstroAdBlockService(
       AstroAdBlockEngine::InitializeDomainResolver();
   DCHECK(resolver_initialized);
 
+  if (prefs_) {
+    pref_registrar_.Init(prefs_);
+    pref_registrar_.Add(
+        kAdBlockEnabled,
+        base::BindRepeating(&AstroAdBlockService::OnEnabledPrefChanged,
+                            base::Unretained(this)));
+  }
+
   if (IsEnabled()) {
     InitializeEngine();
-
-    // Start the filter list updater for periodic downloads.
-    if (url_loader_factory) {
-      updater_ = std::make_unique<AstroAdBlockFilterListUpdater>(
-          this, std::move(url_loader_factory), profile_path_);
-      updater_->Start();
-    }
+    StartUpdater();
   }
 }
 
@@ -191,9 +195,42 @@ void AstroAdBlockService::ReloadFilterLists(const base::FilePath& lists_dir) {
 
 void AstroAdBlockService::Shutdown() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Before prefs_ is cleared: the registrar holds a raw PrefService and its
+  // callback would run against a dangling one otherwise.
+  pref_registrar_.RemoveAll();
   updater_.reset();
   engine_.reset();
+  url_loader_factory_.reset();
   prefs_ = nullptr;
+}
+
+void AstroAdBlockService::OnEnabledPrefChanged() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (!IsEnabled()) {
+    // Nothing to tear down. `ShouldBlockRequest` consults IsEnabled() on every
+    // request, so blocking has already stopped; keeping the built engine is
+    // what makes switching back on take effect with no work at all.
+    return;
+  }
+
+  if (engine_ && !engine_->IsReady()) {
+    InitializeEngine();
+  }
+  StartUpdater();
+}
+
+void AstroAdBlockService::StartUpdater() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // Once. A second updater would double every scheduled download and both
+  // would write the same files.
+  if (updater_ || !url_loader_factory_) {
+    return;
+  }
+  updater_ = std::make_unique<AstroAdBlockFilterListUpdater>(
+      this, url_loader_factory_, profile_path_);
+  updater_->Start();
 }
 
 void AstroAdBlockService::InitializeEngine() {

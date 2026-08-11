@@ -31,6 +31,11 @@ void ApplyCsp(content::WebUIDataSource* source, const WebUIPageCsp& csp) {
   } kDirectives[] = {
       {CSPDirectiveName::ScriptSrc, csp.script_src},
       {CSPDirectiveName::StyleSrc, csp.style_src},
+      // Beside StyleSrc because it is half of it, not because the order
+      // matters: these become separate entries in the data source's policy map
+      // and CSP resolves `style-src-attr` over `style-src` for an attribute
+      // wherever in the header the two appear.
+      {CSPDirectiveName::StyleSrcAttr, csp.style_src_attr},
       {CSPDirectiveName::ImgSrc, csp.img_src},
       {CSPDirectiveName::FontSrc, csp.font_src},
       {CSPDirectiveName::ConnectSrc, csp.connect_src},
