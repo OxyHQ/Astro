@@ -32,6 +32,9 @@ import {downloadsStrings} from '../../pages/settings/sections/downloads.strings.
 import {languagesStrings} from '../../pages/settings/sections/languages.strings.ts';
 // The new tab page is not a settings section; it is an entry of its own, so
 // its catalogue lives beside its components rather than under sections/.
+// Upstream's management host, taken over. Its own catalogue because it is an
+// entry of its own, not a settings section.
+import {managementStrings} from '../../pages/management/management.strings.ts';
 import {newTabStrings} from '../../pages/newtab/newtab.strings.ts';
 import {onStartupStrings} from '../../pages/settings/sections/on-startup.strings.ts';
 import {performanceStrings} from '../../pages/settings/sections/performance.strings.ts';
@@ -98,6 +101,7 @@ export const en = {
   ...defaultBrowserStrings,
   ...downloadsStrings,
   ...languagesStrings,
+  ...managementStrings,
   ...newTabStrings,
   ...onStartupStrings,
   ...performanceStrings,

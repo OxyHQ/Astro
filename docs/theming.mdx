@@ -1,0 +1,88 @@
+---
+title: Theming
+description: How a colour change in settings reaches the native browser UI, and the five things that make it look like it did not.
+---
+
+# Theming reaches the native UI
+
+Changing the theme in settings re-colours the browser, not just the page. The
+mode is upstream's `browser.theme.color_scheme2`; the Bloom colour preset is
+Astro's own `astro.theme.preset`. `AstroThemeService` — a `KeyedService` built
+with the profile, so the preset is applied before the first paint (patch 062) —
+watches both, pushes the preset into `astro::AddAstroColorMixers` (patch 061,
+called last so it wins), and calls `NotifyOnNativeThemeUpdated()` on the native
+themes the windows observe, so they repaint with no restart.
+
+Both halves of that last sentence are load-bearing, and the third section below
+is why: dropping the cached ColorProviders is not what makes an open window
+repaint.
+
+Two files carry the colours themselves:
+
+- `src/chrome/browser/oxy/ui/astro_color_tokens.h` is GENERATED from Bloom's
+  `tokens.json` by `tools/generate-color-mixer.py`. Never hand-edit it: a
+  build-safety case regenerates it and compares.
+- `src/chrome/browser/oxy/ui/astro_color_mixer.{h,cc}` maps a Bloom token to a
+  Chromium `ColorId`, by hand. It computes no colour.
+
+Five things to know before touching any of it.
+
+## One band is still GTK's, and it is not a bug in the mixer
+
+Measured 2026-08-09 on the built browser: the tabs, toolbar, omnibox, menus and
+the page all take the preset, while the frame band around the tab strip paints
+GTK's colour (`#333333` under Adwaita dark, `#DBD7D3`-ish under Adwaita light —
+it follows `GTK_THEME`, which is how it was identified).
+
+The ColorProvider resolves `ui::kColorFrameActive` to the preset's `muted`
+correctly; that band is drawn from the GTK frame rather than read from the
+provider. Owned by [#24](https://github.com/OxyHQ/Astro/issues/24).
+
+## On Linux the profile always carries a theme supplier, and nobody chose it
+
+`ThemeServiceAuraLinux` installs a `SystemThemeLinux` supplier —
+`ThemeType::kNativeX11` — whenever `extensions.theme.system_theme` names GTK or
+Qt, and `ThemeService` registers that pref with `ui::GetDefaultSystemTheme()`,
+which answers `kGtk` on a GTK desktop. So `key.custom_theme` is non-null on
+every fresh Linux profile.
+
+Reading it as a boolean — the shape a stand-down guard naturally takes — stands
+the whole mixer down for every Linux user, and looks fine from the pages, which
+theme through Mojo and never consult this key. Ask what KIND of supplier it is;
+`astro_color_mixer.cc` does it with an exhaustive switch so a new upstream
+`ThemeType` is a compile error.
+
+## `NotifyOnNativeThemeUpdated()` drops the cache globally but notifies only its OWN observers
+
+…and on Linux the browser windows are not among them.
+`BrowserWidget::SelectNativeTheme` points every non-incognito window at
+`ui::LinuxUiTheme`'s NativeTheme (GTK or Qt) when one exists; incognito stays on
+`NativeTheme::GetInstanceForNativeUi()`.
+
+Notifying one instance produces the most misleading state available: every
+fresh read of a ColorProvider is correct — `chrome://theme/colors.css?sets=ui,chrome`
+included — while the open windows keep the pixels they already had and only
+catch up when something else forces a paint, such as a resize. Notify both,
+which is what `ThemeServiceAuraLinux` does when it starts and stops using the
+system theme.
+
+Corollary for verification: a colour read through `colors.css` is NOT evidence
+that a window repainted, and a screenshot taken after a resize is not evidence
+that it repainted on its own.
+
+## The preset is process-global in v1
+
+A `ColorProvider` is keyed by `ui::ColorProviderKey`, which carries no profile,
+so with two profiles open the last write wins for every window. Recorded on
+#24, not fixed.
+
+## `astro.theme.preset` is spelled in three places
+
+`astro_pref_names.h`, the registration inside `020-register-oxy-prefs.patch`,
+and `pref-ids.ts` — because a patch edits an upstream file and cannot include
+an overlay header.
+
+`PrefService::GetString` on an unregistered path returns empty rather than
+failing, so a rename that misses one produces a control that moves and changes
+nothing. `tools/tests/cases/theme-pref-ids-match-across-the-boundary.sh` is the
+only thing that compares them.

@@ -64,6 +64,16 @@ Ungoogled patches handle the heavy lifting of removing Google services (sync, ha
 
 Every patch is named after what it does. Inspection is encouraged before any version bump — most patches are a handful of lines.
 
+**Four numbers in the Astro range are unused, deliberately.** 007 and 035 were
+removed as empty files, 012 was retired by 060, and 068 was never written — two
+agents were landing patches at once and 069 was taken to avoid a collision. A
+gap in the numbering is therefore not a missing patch, and the series file is
+the only authority for what exists.
+
+Whether the whole series still applies is a measurement and never an
+assumption; the replay that establishes it is in
+[Pipeline guards](/pipeline-guards).
+
 ## Source overlay
 
 ```
@@ -96,17 +106,59 @@ src/chrome/browser/oxy/
 │   ├── astro_color_tokens.h              # GENERATED from Bloom's tokens.json
 │   └── astro_color_mixer.{h,cc}          # Bloom token -> Chromium ColorId, by hand
 └── webui/                                # WebUI controllers
-    ├── BUILD.gn                          # mojom("mojo_bindings") and nothing else
-    ├── astro_theme.mojom                 # GetTheme + OnThemeChanged (read-only)
-    ├── astro_settings.mojom              # SetThemeMode / SetColorPreset
-    ├── astro_webui_page.{h,cc}           # Shared page base: assets, CSP, bases
+    ├── BUILD.gn                          # The mojom("mojo_bindings") target, the
+    │                                     #   astro_webui_dev_tools buildflag, and the
+    │                                     #   Vite -> generate_grd -> grit -> .pak chain
+    │                                     #   (build_app, build_grd, resources). The
+    │                                     #   controllers are sources of the parent
+    │                                     #   //chrome/browser/oxy:webui_controllers.
+    ├── astro_webui.gni                   # astro_webui_dev_tools / astro_webui_app_dir
+    ├── astro_webui_dev_source.{h,cc}     # The ONE disk-serving path, compiled only
+    │                                     #   when astro_webui_dev_tools is on
+    ├── tools/build_astro_webui_app.py    # The GN action: runs Vite, checks the emitted
+    │                                     #   set against the committed manifest.json,
+    │                                     #   stages it for GRIT
+    ├── astro_theme.mojom                 # GetTheme + OnThemeChanged. READ ONLY, and
+    │                                     #   bound by every Astro page
+    ├── astro_settings.mojom              # SetThemeMode / SetColorPreset. Named methods
+    │                                     #   only — never SetPref(string, …)
+    ├── astro_ntp.mojom                   # The new tab page's data plane: widgets, quick
+    │                                     #   links, notes, tiles, search, the two side
+    │                                     #   panels. Bound by that page and no other
+    ├── astro_webui_page.{h,cc}           # Shared base: asset serving (the one seam #16
+    │                                     #   replaces), per-host CSP, and the plain and
+    │                                     #   Mojo controller bases
     ├── astro_theme_provider.{h,cc}       # Serves astro_theme.mojom for one page
     ├── astro_settings_ui.{h,cc}          # chrome://settings
     ├── astro_settings_page_handler.{h,cc}
     ├── astro_ntp_ui.{h,cc}               # chrome://astro-ntp
+    ├── astro_ntp_page_handler.{h,cc}     # Owns the pref watchers, the MostVisitedSites
+    │                                     #   observer and the TemplateURLService
+    │                                     #   observer; validates every URL
     ├── astro_alia_ui.{h,cc}              # chrome://alia
     └── astro_whats_new_ui.{h,cc}         # chrome://whats-new
 ```
+
+### WebUI frontends
+
+```
+webui/
+├── app/           # WHERE NEW WORK GOES. One Vite + Tailwind v4 + Bloom
+│                  #   application serving every astro:// surface, one entry
+│                  #   per WebUI host (each host is a separate origin, so the
+│                  #   entry is chosen from location.hostname). Built by a GN
+│                  #   action into astro_webui_resources.pak and served to
+│                  #   astro://settings today; manifest.json is committed and
+│                  #   is the authority for what it emits.
+├── alia/          # Alia AI Panel
+└── whats-new/     # What's New Page
+```
+
+The two legacy pages keep their current from-disk serving until the app absorbs
+them; do not start a third one beside them. (That listing is `AGENTS.md`'s,
+moved verbatim; the measurement that contradicts it is recorded in
+[Known defects](/known-defects).) `webui/ntp` is GONE, not moved — see
+[WebUI pages](/webui) for what replaced it.
 
 Naming is consistent: `oxy_*` for ecosystem-wide services (auth, Alia, cookies) and `astro_*` for browser-specific UI (WebUI controllers, ad blocker integration).
 
@@ -291,6 +343,12 @@ The adblock engine is a Rust crate vendored into `src/chrome/browser/oxy/adblock
 5. **Allowlist**: per-domain allowlist lives in profile prefs (`oxy.adblock.allowlist.<host>`). The throttle checks this before consulting the engine.
 
 The Rust engine itself is `brave/adblock-rust` (or a compatible fork) — re-vendor with `tools/vendor-adblock-rust.sh` when bumping the upstream version. The C++ wrapper exists to keep the FFI surface minimal and to enforce sequence safety, not to add policy.
+
+Everything about `gnrt` that this engine forced the project to learn — crate
+groups and where an override has to be declared, why `gnrt` writes a value only
+where the key is absent, and the fact that a vendored crate CAN be edited
+durably through `third_party/rust/chromium_crates_io/patches/` — is in
+[Known defects](/known-defects), beside the defects that produced it.
 
 ## Authentication flow
 

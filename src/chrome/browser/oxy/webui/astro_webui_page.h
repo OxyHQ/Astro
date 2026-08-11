@@ -8,12 +8,14 @@
 #include <string_view>
 
 #include "base/containers/span.h"
+#include "base/memory/raw_ptr.h"
 #include "content/public/browser/web_ui_controller.h"
 #include "ui/base/webui/resource_path.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 
 namespace content {
 class WebUI;
+class WebUIDataSource;
 }
 
 namespace astro {
@@ -160,7 +162,16 @@ std::string WebUIOrigin(std::string_view host);
 // diagnostics when they are missing are one implementation rather than one per
 // page — the shape that let two pages read `resources/astro-alia` while the
 // build staged `resources/astro-$page`, and render blank about it.
-void CreateAstroWebUIDataSource(content::WebUI* web_ui, const WebUIPage& page);
+//
+// The source is RETURNED, for the one thing a page cannot express as a
+// WebUIPage: a surface that adopts an upstream handler wholesale usually has to
+// add that handler's own strings, because upstream resolves them from
+// `loadTimeData` by message id rather than sending them in the reply. Astro's
+// management page is the first. Nothing else should reach for this — a page
+// writing its own CSP or resource paths through the returned pointer defeats
+// the reason this function exists.
+content::WebUIDataSource* CreateAstroWebUIDataSource(content::WebUI* web_ui,
+                                                     const WebUIPage& page);
 
 // Base for an Astro page with no Mojo interfaces.
 class AstroWebUIPageController : public content::WebUIController {
@@ -170,6 +181,14 @@ class AstroWebUIPageController : public content::WebUIController {
 
   AstroWebUIPageController(const AstroWebUIPageController&) = delete;
   AstroWebUIPageController& operator=(const AstroWebUIPageController&) = delete;
+
+ protected:
+  // The source this page's assets and CSP were installed on. See the note on
+  // CreateAstroWebUIDataSource for the one job it exists for.
+  content::WebUIDataSource* data_source() { return data_source_; }
+
+ private:
+  const raw_ptr<content::WebUIDataSource> data_source_;
 };
 
 // Base for an Astro page that binds Mojo interfaces.
@@ -188,6 +207,14 @@ class AstroMojoWebUIPageController : public ui::MojoWebUIController {
   AstroMojoWebUIPageController(const AstroMojoWebUIPageController&) = delete;
   AstroMojoWebUIPageController& operator=(const AstroMojoWebUIPageController&) =
       delete;
+
+ protected:
+  // The source this page's assets and CSP were installed on. See the note on
+  // CreateAstroWebUIDataSource for the one job it exists for.
+  content::WebUIDataSource* data_source() { return data_source_; }
+
+ private:
+  const raw_ptr<content::WebUIDataSource> data_source_;
 };
 
 }  // namespace astro

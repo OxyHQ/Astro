@@ -12,10 +12,10 @@ is no error, on either side.
 This registers Astro's four interfaces, and the split between them IS the
 grant -- which is the whole reason there are four:
 
-  astro.mojom.ThemeProvider              read-only. ALL FIVE Astro pages bind
+  astro.mojom.ThemeProvider              read-only. ALL SIX Astro pages bind
                                          it -- settings, the new tab page, the
-                                         Alia panel, What's New and the ad
-                                         blocker -- so a colour change re-themes
+                                         Alia panel, What's New, the ad blocker
+                                         and management -- so a colour change re-themes
                                          every surface and the native UI at
                                          once.
 
@@ -40,7 +40,7 @@ ThemeProvider and nothing else: neither has any business writing a preference,
 and Alia in particular must not be able to reach anything at all -- see its
 `connect-src 'none'` and the shell it is a shell FOR, issue #17.
 
-Note the shape of the ThemeProvider line: ONE registration listing all five
+Note the shape of the ThemeProvider line: ONE registration listing all six
 controllers. `RegisterWebUIControllerInterfaceBinder` DCHECKs on a second
 registration of the same interface, so adding a page as its own line aborts a
 developer build at startup rather than widening the grant.
@@ -95,13 +95,14 @@ diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
 diff --git a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
 --- a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
 +++ b/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop.cc
-@@ -22,6 +22,15 @@
+@@ -22,6 +22,16 @@
  #include "chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption.mojom.h"
  #include "chrome/browser/new_tab_page/modules/v2/tab_groups/tab_groups.mojom.h"
  #include "chrome/browser/new_tab_page/new_tab_page_util.h"
 +#include "chrome/browser/oxy/webui/astro_adblock.mojom.h"
 +#include "chrome/browser/oxy/webui/astro_adblock_ui.h"
 +#include "chrome/browser/oxy/webui/astro_alia_ui.h"
++#include "chrome/browser/oxy/webui/astro_management_ui.h"
 +#include "chrome/browser/oxy/webui/astro_ntp.mojom.h"
 +#include "chrome/browser/oxy/webui/astro_ntp_ui.h"
 +#include "chrome/browser/oxy/webui/astro_settings.mojom.h"
@@ -111,7 +112,7 @@ diff --git a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop
  #include "chrome/browser/ui/lens/lens_overlay_untrusted_ui.h"
  #include "chrome/browser/ui/lens/lens_side_panel_untrusted_ui.h"
  #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
-@@ -599,6 +606,42 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
+@@ -599,6 +606,43 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
          DefaultBrowserModalUI>(map);
    }
  #endif
@@ -131,7 +132,8 @@ diff --git a/chrome/browser/chrome_browser_interface_binders_webui_parts_desktop
 +  // merely be redundant, it would abort a developer build at startup.
 +  RegisterWebUIControllerInterfaceBinder<
 +      astro::mojom::ThemeProvider, astro::AstroSettingsUI, astro::AstroNtpUI,
-+      astro::AstroAliaUI, astro::AstroWhatsNewUI, astro::AstroAdBlockUI>(map);
++      astro::AstroAliaUI, astro::AstroWhatsNewUI, astro::AstroAdBlockUI,
++      astro::AstroManagementUI>(map);
 +
 +  // Writing the theme is the settings page's alone, and so is the
 +  // settingsPrivate grant that comes with upstream's host (patch 060).

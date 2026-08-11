@@ -9,6 +9,11 @@ note: >-
   A measured baseline needs a running browser behind a recorder; tools/baseline/capture-network.sh is that harness and it refuses to emit a trace it did not record.
 
 overlay:
+  - host: "admin.google.com"
+    component: webui
+    substituted_shape: false
+    references:
+      - "src/chrome/browser/oxy/webui/astro_management_ui.h"
   - host: "api.oxy.so"
     component: oxy-identity
     substituted_shape: false
@@ -68,6 +73,11 @@ overlay:
     substituted_shape: false
     references:
       - "src/chrome/browser/oxy/webui/astro_ntp_page_handler.cc"
+  - host: "support.google.com"
+    component: webui
+    substituted_shape: false
+    references:
+      - "src/chrome/browser/oxy/webui/astro_management_ui.cc"
   - host: "wikipedia.org"
     component: webui
     substituted_shape: false
@@ -110,6 +120,11 @@ patches:
     substituted_shape: false
     references:
       - "patches/ungoogled/core/iridium-browser/all-add-trk-prefixes-to-possibly-evil-connections.patch"
+  - host: "admin.google.com"
+    component: astro-patch
+    substituted_shape: false
+    references:
+      - "patches/astro/073-management-webui-takeover.patch"
   - host: "android.clients.google.com"
     component: ungoogled-patch
     substituted_shape: false
@@ -302,6 +317,7 @@ patches:
       - "patches/astro/070-theme-color-picker-astro-presets.patch"
       - "patches/astro/071-whats-new-webui-takeover.patch"
       - "patches/astro/072-webui-csp-style-src-attr.patch"
+      - "patches/astro/073-management-webui-takeover.patch"
       - "patches/ungoogled/core/ungoogled-chromium/disable-gaia.patch"
       - "patches/ungoogled/core/ungoogled-chromium/disable-network-time-tracker.patch"
       - "patches/ungoogled/extra/bromite/fingerprinting-flags-client-rects-and-measuretext.patch"
@@ -475,6 +491,7 @@ patches:
     references:
       - "patches/astro/013-settings-google-to-oxy.patch"
       - "patches/astro/038-dino-game-astro-scheme.patch"
+      - "patches/astro/073-management-webui-takeover.patch"
       - "patches/ungoogled/core/iridium-browser/all-add-trk-prefixes-to-possibly-evil-connections.patch"
   - host: "tools.google.com"
     component: ungoogled-patch
