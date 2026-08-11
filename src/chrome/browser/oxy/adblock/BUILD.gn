@@ -21,15 +21,17 @@ source_set("adblock") {
     "astro_adblock_tab_helper.cc",
     "astro_adblock_tab_helper.h",
 
-    # Phase 3: UI (toolbar button, bubble, settings WebUI)
+    # Phase 3: UI (toolbar button, bubble)
+    #
+    # The astro://adblock page is NOT here. It is a controller of
+    # //chrome/browser/oxy:webui_controllers, with the other Astro pages, and
+    # it has to be: that target already depends on this one — the new tab page
+    # reads the blocked count — so a page controller here reaching for
+    # webui/astro_webui_page.h would be a GN dependency cycle.
     "astro_adblock_bubble_delegate.cc",
     "astro_adblock_bubble_delegate.h",
     "astro_adblock_toolbar_button.cc",
     "astro_adblock_toolbar_button.h",
-    "webui/astro_adblock_ui.cc",
-    "webui/astro_adblock_ui.h",
-    "webui/astro_adblock_ui_handler.cc",
-    "webui/astro_adblock_ui_handler.h",
 
     # Phase 4: Filter list auto-update
     "astro_adblock_filter_list_catalog.cc",

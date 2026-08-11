@@ -5,7 +5,7 @@ diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/u
  #include "build/android_buildflags.h"
  #include "build/build_config.h"
  #include "chrome/browser/optimization_guide/optimization_guide_internals_ui.h"
-+#include "chrome/browser/oxy/adblock/webui/astro_adblock_ui.h"
++#include "chrome/browser/oxy/webui/astro_adblock_ui.h"
  #include "chrome/browser/ui/webui/about/about_ui.h"
  #include "chrome/browser/ui/webui/accessibility/accessibility_ui.h"
  #include "chrome/browser/ui/webui/actor_internals/actor_internals_ui.h"
@@ -13,7 +13,7 @@ diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/u
  #endif  // BUILDFLAG(IS_CHROMEOS)
  
    auto& map = content::WebUIConfigMap::GetInstance();
-+  map.AddWebUIConfig(std::make_unique<oxy::adblock::AstroAdBlockUIConfig>());
++  map.AddWebUIConfig(std::make_unique<astro::AstroAdBlockUIConfig>());
    map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
    map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
    map.AddWebUIConfig(std::make_unique<BluetoothInternalsUIConfig>());

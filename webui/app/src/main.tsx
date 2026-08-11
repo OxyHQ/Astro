@@ -44,6 +44,13 @@ const PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
   alia: lazy(() =>
     import('./pages/alia/alia-page.tsx').then(module => ({default: module.AliaPage})),
   ),
+  // Astro's own host, ADDED rather than swapped: nothing upstream registers
+  // `adblock`, so 054-adblock-webui-register.patch has a line of its own.
+  adblock: lazy(() =>
+    import('./pages/adblock/adblock-page.tsx').then(module => ({
+      default: module.AdBlockPage,
+    })),
+  ),
   // Upstream's own host, taken over by 071-whats-new-webui-takeover.patch
   // rather than registered beside it — WebUIConfigMap CHECKs on a duplicate
   // origin.

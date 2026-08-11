@@ -150,16 +150,17 @@
       "id": "astro-adblock-webui",
       "title": "Ad blocker's WebUI page",
       "area": "astro-product",
-      "observed_state": "UNREACHABLE",
+      "observed_state": "PRESENT",
       "observed_evidence": [
-        "src/chrome/browser/oxy/adblock/webui/astro_adblock_ui.cc is committed",
-        "patches/astro/054-adblock-webui-register.patch was structurally malformed; repaired in 7bb07f4 and it now applies. The page is unreachable regardless, because a whole-file overlay copy of chrome_web_ui_configs.cc reverts it — declared defect 2 in AGENTS.md, reaching a compiler for the first time in baseline finding 9"
+        "src/chrome/browser/oxy/webui/astro_adblock_ui.cc — an entry of the single Astro WebUI app, served from astro_webui_resources.pak by the shared page base. It was chrome/browser/oxy/adblock/webui/astro_adblock_ui.cc, holding the page as a 284-line raw string literal served through a catch-all SetRequestFilter, and moved because //chrome/browser/oxy:webui_controllers already depends on //chrome/browser/oxy/adblock, so a page controller in the adblock target would be a GN dependency cycle",
+        "patches/astro/054-adblock-webui-register.patch registers astro::AstroAdBlockUIConfig, and the whole-file overlay copy of chrome_web_ui_configs.cc that used to revert it is gone — no such file exists under src/, tracked or untracked",
+        "The page renders from the pak in a real browser and every control is backed by the browser: master switch, site exceptions and custom rules over astro.adblock.mojom, granted to this controller alone by patch 063"
       ],
       "state": "REPLACE",
-      "rationale": "The page exists and is registered by nothing. This is the clearest DORMANT-shaped capability in the repository — and it is not DORMANT, because two known defects cause it rather than a design. Recording it as dormant would hide #7's work.",
+      "rationale": "The page existed and was registered by nothing, which was the clearest DORMANT-shaped capability in the repository — and it was not DORMANT, because two known defects caused it rather than a design. The replacement has landed: it is one entry of the single Astro WebUI app, on typed Mojo, and the three chrome.send messages it used to speak are gone.",
       "owner_issue": 18,
-      "upstream_component": "//chrome/browser/oxy/adblock/webui",
-      "user_surface": "none today",
+      "upstream_component": "//chrome/browser/oxy/webui",
+      "user_surface": "astro://adblock",
       "network": [
         "none"
       ],

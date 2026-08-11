@@ -636,6 +636,14 @@ do not let a build imply they are resolved:
     somebody else's patch, so it applies to the pristine file and fails in
     series. A per-patch check against a pristine tree calls the second kind
     healthy, which is why the replay runs the series in order.
+  - **A patch is broken by editing the patch BEFORE it, and only the replay
+    sees that.** Later patches quote earlier patches' inserted lines as
+    CONTEXT, so changing what 054 inserts broke 055, 058 and 060 at once —
+    and the BUILD stayed green throughout, because the tree had been edited
+    directly rather than rebuilt through `apply-patches.sh`. A green browser
+    is not evidence that the series still applies. Mutation-tested: reverting
+    one context line in 055 fails four patches; restoring it returns
+    180/180.
 - The two LEGACY pages (`alia`, `whats-new`) still serve their assets by
   reading a directory next to the executable at runtime (`base::DIR_EXE` +
   `resources/astro-<page>`) rather than from a `.pak`, so neither carries
@@ -1037,6 +1045,25 @@ five localStorage keys. Rules that came out of the port:
    browser dies at startup. A whole-file overlay copy is not an option: that
    was defect #7.
 
+   **A swap is only safe when nothing outside the config names the upstream
+   controller's CONCRETE TYPE.** `WebUIController::GetAs<T>()` returns
+   `nullptr` on a mismatch rather than CHECKing, and the views layer
+   routinely dereferences the result without a null check, so replacing the
+   config turns into a browser-process crash rather than a page that fails to
+   load. Measured: `read_later_side_panel_web_view.{h,cc}` names
+   `ReadingListUI` three times — as the base of `SidePanelWebUIViewT<>`, in a
+   `WebUIContentsWrapperT<>` constructed in the ctor, and in an unchecked
+   `GetAs<ReadingListUI>()->SetActiveTabURL(...)` that runs on every tab
+   switch while the panel is open. `first_run_flow_controller.cc` names
+   `IntroUI` twice, one of them behind a `DCHECK` — which compiles out, so
+   release crashes where a developer build asserts. Seven other surfaces
+   (management, feedback, downloads, history, bookmarks, …) name none.
+   Before planning any takeover:
+   `grep -rn 'WebUIContentsWrapperT<\|SidePanelWebUIViewT<\|GetAs<' chrome/browser/ui/views/`.
+   Frontend line counts cannot see this and rank these surfaces backwards:
+   reading-list is the smallest of the eight and structurally the most
+   entangled.
+
 4. **Add the build edge.** A `BUILD.gn` under `chrome/browser/oxy/` that
    nothing depends on compiles to nothing, silently — the overlay sat in that
    state until `057-oxy-webui-build-edge.patch`. Check the target is reachable
@@ -1102,9 +1129,9 @@ The `astro://` URL scheme is aliased to `chrome://` via patch `011-astro-url-sch
 
 Astro composes its internal WebUI scheme (`astro`) and its untrusted
 counterpart (`astro-untrusted`) at build time. This is NOT a one-place
-setting: the same fact is spelled independently in nine places across the
+setting: the same fact is spelled independently in ten places across the
 build, and each was found by a separate, unrelated failure. Fixing some of
-the nine and not the rest leaves a browser that is broken in ways neither
+the ten and not the rest leaves a browser that is broken in ways neither
 the build nor a test suite reports — the list below exists so the next
 rename of anything hits fewer of these blind.
 
@@ -1154,10 +1181,23 @@ rename of anything hits fewer of these blind.
    and `components/neterror/resources/`. Fixed by making their imports
    SCHEME-RELATIVE (`//resources/js/util.js`) — Chromium's own supported
    form, identical in behavior to an unmodified Chromium.
+10. `content/browser/webui/url_data_manager_backend.cc` — `kAllDirectives`,
+   a hard-coded list of sixteen `CSPDirectiveName` values, decides which
+   directives a data source's `OverrideContentSecurityPolicy` ever reaches a
+   response header. A directive outside that list is STORED and never asked
+   for: no error, no warning, and the source reads as if the policy applied.
+   `StyleSrcAttr` was outside it, so five controllers, the shared page base
+   and the generated security baseline all correctly stated a directive the
+   browser did not have — until a provoked `setAttribute('style', …)` applied
+   anyway and the browser named `style-src 'self' 'unsafe-inline'` as the
+   policy in force. `072-webui-csp-style-src-attr.patch` adds the one line;
+   it is byte-identical for any source that does not set the directive.
+   Anything that reads a CSP out of Astro's source rather than off the wire
+   inherits this blindness, which is why the check is a provoked violation.
 
 Rules that follow:
 
-- Every one of the nine is applied ONLY when the scheme differs from
+- Every one of the ten is applied ONLY when the scheme differs from
   Chromium's default, so an unmodified configuration stays byte-identical.
   Preserve that property in anything new touching this list.
 - Untrusted must be rewritten BEFORE trusted, everywhere (sort candidates by

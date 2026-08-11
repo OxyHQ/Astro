@@ -1,34 +1,37 @@
-// Ad blocking -- Astro's own section, with no upstream equivalent and, today,
-// no transport.
+// Ad blocking -- Astro's own section, with no upstream equivalent.
 //
-// This screen deliberately draws no control, and the reason is three separate
-// facts about the browser rather than one missing feature. All three are stated
-// on the screen as well as here, because a section that looked like a settings
-// page and changed nothing would be worse than one that says so.
+// The CONTROLS live on `astro://adblock`, not here, and the row at the top of
+// this section is the way to them. That split is a grant, not a layout
+// preference: `astro.adblock.mojom.PageHandlerFactory` is registered in the
+// WebUI frame binder map for `AstroAdBlockUI` alone (patch 063), so this page
+// cannot reach the ad blocker's data plane at all. Binding it here as well
+// would hand the surface that holds the `settingsPrivate` grant a second one it
+// has no need of.
 //
-//  1. The whole Oxy overlay compiles to zero objects. No `BUILD.gn` outside
-//     `chrome/browser/oxy/` declares a dependency on it, so
-//     `AstroAdBlockService`, the engine and the filter-list updater are not
-//     linked into the browser at all. This is a declared defect of the build,
-//     owned by issue #7, not a gap in this page.
-//  2. The four preferences the service reads -- `oxy.adblock.enabled`,
+// Two facts about the browser keep this section a report even so, and both are
+// stated on the screen as well as here:
+//
+//  1. The four preferences the service reads -- `oxy.adblock.enabled`,
 //     `oxy.adblock.site_overrides`, `oxy.adblock.custom_rules` and
 //     `oxy.adblock.lifetime_blocked_count`, registered by
 //     `patches/astro/046-adblock-prefs.patch` -- are absent from
 //     `chrome/browser/extensions/api/settings_private/prefs_util.cc`. A pref
 //     outside that allowlist is invisible to `chrome.settingsPrivate` however
-//     correctly it is spelled, so a `ToggleRow` bound to
-//     `oxy.adblock.enabled` would work against a dev fixture and do nothing in
-//     the browser. That is the same reason the theme uses typed Mojo.
-//  3. `AstroAdBlockUIHandler` does exist and registers `getAdBlockState`,
-//     `removeSiteOverride` and `saveCustomRules` -- but it is added by
-//     `AstroAdBlockUI`, the controller for `astro://adblock`, not by the
-//     controller this page is served from. A message no installed handler
-//     registered is a CHECK failure in a real build, so those three names are
-//     not usable here.
+//     correctly it is spelled, so a `ToggleRow` bound to `oxy.adblock.enabled`
+//     would work against a dev fixture and do nothing in the browser. That is
+//     the same reason the theme uses typed Mojo, and the reason the ad blocker
+//     page does too.
+//  2. There is no per-list preference anywhere in the browser, so the
+//     catalogue below is a report on both pages. A switch beside a list would
+//     have nowhere to store its answer.
 //
-// There is no Mojo interface for the ad blocker anywhere: `find src -name
-// '*.mojom'` in the Astro overlay returns nothing. Nothing below invents one.
+// What this comment used to say, and why it is worth recording that it was
+// wrong: it claimed the whole Oxy overlay compiled to zero objects, so the
+// service was not linked into the browser at all. That was true when it was
+// written and stopped being true with `057-oxy-webui-build-edge.patch`, which
+// gave the overlay the dependency edge it was missing. It also claimed there
+// was no Mojo interface for the ad blocker anywhere; there is one now, and this
+// section deliberately does not bind it.
 //
 // What the screen DOES show is the filter-list catalogue, which is a fact about
 // the build rather than a state of the profile: the entries below mirror
@@ -40,9 +43,10 @@
 // are `kUpdateInterval` and `kInitialDelay` from
 // `astro_adblock_filter_list_updater.cc`.
 
-import {SectionCard, t, type MessageId} from '@astro/platform';
+import {t, type MessageId} from '@astro/platform';
 
 import {InfoRow} from '../components/info-row.tsx';
+import {LinkRow} from '../components/link-row.tsx';
 import {RowGroup} from '../components/row-group.tsx';
 import {SectionHeader} from '../components/section-header.tsx';
 
@@ -71,10 +75,13 @@ export function AdblockSection() {
     <>
       <SectionHeader title="settings.adblock.title" description="settings.adblock.description" />
 
-      <SectionCard
-        title={t('settings.adblock.status.title')}
-        description={t('settings.adblock.status.body')}
-      />
+      <RowGroup title="settings.adblock.group.controls" footer="settings.adblock.status.body">
+        <LinkRow
+          label="settings.adblock.open"
+          sublabel="settings.adblock.open.sublabel"
+          route="adBlock"
+        />
+      </RowGroup>
 
       <RowGroup title="settings.adblock.group.lists" footer="settings.adblock.lists.footer">
         {CATALOGUE.map(entry => (

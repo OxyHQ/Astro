@@ -6,6 +6,11 @@
   ],
   "hosts": [
     {
+      "constant": "kAstroAdBlockHost",
+      "defined_in": "src/chrome/browser/oxy/webui/astro_adblock_ui.h",
+      "host": "adblock"
+    },
+    {
       "constant": "kAstroAliaHost",
       "defined_in": "src/chrome/browser/oxy/webui/astro_alia_ui.h",
       "host": "alia"
@@ -34,6 +39,12 @@
   "ntp_alias_host": "newtab",
   "urls": [
     {
+      "host": "adblock",
+      "scheme": "astro",
+      "style": "astro-scheme",
+      "url": "astro://adblock/"
+    },
+    {
       "host": "alia",
       "scheme": "astro",
       "style": "astro-scheme",
@@ -50,6 +61,12 @@
       "scheme": "astro",
       "style": "astro-scheme",
       "url": "astro://newtab/"
+    },
+    {
+      "host": "adblock",
+      "scheme": "chrome",
+      "style": "legacy-chrome-scheme",
+      "url": "chrome://adblock/"
     },
     {
       "host": "alia",

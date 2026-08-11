@@ -520,6 +520,12 @@
       "effect": "user-visible",
       "purpose": "Swaps upstream's WhatsNewUIConfig for Astro's AstroWhatsNewUIConfig, so astro://whats-new is served by the Astro application. A swap rather than an addition because AddWebUIConfigImpl CHECKs on a duplicate origin. It also makes the host resolve at all: upstream's config declines every navigation outside a Google-branded build, since IsWebUIEnabled returns whats_new::IsEnabled() and that reads a feature flag disabled by default -- measured, the address answered net::ERR_INVALID_URL.",
       "replacement_issue": 14
+    },
+    "072-webui-csp-style-src-attr.patch": {
+      "disposition": "replace",
+      "effect": "security",
+      "purpose": "Adds StyleSrcAttr to the hard-coded list of CSP directives url_data_manager_backend.cc assembles a WebUI response header from. OverrideContentSecurityPolicy accepts and stores the directive without it, so before this patch all five Astro pages declared `style-src-attr 'none';` and none of them had it: a provoked setAttribute('style', ...) applied on every page, while the browser's own report of a refused remote stylesheet named `style-src 'self' 'unsafe-inline'` as the policy in force. Byte-identical for any source that does not set the directive, since the default for it is the empty string.",
+      "replacement_issue": 14
     }
   }
 }

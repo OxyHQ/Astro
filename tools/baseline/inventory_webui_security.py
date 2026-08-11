@@ -82,22 +82,38 @@ SERVES_FROM_EXE_DIR = "base::DIR_EXE"
 # astro_webui_page.cc. A controller naming the struct is asking that file to
 # create its data source, so that file's behaviour is the controller's.
 SHARED_PAGE_BASE_FILE = "astro_webui_page.cc"
+SHARED_PAGE_BASE_HEADER = "astro_webui_page.h"
 USES_SHARED_PAGE_BASE_RE = re.compile(r"\bWebUIPage\b")
 
 # `.style_src = "style-src 'self' …;"` inside a WebUIPageCsp initialiser. The
 # field name is the directive, spelled the way the struct spells it.
-PAGE_CSP_FIELD_RE = re.compile(
-    r"\.\s*(script_src|style_src|img_src|font_src|connect_src)\s*=\s*"
-    r"((?:\s*\"(?:[^\"\\]|\\.)*\"\s*)+)",
-    re.MULTILINE,
-)
+#
+# `style_src_attr` is listed BEFORE `style_src` for readability rather than
+# necessity — the pattern requires `\s*=` after the name, which `style_src_attr`
+# does not offer at the point `style_src` would end.
 PAGE_CSP_FIELD_DIRECTIVE = {
     "script_src": "ScriptSrc",
+    "style_src_attr": "StyleSrcAttr",
     "style_src": "StyleSrc",
     "img_src": "ImgSrc",
     "font_src": "FontSrc",
     "connect_src": "ConnectSrc",
 }
+PAGE_CSP_FIELD_RE = re.compile(
+    r"\.\s*(" + "|".join(PAGE_CSP_FIELD_DIRECTIVE) + r")\s*=\s*"
+    r"((?:\s*\"(?:[^\"\\]|\\.)*\"\s*)+)",
+    re.MULTILINE,
+)
+
+# WebUIPageCsp's own field list, read from the header.
+#
+# The table above is hand-written, and a hand-written table of what to look for
+# fails in the one direction that cannot be seen: a field added to the struct
+# and not added here is a CSP directive every page declares and this document
+# silently omits. Nothing about the output would look wrong. So the struct is
+# the authority and the table is checked against it — see assert_csp_fields.
+CSP_STRUCT_RE = re.compile(r"struct\s+WebUIPageCsp\s*\{(.*?)\n\};", re.DOTALL)
+CSP_STRUCT_FIELD_RE = re.compile(r"^\s*const char\*\s+(\w+)\s*=", re.MULTILINE)
 
 
 def strip_comments(source: str) -> str:
@@ -113,9 +129,12 @@ def strip_comments(source: str) -> str:
     already refuses for `unsafe-eval` in the shipped filter data.
 
     Blanked rather than deleted, so offsets and line counts are unchanged, and
-    raw string literals are honoured: astro_adblock_ui.cc serves a page as
-    `R"html(...)html"`, and a stripper that did not know that would eat half of
-    it at the first `//` inside a URL.
+    raw string literals are honoured. The case that forced the latter was
+    astro_adblock_ui.cc serving a whole page as `R"html(...)html"`: a stripper
+    that did not know about raw strings ate half of it at the first `//` inside
+    a URL. That page is now an entry of the WebUI app and no overlay file holds
+    a document any more, so this is kept for the next one rather than for a
+    file in the tree — dropping it would make the failure return silently.
     """
     out = []
     index = 0
@@ -218,6 +237,54 @@ def committed_controllers() -> list[tuple[str, str]]:
     ]
 
 
+def assert_csp_fields_are_covered(header_text: str, source_display: str) -> None:
+    """Refuse to emit a CSP table that cannot see one of the struct's fields.
+
+    The failure this exists for is invisible in the output: a directive added to
+    WebUIPageCsp and not to PAGE_CSP_FIELD_DIRECTIVE is declared by every page
+    and reported by none of them, and the document still renders a plausible
+    table for each. It is the exact shape AGENTS.md warns about, where a pass
+    and a nothing-was-measured look identical -- so the struct is asked what its
+    fields are rather than trusted to match a list written months earlier.
+    """
+    match = CSP_STRUCT_RE.search(header_text)
+    if not match:
+        raise SystemExit(
+            f"ERROR could not find `struct WebUIPageCsp` in {source_display}. "
+            "Its fields are what this tool reports, so not finding it means the "
+            "CSP table below would be silently incomplete."
+        )
+    declared = set(CSP_STRUCT_FIELD_RE.findall(match.group(1)))
+    if not declared:
+        raise SystemExit(
+            f"ERROR `struct WebUIPageCsp` in {source_display} declares no "
+            "`const char*` fields, which cannot be right -- the field pattern "
+            "has stopped matching and every directive would go unreported."
+        )
+    missing = sorted(declared - set(PAGE_CSP_FIELD_DIRECTIVE))
+    if missing:
+        raise SystemExit(
+            "ERROR WebUIPageCsp declares CSP field(s) this tool does not read: "
+            + ", ".join(missing)
+            + ".\n      Add each to PAGE_CSP_FIELD_DIRECTIVE with its "
+            "CSPDirectiveName, or the security baseline reports every page as "
+            "not declaring it."
+        )
+
+
+def committed_page_base_header() -> str | None:
+    for path in committed_state.list_files(COMMITTED_SOURCE, (".h",)):
+        if path.endswith(SHARED_PAGE_BASE_HEADER):
+            return committed_state.read_text(path)
+    return None
+
+
+def worktree_page_base_header(source_dir: Path) -> str | None:
+    for path in sorted(source_dir.rglob(SHARED_PAGE_BASE_HEADER)):
+        return path.read_text(encoding="utf-8")
+    return None
+
+
 def committed_page_base() -> str | None:
     for path in committed_state.list_files(COMMITTED_SOURCE, (".cc",)):
         if path.endswith(SHARED_PAGE_BASE_FILE):
@@ -243,13 +310,18 @@ def build(source_dir: Path | None) -> dict:
     if source_dir is None:
         controllers = committed_controllers()
         page_base = committed_page_base()
+        page_base_header = committed_page_base_header()
         source_display = COMMITTED_SOURCE
         origin = "committed"
     else:
         controllers = worktree_controllers(source_dir)
         page_base = worktree_page_base(source_dir)
+        page_base_header = worktree_page_base_header(source_dir)
         source_display = str(source_dir)
         origin = "worktree"
+
+    if page_base_header is not None:
+        assert_csp_fields_are_covered(page_base_header, source_display)
 
     if not controllers:
         raise SystemExit(f"ERROR no WebUI controllers found under {source_display}")

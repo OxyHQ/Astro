@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Nate Isern <nate@oxy.so>
+Date: Mon, 11 Aug 2026 00:00:00 +0000
+Subject: [PATCH] Let a WebUI data source narrow style-src-attr
+
+`WebUIDataSource::OverrideContentSecurityPolicy` accepts any
+`CSPDirectiveName` and stores it, and the header a WebUI response actually
+carries is assembled from a hard-coded list of sixteen directives in
+`url_data_manager_backend.cc`. `StyleSrcAttr` is not one of them, so a page
+that sets it gets no error, no warning and no directive: the value sits in the
+data source's map and nothing ever asks for it.
+
+Measured against the shipped binary before this patch. All five Astro pages
+declared `style-src-attr 'none';`, and on every one of them a provoked
+`document.body.setAttribute('style', 'outline: 3px dotted magenta')` APPLIED
+-- computed `outline-style` went `none` -> `dotted` with nothing logged. The
+same run's control shows the mechanism was live otherwise: a `<link
+rel=stylesheet>` to a remote host was refused, and the browser's own message
+named the policy in force as `style-src 'self' 'unsafe-inline'` and added
+"Note that 'style-src-elem' was not explicitly set, so 'style-src' is used as
+a fallback" -- which is the browser saying, in as many words, that the only
+style directive it had received was the wide one.
+
+This is the reason to distrust a CSP that was never provoked. The five
+controllers, the shared page base, the generated security baseline and its
+per-page tables all reported `style-src-attr 'none'` correctly; the string
+simply never reached a response header. Reading any of those documents would
+have confirmed a directive the browser did not have.
+
+Adding the directive to the list is safe for every page that is not asking for
+it: `URLDataSource::GetContentSecurityPolicy` returns the empty string for
+`StyleSrcAttr`, and `WebUIDataSourceImpl` consults its own overrides first, so
+the assembled header is byte-identical for every source that never called
+`OverrideContentSecurityPolicy` with it. Only `StyleSrcAttr` is added, not the
+other four `*-attr` / `*-elem` names: an unused directive in this list is a
+line nobody can tell from a used one.
+
+Owned by https://github.com/OxyHQ/Astro/issues/14.
+---
+diff --git a/content/browser/webui/url_data_manager_backend.cc b/content/browser/webui/url_data_manager_backend.cc
+--- a/content/browser/webui/url_data_manager_backend.cc
++++ b/content/browser/webui/url_data_manager_backend.cc
+@@ -195,5 +195,6 @@ scoped_refptr<net::HttpResponseHeaders> GetWebUIResourceResponseHeaders(
+         network::mojom::CSPDirectiveName::ScriptSrc,
+         network::mojom::CSPDirectiveName::StyleSrc,
++        network::mojom::CSPDirectiveName::StyleSrcAttr,
+         network::mojom::CSPDirectiveName::TrustedTypes,
+         network::mojom::CSPDirectiveName::WorkerSrc};
+     for (const auto& directive : kAllDirectives) {

@@ -14,17 +14,17 @@ export const adblockStrings = {
     'Astro blocks ads and trackers itself, with a filter engine built into the ' +
     'browser rather than an extension.',
 
-  'settings.adblock.status.title': 'Nothing on this screen is a control yet',
+  'settings.adblock.group.controls': 'Where the controls are',
+  'settings.adblock.open': 'Open the ad blocker',
+  'settings.adblock.open.sublabel':
+    'The switch, your site exceptions and your own rules.',
   'settings.adblock.status.body':
-    'The ad blocker is in the browser, but no path reaches it from this page. ' +
-    'Three separate things are in the way, and each has to be fixed on its own: ' +
-    'the Oxy code the blocker lives in is not linked into the build at all, so ' +
-    'none of it runs; its four preferences are registered but are not on the ' +
-    'list of preferences the settings API is allowed to serve, so a switch here ' +
-    'could not read or write them; and the one piece of code that does talk to ' +
-    'the blocker is attached to astro://adblock rather than to this page. Until ' +
-    'those are done, what follows is what the browser ships, reported, and not ' +
-    'what it is currently doing.',
+    'The ad blocker has a page of its own, and the controls are all there rather ' +
+    'than here. The browser grants the ad blocker’s interface to that page alone, ' +
+    'so a switch on this screen could not reach it — and its four preferences are ' +
+    'not on the list the settings API is allowed to serve, so a switch bound to ' +
+    'one would read and write nothing. What follows is what the browser ships, ' +
+    'reported.',
 
   'settings.adblock.group.lists': 'Filter lists Astro ships',
   'settings.adblock.list.easylist': 'EasyList',
@@ -66,6 +66,7 @@ export const adblockStrings = {
  * index would answer a search for a setting with a fact.
  */
 export const adblockControls = [
+  'settings.adblock.open',
   'settings.adblock.interval',
   'settings.adblock.firstCheck',
 ] as const;

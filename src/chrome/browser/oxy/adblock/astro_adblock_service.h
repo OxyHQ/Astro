@@ -13,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "services/network/public/mojom/fetch_api.mojom-forward.h"
 #include "url/gurl.h"
 
@@ -86,6 +87,22 @@ class AstroAdBlockService : public KeyedService {
   // Initializes the engine: tries cache first, falls back to parsing lists.
   void InitializeEngine();
 
+  // Brings the engine and the list updater up when blocking is switched on
+  // after the service was built with it off.
+  //
+  // Without this the off switch worked and the on switch did not: everything
+  // below is started from the constructor under `if (IsEnabled())`, so a
+  // profile that began the session with blocking disabled had no engine, and
+  // `ShouldBlockRequest` returned false for the rest of the session however the
+  // preference then read. Nothing reported it — the setting said on, the shield
+  // said on, and no request was ever blocked. Idempotent: re-entering with an
+  // engine already built does nothing, which matters because the preference can
+  // be written from more than one place.
+  void OnEnabledPrefChanged();
+
+  // Starts the periodic filter-list download, once.
+  void StartUpdater();
+
   // Loads bundled filter lists and builds the engine.
   void LoadFilterListsAndBuild();
 
@@ -97,8 +114,14 @@ class AstroAdBlockService : public KeyedService {
 
   raw_ptr<PrefService> prefs_;
   base::FilePath profile_path_;
+
+  // Held rather than consumed by the constructor: the updater is only built
+  // when blocking is on, and blocking can be switched on later.
+  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+
   std::unique_ptr<AstroAdBlockEngine> engine_;
   std::unique_ptr<AstroAdBlockFilterListUpdater> updater_;
+  PrefChangeRegistrar pref_registrar_;
 
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<AstroAdBlockService> weak_factory_{this};
