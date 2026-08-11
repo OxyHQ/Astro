@@ -1045,6 +1045,25 @@ five localStorage keys. Rules that came out of the port:
    browser dies at startup. A whole-file overlay copy is not an option: that
    was defect #7.
 
+   **A swap is only safe when nothing outside the config names the upstream
+   controller's CONCRETE TYPE.** `WebUIController::GetAs<T>()` returns
+   `nullptr` on a mismatch rather than CHECKing, and the views layer
+   routinely dereferences the result without a null check, so replacing the
+   config turns into a browser-process crash rather than a page that fails to
+   load. Measured: `read_later_side_panel_web_view.{h,cc}` names
+   `ReadingListUI` three times — as the base of `SidePanelWebUIViewT<>`, in a
+   `WebUIContentsWrapperT<>` constructed in the ctor, and in an unchecked
+   `GetAs<ReadingListUI>()->SetActiveTabURL(...)` that runs on every tab
+   switch while the panel is open. `first_run_flow_controller.cc` names
+   `IntroUI` twice, one of them behind a `DCHECK` — which compiles out, so
+   release crashes where a developer build asserts. Seven other surfaces
+   (management, feedback, downloads, history, bookmarks, …) name none.
+   Before planning any takeover:
+   `grep -rn 'WebUIContentsWrapperT<\|SidePanelWebUIViewT<\|GetAs<' chrome/browser/ui/views/`.
+   Frontend line counts cannot see this and rank these surfaces backwards:
+   reading-list is the smallest of the eight and structurally the most
+   entangled.
+
 4. **Add the build edge.** A `BUILD.gn` under `chrome/browser/oxy/` that
    nothing depends on compiles to nothing, silently — the overlay sat in that
    state until `057-oxy-webui-build-edge.patch`. Check the target is reachable
