@@ -38,7 +38,7 @@ and reports two interaction events about the click. The Astro page states the
 same fact in its own words, with no link off the machine and no banner, and
 declares `connect-src 'none'`.
 
-Owned by https://github.com/OxyHQ/Astro/issues/14.
+Owned by https://github.com/OxyHQ/Astro/issues/15.
 ---
 diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 --- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc

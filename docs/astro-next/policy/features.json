@@ -1497,7 +1497,7 @@
       ],
       "state": "REPLACE",
       "rationale": "The capability is enterprise policy reporting and it survives untouched: the Astro page adopts ManagementUIHandler wholesale, so every fact on it is still the browser's own answer. What is replaced is the PROVIDER of the page, and with it three things a de-Googled browser should not ship — a Google support link embedded as markup in the browser's own explanation of who controls it, the product named as Chromium, and a banner advertising the Google Admin console with a campaign parameter. Three of the handler's ten messages exist only for that banner and are never sent. Safe to take over by a registration swap because ManagementUI is named in zero files under chrome/browser/ui/views/, unlike ReadingListUI (three) and IntroUI (two), where GetAs<T>() returning nullptr is dereferenced unchecked.",
-      "owner_issue": 14,
+      "owner_issue": 15,
       "upstream_component": "//chrome/browser/ui/webui/management",
       "user_surface": "astro://management",
       "network": [
@@ -1509,7 +1509,7 @@
       "tests": [
         "not-captured"
       ],
-      "replacement_component": "//chrome/browser/oxy/webui (issue #14)",
+      "replacement_component": "//chrome/browser/oxy/webui (issue #15)",
       "inputs_to": [
         11
       ],

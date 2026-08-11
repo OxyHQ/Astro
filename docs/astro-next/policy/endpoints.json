@@ -206,7 +206,7 @@
       "state": "DISABLE_BUILD",
       "rationale": "The Google Admin console, advertised by upstream's management-page promotion banner: its button ran window.open on https://admin.google.com/ac/chrome/guides/?ref=browser&utm_source=chrome_policy_cec and then reported the click through the recordBannerRedirected message, with setBannerDismissed recording the other outcome. Astro's management page does not draw the banner and sends none of those three messages, so no path reaches this host; the page declares connect-src 'none' besides. Recorded rather than dropped silently because the handler still registers the three messages — it is upstream's and unmodified — so the capability is absent from the PAGE, not from the binary.",
       "owning_feature": "management-page",
-      "owner_issue": 14,
+      "owner_issue": 15,
       "reference_kind": "deleted-by-patch",
       "contact": "never",
       "environment": "production",

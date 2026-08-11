@@ -531,7 +531,7 @@
       "disposition": "replace",
       "effect": "user-visible",
       "purpose": "Swaps upstream's ManagementUIConfig for astro::AstroManagementUIConfig, so astro://management is served by the Astro application. A swap rather than an addition because AddWebUIConfigImpl CHECKs on a duplicate origin. Safe to swap because ManagementUI is named in zero files under chrome/browser/ui/views/, where GetAs<T>() returning nullptr on a type mismatch is dereferenced unchecked -- ReadingListUI is named in three and IntroUI in two, which is why neither is taken this way. The Astro controller adopts upstream's ManagementUIHandler wholesale, so the page's facts stay the browser's; what goes is a support.google.com link the browser embedded as markup in its own explanation of who controls it, the product being named Chromium, and a banner opening the Google Admin console with a campaign parameter.",
-      "replacement_issue": 14
+      "replacement_issue": 15
     }
   }
 }
