@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scan-settings-handlers.py — does every chrome.send reach a handler that is installed?
+"""scan-adopted-handlers.py — does every chrome.send reach a handler that is installed?
 
 `chrome.send('resetPinnedToolbarActions')` from a page whose controller never
 installed AppearanceHandler does not throw, does not log, and does not fail the
@@ -69,8 +69,21 @@ LISTEN_CALL = re.compile(r"\baddWebUIListener\s*\(\s*'([^']+)'")
 # chrome/browser/ui/webui/settings/ is in `namespace settings` except
 # SafetyHubHandler, which is at global scope. A scanner that matched on the
 # bare class name would silently accept either spelling for either handler.
+#
+# TWO SHAPES, because there are two. `std::make_unique<Handler>(...)` is what
+# the settings controller uses fifteen times. `Handler::Create(...)` is a static
+# factory, which is how ManagementUIHandler is constructed — upstream gives it
+# no public constructor taking a Profile. The second was added after the
+# vacuity denominator below did its job: it reported "1 AddMessageHandler call
+# and only 0 could be read" on the management controller rather than passing on
+# a page it had only partly seen. Anything installed by a shape not listed here
+# is counted by ADD_HANDLER and not by this, which is exactly what makes that
+# denominator able to fail.
 INSTALLED = re.compile(
-    r"AddMessageHandler\s*\(\s*std::make_unique<\s*((?:::)?[A-Za-z_][A-Za-z0-9_:]*)\s*>",
+    r"AddMessageHandler\s*\(\s*(?:"
+    r"std::make_unique<\s*((?:::)?[A-Za-z_][A-Za-z0-9_:]*)\s*>"
+    r"|((?:::)?[A-Za-z_][A-Za-z0-9_:]*)\s*::\s*Create\s*\("
+    r")",
     re.S,
 )
 ADD_HANDLER = re.compile(r"AddMessageHandler\s*\(")
@@ -200,7 +213,13 @@ def scan_controller(path: str) -> tuple[list[str], int]:
     with open(path, encoding="utf-8") as handle:
         source = strip_cc_comments(handle.read())
 
-    installed = [normalise(name) for name in INSTALLED.findall(source)]
+    # Two alternatives, so findall yields a pair per match with one side
+    # empty. Collapsing with `or` rather than indexing keeps a third shape
+    # from silently reading as the second.
+    installed = [
+        normalise(make_unique or factory)
+        for make_unique, factory in INSTALLED.findall(source)
+    ]
     return installed, len(ADD_HANDLER.findall(source))
 
 
@@ -215,6 +234,10 @@ def main() -> int:
     parser.add_argument("--min-messages", type=int, default=DEFAULT_MIN_MESSAGES)
     parser.add_argument("--min-events", type=int, default=DEFAULT_MIN_EVENTS)
     parser.add_argument("--min-declared", type=int, default=DEFAULT_MIN_DECLARED)
+    # A surface label, so a per-surface run says WHICH surface each line is
+    # about. Identical labels make three surfaces read as one surface
+    # checked three times.
+    parser.add_argument("--surface", default="Settings")
     args = parser.parse_args()
 
     # --- The manifest --------------------------------------------------------
@@ -222,13 +245,13 @@ def main() -> int:
         with open(args.manifest, encoding="utf-8") as handle:
             manifest = json.load(handle)
     except (OSError, ValueError) as error:
-        print(f"Settings handlers: the manifest could not be read: {error}",
+        print(f"{args.surface} handlers: the manifest could not be read: {error}",
               file=sys.stderr)
         return 2
 
     declared = manifest.get("handlers")
     if not isinstance(declared, dict) or not declared:
-        print(f"Settings handlers: {os.path.basename(args.manifest)} declares no\n"
+        print(f"{args.surface} handlers: {os.path.basename(args.manifest)} declares no\n"
               f"  handlers. Nothing can be checked against it.", file=sys.stderr)
         return 2
 
@@ -241,11 +264,11 @@ def main() -> int:
     for handler in sorted(declared):
         entry = declared[handler]
         if not isinstance(entry, dict):
-            print(f"Settings handlers: {handler} is not an object.", file=sys.stderr)
+            print(f"{args.surface} handlers: {handler} is not an object.", file=sys.stderr)
             return 2
         qualified = entry.get("class")
         if not isinstance(qualified, str) or not qualified:
-            print(f"Settings handlers: {handler} declares no `class`. The join runs on\n"
+            print(f"{args.surface} handlers: {handler} declares no `class`. The join runs on\n"
                   f"  the fully-qualified name; without it the entry cannot be matched\n"
                   f"  to anything the controller installs.", file=sys.stderr)
             return 2
@@ -256,7 +279,7 @@ def main() -> int:
             fired_by.setdefault(event, handler)
 
     if len(served_by) < args.min_declared:
-        print(f"Settings handlers: the manifest yielded {len(served_by)} message(s),\n"
+        print(f"{args.surface} handlers: the manifest yielded {len(served_by)} message(s),\n"
               f"  below the floor of {args.min_declared}. It has been truncated, or its\n"
               f"  shape changed and the messages are no longer being read.",
               file=sys.stderr)
@@ -266,19 +289,19 @@ def main() -> int:
     try:
         installed_list, add_calls = scan_controller(args.controller)
     except OSError as error:
-        print(f"Settings handlers: the controller could not be read: {error}",
+        print(f"{args.surface} handlers: the controller could not be read: {error}",
               file=sys.stderr)
         return 2
 
     parsed = len(installed_list)
     if add_calls == 0:
-        print(f"Settings handlers: {os.path.basename(args.controller)} installs no\n"
+        print(f"{args.surface} handlers: {os.path.basename(args.controller)} installs no\n"
               f"  handlers at all. Either it is the wrong file, or AddMessageHandler is\n"
               f"  no longer how a handler is installed and nothing is being measured.",
               file=sys.stderr)
         return 2
     if parsed != add_calls:
-        print(f"Settings handlers: {os.path.basename(args.controller)} makes "
+        print(f"{args.surface} handlers: {os.path.basename(args.controller)} makes "
               f"{add_calls} AddMessageHandler\n"
               f"  call(s) and only {parsed} could be read. The rest are installed and\n"
               f"  invisible to this check, which would then pass on a page it had only\n"
@@ -290,13 +313,13 @@ def main() -> int:
     # --- The app -------------------------------------------------------------
     sends, listens, files = scan_app(args.app_dir)
     if len(sends) < args.min_messages:
-        print(f"Settings handlers: {len(sends)} send call(s) found across {files}\n"
+        print(f"{args.surface} handlers: {len(sends)} send call(s) found across {files}\n"
               f"  file(s), below the floor of {args.min_messages}. The app source was not\n"
               f"  read, or send/sendWithPromise is no longer how a handler is called.",
               file=sys.stderr)
         return 2
     if len(listens) < args.min_events:
-        print(f"Settings handlers: {len(listens)} addWebUIListener call(s) found,\n"
+        print(f"{args.surface} handlers: {len(listens)} addWebUIListener call(s) found,\n"
               f"  below the floor of {args.min_events}. Push updates have stopped being\n"
               f"  measured while the send scan still passes.", file=sys.stderr)
         return 2
@@ -368,7 +391,7 @@ def main() -> int:
             f"    empty state forever.")
 
     if problems:
-        print(f"Settings handlers: {len(problems)} call(s) reach nothing.\n",
+        print(f"{args.surface} handlers: {len(problems)} call(s) reach nothing.\n",
               file=sys.stderr)
         for problem in problems:
             print(problem, file=sys.stderr)
@@ -378,7 +401,7 @@ def main() -> int:
               f"{len(live_messages)} message(s).", file=sys.stderr)
         return 1
 
-    print(f"Every settings chrome.send reaches an installed handler: "
+    print(f"{args.surface}: every chrome.send reaches an installed handler: "
           f"{len(sends)} send(s) and\n"
           f"  {len(listens)} listener(s) across {files} source file(s), served by "
           f"{len(installed)} handler(s)\n"

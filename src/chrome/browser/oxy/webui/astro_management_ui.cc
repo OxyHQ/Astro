@@ -107,7 +107,7 @@ AstroManagementUI::AstroManagementUI(content::WebUI* web_ui)
   // the promotion banner. A message no installed handler registered reaches
   // DUMP_WILL_BE_NOTREACHED in web_ui_impl.cc, which is a no-op in a release
   // build — so the join runs the other way too, and is checked by
-  // tools/tests/cases/settings-sends-reach-an-adopted-handler.sh against
+  // tools/tests/cases/adopted-handler-sends-are-served.sh against
   // webui/app/settings-handler-messages.json.
   web_ui->AddMessageHandler(
       ManagementUIHandler::Create(Profile::FromWebUI(web_ui)));

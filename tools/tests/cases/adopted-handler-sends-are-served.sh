@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# Every chrome.send the settings app makes reaches a handler that is installed.
+# Every chrome.send an ADOPTED-HANDLER surface makes reaches an installed handler.
+#
+# Renamed from settings-sends-reach-an-adopted-handler.sh when management became
+# the second such surface: a file named for one surface that covers two is the
+# kind of stale name nothing recomputes. The surfaces are declared in
+# webui/app/handler-surfaces.json, so a third is an entry rather than a copy of
+# this file.
 #
 # `chrome.send` to a message no installed WebUIMessageHandler registered is not
 # an error anyone sees. `WebUIImpl::ProcessWebUIMessage` reaches
@@ -47,7 +53,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/harness.sh"
 harness::setup
 
-SCANNER="$ASTRO_ROOT/tools/tests/lib/scan-settings-handlers.py"
+SCANNER="$ASTRO_ROOT/tools/tests/lib/scan-adopted-handlers.py"
 APP_DIR="$ASTRO_ROOT/webui/app/src/pages/settings"
 CONTROLLER="$ASTRO_ROOT/src/chrome/browser/oxy/webui/astro_settings_ui.cc"
 MANIFEST="$ASTRO_ROOT/webui/app/settings-handler-messages.json"
@@ -109,9 +115,65 @@ copy_file() {
 # The repository as committed
 # --------------------------------------------------------------------------
 
+# EVERY adopted surface, from the declared set — not settings alone.
+#
+# The join used to be written once against settings, so `management`, which
+# adopts an upstream handler and sends seven messages, was invisible to it: the
+# failure it exists to catch is a silent no-op in release, and a second surface
+# with no coverage is the same defect waiting with nobody watching. The set
+# lives in webui/app/handler-surfaces.json, so a third surface is an ENTRY
+# rather than a second copy of this file.
+SURFACES="$ASTRO_ROOT/webui/app/handler-surfaces.json"
+harness::assert_file_exists "$SURFACES"
+
+surface_count="$(python3 -c "
+import json, sys
+print(len(json.load(open(sys.argv[1]))['surfaces']))
+" "$SURFACES")"
+
+# A FLOOR ON THE SET ITSELF. A declaration file that lost its entries — or a
+# reader that stopped finding them — would loop zero times and this case would
+# report every assertion below as passing, which is the shape it exists to
+# refuse. Raise it when a surface is added; lowering it needs the surface's
+# deletion in the same change.
+HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+if [ "${surface_count:-0}" -lt 2 ]; then
+    harness::fail "handler-surfaces.json declares ${surface_count:-0} surface(s); at
+      least 2 are expected (settings and management). Either a surface was
+      dropped without its coverage, or the set is no longer being read."
+fi
+
+# One scan per surface, each with its OWN floors. A surface that sends seven
+# messages cannot borrow the floor of one that sends thirty-five: the floor is
+# what tells "measured and clean" from "measured nothing", so it has to be that
+# surface's own number.
+while IFS=$'\t' read -r s_name s_app s_ctrl s_manifest s_msgs s_events s_declared; do
+    harness::run python3 "$SCANNER" \
+        --surface "$s_name" \
+        --app-dir "$ASTRO_ROOT/$s_app" \
+        --controller "$ASTRO_ROOT/$s_ctrl" \
+        --manifest "$ASTRO_ROOT/$s_manifest" \
+        --min-messages "$s_msgs" \
+        --min-events "$s_events" \
+        --min-declared "$s_declared"
+    harness::assert_status 0 "$s_name: every chrome.send reaches an installed handler"
+    # Names ITSELF in its own verdict. Without this the loop could scan one
+    # surface three times and read as three surfaces checked.
+    harness::assert_output_contains "$s_name: every chrome.send reaches an installed handler" \
+        "$s_name: says which surface it verified"
+done < <(python3 -c "
+import json, sys
+for s in json.load(open(sys.argv[1]))['surfaces']:
+    print('\t'.join(str(s[k]) for k in (
+        'surface', 'app_dir', 'controller', 'manifest',
+        'min_messages', 'min_events', 'min_declared')))
+" "$SURFACES")
+
+# The settings surface again by name, because everything below mutates it
+# specifically and needs the baseline in $RUN_STDOUT.
 scan "$APP_DIR" "$CONTROLLER" "$MANIFEST"
 harness::assert_status 0 "every settings chrome.send reaches an installed handler"
-harness::assert_output_contains "Every settings chrome.send reaches an installed handler" \
+harness::assert_output_contains "Settings: every chrome.send reaches an installed handler" \
     "says what it verified"
 
 # The counts, asserted here as well as inside the scanner. This case is what a
@@ -311,6 +373,68 @@ empty="$tmp/empty-app"
 mkdir -p "$empty"
 scan "$empty" "$CONTROLLER" "$MANIFEST"
 harness::assert_status 2 "an app directory with no source in it"
-harness::assert_output_lacks "Every settings chrome.send" "must not read as a pass"
+harness::assert_output_lacks "every chrome.send reaches" "must not read as a pass"
+
+# --------------------------------------------------------------------------
+# The loop can fail, per surface
+# --------------------------------------------------------------------------
+#
+# Everything above proves the SETTINGS scan can fail. That says nothing about
+# the other entries: a loop that skipped them, or read one surface's paths
+# three times, would pass every assertion so far. So each declared surface has
+# one message deleted from the handler that registers it, and each must go red
+# on its own paths.
+#
+# Deleting a message the page SENDS is the mutation that matters, because it is
+# the defect in miniature: the manifest stops vouching for it, the page keeps
+# calling it, and in a real browser that is a button that depresses and does
+# nothing.
+while IFS=$'\t' read -r s_name s_app s_ctrl s_manifest s_msgs s_events s_declared; do
+    victim="$(python3 -c "
+import json, re, sys
+manifest, app_dir = sys.argv[1], sys.argv[2]
+declared = set()
+for handler in json.load(open(manifest))['handlers'].values():
+    declared.update(handler.get('messages', []))
+# A message this surface actually SENDS, so removing it breaks the join rather
+# than only shrinking the declaration.
+import pathlib
+sent = set()
+for path in pathlib.Path(app_dir).rglob('*.ts*'):
+    sent.update(re.findall(r\"\\b(?:send|sendWithPromise)\\s*(?:<[^<>()]*>)?\\s*\\(\\s*'([^']+)'\", path.read_text(encoding='utf-8')))
+both = sorted(declared & sent)
+print(both[0] if both else '')
+" "$ASTRO_ROOT/$s_manifest" "$ASTRO_ROOT/$s_app")"
+
+    HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
+    if [ -z "$victim" ]; then
+        harness::fail "$s_name: no message is both declared and sent, so the mutation
+          below would prove nothing. Either the manifest and the page have
+          nothing in common — which is the defect this case exists for — or one
+          of the two is no longer being read."
+    fi
+
+    holed="$(copy_file "$s_name-manifest-hole.json" "$ASTRO_ROOT/$s_manifest")"
+    edit "$holed" "json.dumps({**json.loads(text), 'handlers': {
+        name: {**h, 'messages': [m for m in h.get('messages', []) if m != '$victim']}
+        for name, h in json.loads(text)['handlers'].items()}}, indent=2)"
+
+    harness::run python3 "$SCANNER" \
+        --surface "$s_name" \
+        --app-dir "$ASTRO_ROOT/$s_app" \
+        --controller "$ASTRO_ROOT/$s_ctrl" \
+        --manifest "$holed" \
+        --min-messages "$s_msgs" \
+        --min-events "$s_events" \
+        --min-declared 1
+    harness::assert_status 1 "$s_name: a sent message no installed handler registers"
+    harness::assert_output_contains "$victim" "$s_name: names the message it cannot serve"
+done < <(python3 -c "
+import json, sys
+for s in json.load(open(sys.argv[1]))['surfaces']:
+    print('\t'.join(str(s[k]) for k in (
+        'surface', 'app_dir', 'controller', 'manifest',
+        'min_messages', 'min_events', 'min_declared')))
+" "$SURFACES")
 
 harness::pass
