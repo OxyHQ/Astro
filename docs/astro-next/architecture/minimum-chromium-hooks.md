@@ -365,7 +365,8 @@ entry in `tools/overlay.allowlist`.
 
 **The boundary of this claim, stated precisely so it is not over-read.** It holds
 for configs on the **`chrome://` and `chrome-untrusted://` schemes** — which is
-every Astro WebUI page today (`AGENTS.md`'s URL table: `chrome://astro-ntp`,
+every Astro WebUI page today (the URL table in `docs/webui.mdx`:
+`chrome://astro-ntp`,
 `chrome://alia`, `chrome://astro-error`, …) and everything #7 and #14 need. It
 does **not** extend to `astro://`, because `WebUIConfigMap` hard-codes the scheme:
 

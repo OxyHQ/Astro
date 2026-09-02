@@ -4,7 +4,7 @@
     "handlers astro://settings installs.",
     "",
     "Hand-maintained, and the only hand-maintained input to",
-    "tools/tests/cases/settings-sends-reach-an-adopted-handler.sh. The gate joins",
+    "tools/tests/cases/adopted-handler-sends-are-served.sh. The gate joins",
     "three things and is strict in every direction:",
     "",
     "  * every message the app sends (src/pages/settings/**, via send /",

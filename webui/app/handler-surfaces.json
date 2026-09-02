@@ -1,0 +1,46 @@
+{
+  "comment": [
+    "Every Astro surface that adopts an upstream WebUI handler, and where its",
+    "three halves live.",
+    "",
+    "This file exists so that adding a surface is an ENTRY rather than a second",
+    "copy of a test. The join it feeds is the one that catches a silent no-op:",
+    "`chrome.send` to a message no installed handler registered reaches",
+    "DUMP_WILL_BE_NOTREACHED in WebUIImpl::ProcessWebUIMessage, which is fatal",
+    "in a DCHECK build and does NOTHING in the release build users get. Four",
+    "sections of astro://settings shipped in that state.",
+    "",
+    "The floors are PER SURFACE and are not decoration. A scan that parsed",
+    "nothing reports the same clean verdict as a scan that parsed everything and",
+    "found no fault, so each surface states what its own healthy numbers look",
+    "like; a surface whose sends, listeners or declared messages fall below its",
+    "floor fails as `nothing was measured` rather than passing as `clean`.",
+    "",
+    "Lower a floor only with the deletion that justifies it in the same change.",
+    "A floor that only ever descends is the gate switching itself off one",
+    "defensible step at a time — which is why these are written as the numbers",
+    "each surface actually has, not as round numbers below them."
+  ],
+  "surfaces": [
+    {
+      "surface": "Settings",
+      "app_dir": "webui/app/src/pages/settings",
+      "controller": "src/chrome/browser/oxy/webui/astro_settings_ui.cc",
+      "manifest": "webui/app/settings-handler-messages.json",
+      "min_messages": 30,
+      "min_events": 8,
+      "min_declared": 100,
+      "note": "Fifteen upstream handlers adopted wholesale, plus SafetyHubHandler at global scope. The surface the scanner was written for."
+    },
+    {
+      "surface": "Management",
+      "app_dir": "webui/app/src/pages/management",
+      "controller": "src/chrome/browser/oxy/webui/astro_management_ui.cc",
+      "manifest": "webui/app/management-handler-messages.json",
+      "min_messages": 7,
+      "min_events": 0,
+      "min_declared": 10,
+      "note": "One handler, ManagementUIHandler, installed through its static Create() rather than std::make_unique — the shape whose absence the scanner's vacuity denominator caught. min_events is 0 because the page subscribes to nothing: it asks seven questions once and renders the answers."
+    }
+  ]
+}

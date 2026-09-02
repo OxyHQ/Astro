@@ -23,6 +23,12 @@
   ],
   "hosts_taken_from_upstream": [
     {
+      "constant": "chrome::kChromeUIManagementHost",
+      "declared_in": "src/chrome/browser/oxy/webui/astro_management_ui.cc",
+      "host": "not-derivable",
+      "resolve_with": "grep -n 'kChromeUIManagementHost' chromium/src/chrome/common/webui_url_constants.h"
+    },
+    {
       "constant": "chrome::kChromeUISettingsHost",
       "declared_in": "src/chrome/browser/oxy/webui/astro_settings_ui.cc",
       "host": "not-derivable",

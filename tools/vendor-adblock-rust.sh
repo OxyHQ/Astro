@@ -26,7 +26,7 @@
 # line suggests it: `fill_allow_unsafe_settings` in tools/crates/gnrt/vendor.rs
 # re-serialises the whole config through `File::create` at line 357 on every
 # vendor run, which is also why patches 059/065/066 have to spell their edits
-# in the form that survives it (AGENTS.md, itertools).
+# in the form that survives it (docs/known-defects.mdx, itertools).
 #
 # Every later step guards the checkout with
 # astro::require_attributable_chromium, which refuses any modified path Astro

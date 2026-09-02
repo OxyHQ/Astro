@@ -212,6 +212,24 @@ ninja -C out/Release chrome
 
 Or, during active development, run `bun run dev` instead — the C++ WebUI controller will load assets from the localhost dev server when it is reachable (set by build flag).
 
+### Dev servers, and which port each one lands on
+
+```bash
+cd webui/app && bun run dev          # http://localhost:5178  (strictPort)
+cd webui/alia && bun run dev         # Vite default: 5173, or the next free port
+cd webui/whats-new && bun run dev
+```
+
+Only `webui/app` pins a port, and the two reasons are worth carrying: 5173 is
+taken by `~/Oxy/website`'s dev server on this machine, and Vite's default
+behaviour on a busy port is to silently take the next one — which already
+produced a session that curled another project's app and read its HTML as this
+one's. The other two set no port at all, so their numbers depend on start
+order.
+
+**Read the port Vite prints; do not trust a number written down anywhere,
+including here.**
+
 ## Common gotchas
 
 - **The pipeline never deletes from the Chromium tree, and cannot be made to.** `tools/sync-overlay.sh` has no delete path, and `tools/tests/cases/no-banned-shell-patterns.sh` fails the build if one is reintroduced. The old `rsync -av --delete src/ chromium/src/` removed every upstream file the overlay did not provide, including the `gclient`-fetched `third_party` trees that sit alongside the overlay's destinations.
@@ -283,3 +301,36 @@ After resolving any rejects, regenerate the affected patches with `git diff <fil
 To re-skin Astro for a downstream distribution, edit `branding/astro.conf` and re-run `tools/apply-branding.sh`. That script rewrites the Chromium `BRANDING` file plus every user-facing `.grd` resource, and regenerates the linux `.desktop` file, macOS bundle plist values, and Windows installer strings.
 
 The fields driven by `astro.conf` are listed in the file itself — browser name, company, RDN, URL scheme, theme color, default search, copyright, etc.
+
+### Rules from real defects found in the branding pass
+
+Not hypotheticals — each of these shipped or nearly shipped.
+
+- **Discover the `.grd`/`.grdp` files to rename, never hand-list them.** A
+  hand-written list of 4 files left the rest untouched, so the browser said
+  "Astro" on `about:version` and "About Chromium" in its own settings menu —
+  the tree currently has 31 such files. Discovery excludes `*google_chrome*`
+  (inert when `google_chrome_branding = false`) and `ChromiumOS` (a DIFFERENT
+  product — renaming it invents "AstroOS").
+- **Never blanket-substitute `Chromium` → `Astro`.** That rewrites
+  `IDS_ABOUT_VERSION_COMPANY_NAME` ("The Chromium Authors") and
+  `IDS_ABOUT_VERSION_COPYRIGHT` — a false copyright attribution shipped to
+  every user, produced by a substitution that looks purely cosmetic, on a
+  codebase whose licence requires the notice be retained. Attribution strings
+  are excluded from the rename.
+- **A `--dry-run` must exercise the same substitution the real run does, not
+  just count matches.** The old dry run counted files and never executed the
+  `sed`, so it reported success for an expression `sed` then refused to run for
+  real.
+- **The in-UI logo is not `chrome/app/theme/chromium/`** — that directory is
+  the application/installer icon. The in-UI logo is a `chrome_scaled_image`
+  resolved from
+  `chrome/app/theme/default_{100,200}_percent/chromium/product_logo_32.png`; a
+  non-Google-branded build declares exactly one entry for it,
+  `IDR_PRODUCT_LOGO_32`, in `theme_resources.grd`. The scale directories are a
+  pixel-size contract — the 200% file must be 64px — and a wrong-size file
+  installs cleanly, renders wrong, and reports nothing.
+
+Verifying the result needs a running browser: a `.pak` stores each resource
+compressed, so grepping one for a brand string returns zero even when the
+string is present. See [Verification](/verification).

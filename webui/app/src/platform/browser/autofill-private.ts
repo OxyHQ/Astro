@@ -14,7 +14,7 @@
 // _api_features.json` -- `chrome://settings/*`, `contexts: ["webui"]`, on
 // chromeos/linux/mac/win. It reaches Astro's page because layer 8 of the WebUI
 // scheme composition rewrites those patterns to the composed scheme (see
-// AGENTS.md); a page served under any other host gets no bindings at all.
+// docs/webui.mdx); a page served under any other host gets no bindings at all.
 //
 // Only what the screens need is exposed. There is no passthrough of the API
 // object, and that is deliberate twice over: the real surface is 30-odd methods

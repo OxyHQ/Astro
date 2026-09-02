@@ -51,6 +51,14 @@ const PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
       default: module.AdBlockPage,
     })),
   ),
+  // Upstream's own host, taken over by 073-management-webui-takeover.patch.
+  // Safe to swap because nothing under chrome/browser/ui/views/ names
+  // ManagementUI's concrete type — see the controller header.
+  management: lazy(() =>
+    import('./pages/management/management-page.tsx').then(module => ({
+      default: module.ManagementPage,
+    })),
+  ),
   // Upstream's own host, taken over by 071-whats-new-webui-takeover.patch
   // rather than registered beside it — WebUIConfigMap CHECKs on a duplicate
   // origin.

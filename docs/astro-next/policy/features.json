@@ -41,7 +41,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -433,7 +433,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -483,7 +483,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -733,7 +733,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -783,7 +783,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -951,7 +951,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -1308,7 +1308,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -1485,6 +1485,37 @@
       ]
     },
     {
+      "id": "management-page",
+      "title": "Management page",
+      "area": "astro-product",
+      "observed_state": "PRESENT",
+      "observed_evidence": [
+        "chrome://management served by upstream's ManagementUI before the port: measured on the shipped binary with an unmanaged profile, 195 rendered elements, zero console problems, whole visible content 'Your browser is not managed' plus one notice paragraph",
+        "Its getContextualManagedData reply carries browserManagementNotice as HTML containing <a target=\"_blank\" href=\"https://support.google.com/chrome?p=is_chrome_managed\">, and says 'Activity on this device may be managed outside of Chromium' in a browser called Astro",
+        "Its promotion banner opens https://admin.google.com/ac/chrome/guides/?ref=browser&utm_source=chrome_policy_cec and reports the click through recordBannerRedirected; gated behind kEnableManagementPromotionBanner, disabled by default",
+        "src/chrome/browser/oxy/webui/astro_management_ui.cc and patches/astro/073-management-webui-takeover.patch now serve it from astro_webui_resources.pak, adopting upstream's ManagementUIHandler"
+      ],
+      "state": "REPLACE",
+      "rationale": "The capability is enterprise policy reporting and it survives untouched: the Astro page adopts ManagementUIHandler wholesale, so every fact on it is still the browser's own answer. What is replaced is the PROVIDER of the page, and with it three things a de-Googled browser should not ship — a Google support link embedded as markup in the browser's own explanation of who controls it, the product named as Chromium, and a banner advertising the Google Admin console with a campaign parameter. Three of the handler's ten messages exist only for that banner and are never sent. Safe to take over by a registration swap because ManagementUI is named in zero files under chrome/browser/ui/views/, unlike ReadingListUI (three) and IntroUI (two), where GetAs<T>() returning nullptr is dereferenced unchecked.",
+      "owner_issue": 14,
+      "upstream_component": "//chrome/browser/ui/webui/management",
+      "user_surface": "astro://management",
+      "network": [
+        "none"
+      ],
+      "persistence": "not-captured",
+      "incognito": "undecided",
+      "build_flags": [],
+      "tests": [
+        "not-captured"
+      ],
+      "replacement_component": "//chrome/browser/oxy/webui (issue #14)",
+      "inputs_to": [
+        11
+      ],
+      "inputs_reason": "#11 enumerates the astro:// hosts a real scheme has to serve and process-lock. This is one more host Astro owns the controller for, on a name that is upstream's, so the scheme work reads it to know the host is Astro's rather than a page it merely aliases."
+    },
+    {
       "id": "manifest-v2",
       "title": "Manifest V2 extension support",
       "area": "inherited-privacy-patch",
@@ -1517,7 +1548,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -1598,7 +1629,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -1708,7 +1739,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -1731,7 +1762,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -1856,7 +1887,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -1879,7 +1910,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -2034,7 +2065,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -2107,7 +2138,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -2130,7 +2161,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",
@@ -2313,7 +2344,7 @@
       "area": "core-browser",
       "observed_state": "NOT_MEASURED",
       "observed_evidence": [
-        "No Astro binary exists (baseline finding 1), so runtime behaviour is unmeasured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured."
+        "This capability's runtime behaviour is uncaptured. docs/astro-next/baseline/feature-matrix.md lists the scenarios and records every one as not captured; tools/baseline/smoke.sh against a built browser is what captures them."
       ],
       "state": "KEEP",
       "rationale": "The epic requires Astro remain a complete Chromium browser; this capability is part of that requirement and no Astro or inherited patch is known to modify it. KEEP is the decision, not a measurement — the behavioural baseline that would confirm it needs a running Astro.",

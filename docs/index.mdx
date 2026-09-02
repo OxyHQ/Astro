@@ -138,6 +138,14 @@ See [Build](./build) for the full workflow, cross-compilation, gotchas, and pack
 
 ## Documentation map
 
-- [Build](./build) — fetch, sync, apply patches, gn args, incremental builds, cross-compile, packaging, gotchas
+- [Build](./build) — fetch, sync, apply patches, gn args, incremental builds, cross-compile, packaging, branding, gotchas
 - [Architecture](./architecture) — patch model, overlay layout, WebUI controllers, Rust adblock FFI
 - [Oxy integration](./oxy-integration) — how Astro talks to `auth.oxy.so` and `api.oxy.so`, cookie observer flow, Alia, update server
+- [WebUI pages](./webui) — settings out of the pak, the new tab page's typed data plane, adding a page, the ten places the scheme is spelled
+- [Theming](./theming) — how a colour change in settings reaches the native browser UI
+- [Pipeline guards](./pipeline-guards) — what each build guard measures, and how each one is misread
+- [Known defects](./known-defects) — declared rather than hidden, with what was measured
+- [Verification](./verification) — measuring a running browser without fooling yourself
+- [Working in a shared checkout](./agent-collaboration) — several agents, one clone, one index, one `out/`
+- [Reproducibility](./reproducibility) — the source lock, deterministic sync, build provenance
+- [Recovery](./recovery) — getting back to a known state after a failed patch run

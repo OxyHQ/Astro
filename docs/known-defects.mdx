@@ -1,0 +1,255 @@
+---
+title: Known defects
+description: Defects declared rather than hidden — what each one is, what was measured, and the durable lessons that outlive the fix.
+---
+
+# Known defects
+
+Declared rather than hidden. Do not "fix" one of these silently, and do not let
+a build imply it is resolved. Each entry names the issue that owns it. Several
+carry lessons that outlive the defect itself; those are the reason this page is
+long.
+
+`AGENTS.md` keeps the one-line register. This is the evidence.
+
+## Domain substitution has never run
+
+Python regexes fed to `sed`, error discarded. All 21 expressions failed against
+all 17,722 listed files and the step reported success.
+`tools/apply-patches.sh` now refuses; `--skip-domain-substitution` reproduces
+what previous builds did, and records that in the report. Owned by
+[#8](https://github.com/OxyHQ/Astro/issues/8). [Build](/build) and
+[Recovery](/recovery) carry the operator-facing form.
+
+## A whole-file overlay copy once reverted four patches
+
+The copy was `chrome/browser/ui/webui/chrome_web_ui_configs.cc`, and because
+the overlay is applied *after* patches, it reverted four of them —
+`AstroAdBlockUIConfig` was never registered in the resulting build.
+
+That copy is now gone: no such file exists under `src/`, tracked or untracked,
+and `tools/overlay.allowlist` carries no entry for it. Registration is a patch
+again. The entry is kept because a checkout that reintroduces the copy
+reintroduces the defect with no warning. Owned by
+[#7](https://github.com/OxyHQ/Astro/issues/7).
+
+## The Oxy overlay compiled to zero objects
+
+No `BUILD.gn` outside `chrome/browser/oxy/` declared a dependency on it, so it
+compiled to nothing, silently. `057-oxy-webui-build-edge.patch` adds that edge
+to `//chrome/browser/ui/webui:configs`.
+
+Measured on 2026-08-08 against the applied series: GN now LOADS the overlay,
+and there is **no dependency cycle** through `//chrome/browser/ui` — the cycle
+this entry used to warn about does not exist. Owned by #7.
+
+## A crate-privilege collision in `gnrt`
+
+`gn gen` then failed on something in neither `patches/` nor the overlay:
+pulling the ad blocker's Rust target into the graph made it fail the test-only
+rule. Resolved by `059-itertools-shipping-group.patch`, which reclassifies
+`itertools` from Chromium's `test` crate group to `safe` in
+`third_party/rust/chromium_crates_io/gnrt_config.toml`. Measured on 2026-08-08
+with the patch applied and the crates re-vendored: `Done. Made 29928 targets
+from 4409 files`, exit 0. Owned by #7.
+
+Three things from it are durable and outlive the defect:
+
+- **The override cannot go on the consuming crate.** gnrt's privilege is
+  `min(ancestor_privilege, dependency_privilege)` and a group declared on a
+  crate replaces only its ANCESTORS, so `[crate.adblock] group = 'safe'`
+  changes nothing — the classification has to move on the dependency that
+  carries it.
+- **The edit could not be epoch-scoped when 059 was written, even though the
+  config syntax offers it.** `fill_allow_unsafe_settings` in
+  `tools/crates/gnrt/vendor.rs` keyed its edits on the bare package name, so
+  the next `gnrt vendor` wrote a bare `[crate.itertools]` beside any
+  `[crate."itertools@v0_13"]` and `BuildConfig::validate` then rejected the
+  file for mixing the two forms. `065-thiserror-epoch-scoped-config.patch`
+  lifted that: the loop now writes into an epoch-scoped table when the config
+  already has one, so a per-epoch entry survives vendoring. 059 stays
+  unversioned because one epoch of itertools is vendored and it needs no second
+  statement — not because the mechanism is still unusable.
+- **`group` is not an audit verdict.** It records where Chromium itself uses a
+  crate. Moving one to `safe` is nonetheless a claim about its source, so the
+  patch header carries the unsafe audit backing it — do that for the next one
+  too rather than treating the reclassification as clerical.
+
+## Three more of the same shape, all fixed
+
+`064-rand-chacha-macro-unsafe.patch`, `065-thiserror-epoch-scoped-config.patch`
+and `066-vendored-crate-build-inputs.patch`. Measured 2026-08-09 with all three
+applied and the crates re-vendored: `Done. Made 29957 targets from 4411 files`,
+exit 0, and the seven rlibs they govern rebuild from deleted outputs.
+
+The durable lesson is one none of the three could have found by round-tripping
+the build: **gnrt writes a value only where the key is ABSENT**
+(`entry("allow_unsafe").or_insert_with(...)`), which is both why declaring a
+corrected value sticks and why a "the config came back byte-identical" check is
+VACUOUS on an already-vendored tree — nothing is inserted, `did_make_edits`
+stays false, and an unpatched gnrt produces the same file. Delete the key and
+re-vendor to see where the writer actually puts it.
+
+## A vendored crate CAN be edited durably
+
+`AGENTS.md` said the opposite for a long time, and the correction is the point
+of this entry.
+
+`//chrome/browser/oxy/adblock/rs:adblock_engine_ffi` used to fail at
+`third_party/rust/rmp_serde/v0_15:lib` with 24 × `E0425: cannot find function
+read_data_i8 in module rmp::decode`. rmp-serde 0.15.5 calls
+`rmp::decode::read_data_*` as FREE functions; rmp 0.8.11 moved them into the
+`RmpRead` trait, `#[doc(hidden)]`, leaving no wrappers (0.8.10
+`src/decode/mod.rs:208` has the free `pub fn`; 0.8.15 `:107` has the same body
+as a trait method). adblock 0.9.8 requires `rmp-serde = "0.15"` NON-optionally
+and Cargo resolves rmp-serde's `rmp = "0.8.8"` to 0.8.15 — inside the range its
+own author wrote, incompatible with it.
+
+The entry that used to sit here said the repair had to be a resolution
+constraint because "editing the vendored crate is not an option; the next
+`gnrt vendor` overwrites it silently". That is true of editing the tree by hand
+and FALSE of the mechanism.
+`third_party/rust/chromium_crates_io/patches/<crate>-<epoch>/` exists so an
+edit survives re-vendoring: `apply_patches` in `tools/crates/gnrt/vendor.rs`
+runs on every download, and 17 crates in this checkout already depend on it.
+`069-rmp-serde-rmpread-backport.patch` adds Astro's, carrying rmp-serde 1.1.1's
+own `RmpRead` migration back to 0.15.5. Measured 2026-08-09:
+`adblock_engine_ffi` builds, `ninja: no work to do.`, exit 0,
+`libastro_adblock_ffi.rlib` 291,988 bytes.
+
+Four things from it outlive the defect:
+
+- **`apply_patches` runs on the DOWNLOAD path only.** A crate already vendored
+  at the right version takes the `continue` branch, so adding a crate patch to
+  a tree that already holds the crate does nothing at all. Delete the vendor
+  directory to apply one. The consequence for verification is sharper than it
+  looks: a second `gnrt vendor` leaving the tree byte-identical proves
+  STABILITY, not that the patch reproduces from scratch, because the second run
+  never re-applied it. Both were measured separately here — the crate
+  re-downloaded pristine and re-patched to the intended md5, and then 6,684
+  files byte-identical across two runs.
+- **Prefer the crate patch to a resolution pin, and the reason is not taste.**
+  Holding rmp below 0.8.11 pins the decoder that parses adblock's serialized
+  filter data at 0.8.10 (2021-02-02), needs `rmp` declared a direct dependency
+  of the `chromium` package purely as a constraint, and silently falsifies a
+  patch that had landed hours earlier: 066 declares
+  `[crate.rmp] extra_input_roots = ['../README.md']` because 0.8.15's
+  `src/lib.rs` opens `#![doc = include_str!("../README.md")]`, and 0.8.10's
+  does not. A version pin can invalidate a build-input declaration made for a
+  different version of the same crate; check the other patches naming a crate
+  before pinning it.
+- **Bumping the intermediate crate was not available, and the version list is
+  how you find that out.** adblock 0.9.8 declares `rmp-serde = "^0.15"`, 0.15.5
+  (2021-06-11) is the last 0.15.x; 1.0.0 and 1.1.0 are yanked, so the first
+  live release above it is 1.1.1, and all of them are outside the range anyway.
+  No published rmp-serde both satisfies its dependant and builds against a
+  current rmp. Checked release by release, not sampled: every adblock from
+  0.9.8 to 0.12.0 declares `rmp-serde = "^0.15"`.
+- **The real fix is an engine upgrade, and it is a product decision.** adblock
+  0.12.1 is the first release that drops rmp-serde entirely (flatbuffers
+  arrived earlier, in 0.10.0, alongside it — so "the flatbuffers release" is
+  not the one to reach for). Taking it costs four new vendored crates
+  (`flatbuffers`, `arrayvec`, `precomputed-hash`, `rustc-hash`), five epoch
+  bumps that invalidate 066's `cssparser-v0_29` and `selectors-v0_24`
+  declarations, a `v0_9` → `v0_12` rename in the FFI's `BUILD.gn`, and an FFI
+  rewrite against a changed engine API. 069 says in its header that it is
+  removable the day that happens.
+
+## The overlay's own C++ had never been compiled
+
+Once the Rust graph stopped blocking, the 13 objects of
+`//chrome/browser/oxy/adblock:adblock` were built for the first time: 4
+succeeded and 9 failed, every failure in Astro's own sources and none in
+`patches/` or a vendored crate. **12 of the 13 compile as of 2026-08-09**; the
+13th, `astro_adblock_ui.o`, failed only on the undeclared
+`IDR_ASTRO_ADBLOCK_HTML`, which is the grit/pak wiring
+([#14](https://github.com/OxyHQ/Astro/issues/14)).
+
+The repairs were API drift against Chromium 146, not one root cause, and the
+upstream spellings are worth carrying because the next overlay file will hit
+them too:
+
+- `base::Value::List` / `base::Value::Dict` are now the standalone classes
+  `base::ListValue` / `base::DictValue`, and `WebUI::MessageCallback` takes
+  `const base::ListValue&`.
+- `GURL::host()` returns `std::string_view` while `spec()` still returns
+  `const std::string&`, so `std::string s = url.host();` no longer compiles —
+  the `string_view` → `string` constructor is explicit.
+- `base::JSONReader::Read` requires its `options` argument; `ReadDict` /
+  `ReadList` replace the read-then-`is_dict()` dance.
+- `RequestDestination::kFavicon` and `net::LOAD_DO_NOT_SEND_COOKIES` are gone;
+  `ResourceRequest::credentials_mode = kOmit` is what keeps cookies off a
+  request now.
+- `base::RefCountedString` lives in `base/memory/ref_counted_memory.h`.
+- There is no unbranded shield vector icon: the only two in the tree are
+  ChromeOS-specific and `google_chrome/gshield.icon`, which a
+  non-Google-branded build does not compile.
+  `chrome/app/vector_icons/security.icon` (`kSecurityIcon`) IS a shield outline
+  and is already in the aggregate list, so no new icon and no new patch was
+  needed. The `alia_spark.icon` precedent — overlay `.icon` +
+  `tools/overlay.allowlist` entry + a numbered patch to
+  `chrome/app/vector_icons/BUILD.gn` — remains the path if Astro ever wants
+  distinct branding here.
+- **`METADATA_HEADER` expands to a trailing `private:`.** Every upstream
+  subclass re-states ` public:` on the next line; the bubble header did not,
+  which is the whole reason its constructor, destructor and `ShowBubble` read
+  as private at every call site. That was a missing access specifier, not a
+  design problem.
+- **`views::BubbleDialogDelegateView` is deprecated and its constructor is
+  private behind a friend list stamped "DO NOT ADD TO THIS LIST!"** New code
+  subclasses `views::BubbleDialogDelegate` (public constructor) and puts the
+  contents in a separate `views::View` via `SetContentsView`, which is what
+  upstream's own `AccountSelectionBubbleDelegate` does. `Init()` is still the
+  hook and `CreateBubble` still calls it, so ownership is the identical code
+  path. Astro's bubble was migrated and renamed to
+  `AstroAdBlockBubbleDelegate` — a class deriving from a delegate must not be
+  called `...View`.
+
+Expect the same drift on the rest of the overlay: this is what the
+compiled-to-zero-objects defect above was hiding, not a regression.
+
+There is no grit id to satisfy for the ad blocker any more.
+`IDR_ASTRO_ADBLOCK_HTML` and the `CreateAndAddHTMLSource` that referenced it
+were dead code — the constructor never called it — and `676c9eb` deleted both,
+so a `grep` for that identifier returns nothing. Declaring an id for it would
+have been machinery for nobody.
+
+## The two legacy pages serve their assets off disk
+
+The two LEGACY pages (`alia`, `whats-new`) still serve their assets by reading
+a directory next to the executable at runtime (`base::DIR_EXE` +
+`resources/astro-<page>`) rather than from a `.pak`, so neither carries
+Chromium's resource-bundling guarantees, and each still renders BLANK, with no
+error, when its directory is missing. Moving them into the app is the remainder
+of [#14](https://github.com/OxyHQ/Astro/issues/14). It was three; the new tab
+page left the arrangement when it became an entry of the app.
+
+Pages built on `astro_webui_page.cc` no longer do any of that:
+`067-astro-webui-pak-repack.patch` put `astro_webui_resources.pak` into
+chrome's repack list, and the base serves every page out of the GRIT resource
+map (`AddResourcePaths` plus a `SetDefaultResource` fallback that makes
+client-side routes resolve). Settings and the new tab page are the two such
+pages today. The one remaining filesystem path and the gate that keeps it out
+of a release binary are in [WebUI pages](/webui).
+
+`chrome://adblock` is neither of those two shapes, and is the one page a reader
+will otherwise mis-file. It serves inline strings: `CreateAndAddInlineSource`
+sets `SetDefaultResource(-1)` — the comment on that line reads "No grit
+resource, we use RequestFilter" — beside a `SetRequestFilter` whose predicate
+claims every path. So it is NOT a `DIR_EXE` finding and correctly does not
+appear beside the legacy pages in the security baseline: the bytes are compiled
+into the binary and nothing is read off disk. It is also not in the pak, so it
+carries none of the resource-bundling guarantees, and it is the same
+catch-all-filter shape settings was moved away from. Folding it in is cheap and
+belongs to #14's remainder: add the entry to the Vite build, then the
+controller becomes `.resources = kAstroWebuiResources` /
+`.default_resource = IDR_ASTRO_WEBUI_INDEX_HTML` like settings.
+
+<Warning>
+Measured 2026-08-11 against `HEAD` and the working tree, and left uncorrected
+here because correcting it is somebody else's change to make: `webui/alia` and
+`webui/whats-new` no longer exist, `REQUIRED_WEBUI_PAGES` is gone from
+`tools/build.sh`, and all five controllers — adblock included — set
+`.resources = kAstroWebuiResources`. The three paragraphs above are the
+statement as `AGENTS.md` carried it, moved verbatim rather than edited.
+</Warning>

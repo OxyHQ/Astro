@@ -1,0 +1,49 @@
+{
+  "comment": [
+    "Which upstream handler services which chrome.send message on",
+    "astro://management, and which of those messages the Astro page sends.",
+    "",
+    "The management page adopts ONE upstream handler wholesale, the same move",
+    "the settings page makes with fifteen. This file is what",
+    "tools/tests/lib/scan-adopted-handlers.py joins the page's sends against:",
+    "a message the page sends that no installed handler registers is not an",
+    "error anyone sees -- WebUIImpl::ProcessWebUIMessage reaches",
+    "DUMP_WILL_BE_NOTREACHED, fatal in a DCHECK build and a SILENT NO-OP in the",
+    "release build users get.",
+    "",
+    "THE THREE MESSAGES THAT ARE DECLARED AND DELIBERATELY NOT SENT are the",
+    "promotion banner's: shouldShowPromotion, setBannerDismissed and",
+    "recordBannerRedirected. The banner opened Google's admin console with a",
+    "campaign parameter and reported the click; Astro does not draw it. They",
+    "stay declared because the handler is upstream's and adopted UNMODIFIED, so",
+    "it still registers them -- the honest statement is that nothing sends",
+    "them, not that nothing could. The scanner's unsent-message direction is",
+    "what keeps that a recorded decision rather than drift.",
+    "",
+    "Message list transcribed from RegisterMessages() in",
+    "chrome/browser/ui/webui/management/management_ui_handler.cc at the locked",
+    "revision, non-ChromeOS branch: the four ChromeOS-only messages",
+    "(getLocalTrustRootsInfo, getFilesUploadToCloudInfo, getDeviceReportingInfo,",
+    "getPluginVmDataCollectionStatus) are not registered on Linux and are not",
+    "listed."
+  ],
+  "handlers": {
+    "ManagementUIHandler": {
+      "class": "ManagementUIHandler",
+      "source": "chrome/browser/ui/webui/management/management_ui_handler.cc",
+      "note": "Enterprise policy state: whether the browser is managed, what it reports, and which extensions, applications and websites the administrator configured. Adopted wholesale and unmodified.",
+      "messages": [
+        "getApplications",
+        "getContextualManagedData",
+        "getExtensions",
+        "getManagedWebsites",
+        "getThreatProtectionInfo",
+        "initBrowserReportingInfo",
+        "initProfileReportingInfo",
+        "recordBannerRedirected",
+        "setBannerDismissed",
+        "shouldShowPromotion"
+      ]
+    }
+  }
+}

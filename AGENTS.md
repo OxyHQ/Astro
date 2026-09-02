@@ -1,171 +1,157 @@
 # Astro — De-Googled Chromium Browser by Oxy
 
-Astro is a Chromium fork that removes all Google services and replaces them with Oxy platform equivalents. Built on 112 ungoogled-chromium patches plus 65 Astro-specific patches. All Oxy code lives in a self-contained overlay (`src/chrome/browser/oxy/`), following the Brave-style approach.
+Astro is a Chromium fork that removes Google services and replaces them with
+Oxy platform equivalents. Oxy code lives in the self-contained overlay under
+`src/chrome/browser/oxy/`; changes to Chromium stay as narrow patches.
 
-## Build Commands
+> Universal standards live in `~/AGENTS.md` and Oxy-wide rules in
+> `~/Oxy/AGENTS.md`. Architecture and measured evidence live in `docs/`; this
+> file carries only rules, commands and pointers. **Budget: under 12 KB** (8 KB
+> for nested instruction files), enforced by
+> `tools/tests/cases/agents-md-stays-bounded.sh`.
+
+## Commands
 
 ```bash
 tools/sync-sources.sh            # Check out every source at its locked commit
 tools/sync-ungoogled.sh          # Stage patches from the locked ungoogled checkout
-tools/apply-patches.sh           # Apply all patches (ungoogled + Astro)
-tools/sync-overlay.sh            # Copy Astro overlay into the Chromium tree
-tools/build.sh                   # Release build (uses all CPU cores)
-tools/build.sh Debug             # Debug build
-tools/install-local.sh           # Install to system
-tools/package-release.sh         # Package for distribution
-tools/update-chromium.sh VER     # Propose a Chromium revision update
-tools/apply-branding.sh          # Apply branding from branding/astro.conf
-tools/vendor-adblock-rust.sh     # Vendor Rust adblock engine dependencies
-tools/generate-provenance.sh     # Record what a build was made from
-tools/baseline/generate-all.sh   # Regenerate the Astro Next baseline documents
-tools/tests/run.sh               # Build-safety suite (no Chromium checkout needed)
-tools/verify-clean-head.sh       # Run that suite against ONLY what HEAD tracks
+tools/apply-patches.sh           # Apply all patches exactly
+tools/sync-overlay.sh            # Copy the Astro overlay into Chromium
+tools/build.sh [Debug]           # Full build; Release by default
+ninja -C out/Release chrome      # Incremental build after sync-overlay.sh
+tools/install-local.sh
+tools/package-release.sh
+tools/update-chromium.sh VER
+tools/apply-branding.sh
+tools/vendor-adblock-rust.sh
+tools/generate-provenance.sh
+tools/baseline/generate-all.sh
+tools/tests/run.sh               # Build-safety suite without a Chromium checkout
+tools/verify-clean-head.sh --commit SHA
+cd webui/app && bun run dev
 ```
 
-`--dry-run` works on `sync-sources.sh`, `apply-patches.sh`, `sync-overlay.sh`
-and `build.sh`: it
-validates every required input and prints every planned operation without
-touching a file.
+`--dry-run` on `sync-sources.sh`, `apply-patches.sh`, `sync-overlay.sh` and
+`build.sh` validates every required input and reports the planned operations
+without mutating the tree. Read the port Vite prints; never assume a port from
+an old run.
 
-> **For anything about how this works, read `docs/architecture.mdx` and
-> `docs/astro-next/architecture/`.** The rules below are one line each; the
-> defect behind each one is in `docs/engineering/`.
->
-> **This file carries only RULES — things that break silently if you get them
-> wrong.** Pipeline walkthroughs, file inventories and per-surface design go in
-> `docs/`, never here. Org-wide standards are in `~/AGENTS.md` and
-> `~/Oxy/AGENTS.md`; do not repeat them.
->
-> **Budget: under 12 KB** (8 KB for any nested file), enforced by
-> `tools/tests/cases/agents-md-stays-bounded.sh` in the build-safety suite. An
-> addition that pushes it over is paid for in the SAME edit.
+## Build pipeline rules
 
-## Build pipeline rules (non-negotiable)
+The defects and reproductions behind these rules are in
+`docs/engineering/build-pipeline.md`, `docs/pipeline-guards.mdx` and
+`docs/verification.mdx`.
 
-Every one of these came from a real defect. The defect, the measurement and the
-fix are in **`docs/engineering/build-pipeline.md`**; violating one is wrong even
-where the reasoning is not restated here.
+- Never `rsync --delete` into Chromium, apply a patch fuzzily, use
+  `git apply --3way`, swallow a required failure, or pipe `find` into `head`.
+- Resolve the Chromium source through `astro::resolve_chromium_src` before any
+  write. A path named `chromium/src` can resolve back to this repository.
+- Mutating scripts refuse foreign work. `ASTRO_ALLOW_DIRTY_CHROMIUM=1` is a
+  developer-only escape hatch and must never affect verification or CI.
+- Every overlay destination is declared in `tools/overlay.allowlist`, including
+  intentional overwrites and patch collisions. Shared guards belong in
+  `tools/lib/astro-common.sh`.
+- Only untracked `.rej` and `.orig` files are patch artefacts; Chromium contains
+  legitimate tracked `.orig` files.
+- A failed `gn gen` produces no graph, so `gn check` against it proves nothing.
+  Require the target count emitted by `gn gen` before accepting the result.
+- Before blaming a patch for `gn` output, compare the active args with the
+  committed args. `tools/build.sh` reports the difference.
+- The whole patch series applying is a measurement. A green browser built from
+  direct edits is not evidence that the reviewed series still applies.
+- Run `tools/tests/run.sh` before changing `tools/`, then run
+  `tools/verify-clean-head.sh --commit <sha>` on the exact commit before push.
 
-- **Never `rsync --delete` into the Chromium tree**, and **never write into
-  `chromium/src` without resolving it first**. To prove nothing was committed
-  there, read the **REFLOG**, not `HEAD`.
-- **Preserve developer work by default**, and **every overlay destination is
-  declared** — never inferred.
-- **Never swallow a failure**, and **never pipe `find` into `head`** (SIGPIPE
-  turns a real error into a clean exit).
-- **A green suite run against a WORKING TREE says nothing about the commit**, and
-  **a generated document read from `HEAD` cannot fail before you commit** — use
-  `tools/verify-clean-head.sh`, which runs the suite against only what HEAD
-  tracks.
-- **Never `git pull` a build dependency, never fall back to a similar version,
-  and never decide in CI whether to synchronise.** Checkouts are DETACHED at the
-  locked commit.
-- **`pkill -f <your own scratchpad path>` kills other agents' processes.**
-- **Count from the DOM, not from the pixels.**
-- **The overlay's own C++ has never been compiled, and it does not compile.** Do
-  not read the tree as if it had.
-- **A vendored crate CAN be edited durably** — this file used to say the
-  opposite.
+## Shared-checkout safety
 
-## Branding
+The full collaboration model is in `docs/agent-collaboration.mdx`.
 
-`tools/apply-branding.sh` applies `branding/astro.conf`. Full rules and the
-defects behind them: **`docs/engineering/branding.md`**.
+- Use `git -C /home/nate/Oxy/Astro` for repository commands. A shell left in a
+  Chromium checkout can add thousands of unrelated files.
+- Commit with `git commit --only <paths>`. `git add <path>` does not remove
+  another contributor's staged paths, and `git add -A` is never correct here.
+- Git identity does not identify the owner of an uncommitted hunk. Call pending
+  work unclaimed unless its owner confirms it.
+- A green working-tree suite does not prove the commit. Untracked files can
+  satisfy tests that a clean checkout cannot.
+- Two builds must not share an output directory. Land both source sets and run
+  one build, or use separate output directories.
+- Never use `pkill -f` with a shared scratchpad path. Capture and terminate the
+  exact process instead.
 
-- **Discover the `.grd`/`.grdp` files to rename, never hand-list them** — a
-  hand-written list of 4 left 27 untouched, so the browser said "Astro" on
-  `about:version` and "About Chromium" in its own settings menu.
-- **Never blanket-substitute `Chromium` → `Astro`.** It rewrites the company and
-  copyright strings — a false attribution shipped to every user, on a codebase
-  whose licence requires the notice be retained.
-- **A `--dry-run` must exercise the same substitution the real run does**, not
-  just count matches.
-- **The in-UI logo is not `chrome/app/theme/chromium/`** (that is the
-  application/installer icon), and the scale directories are a pixel-size
-  contract — a wrong-size file installs cleanly, renders wrong, and reports
-  nothing.
+## Revisions and generated artefacts
 
-## Where the rest lives
+`browser.lock.json` owns the full source revisions. The reproducibility model is
+in `docs/reproducibility.mdx`.
 
-`docs/engineering/build-pipeline.md` · `docs/engineering/branding.md` ·
-`docs/engineering/file-paths.md` (the C++ overlay layout and every key path) ·
-`docs/engineering/webui.md` (settings served out of the pak, the new tab page's
-typed data plane, how to add a WebUI page, page URLs, scheme composition).
+- Never `git pull` a build dependency, fall back to a similar tag or let an
+  environment variable select a source revision. Checkouts stay detached at
+  the locked commit.
+- Provenance is generated from the trees on disk, not copied from the lock. A
+  disagreement between them must fail.
+- `docs/astro-next/baseline/` is generated by `tools/baseline/*`. Never hand-edit
+  a file whose header marks it generated.
+- `patch-dispositions.json` is the hand-maintained input and joins strictly
+  against both patch series. Update a literal count with the item it counts.
+- A baseline value that was not measured remains `not-captured` and names the
+  command that can capture it.
 
-## C++ Conventions
+## WebUI
 
-- C++ code follows Chromium style guide (Google C++ style with Chromium extensions).
-- All Oxy integrations in self-contained files under `src/chrome/browser/oxy/`.
-- Minimal patches to existing Chromium files — surgical hooks, includes, and registrations only.
-- Astro's own mojoms live in `src/chrome/browser/oxy/webui/` and are built by
-  `mojom("mojo_bindings")` there — `astro_theme.mojom` and
-  `astro_settings.mojom` as of 2026-08-09, the first two ever committed to this
-  repository. Keep them narrow and per-domain, one named method per decision;
-  never a generic `SetPref(string, value)`. After changing one, rebuild the
-  affected targets clean rather than incrementally — generated bindings are a
-  classic stale-artifact source. A new interface also needs an entry in the
-  WebUI frame binder map (`063-astro-webui-mojo-binders.patch`), or the
-  controller's `BindInterface` is never called and the page sees a pipe that
-  never answers, with no error on either side.
+The surface model and scheme composition live in `docs/webui.mdx` and
+`docs/engineering/webui.md`.
 
-## Development Workflow
+- New frontend work is an entry in `webui/app`, never another top-level WebUI
+  application. Its committed `manifest.json` owns the emitted hosts.
+- Taking an upstream host means replacing its registration, not adding a second
+  one. First prove no external caller names the upstream controller's concrete
+  type; `GetAs<T>()` returns null on a mismatch and callers may dereference it.
+- An overlay `BUILD.gn` with no incoming edge compiles nothing. Confirm the
+  target is reachable from Chromium's build graph.
+- Adopted-handler surfaces declare their app, controller, manifest and vacuity
+  floors in `webui/app/handler-surfaces.json`. Every send and listener must map
+  to a handler installed by that surface.
+- Use narrow, per-domain mojoms with one method per decision. Never expose a
+  generic `SetPref(string, value)`. Register every new interface in the WebUI
+  frame binder map.
+- Page state lives in profile preferences, never `localStorage`. Pages do not
+  fetch. Validate every URL both when it enters from the page and when it leaves
+  the preference store.
+- Trusted and untrusted Astro schemes are separate security principals. Rewrite
+  untrusted before trusted everywhere and keep the scheme constants
+  single-sourced.
 
-### WebUI pages (hot reload)
+## C++ and theming
 
-```bash
-cd webui/app && bun run dev          # http://localhost:5178  (strictPort)
-cd webui/alia && bun run dev         # Vite default: 5173, or the next free port
-cd webui/whats-new && bun run dev
-```
+- Follow Chromium style. Keep Oxy integrations under
+  `src/chrome/browser/oxy/`; patches to upstream files remain surgical hooks,
+  includes and registrations.
+- Mojoms live in `src/chrome/browser/oxy/webui/`. After changing one, rebuild
+  affected targets cleanly to avoid stale generated bindings.
+- `ui/astro_color_tokens.h` is generated from Bloom tokens. Never edit it by
+  hand.
+- `NotifyOnNativeThemeUpdated()` reaches only its own observers. When changing
+  native theming, verify the window-observed theme also receives the update.
+- A Linux system theme supplier is not automatically a custom user theme. Do
+  not disable Astro mixing from a boolean presence check.
 
-Only `webui/app` pins a port, and the two reasons are worth carrying: 5173 is
-taken by `~/Oxy/website`'s dev server on this machine, and Vite's default
-behaviour on a busy port is to silently take the next one — which already
-produced a session that curled another project's app and read its HTML as this
-one's. The other two set no port at all, so their numbers depend on start
-order. Read the port Vite prints; do not trust a number written down anywhere,
-including here.
+## Branding and verification
 
-### Chromium incremental build
+Branding rules are in `docs/engineering/branding.md` and `docs/build.mdx`.
 
-```bash
-tools/sync-overlay.sh
-ninja -C out/Release chrome          # Recompiles only changed files
-```
-
-### Full rebuild
-
-```bash
-tools/build.sh                       # Release
-tools/build.sh Debug                 # Debug
-```
-
-## Verification
-
-- **`tools/cdp-navigate.py` is the only sanctioned way to measure
-  navigation.** Three different harnesses reported success while measuring
-  nothing: a `--headless --dump-dom` run that never navigated to the
-  requested URL at all; a run that hung and died at an outer timeout having
-  printed nothing, losing every result gathered before it; and a harness
-  that read CDP events and discarded them, so a page that loaded but logged
-  a refused resource measured as clean — DOM present, title correct, the
-  browser's own complaint went straight in the bin. `cdp-navigate.py`
-  collects `Log.entryAdded` and `Runtime.exceptionThrown`, prints per-URL as
-  it goes, and gives each CDP call its own timeout.
-- **A check that can never fail is not a check — prove the negative case
-  fires.** A first attempt to provoke a CSP violation used `<script src>`,
-  which Trusted Types blocks BEFORE the scheme check runs, so the detector
-  reported zero and looked broken rather than clean. `<link
-  rel=stylesheet>` reaches the CSP scheme check and is the working
-  provocation.
-- **A `.pak` stores each resource compressed, so grepping it for a string
-  returns zero even when the string is present.** Verify branding by reading
-  the live page in a running browser, or by probing for the asset's raw
-  bytes directly — PNGs are stored uncompressed inside a `.pak`, so a
-  mid-file byte slice does match.
-- **`pgrep -f <pattern>` matches the command line of the shell running it**,
-  so "is my build still going?" answers YES forever, including after you kill
-  it. Reported twice in one session as "STILL RUNNING" about a terminated
-  ninja. `pgrep -x ninja` asks about the process instead of about a string
-  that necessarily contains itself. Same family as the rest of this section:
-  the check's pass and its nothing-was-measured are the same output.
+- Discover resource files; never hand-list them. Exclude Google Chrome branding
+  and ChromiumOS deliberately.
+- Never blanket-replace `Chromium` with `Astro`; attribution and copyright
+  strings must remain truthful.
+- A dry run exercises the same substitution as a real branding run.
+- `tools/cdp-navigate.py` is the sanctioned browser-navigation measurement. It
+  captures browser logs and runtime exceptions as well as DOM state.
+- Prove every negative gate can fail. A zero without a positive control may
+  mean the check measured nothing.
+- Do not grep compressed `.pak` files for strings. Verify a live page or a raw,
+  uncompressed asset payload.
+- Use `pgrep -x ninja`, not `pgrep -f`, which can match its own shell command.
+- Launch debugging with port `0` and read `DevToolsActivePort`; separate IPv4
+  and IPv6 listeners can otherwise make a fixed port look unique when it is not.
+- Side-panel visibility is per tab. Resolve the intended browser process and
+  tab, then compare named DOM sets rather than pixel totals.

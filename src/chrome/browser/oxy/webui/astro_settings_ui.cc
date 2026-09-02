@@ -108,7 +108,7 @@ AstroSettingsUI::AstroSettingsUI(content::WebUI* web_ui)
   // THIS LIST IS NOT A MENU. Every handler below services a message the app
   // actually sends, and every message the app sends is serviced by a handler
   // below — a join checked in both directions by
-  // tools/tests/cases/settings-sends-reach-an-adopted-handler.sh against the
+  // tools/tests/cases/adopted-handler-sends-are-served.sh against the
   // declarations in webui/app/settings-handler-messages.json. It is checked
   // because the failure is silent: `chrome.send` to a message no installed
   // handler registered reaches DUMP_WILL_BE_NOTREACHED in

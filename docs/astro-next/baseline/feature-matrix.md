@@ -6,9 +6,17 @@ classified as intentional or as a regression.
 ## Nothing in this document is captured yet
 
 Every `Current` field below reads `not-captured`, and that is the honest
-state rather than an oversight. There is no built Astro on the machine this
-was written on and no Chromium checkout to build one from, so no behaviour
-here has been observed. Nothing was inferred to fill the gap.
+state rather than an oversight. No behaviour here has been observed, and
+nothing was inferred to fill the gap.
+
+The reason used to be that no Astro binary existed and no Chromium checkout
+could produce one. That reason expired: Astro builds, installs and runs, and
+individual pages have been driven through a running browser. What has not
+happened is a capture — a scenario in this matrix answered against a build
+and written down. So the gap is now a work list with nothing standing in
+front of it, which is a different thing from the gap it was, and the
+distinction is the point: an absence with a cause reads as blocked, an
+absence without one reads as undone.
 
 That matters more than it looks. Later issues are meant to cite this file as
 their compatibility reference, so a plausible-looking invented result would
@@ -32,7 +40,7 @@ A capture needs a built browser. From a clean checkout:
 ```sh
 tools/sync-sources.sh                             # 1. locked revisions
 tools/sync-ungoogled.sh                           # 2. stage ungoogled patches
-tools/apply-patches.sh --skip-domain-substitution # 3. 168 patches, in order
+tools/apply-patches.sh --skip-domain-substitution # 3. the series, in order
 tools/sync-overlay.sh                             # 4. copy the Astro overlay
 tools/build.sh Release linux                      # 5. build
 tools/baseline/smoke.sh                           # 6. automated portion

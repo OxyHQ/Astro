@@ -397,4 +397,3 @@ Rules that follow:
   hard-coded scheme string in any WebUIConfig construction — it already
   caught an ungoogled patch spelling `"chrome"` by hand. The other eight
   layers above have no such gate yet.
-

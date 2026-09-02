@@ -1,0 +1,201 @@
+---
+title: Working in a shared checkout
+description: Several agents commit to one clone at once — the index, attribution, the commit-versus-working-tree gates, and the resources two runs cannot share.
+---
+
+# Working in a shared checkout
+
+Several agents routinely work this one checkout at the same time, as the same
+git user, sharing one index, one `out/` directory and one scratchpad path. Every
+rule below is a defect that has already happened here, usually more than once.
+`AGENTS.md` carries the imperatives; this page carries what each one cost.
+
+## Commit with `git commit --only <paths>`
+
+The index is shared, so anything that commits "what is staged" takes somebody
+else's work. `AGENTS.md`, `patches/astro/series` and `patch-dispositions.json`
+are the files two waves reach for simultaneously — all three have carried
+another agent's uncommitted hunks mid-session.
+
+**`git add <path>` followed by `git commit` is NOT sufficient**, which is what
+the earlier wording ("stage by explicit path") got wrong: adding your path does
+not clear what somebody else added. It happened exactly that way — a
+`git status` showed a file as unstaged, another agent staged it in the seconds
+before the commit, and the commit carried their 36 lines under a stranger's
+name and message.
+
+`--only` names what to commit and leaves every other staged entry untouched; a
+temporary index built from `HEAD` plus explicit blobs is equivalent.
+`git add -A` is never correct here.
+
+Recovering from it is `git reset --soft HEAD~1` — but check first that HEAD is
+still your commit, or the reset eats whatever landed on top. It restores the
+index exactly as it was, so the other agent's staging survives.
+
+## `git commit --dry-run -- <paths>` does not disturb the index
+
+It was claimed as a hazard, and the first round of testing could not have
+caught it either way: every shape staged files the pathspec did NOT match, so
+git printed "no changes added to commit" and exited 1 before it ever built the
+partial-commit tree. A check whose machinery never runs cannot fail. The case
+that carries the verdict stages files both inside and outside the pathspec,
+exits 0, and still leaves every index entry intact.
+
+What makes anyone believe otherwise is the DISPLAY, not the index.
+`--dry-run --short` renders out-of-pathspec staged entries as though they were
+not staged, with the real index unchanged either side of it:
+
+```
+real index:    M mine.txt   D oldfile.txt   A theirnew.txt   M theirs.txt
+dry run shows: M  mine.txt
+               D  oldfile.txt
+                M theirs.txt      <- staged, shown as unstaged
+               ?? theirnew.txt    <- staged, shown as untracked
+```
+
+On screen that is indistinguishable from somebody having reset the index. Trust
+`git diff --cached`; never a dry run's own status output. What had actually
+emptied the index was another agent's commits landing first and consuming their
+own entries, which git then rendered as a rename.
+
+## Nobody here can be identified by git
+
+Every commit on this branch carries the same author, so `--format=%an`
+separates nothing and any guess built on it lands on whoever was active nearby.
+Attribute by mtime, task title and content — never by `git log`.
+
+Six attributions were made wrongly in one session, in both directions: an
+uncommitted hunk handed back to an agent who had never written it, and commits
+credited to an agent who had not made them. Twice that would have led to work
+being discarded or committed twice by someone repairing a defect they did not
+own. One nearly took authorship of another agent's unfinished analysis; one
+routed "please bump this red gate" to an agent that knew nothing about the
+change the gate certifies — twice.
+
+The cheap discriminator is `git log -S '<a distinctive line>' -- <path>`, which
+names the commit that introduced the text, plus the commit timestamps; run it
+before handing anything back or "restoring" what looks like somebody else's
+edit. Reconciling a shared file so BOTH sets of edits survive is safe whoever
+owns it — asserting who owns it is not.
+
+**And `git log -S` is blind to exactly the case where guessing is most
+tempting: an UNCOMMITTED hunk.** It searches history, so for a pending edit it
+returns nothing, which reads as "no answer" and gets filled in with adjacency.
+That is the shape that recurred here — the same shared file, twice, and the
+second time the agent it was handed to was one step from committing another
+agent's unfinished analysis under their own name. Wrong credit costs a
+correction; that would have taken authorship.
+
+There is no git-side answer for a pending hunk: only your own transcript ("did
+I write this?") and content provenance (does it restate what some agent just
+said?), both weaker than a query. So the rule is not "attribute more
+carefully", it is **never hand a shared file's pending hunk to a named
+owner** — call it unclaimed, leave it untouched, and let its author claim it.
+
+## State a claim in whatever form is cheapest for the recipient to falsify
+
+**Every one of these was caught by the RECIPIENT of a claim, never by its
+author.** Four wrong attributions, a vacuous test, and a false index-reset
+report: in each case the person who made the claim had the evidence to disprove
+it in seconds and did not look, because nobody doubts themselves unprompted. So
+the discipline that pays is not "check your own work harder", it is a named
+command they can re-run, an exit code, a before/after dump, a SHA. Every
+correction in that list happened because the claim was specific enough to be
+tested; a vaguer message would have been believed.
+
+## A green suite against a working tree says nothing about the commit
+
+An untracked file on disk satisfies every test that needs it, so a coupled unit
+committed by halves stays green locally and breaks a clean checkout. Four times
+here already, in both directions — `tools/setup-win-sdk.sh` and two `.pyc`
+files swept IN, `tools/verify-build-outcome.sh` and `tools/policy/manifest.py`
+left OUT while the committed scripts requiring them went in.
+
+`tools/verify-clean-head.sh` materialises the commit on its own, runs the suite
+there, and fails when the verdicts differ from the working tree's. The static
+converse — every path a committed script names is tracked at that commit — is
+`tools/tests/cases/committed-inputs-are-tracked.sh`, and its `NOT_TRACKED`
+table is where a legitimately-absent path is declared. Run the gate before
+pushing anything under `tools/`.
+
+### It verifies whatever `HEAD` is when you invoke it
+
+…which in this checkout is often not your commit. Several agents land commits
+here in the same hour, so a gate run started late reports on a `HEAD` that has
+moved past you — and if somebody else has already repaired what you left
+broken, it comes back green ABOUT THEIR FIX and you read it as clearing yours.
+
+That happened with 067: the suite was green before the commit, went red at the
+commit, and the clean-head run that should have caught it was started after
+`79a296a` had already corrected the literal. Observed directly twice in one
+session, two different SHAs printed on the `Verifying commit ...` line. Pass
+`--commit <your-sha>` to pin it to the commit you actually wrote.
+
+### The assertion-count table it prints is noise
+
+Six rows print on every run, and they printed byte-identically across five
+different commits and across both dirty and clean working trees — so they track
+nothing about your change. The clean tree is by construction the tracked
+repository alone, so it can never hold `chromium/src`, an installed
+`node_modules`, or an untracked file, and three unrelated mechanisms turn that
+absence into a count difference:
+
+- a list built from the filesystem and counted once per path
+  (`shell-static-analysis.sh:27`; `harness::assert_script_list` at
+  `harness.sh:392` for `build-outcome-is-the-builds-own` and
+  `real-checkout-hazards`),
+- an existence gate on the checkout (`module-layering-is-enforced.sh:429`,
+  `webui-configs-use-the-scheme-constant.sh:145`),
+- and two arms of a `case` differing by one assertion
+  (`color-tokens-are-generated-from-bloom.sh:428`, 4 against 3).
+
+Read the `NOT EXERCISED:` line each case prints instead: it names the exact
+path it could not reach.
+
+The attribution history is why this is written down rather than left to be
+re-derived. Two agents produced six mechanism stories for those six rows and
+got the mechanism wrong all six times, while the conclusion came out right all
+six times. **A conclusion surviving is therefore not weak evidence for the
+mechanism behind it, it is none.** Every row was settled the same way and only
+that way — reading the line that increments `HARNESS_ASSERTIONS` and the scope
+it sits in. Both classic misses are in the record: citing a nearby line that
+looks like the counter (`shell-static-analysis.sh:129`, whose increment is at
+:108, above the loop), and citing the right counter without checking its scope
+(`harness::assert_no_lines_matching`, `harness.sh:359`, which sits outside its
+own `grep` and so fires once per call, never once per file).
+
+### A generated document read from `HEAD` cannot fail before you commit
+
+`tools/baseline/inventory_patches.py` reads every byte from `HEAD`, so the
+hand-maintained `astro N` literal in `tools/tests/cases/baseline-inventories.sh`
+agrees with the old count right up until the commit that adds a patch, and only
+then disagrees. A pre-commit suite run is structurally incapable of catching
+it: it is green BECAUSE the patch is uncommitted.
+
+Bump the literal in the same commit as the patch, and re-run the suite AFTER
+committing and before regenerating the baseline — that window is where this
+class of miss lives.
+
+## Two builds must not share one output directory
+
+The dirty-tree override is not what makes that safe.
+`ASTRO_ALLOW_DIRTY_CHROMIUM=1` exists so somebody looks at the dirty state and
+vouches for it; it governs the overlay sync and nothing else. It does not stop
+a file changing under a running compile, and it does not stop two `ninja` runs
+interleaving in one `out/`.
+
+When two agents have complementary changes, land both sources first and build
+ONCE — a relink here is 20-40 minutes, so serialising two is an hour thrown
+away and racing them is worse.
+
+## `pkill -f <your own scratchpad path>` kills other agents' processes
+
+The scratchpad is per SESSION, not per agent, so several agents share that
+directory string and a pattern meant to match only your browsers matches
+theirs.
+
+Measured: one agent's cleanup killed another's browser mid-run, and the X
+window id was then REUSED by a later process — which is how the two of them
+ended up recording the same window id for different pids, and why a screenshot
+can be of somebody else's browser. Kill by pid you captured at launch. Resolving
+a browser and its window is [Verification](/verification).

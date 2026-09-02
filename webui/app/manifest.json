@@ -43,6 +43,7 @@
         "astro-webui-languages-spell-check.js",
         "astro-webui-languages.js",
         "astro-webui-link-row.js",
+        "astro-webui-management-page.js",
         "astro-webui-mojo.js",
         "astro-webui-native-driver.js",
         "astro-webui-new-tab-page.js",

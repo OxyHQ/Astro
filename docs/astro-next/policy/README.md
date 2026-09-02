@@ -390,9 +390,10 @@ dedicated gate.
 ## What this cannot tell you
 
 - **Whether any of it is true at runtime.** Everything here is static analysis of
-  committed text. No Astro binary exists (baseline finding 1), so cold-start,
-  idle and incognito traffic are unmeasured, and 3 declared endpoints exist only
-  because a source scan cannot see them.
+  committed text. Cold-start, idle and incognito traffic are unmeasured — a
+  binary now exists to measure them against, so this is uncaptured rather than
+  uncapturable — and 3 declared endpoints exist only because a source scan
+  cannot see them.
 - **Whether a patch applies.** Declared from baseline finding 3, checked only for
   the patch's continued existence.
 - **The complete upstream endpoint set.** The seed reads Astro's code, not

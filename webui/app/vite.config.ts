@@ -38,8 +38,9 @@ type BuildName = 'app' | 'platform';
  * Bundling it would put a second copy of a Chromium runtime inside Astro's
  * bundle, with its own `mojo.internal` registry and nothing checking it still
  * matches the browser it is loaded into. And the scheme-relative spelling is
- * the generator's own: it survives the `astro://` rename in AGENTS.md's WebUI
- * scheme list without an edit, where a hard-coded `chrome://` would not.
+ * the generator's own: it survives the `astro://` rename in the WebUI scheme
+ * list in docs/webui.mdx without an edit, where a hard-coded `chrome://`
+ * would not.
  *
  * Bundling it would NOT buy a working Mojo on the dev server, which is the one
  * thing that could argue for it: the runtime is useless without the `Mojo`

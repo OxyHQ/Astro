@@ -658,4 +658,3 @@ do not let a build imply they are resolved:
   constructor never called it — and `676c9eb` deleted both, so a `grep` for
   that identifier now returns nothing. Declaring an id for it would have been
   machinery for nobody.
-

@@ -53,7 +53,9 @@ std::string WebUIOrigin(std::string_view host) {
   return base::StrCat({content::kChromeUIScheme, "://", host});
 }
 
-void CreateAstroWebUIDataSource(content::WebUI* web_ui, const WebUIPage& page) {
+content::WebUIDataSource* CreateAstroWebUIDataSource(
+    content::WebUI* web_ui,
+    const WebUIPage& page) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(), std::string(page.host));
 
@@ -79,13 +81,13 @@ void CreateAstroWebUIDataSource(content::WebUI* web_ui, const WebUIPage& page) {
 #endif
 
   ApplyCsp(source, page.csp);
+  return source;
 }
 
 AstroWebUIPageController::AstroWebUIPageController(content::WebUI* web_ui,
                                                    const WebUIPage& page)
-    : content::WebUIController(web_ui) {
-  CreateAstroWebUIDataSource(web_ui, page);
-}
+    : content::WebUIController(web_ui),
+      data_source_(CreateAstroWebUIDataSource(web_ui, page)) {}
 
 AstroWebUIPageController::~AstroWebUIPageController() = default;
 
@@ -93,9 +95,8 @@ AstroMojoWebUIPageController::AstroMojoWebUIPageController(
     content::WebUI* web_ui,
     const WebUIPage& page,
     bool enable_chrome_send)
-    : ui::MojoWebUIController(web_ui, enable_chrome_send) {
-  CreateAstroWebUIDataSource(web_ui, page);
-}
+    : ui::MojoWebUIController(web_ui, enable_chrome_send),
+      data_source_(CreateAstroWebUIDataSource(web_ui, page)) {}
 
 AstroMojoWebUIPageController::~AstroMojoWebUIPageController() = default;
 

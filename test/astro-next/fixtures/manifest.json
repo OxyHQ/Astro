@@ -47,6 +47,7 @@
         "src/chrome/browser/oxy/webui/astro_adblock_ui.h",
         "src/chrome/browser/oxy/webui/astro_alia_ui.h",
         "src/chrome/browser/oxy/webui/astro_ntp_ui.h",
+        "src/chrome/browser/oxy/webui/astro_management_ui.cc",
         "src/chrome/browser/oxy/webui/astro_settings_ui.cc",
         "src/chrome/browser/oxy/webui/astro_whats_new_ui.cc"
       ],

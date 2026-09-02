@@ -70,7 +70,6 @@ src/chrome/browser/oxy/
     ├── astro_alia_ui.*              # chrome://alia controller
     └── astro_whats_new_ui.*         # chrome://whats-new controller
 ```
-
 ### WebUI frontend pages
 
 ```
@@ -108,4 +107,3 @@ gn_args/             # GN build args per platform (linux.gn, android.gn, macos.g
 branding/            # Logos, icons, astro.conf, .desktop file
 tools/               # Build, install, patch, packaging scripts
 ```
-

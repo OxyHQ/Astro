@@ -30,4 +30,3 @@ Rules from real defects found in it, not hypotheticals:
   `IDR_PRODUCT_LOGO_32`, in `theme_resources.grd`. The scale directories are
   a pixel-size contract — the 200% file must be 64px — and a wrong-size file
   installs cleanly, renders wrong, and reports nothing.
-
