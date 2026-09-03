@@ -1,0 +1,26 @@
+# //astro/common is the bottom layer of the module.
+#
+# The subtractions are the point, and they are not decorative. checkdeps
+# INHERITS include_rules down the tree, so //astro/DEPS's
+# `+chrome/browser/chrome_browser_main_extra_parts.h` — granted for the one hook
+# //astro/browser implements — reaches every subdirectory including this one.
+# That is the narrow form of the trap astro-module-layout.md describes under
+# "`+chrome` belongs only in `astro/browser/DEPS`": narrower than a blanket
+# `+chrome`, and it inherits identically.
+#
+# It matters most precisely here. `common/` is the layer //chrome/browser
+# reaches transitively through `allow_circular_includes_from`, so if `common/`
+# could reach back into `chrome/`, that concession would widen from one target
+# to everything Astro owns.
+#
+# **Nothing runs checkdeps yet.** It is not in tools/build.sh and not in the
+# build-safety suite, so this file is a declared rule and not an enforced one
+# until `buildtools/checkdeps/checkdeps.py` is wired in. Writing it is worth
+# doing; believing it is enforced today is not.
+
+include_rules = [
+  "-astro/browser",
+  "-astro/components",
+  "-astro/ui",
+  "-chrome",
+]
