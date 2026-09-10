@@ -28,7 +28,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
      replace existing passwords
    </message>
 -  <message name="IDS_SETTINGS_GOOGLE_PAYMENTS" desc="Label used to differentiate when an address or credit card entry comes from Google Pay. This should follow the casing of the 'Google Pay' brand. 'Google Pay' should not be translated as it is the product name.">
-+  <message name="IDS_SETTINGS_GOOGLE_PAYMENTS" desc="Label used to differentiate when an address or credit card entry comes from Oxy Pay. This should follow the casing of the 'Oxy Pay' brand. 'Oxy Pay' should not be translated as it is the product name.">
++  <message name="IDS_SETTINGS_GOOGLE_PAYMENTS" desc="Label used to differentiate when an address or credit card entry comes from Peable. This should follow the casing of the 'Peable' brand. 'Peable' should not be translated as it is the product name.">
      Google Pay
    </message>
    <message name="IDS_SETTINGS_AUTOFILL_ADDRESSES_ADD_TITLE" desc="This is the title for the 'Add address' dialog. This dialog allows a user to create a new address.">
@@ -50,7 +50,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
    </message>
    <message name="IDS_AUTOFILL_VIRTUAL_CARD_UNENROLL_DIALOG_LABEL" desc="The text shown inside the virtual card unenroll dialog. Has a link.">
 -    You will no longer be able to use your virtual card with Google Pay. <ph name="BEGIN_LINK">&lt;a target='_blank' href='$1'&gt;</ph>Learn about virtual cards<ph name="END_LINK">&lt;/a&gt;</ph>
-+    You will no longer be able to use your virtual card with Oxy Pay. <ph name="BEGIN_LINK">&lt;a target='_blank' href='$1'&gt;</ph>Learn about virtual cards<ph name="END_LINK">&lt;/a&gt;</ph>
++    You will no longer be able to use your virtual card with Peable. <ph name="BEGIN_LINK">&lt;a target='_blank' href='$1'&gt;</ph>Learn about virtual cards<ph name="END_LINK">&lt;/a&gt;</ph>
    </message>
    <message name="IDS_AUTOFILL_VIRTUAL_CARD_UNENROLL_DIALOG_CONFIRM_BUTTON_LABEL" desc="The text shown in the confirm button of the virtual card unenroll dialog.">
      Remove
@@ -59,7 +59,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
    </message>
    <message name="IDS_SETTINGS_PAYMENTS_MANAGE_CREDIT_CARDS" desc="Shown in the payments section of settings. Descriptive text to inform the user that credit cards can be accessed online. Has a link.">
 -   To add or manage Google Pay payment methods, visit your <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank"&gt;</ph>Google Account<ph name="END_LINK">&lt;/a&gt;</ph>
-+   To add or manage Oxy Pay payment methods, visit your <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank"&gt;</ph>Oxy Account<ph name="END_LINK">&lt;/a&gt;</ph>
++   To add or manage Peable payment methods, visit your <ph name="BEGIN_LINK">&lt;a href="$1" target="_blank"&gt;</ph>Oxy Account<ph name="END_LINK">&lt;/a&gt;</ph>
    </message>
    <message name="IDS_SETTINGS_GOOGLE_WALLET" desc="Label used to differentiate when an Autofill AI entity (such as vehicle information) is stored in Google Wallet.">
      Google Wallet
@@ -633,7 +633,7 @@ diff --git a/chrome/app/settings_strings.grdp b/chrome/app/settings_strings.grdp
    </message>
    <message name="IDS_SETTINGS_ENCRYPT_WITH_SYNC_PASSPHRASE_LABEL" desc="Label for the radio button which, when selected, causes synced settings to be encrypted with a user-provided password.">
 -    Encrypt synced data with your own <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>sync passphrase<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>. Payment methods and addresses from Google Pay won’t be encrypted. Browsing history from Chrome won’t sync.
-+    Encrypt synced data with your own <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>sync passphrase<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>. Payment methods and addresses from Oxy Pay won’t be encrypted. Browsing history from Chrome won’t sync.
++    Encrypt synced data with your own <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>sync passphrase<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>. Payment methods and addresses from Peable won’t be encrypted. Browsing history from Chrome won’t sync.
    </message>
    <message name="IDS_SETTINGS_PASSPHRASE_EXPLANATION_TEXT" desc="Message shown when explicit passphrase is selected.">
 -    Only someone with your passphrase can read your encrypted data. The passphrase is not sent to or stored by Google. If you forget your passphrase or want to change this setting, you'll need to <ph name="BEGIN_LINK">&lt;a href="$1" target=&quot;_blank&quot;&gt;<ex>&lt;a href="$1" target=&quot;_blank&quot;&gt;</ex></ph>reset sync<ph name="END_LINK">&lt;/a&gt;<ex>&lt;/a&gt;</ex></ph>.
