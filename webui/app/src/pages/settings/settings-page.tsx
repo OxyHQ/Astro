@@ -23,7 +23,7 @@
 // its searchable control list and its dev fixtures all live in files the
 // section owns; this table names them once.
 
-import {SettingsListGroup, SettingsListItem} from '@oxyhq/bloom';
+import {SettingsListGroup, SettingsListItem} from '@oxy.so/bloom';
 import {
   Accessibility_Stroke2_Corner2_Rounded,
   ArrowRotateCounterClockwise_Stroke2_Corner0_Rounded,
@@ -42,8 +42,8 @@ import {
   UserCircle_Stroke2_Corner0_Rounded,
   Window_Stroke2_Corner2_Rounded,
   Zap_Stroke2_Corner0_Rounded,
-} from '@oxyhq/bloom/icons';
-import {Text} from '@oxyhq/bloom/typography';
+} from '@oxy.so/bloom/icons';
+import {Text} from '@oxy.so/bloom/typography';
 import {Suspense, lazy, useState, type ComponentType} from 'react';
 
 import {

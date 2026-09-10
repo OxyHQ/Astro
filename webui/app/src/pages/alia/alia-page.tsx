@@ -40,8 +40,8 @@
 // heuristic, so the panel's URL resolves and the value it carries is finally
 // readable.
 
-import {useThemeColor} from '@oxyhq/bloom/theme';
-import {Text} from '@oxyhq/bloom/typography';
+import {useThemeColor} from '@oxy.so/bloom/theme';
+import {Text} from '@oxy.so/bloom/typography';
 import {ScrollView, View} from 'react-native';
 
 import {AstroMark, SectionCard, t, type MessageId} from '@astro/platform';

@@ -7,9 +7,9 @@
 // back the only exit is the browser's Back button — a dead end for anyone who
 // arrived by deep link. `SubpageHeader` is that way back.
 
-import {ChevronLeft_Stroke2_Corner0_Rounded} from '@oxyhq/bloom/icons';
-import {useThemeColor} from '@oxyhq/bloom/theme';
-import {Text} from '@oxyhq/bloom/typography';
+import {ChevronLeft_Stroke2_Corner0_Rounded} from '@oxy.so/bloom/icons';
+import {useThemeColor} from '@oxy.so/bloom/theme';
+import {Text} from '@oxy.so/bloom/typography';
 import {Pressable, View} from 'react-native';
 
 import {setHashPath, t, type MessageId} from '@astro/platform';

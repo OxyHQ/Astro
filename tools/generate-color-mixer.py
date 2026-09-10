@@ -2,7 +2,7 @@
 """Generate Astro's native colour token table from Bloom's design tokens.
 
 Bloom is the single source of truth for Astro's colours, and it already resolves
-them: `@oxyhq/bloom/design-tokens/tokens.json` is a W3C DTCG document carrying
+them: `@oxy.so/bloom/design-tokens/tokens.json` is a W3C DTCG document carrying
 every token, for every preset, in both schemes, as an sRGB hex string. The web
 surfaces consume it directly. The NATIVE surfaces — toolbar, menus, omnibox —
 cannot, because a Chromium ColorMixer wants `SkColor` at compile time.
@@ -60,11 +60,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # a failure.
 DEFAULT_TOKENS = (
     REPO_ROOT
-    / "webui/app/node_modules/@oxyhq/bloom/src/design-tokens/tokens.json"
+    / "webui/app/node_modules/@oxy.so/bloom/src/design-tokens/tokens.json"
 )
 DEFAULT_OUTPUT = REPO_ROOT / "src/chrome/browser/oxy/ui/astro_color_tokens.h"
 
-BLOOM_PACKAGE = "@oxyhq/bloom"
+BLOOM_PACKAGE = "@oxy.so/bloom"
 TOKENS_EXPORT = "design-tokens/tokens.json"
 
 SCHEMES = ("light", "dark")
@@ -106,7 +106,7 @@ def fail(message: str) -> None:
 
 
 def package_identity(tokens_path: Path) -> str:
-    """`@oxyhq/bloom@0.88.0`, read from the package the document ships in.
+    """`@oxy.so/bloom@0.88.0`, read from the package the document ships in.
 
     The header records which release it was transcribed from, because that is
     the only thing that makes a value in it auditable. Read from the nearest

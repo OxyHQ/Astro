@@ -21,8 +21,8 @@
 // renderer down. Deleting needs the confirmation upstream puts in front of it,
 // and a destructive button without that dialog is not the same control.
 
-import {Button, RadioIndicator, SettingsListItem} from '@oxyhq/bloom';
-import {Text} from '@oxyhq/bloom/typography';
+import {Button, RadioIndicator, SettingsListItem} from '@oxy.so/bloom';
+import {Text} from '@oxy.so/bloom/typography';
 import {useSyncExternalStore, type ReactNode} from 'react';
 import {View} from 'react-native';
 

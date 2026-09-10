@@ -51,9 +51,9 @@
 // applications, websites and threat-protection entries -- is unexercised; the
 // store names the command that would exercise it.
 
-import {SettingsListGroup, SettingsListItem} from '@oxyhq/bloom';
-import {useThemeColor} from '@oxyhq/bloom/theme';
-import {Text} from '@oxyhq/bloom/typography';
+import {SettingsListGroup, SettingsListItem} from '@oxy.so/bloom';
+import {useThemeColor} from '@oxy.so/bloom/theme';
+import {Text} from '@oxy.so/bloom/typography';
 import {ScrollView, View} from 'react-native';
 
 import {AstroMark, browserString, t} from '@astro/platform';

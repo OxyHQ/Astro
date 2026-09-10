@@ -57,9 +57,9 @@ import {
   MagnifyingGlass_Stroke2_Corner0_Rounded,
   Shield_Stroke2_Corner0_Rounded,
   ShieldCheck_Stroke2_Corner0_Rounded,
-} from '@oxyhq/bloom/icons';
-import {useThemeColor} from '@oxyhq/bloom/theme';
-import {Text} from '@oxyhq/bloom/typography';
+} from '@oxy.so/bloom/icons';
+import {useThemeColor} from '@oxy.so/bloom/theme';
+import {Text} from '@oxy.so/bloom/typography';
 import {useEffect} from 'react';
 import {Pressable, ScrollView, View} from 'react-native';
 

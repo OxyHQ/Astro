@@ -28,8 +28,8 @@
 // browser process. The button below is disabled on exactly that input; the
 // guard is not politeness.
 
-import {Button, TextField, TextFieldInput} from '@oxyhq/bloom';
-import {Text} from '@oxyhq/bloom/typography';
+import {Button, TextField, TextFieldInput} from '@oxy.so/bloom';
+import {Text} from '@oxy.so/bloom/typography';
 import {useState, useSyncExternalStore} from 'react';
 import {View} from 'react-native';
 

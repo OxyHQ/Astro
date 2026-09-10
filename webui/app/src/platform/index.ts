@@ -8,7 +8,7 @@
 // URL means React, Bloom and the browser API layer are fetched, parsed and
 // V8-code-cached ONCE for all of the browser's internal pages instead of once
 // per host -- which only holds while pages reach them through here and not
-// through their own imports of `react` or `@oxyhq/bloom`.
+// through their own imports of `react` or `@oxy.so/bloom`.
 //
 // What graduates into it: anything two pages use, or anything that is part of
 // the design system. Nothing else -- a page's own components stay in the
@@ -24,13 +24,13 @@
 // CSS that makes it render.
 import './global.css';
 
-// Re-exported rather than imported from '@oxyhq/bloom/theme' by each entry.
+// Re-exported rather than imported from '@oxy.so/bloom/theme' by each entry.
 // An entry that reached past this facade for it would pull a second physical
 // copy of Bloom's theme module into its own chunk once the split lands, and
 // Bloom's theme context is a globalThis-anchored singleton precisely because
 // that duplication otherwise ends in "useTheme outside a BloomThemeProvider"
 // with the provider plainly mounted.
-export {BloomThemeProvider} from '@oxyhq/bloom/theme';
+export {BloomThemeProvider} from '@oxy.so/bloom/theme';
 
 // The product's own mark, drawn by two entries and by neither of them twice.
 export {AstroMark} from './brand/astro-mark.tsx';

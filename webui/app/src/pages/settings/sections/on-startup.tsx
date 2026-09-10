@@ -32,7 +32,7 @@
 // reports that it could not be read rather than showing an empty list -- "you
 // have no startup pages" and "this window cannot see them" are different facts.
 
-import {Button, SettingsListItem, TextField, TextFieldInput} from '@oxyhq/bloom';
+import {Button, SettingsListItem, TextField, TextFieldInput} from '@oxy.so/bloom';
 import {useState, useSyncExternalStore} from 'react';
 import {View} from 'react-native';
 

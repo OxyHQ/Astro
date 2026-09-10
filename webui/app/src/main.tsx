@@ -10,7 +10,7 @@
 // bytes by the same C++ controller. Path segments below the host belong to the
 // page.
 
-import {Text} from '@oxyhq/bloom/typography';
+import {Text} from '@oxy.so/bloom/typography';
 import {Suspense, lazy, type ComponentType, type LazyExoticComponent, type ReactNode} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Pressable, View} from 'react-native';

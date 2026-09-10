@@ -10,7 +10,7 @@
 // browser at runtime — a version, a count, a size — and is not translatable
 // text this app owns.
 
-import {SettingsListItem} from '@oxyhq/bloom';
+import {SettingsListItem} from '@oxy.so/bloom';
 
 import {t, type MessageId} from '@astro/platform';
 

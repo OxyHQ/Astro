@@ -11,7 +11,7 @@
 // the write goes out and the browser's echo is what moves it. A local guess
 // would show the new position on a pref the browser refused.
 
-import {SettingsListItem, Switch} from '@oxyhq/bloom';
+import {SettingsListItem, Switch} from '@oxy.so/bloom';
 
 import {setPref, t, type MessageId} from '@astro/platform';
 

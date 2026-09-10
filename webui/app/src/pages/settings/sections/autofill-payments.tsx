@@ -16,8 +16,8 @@
 // recording and an accessibility tree. The browser's own label -- network and
 // last four digits -- is what identifies a card here.
 
-import {Button, SettingsListItem} from '@oxyhq/bloom';
-import {Text} from '@oxyhq/bloom/typography';
+import {Button, SettingsListItem} from '@oxy.so/bloom';
+import {Text} from '@oxy.so/bloom/typography';
 
 import {SectionCard, removePaymentsEntity, t, usePersonalData, usePref} from '@astro/platform';
 

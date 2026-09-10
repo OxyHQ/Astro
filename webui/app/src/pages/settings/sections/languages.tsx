@@ -19,8 +19,8 @@
 // display-language control on this platform for the same reason upstream has
 // none.
 
-import {Button, SettingsListItem} from '@oxyhq/bloom';
-import {TextFieldInput} from '@oxyhq/bloom';
+import {Button, SettingsListItem} from '@oxy.so/bloom';
+import {TextFieldInput} from '@oxy.so/bloom';
 import {useState} from 'react';
 import {View} from 'react-native';
 

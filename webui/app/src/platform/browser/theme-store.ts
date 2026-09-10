@@ -19,7 +19,7 @@
 // the native toolbar and the WebUI pages cannot drift apart. There is no
 // localStorage anywhere in this path, by design.
 
-import {APP_COLOR_NAMES, type AppColorName} from '@oxyhq/bloom/color-presets';
+import {APP_COLOR_NAMES, type AppColorName} from '@oxy.so/bloom/color-presets';
 import {useSyncExternalStore} from 'react';
 
 import {MissingBrowserApiError} from './env.ts';

@@ -12,7 +12,7 @@
 // field promise a control the page does not draw. Passing the id through is
 // what keeps the two the same value.
 
-import {Text} from '@oxyhq/bloom/typography';
+import {Text} from '@oxy.so/bloom/typography';
 import {View} from 'react-native';
 
 import {t, type MessageId} from '@astro/platform';

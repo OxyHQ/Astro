@@ -12,9 +12,9 @@
 // of the app, which is driven by astro_theme.mojom, so a preset change repaints
 // this page at the same instant it repaints the toolbar.
 
-import {Bot_Stroke} from '@oxyhq/bloom/icons';
-import {useThemeColor} from '@oxyhq/bloom/theme';
-import {Text} from '@oxyhq/bloom/typography';
+import {Bot_Stroke} from '@oxy.so/bloom/icons';
+import {useThemeColor} from '@oxy.so/bloom/theme';
+import {Text} from '@oxy.so/bloom/typography';
 import {useRef, useState, useSyncExternalStore, type ReactNode} from 'react';
 import {Image, Pressable, TextInput, View} from 'react-native';
 

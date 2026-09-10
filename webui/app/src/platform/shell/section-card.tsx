@@ -11,7 +11,7 @@
 // exactly 16px. Bloom's radius scale steps 12 -> 20 straight past it, so a
 // token here would be visibly the odd card out.
 
-import {Text} from '@oxyhq/bloom/typography';
+import {Text} from '@oxy.so/bloom/typography';
 import type {ReactNode} from 'react';
 import {View} from 'react-native';
 

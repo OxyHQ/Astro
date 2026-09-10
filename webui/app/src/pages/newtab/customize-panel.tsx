@@ -23,10 +23,10 @@
 import {
   PlusLarge_Stroke2_Corner0_Rounded,
   Trash_Stroke2_Corner0_Rounded,
-} from '@oxyhq/bloom/icons';
-import {useThemeColor} from '@oxyhq/bloom/theme';
-import {Switch} from '@oxyhq/bloom/switch';
-import {Text} from '@oxyhq/bloom/typography';
+} from '@oxy.so/bloom/icons';
+import {useThemeColor} from '@oxy.so/bloom/theme';
+import {Switch} from '@oxy.so/bloom/switch';
+import {Text} from '@oxy.so/bloom/typography';
 import {useState, type ReactNode} from 'react';
 import {Pressable, ScrollView, TextInput, View} from 'react-native';
 

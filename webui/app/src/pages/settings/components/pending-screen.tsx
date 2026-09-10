@@ -12,7 +12,7 @@
 // wrong.
 
 import {SectionCard, t, type MessageId} from '@astro/platform';
-import {Text} from '@oxyhq/bloom/typography';
+import {Text} from '@oxy.so/bloom/typography';
 
 import {SectionHeader, SubpageHeader} from './section-header.tsx';
 

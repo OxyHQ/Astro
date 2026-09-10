@@ -30,8 +30,8 @@
 // which is why the screen renders from that echo rather than from the value it
 // just wrote.
 
-import {RadioIndicator, SettingsListItem} from '@oxyhq/bloom';
-import {Text} from '@oxyhq/bloom/typography';
+import {RadioIndicator, SettingsListItem} from '@oxy.so/bloom';
+import {Text} from '@oxy.so/bloom/typography';
 import {useCallback, useSyncExternalStore} from 'react';
 import {View} from 'react-native';
 

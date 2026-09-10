@@ -9,7 +9,7 @@
 // rows ("Astro may use a web service to help resolve navigation errors"), and
 // it belongs to the group rather than to the last row in it.
 
-import {SettingsListGroup} from '@oxyhq/bloom';
+import {SettingsListGroup} from '@oxy.so/bloom';
 import type {ReactNode} from 'react';
 
 import {t, type MessageId} from '@astro/platform';

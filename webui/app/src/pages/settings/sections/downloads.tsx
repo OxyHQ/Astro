@@ -19,7 +19,7 @@
 // and is reported as one: "the browser has not said" is not "there is
 // nothing".
 
-import {Button, SettingsListItem} from '@oxyhq/bloom';
+import {Button, SettingsListItem} from '@oxy.so/bloom';
 import {useSyncExternalStore} from 'react';
 
 import {addWebUIListener, send, t} from '@astro/platform';

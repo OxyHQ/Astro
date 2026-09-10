@@ -19,10 +19,10 @@
 // Type-only: the shell describes what an icon must accept, it does not import
 // one. A value import here would put Bloom's whole icon barrel in the shared
 // bundle to satisfy a `keyof typeof`.
-import type {sizes} from '@oxyhq/bloom/icons';
-import {Search} from '@oxyhq/bloom/search';
-import {useThemeColor} from '@oxyhq/bloom/theme';
-import {Text} from '@oxyhq/bloom/typography';
+import type {sizes} from '@oxy.so/bloom/icons';
+import {Search} from '@oxy.so/bloom/search';
+import {useThemeColor} from '@oxy.so/bloom/theme';
+import {Text} from '@oxy.so/bloom/typography';
 import type {ComponentType, ReactNode} from 'react';
 import {Pressable, ScrollView, View} from 'react-native';
 

@@ -29,7 +29,7 @@
 // `setAsDefaultBrowser` takes for it is inside a BUILDFLAG(IS_WIN) block, so
 // sending it from a Linux build would be an argument nothing reads.
 
-import {Button, SettingsListItem} from '@oxyhq/bloom';
+import {Button, SettingsListItem} from '@oxy.so/bloom';
 import {useSyncExternalStore} from 'react';
 
 import {SectionCard, addWebUIListener, send, sendWithPromise, t} from '@astro/platform';

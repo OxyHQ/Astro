@@ -30,7 +30,7 @@
 // undo has to hold that dictionary; the row is not important enough to carry
 // the state, and re-revoking is what the site permission screens are for.
 
-import {Button, SettingsListItem} from '@oxyhq/bloom';
+import {Button, SettingsListItem} from '@oxy.so/bloom';
 import {useSyncExternalStore} from 'react';
 
 import {SectionCard, send, sendWithPromise, t} from '@astro/platform';

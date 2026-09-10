@@ -12,7 +12,7 @@
 // C++ handler to do it — so offering one here would be a row that looks live
 // and does nothing until that handler exists.
 
-import {SettingsListItem} from '@oxyhq/bloom';
+import {SettingsListItem} from '@oxy.so/bloom';
 
 import {navigateTo, setHashPath, t, type MessageId, type RouteId} from '@astro/platform';
 

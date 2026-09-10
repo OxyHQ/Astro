@@ -12,8 +12,8 @@
 // echo of an early one arriving mid-drag would fight the thumb. The label
 // tracks the live position so the drag still reads as immediate.
 
-import {SettingsListItem, Slider} from '@oxyhq/bloom';
-import {Text} from '@oxyhq/bloom/typography';
+import {SettingsListItem, Slider} from '@oxy.so/bloom';
+import {Text} from '@oxy.so/bloom/typography';
 import {useState} from 'react';
 import {View} from 'react-native';
 

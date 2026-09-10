@@ -10,7 +10,7 @@
 // upstream puts a confirmation dialog in front of every irreversible one, and a
 // red button on its own is not that dialog.
 
-import {Button, SettingsListItem} from '@oxyhq/bloom';
+import {Button, SettingsListItem} from '@oxy.so/bloom';
 
 import {t, type MessageId} from '@astro/platform';
 

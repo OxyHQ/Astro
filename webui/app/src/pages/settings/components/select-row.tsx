@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
   SettingsListItem,
-} from '@oxyhq/bloom';
+} from '@oxy.so/bloom';
 import {View} from 'react-native';
 
 import {setPref, t, type MessageId} from '@astro/platform';

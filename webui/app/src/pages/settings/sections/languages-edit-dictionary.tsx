@@ -12,8 +12,8 @@
 // the same rule every other control on this page follows, and the reason two
 // settings tabs cannot drift apart.
 
-import {Button, TextFieldInput} from '@oxyhq/bloom';
-import {Text} from '@oxyhq/bloom/typography';
+import {Button, TextFieldInput} from '@oxy.so/bloom';
+import {Text} from '@oxy.so/bloom/typography';
 import {useState} from 'react';
 import {View} from 'react-native';
 
@@ -29,7 +29,7 @@ import {
 import {ControlAnchor} from '../components/control-anchor.tsx';
 import {RowGroup} from '../components/row-group.tsx';
 import {SubpageHeader} from '../components/section-header.tsx';
-import {SettingsListItem} from '@oxyhq/bloom';
+import {SettingsListItem} from '@oxy.so/bloom';
 
 export function LanguagesEditDictionaryScreen() {
   const words = useCustomWords();

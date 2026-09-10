@@ -9,9 +9,9 @@
 // the browser resolves it against the profile's own default provider and
 // navigates the tab itself.
 
-import {ChevronBottom_Stroke2_Corner0_Rounded, MagnifyingGlass_Stroke2_Corner0_Rounded} from '@oxyhq/bloom/icons';
-import {useThemeColor} from '@oxyhq/bloom/theme';
-import {Text} from '@oxyhq/bloom/typography';
+import {ChevronBottom_Stroke2_Corner0_Rounded, MagnifyingGlass_Stroke2_Corner0_Rounded} from '@oxy.so/bloom/icons';
+import {useThemeColor} from '@oxy.so/bloom/theme';
+import {Text} from '@oxy.so/bloom/typography';
 import {useEffect, useRef, useState} from 'react';
 import {Pressable, TextInput, View, type TextInput as TextInputRef} from 'react-native';
 

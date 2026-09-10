@@ -56,7 +56,7 @@
    aliases -- imported rather than hand-copied so they stay in sync with the
    published package. Every entry reads `var(--x)`; never `hsl(var(--x))`,
    which double-wraps an already-resolved colour into an invalid value. */
-@import "@oxyhq/bloom/design-tokens/theme.css";
+@import "@oxy.so/bloom/design-tokens/theme.css";
 
 /* Values for those tokens, for the frame before BloomThemeProvider writes the
    user's real theme onto the document root. Generated from Bloom, never
@@ -82,7 +82,7 @@
    className-styled components. `@oxyhq/services` is deliberately NOT scanned:
    this app does not depend on it (no Oxy session runs inside the browser's own
    chrome), so a second scan glob would be a path nothing resolves. */
-@source "../../node_modules/@oxyhq/bloom/lib/**/*.{js,jsx}";
+@source "../../node_modules/@oxy.so/bloom/lib/**/*.{js,jsx}";
 
 /* Bloom switches schemes by writing a `dark` class onto the document root, so
    the dark variant has to follow the class rather than the media query. */

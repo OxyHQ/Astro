@@ -10,7 +10,7 @@
 // independent radios: a screen reader announces "2 of 3" only when the rows
 // share a group, and keyboard users expect one tab stop for the whole choice.
 
-import {RadioIndicator, SettingsListItem} from '@oxyhq/bloom';
+import {RadioIndicator, SettingsListItem} from '@oxy.so/bloom';
 import {View} from 'react-native';
 
 import {setPref, t, type MessageId} from '@astro/platform';

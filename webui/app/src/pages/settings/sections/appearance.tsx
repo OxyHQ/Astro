@@ -12,8 +12,8 @@
 // Nothing here applies a local change. The browser stores the choice, re-themes
 // its own toolbar and menus, and echoes back to every open Astro page.
 
-import {SegmentedControl, SegmentedControlItem, SegmentedControlItemText} from '@oxyhq/bloom';
-import {APP_COLOR_PRESETS, FREE_COLOR_NAMES, type AppColorName} from '@oxyhq/bloom/color-presets';
+import {SegmentedControl, SegmentedControlItem, SegmentedControlItemText} from '@oxy.so/bloom';
+import {APP_COLOR_PRESETS, FREE_COLOR_NAMES, type AppColorName} from '@oxy.so/bloom/color-presets';
 import {Pressable, View} from 'react-native';
 
 import {

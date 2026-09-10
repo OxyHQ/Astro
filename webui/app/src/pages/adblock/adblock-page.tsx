@@ -51,9 +51,9 @@ import {
   Switch,
   TextField,
   TextFieldInput,
-} from '@oxyhq/bloom';
-import {useThemeColor} from '@oxyhq/bloom/theme';
-import {Text} from '@oxyhq/bloom/typography';
+} from '@oxy.so/bloom';
+import {useThemeColor} from '@oxy.so/bloom/theme';
+import {Text} from '@oxy.so/bloom/typography';
 import {useState} from 'react';
 import {ScrollView, View} from 'react-native';
 

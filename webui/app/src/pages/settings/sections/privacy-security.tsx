@@ -33,8 +33,8 @@
 // controls -- so the prefs are what you asked for and the handler is what you
 // got.
 
-import {RadioIndicator, SettingsListItem} from '@oxyhq/bloom';
-import {Text} from '@oxyhq/bloom/typography';
+import {RadioIndicator, SettingsListItem} from '@oxy.so/bloom';
+import {Text} from '@oxy.so/bloom/typography';
 import {useSyncExternalStore} from 'react';
 import {View} from 'react-native';
 

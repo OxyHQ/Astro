@@ -5,7 +5,7 @@
 # src/chrome/browser/oxy/ui/astro_color_tokens.h holds every Bloom colour, for
 # every preset, in both schemes, as a constexpr SkColor. Nothing about it is a
 # decision: `tools/generate-color-mixer.py` reads
-# @oxyhq/bloom/design-tokens/tokens.json and writes the file. The moment a value
+# @oxy.so/bloom/design-tokens/tokens.json and writes the file. The moment a value
 # in it stops matching Bloom, the native UI and the WebUI surfaces paint
 # different colours from the same preset — and that shows up as a design
 # complaint months later, never as a build failure.
@@ -69,7 +69,7 @@ fi
 # The Bloom release each value came from is the only thing that makes the table
 # auditable, so it has to be IN the file, not in a commit message.
 HARNESS_ASSERTIONS=$((HARNESS_ASSERTIONS + 1))
-if ! head -20 "$HEADER" | grep -qE '@oxyhq/bloom@[0-9]+\.[0-9]+\.[0-9]+'; then
+if ! head -20 "$HEADER" | grep -qE '@oxy.so/bloom@[0-9]+\.[0-9]+\.[0-9]+'; then
     harness::fail "$(basename "$HEADER") does not record which Bloom release it came from"
 fi
 
@@ -554,7 +554,7 @@ $(cat "$RUN_STDERR")"
         harness::assert_status 3 "no Bloom package installed"
         harness::assert_output_contains "bun install" "says how to install it"
         harness::assert_output_lacks "is current" "must not read as a pass"
-        printf '      no @oxyhq/bloom in webui/app/node_modules; the drift row did not run.\n'
+        printf '      no @oxy.so/bloom in webui/app/node_modules; the drift row did not run.\n'
         ;;
     *)
         harness::fail "checking the committed header against the installed Bloom document

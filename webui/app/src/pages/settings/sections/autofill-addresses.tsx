@@ -13,8 +13,8 @@
 // this page deciding how an address reads in every country the browser
 // supports, and getting it wrong for most of them.
 
-import {Button, SettingsListItem} from '@oxyhq/bloom';
-import {Text} from '@oxyhq/bloom/typography';
+import {Button, SettingsListItem} from '@oxy.so/bloom';
+import {Text} from '@oxy.so/bloom/typography';
 
 import {SectionCard, removeAddress, t, usePersonalData, usePref} from '@astro/platform';
 

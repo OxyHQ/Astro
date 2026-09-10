@@ -11,7 +11,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from '@oxyhq/bloom/accordion';
+} from '@oxy.so/bloom/accordion';
 import {useState, type ReactNode} from 'react';
 import {View} from 'react-native';
 

@@ -29,7 +29,7 @@
 //     so the pref is read by nothing left in the binary.
 
 import {SectionCard, t} from '@astro/platform';
-import {Text} from '@oxyhq/bloom/typography';
+import {Text} from '@oxy.so/bloom/typography';
 
 import {RadioGroup} from '../components/radio-group.tsx';
 import {SubpageHeader} from '../components/section-header.tsx';

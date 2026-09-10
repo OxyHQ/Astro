@@ -182,10 +182,10 @@ if cpp_offered == set(names):
 # --- the TypeScript side ------------------------------------------------------
 
 compared += 1
-if "FREE_COLOR_NAMES" not in tsx or "@oxyhq/bloom/color-presets" not in tsx:
+if "FREE_COLOR_NAMES" not in tsx or "@oxy.so/bloom/color-presets" not in tsx:
     problems.append(
         "appearance.tsx does not import FREE_COLOR_NAMES from "
-        "@oxyhq/bloom/color-presets; its palette is no longer derived from the gates"
+        "@oxy.so/bloom/color-presets; its palette is no longer derived from the gates"
     )
 
 presets_match = re.search(r"PRESETS[^=\n]*=\s*\[([^\]]*)\]", tsx)

@@ -46,8 +46,8 @@ import {
   SelectTrigger,
   SelectValue,
   SettingsListItem,
-} from '@oxyhq/bloom';
-import {Text} from '@oxyhq/bloom/typography';
+} from '@oxy.so/bloom';
+import {Text} from '@oxy.so/bloom/typography';
 import {useState, useSyncExternalStore} from 'react';
 import {View} from 'react-native';
 

@@ -32,7 +32,7 @@
 // does not have is dropped from the request by the handler anyway -- so the
 // row for it is disabled here rather than being offered and quietly ignored.
 
-import {Button, Checkbox, RadioIndicator, SettingsListItem} from '@oxyhq/bloom';
+import {Button, Checkbox, RadioIndicator, SettingsListItem} from '@oxy.so/bloom';
 import {useState, useSyncExternalStore} from 'react';
 
 import {
