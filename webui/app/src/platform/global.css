@@ -79,7 +79,7 @@
 
 @source "../**/*.{ts,tsx}";
 /* Tailwind skips node_modules by default, and this app renders Bloom's
-   className-styled components. `@oxyhq/services` is deliberately NOT scanned:
+   className-styled components. `@oxy.so/services` is deliberately NOT scanned:
    this app does not depend on it (no Oxy session runs inside the browser's own
    chrome), so a second scan glob would be a path nothing resolves. */
 @source "../../node_modules/@oxy.so/bloom/lib/**/*.{js,jsx}";
