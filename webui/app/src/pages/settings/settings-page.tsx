@@ -25,23 +25,23 @@
 
 import {SettingsListGroup, SettingsListItem} from '@oxy.so/bloom';
 import {
-  Accessibility_Stroke2_Corner2_Rounded,
-  ArrowRotateCounterClockwise_Stroke2_Corner0_Rounded,
-  CircleBanSign_Stroke2_Corner0_Rounded,
-  CircleInfo_Stroke2_Corner0_Rounded,
-  ColorPalette_Stroke2_Corner0_Rounded,
-  Download_Stroke2_Corner0_Rounded,
-  Globe_Stroke2_Corner0_Rounded,
-  Key_Stroke2_Corner2_Rounded,
-  Macintosh_Stroke2_Corner2_Rounded,
-  MagnifyingGlass_Stroke2_Corner0_Rounded,
-  Play_Stroke2_Corner0_Rounded,
-  SettingsSliderVertical_Stroke2_Corner0_Rounded,
-  Shield_Stroke2_Corner0_Rounded,
-  Sparkle_Stroke2_Corner0_Rounded,
-  UserCircle_Stroke2_Corner0_Rounded,
-  Window_Stroke2_Corner2_Rounded,
-  Zap_Stroke2_Corner0_Rounded,
+  RiAccessibilityLine,
+  RiResetLeftLine,
+  RiForbidLine,
+  RiInformationLine,
+  RiPaletteLine,
+  RiDownload2Line,
+  RiGlobalLine,
+  RiKey2Line,
+  RiMacLine,
+  RiSearchLine,
+  RiPlayLine,
+  RiEqualizerLine,
+  RiShieldLine,
+  RiSparklingLine,
+  RiAccountCircleLine,
+  RiWindowLine,
+  RiFlashlightLine,
 } from '@oxy.so/bloom/icons';
 import {Text} from '@oxy.so/bloom/typography';
 import {Suspense, lazy, useState, type ComponentType} from 'react';
@@ -153,7 +153,7 @@ const SITE_SETTINGS_TYPES: readonly ScreenDef[] = CONTENT_TYPES.map(type => ({
 const SECTIONS = {
   appearance: {
     title: 'settings.appearance.title',
-    icon: ColorPalette_Stroke2_Corner0_Rounded,
+    icon: RiPaletteLine,
     path: '/appearance',
     // BASIC is upstream's root route (`/`), which is where its settings page
     // opens. This is where Astro's opens, so this is the screen that stands in
@@ -176,7 +176,7 @@ const SECTIONS = {
   },
   search: {
     title: 'settings.searchEngine.title',
-    icon: MagnifyingGlass_Stroke2_Corner0_Rounded,
+    icon: RiSearchLine,
     path: '/search',
     upstream: ['SEARCH'],
     controls: searchControls,
@@ -194,7 +194,7 @@ const SECTIONS = {
   },
   privacy: {
     title: 'settings.privacy.title',
-    icon: Shield_Stroke2_Corner0_Rounded,
+    icon: RiShieldLine,
     path: '/privacy',
     upstream: ['PRIVACY'],
     controls: privacyControls,
@@ -250,7 +250,7 @@ const SECTIONS = {
   },
   siteSettings: {
     title: 'settings.siteSettings.title',
-    icon: SettingsSliderVertical_Stroke2_Corner0_Rounded,
+    icon: RiEqualizerLine,
     path: '/content',
     upstream: ['SITE_SETTINGS'],
     controls: siteSettingsControls,
@@ -306,7 +306,7 @@ const SECTIONS = {
   },
   autofill: {
     title: 'settings.autofill.title',
-    icon: Key_Stroke2_Corner2_Rounded,
+    icon: RiKey2Line,
     path: '/autofill',
     // Two upstream names, one screen: `YOUR_SAVED_INFO` is the newer spelling
     // of the same `/autofill` section, chosen by a feature flag, and upstream
@@ -387,7 +387,7 @@ const SECTIONS = {
   },
   onStartup: {
     title: 'settings.onStartup.title',
-    icon: Play_Stroke2_Corner0_Rounded,
+    icon: RiPlayLine,
     path: '/onStartup',
     upstream: ['ON_STARTUP'],
     controls: onStartupControls,
@@ -397,7 +397,7 @@ const SECTIONS = {
   },
   downloads: {
     title: 'settings.downloads.title',
-    icon: Download_Stroke2_Corner0_Rounded,
+    icon: RiDownload2Line,
     path: '/downloads',
     upstream: ['DOWNLOADS'],
     controls: downloadsControls,
@@ -407,7 +407,7 @@ const SECTIONS = {
   },
   defaultBrowser: {
     title: 'settings.defaultBrowser.title',
-    icon: Window_Stroke2_Corner2_Rounded,
+    icon: RiWindowLine,
     path: '/defaultBrowser',
     upstream: ['DEFAULT_BROWSER'],
     controls: defaultBrowserControls,
@@ -417,7 +417,7 @@ const SECTIONS = {
   },
   youAndAstro: {
     title: 'settings.youAndAstro.title',
-    icon: UserCircle_Stroke2_Corner0_Rounded,
+    icon: RiAccountCircleLine,
     path: '/identity',
     // Upstream's identity fragments land here, and none of them is CLAIMED:
     // `PEOPLE`, `ACCOUNT`, `SIGN_OUT` and `MANAGE_PROFILE` are Google-account
@@ -446,7 +446,7 @@ const SECTIONS = {
   },
   adblock: {
     title: 'settings.adblock.title',
-    icon: CircleBanSign_Stroke2_Corner0_Rounded,
+    icon: RiForbidLine,
     path: '/adblock',
     upstream: [],
     controls: adblockControls,
@@ -454,7 +454,7 @@ const SECTIONS = {
   },
   alia: {
     title: 'settings.alia.title',
-    icon: Sparkle_Stroke2_Corner0_Rounded,
+    icon: RiSparklingLine,
     path: '/alia',
     upstream: [],
     controls: aliaControls,
@@ -462,7 +462,7 @@ const SECTIONS = {
   },
   performance: {
     title: 'settings.performance.title',
-    icon: Zap_Stroke2_Corner0_Rounded,
+    icon: RiFlashlightLine,
     path: '/performance',
     // `ADVANCED` is upstream's container for everything below the fold, and
     // `/advanced` is the fragment it opens at. This is the first entry of
@@ -488,7 +488,7 @@ const SECTIONS = {
   },
   languages: {
     title: 'settings.languages.title',
-    icon: Globe_Stroke2_Corner0_Rounded,
+    icon: RiGlobalLine,
     path: '/languages',
     upstream: ['LANGUAGES'],
     controls: languagesControls,
@@ -520,7 +520,7 @@ const SECTIONS = {
   },
   accessibility: {
     title: 'settings.accessibility.title',
-    icon: Accessibility_Stroke2_Corner2_Rounded,
+    icon: RiAccessibilityLine,
     path: '/accessibility',
     upstream: ['ACCESSIBILITY'],
     controls: accessibilityControls,
@@ -542,7 +542,7 @@ const SECTIONS = {
   },
   system: {
     title: 'settings.system.title',
-    icon: Macintosh_Stroke2_Corner2_Rounded,
+    icon: RiMacLine,
     path: '/system',
     upstream: ['SYSTEM'],
     controls: systemControls,
@@ -550,7 +550,7 @@ const SECTIONS = {
   },
   reset: {
     title: 'settings.reset.title',
-    icon: ArrowRotateCounterClockwise_Stroke2_Corner0_Rounded,
+    icon: RiResetLeftLine,
     path: '/reset',
     upstream: ['RESET'],
     controls: resetControls,
@@ -576,7 +576,7 @@ const SECTIONS = {
   },
   about: {
     title: 'settings.about.title',
-    icon: CircleInfo_Stroke2_Corner0_Rounded,
+    icon: RiInformationLine,
     path: '/help',
     aliases: ['/about'],
     upstream: ['ABOUT'],

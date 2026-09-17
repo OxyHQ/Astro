@@ -74,6 +74,9 @@ export function SliderRow({
         ) : undefined}
         <Slider
           accessibilityLabel={t(label)}
+          // The header row already shows the formatted value; the default
+          // bubble would repeat it unformatted.
+          showTooltip={false}
           value={shown}
           min={min}
           max={max}

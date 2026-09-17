@@ -51,12 +51,12 @@
 // every animation had finished anyway.
 
 import {
-  Bot_Stroke,
-  ColorPalette_Stroke2_Corner0_Rounded,
-  Lock_Stroke2_Corner0_Rounded,
-  MagnifyingGlass_Stroke2_Corner0_Rounded,
-  Shield_Stroke2_Corner0_Rounded,
-  ShieldCheck_Stroke2_Corner0_Rounded,
+  RiRobot2Line,
+  RiPaletteLine,
+  RiLockLine,
+  RiSearchLine,
+  RiShieldLine,
+  RiShieldCheckLine,
 } from '@oxy.so/bloom/icons';
 import {useThemeColor} from '@oxy.so/bloom/theme';
 import {Text} from '@oxy.so/bloom/typography';
@@ -92,32 +92,32 @@ interface Feature {
  */
 const FEATURES: readonly Feature[] = [
   {
-    icon: ShieldCheck_Stroke2_Corner0_Rounded,
+    icon: RiShieldCheckLine,
     title: 'whatsNew.feature.adblock',
     body: 'whatsNew.feature.adblock.body',
   },
   {
-    icon: Bot_Stroke,
+    icon: RiRobot2Line,
     title: 'whatsNew.feature.alia',
     body: 'whatsNew.feature.alia.body',
   },
   {
-    icon: Lock_Stroke2_Corner0_Rounded,
+    icon: RiLockLine,
     title: 'whatsNew.feature.account',
     body: 'whatsNew.feature.account.body',
   },
   {
-    icon: ColorPalette_Stroke2_Corner0_Rounded,
+    icon: RiPaletteLine,
     title: 'whatsNew.feature.theme',
     body: 'whatsNew.feature.theme.body',
   },
   {
-    icon: MagnifyingGlass_Stroke2_Corner0_Rounded,
+    icon: RiSearchLine,
     title: 'whatsNew.feature.search',
     body: 'whatsNew.feature.search.body',
   },
   {
-    icon: Shield_Stroke2_Corner0_Rounded,
+    icon: RiShieldLine,
     title: 'whatsNew.feature.degoogled',
     body: 'whatsNew.feature.degoogled.body',
   },
