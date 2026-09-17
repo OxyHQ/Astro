@@ -9,7 +9,7 @@
 // the browser resolves it against the profile's own default provider and
 // navigates the tab itself.
 
-import {ChevronBottom_Stroke2_Corner0_Rounded, MagnifyingGlass_Stroke2_Corner0_Rounded} from '@oxy.so/bloom/icons';
+import {RiArrowDownSLine, RiSearchLine} from '@oxy.so/bloom/icons';
 import {useThemeColor} from '@oxy.so/bloom/theme';
 import {Text} from '@oxy.so/bloom/typography';
 import {useEffect, useRef, useState} from 'react';
@@ -102,7 +102,7 @@ export function SearchBox() {
   return (
     <View id={SEARCH_BOX_ID} className="w-full gap-2">
       <View className="w-full flex-row items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2">
-        <MagnifyingGlass_Stroke2_Corner0_Rounded size="md" fill={iconColor} />
+        <RiSearchLine size="md" fill={iconColor} />
         <TextInput
           ref={input}
           value={query}
@@ -135,7 +135,7 @@ export function SearchBox() {
               {current?.name ?? t('newtab.search.engine')}
             </Text>
             {pinned ? undefined : (
-              <ChevronBottom_Stroke2_Corner0_Rounded size="sm" fill={iconColor} />
+              <RiArrowDownSLine size="sm" fill={iconColor} />
             )}
           </Pressable>
         ) : undefined}

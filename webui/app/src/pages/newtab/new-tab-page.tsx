@@ -20,11 +20,11 @@
 // upstream change quietly breaks. Flex wrapping needs no such argument.
 
 import {
-  ColorPalette_Stroke2_Corner0_Rounded,
-  SettingsGear2_Stroke2_Corner0_Rounded,
-  SettingsSliderVertical_Stroke2_Corner0_Rounded,
-  Shield_Stroke2_Corner0_Rounded,
-  Sparkle_Stroke2_Corner0_Rounded,
+  RiPaletteLine,
+  RiSettings3Line,
+  RiEqualizerLine,
+  RiShieldLine,
+  RiSparklingLine,
 } from '@oxy.so/bloom/icons';
 import {useThemeColor} from '@oxy.so/bloom/theme';
 import {Text} from '@oxy.so/bloom/typography';
@@ -94,7 +94,7 @@ function BlockedBadge() {
   const iconColor = useThemeColor('primary');
   return (
     <View className="flex-row items-center gap-2 rounded-radius-max border border-border bg-card px-3 py-1.5">
-      <Shield_Stroke2_Corner0_Rounded size="sm" fill={iconColor} />
+      <RiShieldLine size="sm" fill={iconColor} />
       <Text className="text-bodySmall text-primary">
         {t('newtab.blocked', {count: blockedCount.toLocaleString()})}
       </Text>
@@ -145,22 +145,22 @@ export function NewTabPage() {
           shortcut — except Customize, which the links card also opens. */}
       <View className="w-56 shrink-0 justify-end gap-1 border-r border-border bg-card p-3 max-rail:hidden">
         <RailRow
-          icon={SettingsSliderVertical_Stroke2_Corner0_Rounded}
+          icon={RiEqualizerLine}
           label="newtab.nav.customize"
           onPress={() => setCustomizing(true)}
         />
         <RailRow
-          icon={ColorPalette_Stroke2_Corner0_Rounded}
+          icon={RiPaletteLine}
           label="newtab.nav.appearance"
           onPress={openCustomizeChrome}
         />
         <RailRow
-          icon={Sparkle_Stroke2_Corner0_Rounded}
+          icon={RiSparklingLine}
           label="newtab.nav.whatsNew"
           href={hrefFor('whatsNew')}
         />
         <RailRow
-          icon={SettingsGear2_Stroke2_Corner0_Rounded}
+          icon={RiSettings3Line}
           label="newtab.nav.settings"
           href={hrefFor('settings')}
         />
@@ -178,7 +178,7 @@ export function NewTabPage() {
               onPress={() => setCustomizing(true)}
               className="rounded-radius-max p-2 hover:bg-fill-hover"
             >
-              <SettingsSliderVertical_Stroke2_Corner0_Rounded
+              <RiEqualizerLine
                 size="md"
                 fill={railIconColor}
               />

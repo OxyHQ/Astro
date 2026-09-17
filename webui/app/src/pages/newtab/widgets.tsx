@@ -12,7 +12,7 @@
 // of the app, which is driven by astro_theme.mojom, so a preset change repaints
 // this page at the same instant it repaints the toolbar.
 
-import {Bot_Stroke} from '@oxy.so/bloom/icons';
+import {RiRobot2Line} from '@oxy.so/bloom/icons';
 import {useThemeColor} from '@oxy.so/bloom/theme';
 import {Text} from '@oxy.so/bloom/typography';
 import {useRef, useState, useSyncExternalStore, type ReactNode} from 'react';
@@ -326,7 +326,7 @@ export function AliaWidget() {
               the component `{$$css: true, className}` rather than resolved
               styles, so the `style.color` an icon reads as its fallback fill
               is never there. */}
-          <Bot_Stroke size="lg" fill={iconColor} />
+          <RiRobot2Line size="lg" fill={iconColor} />
           <Text className="text-caption text-text-tertiary">
             {t('newtab.alia.kicker')}
           </Text>

@@ -21,8 +21,8 @@
 // was ever reachable from a keyboard — the drag had no keyboard path at all.
 
 import {
-  PlusLarge_Stroke2_Corner0_Rounded,
-  Trash_Stroke2_Corner0_Rounded,
+  RiAddLine,
+  RiDeleteBin6Line,
 } from '@oxy.so/bloom/icons';
 import {useThemeColor} from '@oxy.so/bloom/theme';
 import {Switch} from '@oxy.so/bloom/switch';
@@ -128,7 +128,7 @@ function LinkRow({index, link}: {index: number; link: QuickLink}) {
           onPress={() => removeQuickLink(index)}
           className="rounded-radius-max p-2 hover:bg-fill-hover"
         >
-          <Trash_Stroke2_Corner0_Rounded size="sm" fill={iconColor} />
+          <RiDeleteBin6Line size="sm" fill={iconColor} />
         </Pressable>
       </View>
       {rejected ? (
@@ -177,7 +177,7 @@ function AddLinkRow() {
           }}
           className="rounded-radius-max p-2 hover:bg-fill-hover"
         >
-          <PlusLarge_Stroke2_Corner0_Rounded size="sm" fill={iconColor} />
+          <RiAddLine size="sm" fill={iconColor} />
         </Pressable>
       </View>
       {rejected ? (

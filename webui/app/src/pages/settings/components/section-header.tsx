@@ -7,7 +7,7 @@
 // back the only exit is the browser's Back button — a dead end for anyone who
 // arrived by deep link. `SubpageHeader` is that way back.
 
-import {ChevronLeft_Stroke2_Corner0_Rounded} from '@oxy.so/bloom/icons';
+import {RiArrowLeftSLine} from '@oxy.so/bloom/icons';
 import {useThemeColor} from '@oxy.so/bloom/theme';
 import {Text} from '@oxy.so/bloom/typography';
 import {Pressable, View} from 'react-native';
@@ -53,7 +53,7 @@ export function SubpageHeader({title, description, backTo, backLabel}: SubpageHe
         onPress={() => setHashPath(backTo)}
         className="-ml-2 flex-row items-center gap-1 self-start rounded-radius-max px-2 py-1 hover:bg-fill-hover"
       >
-        <ChevronLeft_Stroke2_Corner0_Rounded size="sm" fill={iconColor} />
+        <RiArrowLeftSLine size="sm" fill={iconColor} />
         <Text className="text-bodySmall text-text-secondary">{t(backLabel)}</Text>
       </Pressable>
       <Text className="text-sectionTitle text-foreground">{t(title)}</Text>
