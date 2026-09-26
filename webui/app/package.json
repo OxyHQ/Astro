@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@oxy.so/bloom": "^2.0.0",
+    "@oxy.so/bloom": "^4.28.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-native-web": "~0.21.2"
