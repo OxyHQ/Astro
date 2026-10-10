@@ -24,7 +24,7 @@
 // are absent for a second reason -- they need a form this page does not have,
 // and a facade method with no caller is a claim that something works.
 
-import {MissingBrowserApiError} from './env.ts';
+import { MissingBrowserApiError } from './env.ts';
 
 /** How the browser is holding a record, and what to call it in a list. */
 export interface AutofillMetadata {
@@ -89,18 +89,10 @@ interface ChromeAutofillPrivate {
   removePaymentsEntity(guid: string): void;
   onPersonalDataChanged: {
     addListener(
-      callback: (
-        addresses: SavedAddress[],
-        cards: SavedCard[],
-        ibans: SavedIban[],
-      ) => void,
+      callback: (addresses: SavedAddress[], cards: SavedCard[], ibans: SavedIban[]) => void,
     ): void;
     removeListener(
-      callback: (
-        addresses: SavedAddress[],
-        cards: SavedCard[],
-        ibans: SavedIban[],
-      ) => void,
+      callback: (addresses: SavedAddress[], cards: SavedCard[], ibans: SavedIban[]) => void,
     ): void;
   };
 }
@@ -111,24 +103,21 @@ function wrap(api: ChromeAutofillPrivate): AutofillPrivateApi {
     // separate awaits in the screen would render a half-loaded page twice.
     getPersonalData: async () => {
       const [addresses, cards, ibans] = await Promise.all([
-        new Promise<SavedAddress[]>(resolve => api.getAddressList(resolve)),
-        new Promise<SavedCard[]>(resolve => api.getCreditCardList(resolve)),
-        new Promise<SavedIban[]>(resolve => api.getIbanList(resolve)),
+        new Promise<SavedAddress[]>((resolve) => api.getAddressList(resolve)),
+        new Promise<SavedCard[]>((resolve) => api.getCreditCardList(resolve)),
+        new Promise<SavedIban[]>((resolve) => api.getIbanList(resolve)),
       ]);
-      return {addresses, cards, ibans};
+      return { addresses, cards, ibans };
     },
-    removeAddress: guid => api.removeAddress(guid),
-    removePaymentsEntity: guid => api.removePaymentsEntity(guid),
-    onPersonalDataChanged: listener => {
+    removeAddress: (guid) => api.removeAddress(guid),
+    removePaymentsEntity: (guid) => api.removePaymentsEntity(guid),
+    onPersonalDataChanged: (listener) => {
       // The event carries five arguments; the two this app does not render --
       // pay-over-time issuers and the signed-in account -- are dropped here
       // rather than in the screens, so nothing downstream can start depending
       // on data no control shows.
-      const forward = (
-        addresses: SavedAddress[],
-        cards: SavedCard[],
-        ibans: SavedIban[],
-      ): void => listener({addresses, cards, ibans});
+      const forward = (addresses: SavedAddress[], cards: SavedCard[], ibans: SavedIban[]): void =>
+        listener({ addresses, cards, ibans });
       api.onPersonalDataChanged.addListener(forward);
       return () => api.onPersonalDataChanged.removeListener(forward);
     },
@@ -140,13 +129,13 @@ let resolved: Promise<AutofillPrivateApi> | undefined;
 /** The saved-info API for this page, resolved once. */
 export function autofillPrivate(): Promise<AutofillPrivateApi> {
   resolved ??= (async () => {
-    const real = (globalThis as {chrome?: {autofillPrivate?: ChromeAutofillPrivate}})
-      .chrome?.autofillPrivate;
+    const real = (globalThis as { chrome?: { autofillPrivate?: ChromeAutofillPrivate } }).chrome
+      ?.autofillPrivate;
     if (real) {
       return wrap(real);
     }
     if (import.meta.env.DEV) {
-      const {createAutofillPrivateMock} = await import('./mock/autofill-private.ts');
+      const { createAutofillPrivateMock } = await import('./mock/autofill-private.ts');
       return createAutofillPrivateMock();
     }
     throw new MissingBrowserApiError(

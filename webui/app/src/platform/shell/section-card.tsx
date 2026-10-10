@@ -11,9 +11,9 @@
 // exactly 16px. Bloom's radius scale steps 12 -> 20 straight past it, so a
 // token here would be visibly the odd card out.
 
-import {Text} from '@oxy.so/bloom/typography';
-import type {ReactNode} from 'react';
-import {View} from 'react-native';
+import { Text } from '@oxy.so/bloom/typography';
+import type { ReactNode } from 'react';
+import { View } from 'react-native';
 
 export interface SectionCardProps {
   /** Optional heading, in the same weight `SettingsListGroup` gives its own. */
@@ -22,7 +22,7 @@ export interface SectionCardProps {
   children?: ReactNode;
 }
 
-export function SectionCard({title, description, children}: SectionCardProps) {
+export function SectionCard({ title, description, children }: SectionCardProps) {
   return (
     <View className="gap-3 rounded-2xl bg-card p-4">
       {title ? <Text className="text-bodyTitleSmall text-foreground">{title}</Text> : undefined}

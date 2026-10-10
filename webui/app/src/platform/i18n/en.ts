@@ -13,40 +13,40 @@
 // every one of them edits. A section owns `sections/<name>.strings.ts`, and
 // this file names it once and is never touched again for it.
 
-import {aboutStrings} from '../../pages/settings/sections/about.strings.ts';
-import {accessibilityStrings} from '../../pages/settings/sections/accessibility.strings.ts';
+import { aboutStrings } from '../../pages/settings/sections/about.strings.ts';
+import { accessibilityStrings } from '../../pages/settings/sections/accessibility.strings.ts';
 // The ad blocker PAGE, which is an entry of its own; the settings section
 // about ad blocking is `sections/adblock.strings.ts` below, and the two are
 // deliberately separate catalogues because they are separate surfaces.
-import {adblockPageStrings} from '../../pages/adblock/adblock.strings.ts';
-import {adblockStrings} from '../../pages/settings/sections/adblock.strings.ts';
+import { adblockPageStrings } from '../../pages/adblock/adblock.strings.ts';
+import { adblockStrings } from '../../pages/settings/sections/adblock.strings.ts';
 // The Alia PANEL, which is a page of its own; the settings section about it is
 // `alia.strings.ts` below, and the two are deliberately separate catalogues
 // because they are separate surfaces.
-import {aliaPageStrings} from '../../pages/alia/alia.strings.ts';
-import {aliaStrings} from '../../pages/settings/sections/alia.strings.ts';
-import {appearanceStrings} from '../../pages/settings/sections/appearance.strings.ts';
-import {autofillStrings} from '../../pages/settings/sections/autofill.strings.ts';
-import {defaultBrowserStrings} from '../../pages/settings/sections/default-browser.strings.ts';
-import {downloadsStrings} from '../../pages/settings/sections/downloads.strings.ts';
-import {languagesStrings} from '../../pages/settings/sections/languages.strings.ts';
+import { aliaPageStrings } from '../../pages/alia/alia.strings.ts';
+import { aliaStrings } from '../../pages/settings/sections/alia.strings.ts';
+import { appearanceStrings } from '../../pages/settings/sections/appearance.strings.ts';
+import { autofillStrings } from '../../pages/settings/sections/autofill.strings.ts';
+import { defaultBrowserStrings } from '../../pages/settings/sections/default-browser.strings.ts';
+import { downloadsStrings } from '../../pages/settings/sections/downloads.strings.ts';
+import { languagesStrings } from '../../pages/settings/sections/languages.strings.ts';
 // The new tab page is not a settings section; it is an entry of its own, so
 // its catalogue lives beside its components rather than under sections/.
 // Upstream's management host, taken over. Its own catalogue because it is an
 // entry of its own, not a settings section.
-import {managementStrings} from '../../pages/management/management.strings.ts';
-import {newTabStrings} from '../../pages/newtab/newtab.strings.ts';
-import {onStartupStrings} from '../../pages/settings/sections/on-startup.strings.ts';
-import {performanceStrings} from '../../pages/settings/sections/performance.strings.ts';
-import {privacyStrings} from '../../pages/settings/sections/privacy.strings.ts';
-import {resetStrings} from '../../pages/settings/sections/reset.strings.ts';
-import {searchStrings} from '../../pages/settings/sections/search.strings.ts';
-import {siteSettingsStrings} from '../../pages/settings/sections/site-settings.strings.ts';
-import {systemStrings} from '../../pages/settings/sections/system.strings.ts';
+import { managementStrings } from '../../pages/management/management.strings.ts';
+import { newTabStrings } from '../../pages/newtab/newtab.strings.ts';
+import { onStartupStrings } from '../../pages/settings/sections/on-startup.strings.ts';
+import { performanceStrings } from '../../pages/settings/sections/performance.strings.ts';
+import { privacyStrings } from '../../pages/settings/sections/privacy.strings.ts';
+import { resetStrings } from '../../pages/settings/sections/reset.strings.ts';
+import { searchStrings } from '../../pages/settings/sections/search.strings.ts';
+import { siteSettingsStrings } from '../../pages/settings/sections/site-settings.strings.ts';
+import { systemStrings } from '../../pages/settings/sections/system.strings.ts';
 // Same reason as the new tab page's: an entry of its own, so its catalogue
 // lives beside its components rather than under sections/.
-import {whatsNewStrings} from '../../pages/whatsnew/whatsnew.strings.ts';
-import {youAndAstroStrings} from '../../pages/settings/sections/you-and-astro.strings.ts';
+import { whatsNewStrings } from '../../pages/whatsnew/whatsnew.strings.ts';
+import { youAndAstroStrings } from '../../pages/settings/sections/you-and-astro.strings.ts';
 
 /**
  * What every page shares: the shell, the search field, and the sentences a

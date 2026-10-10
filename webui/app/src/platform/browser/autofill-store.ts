@@ -13,9 +13,9 @@
 // cannot tell them apart shows an empty state to someone whose data is still
 // loading.
 
-import {useSyncExternalStore} from 'react';
+import { useSyncExternalStore } from 'react';
 
-import {autofillPrivate, type PersonalData} from './autofill-private.ts';
+import { autofillPrivate, type PersonalData } from './autofill-private.ts';
 
 let snapshot: PersonalData | undefined;
 const listeners = new Set<() => void>();
@@ -33,7 +33,7 @@ function start(): void {
     return;
   }
   started = true;
-  void autofillPrivate().then(api => {
+  void autofillPrivate().then((api) => {
     // The observer is registered BEFORE the first read, so a change that lands
     // while the three list calls are in flight is not lost.
     api.onPersonalDataChanged(publish);
@@ -66,10 +66,10 @@ export function usePersonalData(): PersonalData | undefined {
  * A local guess would show the row gone even where the delete was refused.
  */
 export function removeAddress(guid: string): void {
-  void autofillPrivate().then(api => api.removeAddress(guid));
+  void autofillPrivate().then((api) => api.removeAddress(guid));
 }
 
 /** Forget a saved card or IBAN. Same round trip as {@link removeAddress}. */
 export function removePaymentsEntity(guid: string): void {
-  void autofillPrivate().then(api => api.removePaymentsEntity(guid));
+  void autofillPrivate().then((api) => api.removePaymentsEntity(guid));
 }

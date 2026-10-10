@@ -7,7 +7,7 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
-import type {SettingsControl} from '../controls.ts';
+import type { SettingsControl } from '../controls.ts';
 
 export const appearanceStrings = {
   'settings.nav.appearance': 'Appearance',
@@ -108,11 +108,11 @@ export const appearanceControls: readonly SettingsControl[] = [
   'settings.appearance.fontSize',
   'settings.appearance.fonts.link',
 
-  {id: 'settings.appearance.fonts.size', on: '/fonts'},
-  {id: 'settings.appearance.fonts.minimumSize', on: '/fonts'},
-  {id: 'settings.appearance.fonts.standard', on: '/fonts'},
-  {id: 'settings.appearance.fonts.serif', on: '/fonts'},
-  {id: 'settings.appearance.fonts.sansSerif', on: '/fonts'},
-  {id: 'settings.appearance.fonts.fixed', on: '/fonts'},
-  {id: 'settings.appearance.fonts.math', on: '/fonts'},
+  { id: 'settings.appearance.fonts.size', on: '/fonts' },
+  { id: 'settings.appearance.fonts.minimumSize', on: '/fonts' },
+  { id: 'settings.appearance.fonts.standard', on: '/fonts' },
+  { id: 'settings.appearance.fonts.serif', on: '/fonts' },
+  { id: 'settings.appearance.fonts.sansSerif', on: '/fonts' },
+  { id: 'settings.appearance.fonts.fixed', on: '/fonts' },
+  { id: 'settings.appearance.fonts.math', on: '/fonts' },
 ];

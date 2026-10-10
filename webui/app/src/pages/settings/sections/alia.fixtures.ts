@@ -18,6 +18,6 @@
 // lands on the app's unknown-host screen -- that is the dev server being one
 // origin, not the link being wrong.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 export const aliaFixtures: SectionFixtures = {};

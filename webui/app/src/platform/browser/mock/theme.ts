@@ -14,8 +14,8 @@ import {
   COLOR_SCHEME_SYSTEM,
   THEME_PRESET_PREF,
 } from '../pref-ids.ts';
-import type {RawTheme, ThemeMode, ThemeSource} from '../theme-store.ts';
-import {onPrefsChanged, readPref, writePref} from './state.ts';
+import type { RawTheme, ThemeMode, ThemeSource } from '../theme-store.ts';
+import { onPrefsChanged, readPref, writePref } from './state.ts';
 
 function toMode(value: unknown): ThemeMode {
   switch (value) {
@@ -49,16 +49,16 @@ function currentTheme(): RawTheme {
 export function createThemeMock(): ThemeSource {
   return {
     getTheme: () => Promise.resolve(currentTheme()),
-    setMode: mode => {
+    setMode: (mode) => {
       writePref(COLOR_SCHEME_PREF, toColorScheme(mode));
       return Promise.resolve();
     },
-    setPreset: preset => {
+    setPreset: (preset) => {
       writePref(THEME_PRESET_PREF, preset);
       return Promise.resolve();
     },
     // Every pref write notifies; the store drops an echo that did not change
     // the theme, exactly as it will for the real observer.
-    onThemeChanged: listener => onPrefsChanged(() => listener(currentTheme())),
+    onThemeChanged: (listener) => onPrefsChanged(() => listener(currentTheme())),
   };
 }

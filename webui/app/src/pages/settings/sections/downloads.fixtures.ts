@@ -11,7 +11,7 @@
 // browser. Handler messages must be ones the C++ handler registered by
 // `settings_ui.cc` actually answers, for the same reason.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 /** The dev browser's stand-in for `cr.webUIListenerCallback`. */
 interface CrListenerGlobal {
@@ -22,7 +22,7 @@ interface CrListenerGlobal {
 let autoOpenInUse = true;
 
 function pushAutoOpen(): void {
-  (globalThis as {cr?: CrListenerGlobal}).cr?.webUIListenerCallback?.(
+  (globalThis as { cr?: CrListenerGlobal }).cr?.webUIListenerCallback?.(
     'auto-open-downloads-changed',
     autoOpenInUse,
   );
@@ -30,9 +30,9 @@ function pushAutoOpen(): void {
 
 export const downloadsFixtures: SectionFixtures = {
   prefs: [
-    {key: 'download.default_directory', type: 'STRING', value: '/home/you/Downloads'},
-    {key: 'download.prompt_for_download', type: 'BOOLEAN', value: false},
-    {key: 'download_bubble.partial_view_enabled', type: 'BOOLEAN', value: true},
+    { key: 'download.default_directory', type: 'STRING', value: '/home/you/Downloads' },
+    { key: 'download.prompt_for_download', type: 'BOOLEAN', value: false },
+    { key: 'download_bubble.partial_view_enabled', type: 'BOOLEAN', value: true },
   ],
 
   actions: {

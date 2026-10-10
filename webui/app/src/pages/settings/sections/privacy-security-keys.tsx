@@ -20,7 +20,7 @@
 // a correct implementation from a broken one, so a screen built now would ship
 // unmeasured. The honest state is the one that says the screen is not built.
 
-import {PendingScreen} from '../components/pending-screen.tsx';
+import { PendingScreen } from '../components/pending-screen.tsx';
 
 export function PrivacySecurityKeysScreen() {
   return (

@@ -16,19 +16,18 @@ export const youAndAstroStrings = {
 
   'settings.youAndAstro.account': 'Your Oxy account',
   'settings.youAndAstro.account.body':
-    'Astro signs in with an Oxy account rather than a Google one, and nothing here can sign you in yet: this page has no way to reach an Oxy account, because the browser does not carry one. Wiring it up means a service in Astro\'s own overlay and a typed interface from it to this page, and neither exists. Until then this screen deliberately shows no sign-in control -- a button that opened nothing would be worse than the sentence you are reading.',
+    "Astro signs in with an Oxy account rather than a Google one, and nothing here can sign you in yet: this page has no way to reach an Oxy account, because the browser does not carry one. Wiring it up means a service in Astro's own overlay and a typed interface from it to this page, and neither exists. Until then this screen deliberately shows no sign-in control -- a button that opened nothing would be worse than the sentence you are reading.",
   'settings.youAndAstro.account.sync':
     'Syncing bookmarks, history and settings between your devices is tracked separately as issue #23 and is not part of this screen.',
   'settings.youAndAstro.account.replaces':
-    'Chromium\'s own sign-in, account and profile-management screens all lead here. Astro removes them rather than reimplementing them: this build reports that signing in is not available, so nothing in the browser offers a Google account.',
+    "Chromium's own sign-in, account and profile-management screens all lead here. Astro removes them rather than reimplementing them: this build reports that signing in is not available, so nothing in the browser offers a Google account.",
 
   'settings.youAndAstro.profile': 'This profile, on this device',
   'settings.youAndAstro.profile.name': 'Profile name',
   'settings.youAndAstro.profile.name.field': 'Profile name',
   'settings.youAndAstro.profile.name.save': 'Rename',
   'settings.youAndAstro.profile.pending': 'Asking the browser which profile this is.',
-  'settings.youAndAstro.profile.failed':
-    'The browser did not answer with the profile: {reason}',
+  'settings.youAndAstro.profile.failed': 'The browser did not answer with the profile: {reason}',
   'settings.youAndAstro.profile.footer':
     'A profile is local to this device. It is the set of bookmarks, history, extensions and settings this window is using, and it is not an account.',
 

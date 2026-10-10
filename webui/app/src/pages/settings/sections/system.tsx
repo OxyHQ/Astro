@@ -31,12 +31,12 @@
 // launches the desktop environment's own network settings; there has never been
 // an in-browser proxy editor on this platform.
 
-import {send, usePref} from '@astro/platform';
+import { send, usePref } from '@astro/platform';
 
-import {ActionRow} from '../components/action-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
-import {ToggleRow} from '../components/toggle-row.tsx';
+import { ActionRow } from '../components/action-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
+import { ToggleRow } from '../components/toggle-row.tsx';
 
 export function SystemSection() {
   // The `proxy` pref is not rendered as a control -- it is a dictionary the
@@ -73,7 +73,9 @@ export function SystemSection() {
       <RowGroup title="settings.system.group.network" footer="settings.system.proxy.footer">
         <ActionRow
           label="settings.system.proxy"
-          sublabel={proxyManaged ? 'settings.system.proxy.managed' : 'settings.system.proxy.sublabel'}
+          sublabel={
+            proxyManaged ? 'settings.system.proxy.managed' : 'settings.system.proxy.sublabel'
+          }
           actionLabel="settings.system.proxy.action"
           disabled={proxyManaged}
           onPress={() => send('showProxySettings')}

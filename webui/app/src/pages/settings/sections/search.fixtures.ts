@@ -10,7 +10,7 @@
 // (chrome/browser/ui/webui/settings/search_engines_handler.cc), so a control
 // built against either keeps working when the mock is replaced by the browser.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 /** Which of `getSearchEnginesList`'s four lists an engine is currently in. */
 type ListName = 'defaults' | 'actives' | 'others';
@@ -122,9 +122,9 @@ let model: readonly FixtureEngine[] = [
 
 function snapshot(): Record<string, readonly FixtureEngine[]> {
   return {
-    defaults: model.filter(engine => engine.list === 'defaults'),
-    actives: model.filter(engine => engine.list === 'actives'),
-    others: model.filter(engine => engine.list === 'others'),
+    defaults: model.filter((engine) => engine.list === 'defaults'),
+    actives: model.filter((engine) => engine.list === 'actives'),
+    others: model.filter((engine) => engine.list === 'others'),
     extensions: [],
   };
 }
@@ -140,7 +140,7 @@ function snapshot(): Record<string, readonly FixtureEngine[]> {
 function notifyChanged(): void {
   queueMicrotask(() => {
     const cr = (
-      globalThis as {cr?: {webUIListenerCallback?: (event: string, ...args: unknown[]) => void}}
+      globalThis as { cr?: { webUIListenerCallback?: (event: string, ...args: unknown[]) => void } }
     ).cr;
     cr?.webUIListenerCallback?.('search-engines-changed', snapshot());
   });
@@ -148,14 +148,14 @@ function notifyChanged(): void {
 
 export const searchFixtures: SectionFixtures = {
   prefs: [
-    {key: 'omnibox.keyword_space_triggering_enabled', type: 'BOOLEAN', value: true},
+    { key: 'omnibox.keyword_space_triggering_enabled', type: 'BOOLEAN', value: true },
     // A dictionary the page never writes and only reads enforcement from. The
     // value is the shape `DefaultSearchManager` stores; nothing on the page
     // reads inside it, which is why it is not filled in further.
     {
       key: 'default_search_provider_data.template_url_data',
       type: 'DICTIONARY',
-      value: {short_name: 'Oxy Search', keyword: 'oxy.so'},
+      value: { short_name: 'Oxy Search', keyword: 'oxy.so' },
     },
   ],
 
@@ -165,7 +165,7 @@ export const searchFixtures: SectionFixtures = {
 
   actions: {
     setDefaultSearchEngine: (modelIndex: unknown) => {
-      model = model.map(engine => {
+      model = model.map((engine) => {
         const chosen = engine.modelIndex === modelIndex;
         return {
           ...engine,
@@ -178,7 +178,7 @@ export const searchFixtures: SectionFixtures = {
       notifyChanged();
     },
     setIsActiveSearchEngine: (modelIndex: unknown, isActive: unknown) => {
-      model = model.map(engine =>
+      model = model.map((engine) =>
         engine.modelIndex === modelIndex
           ? {
               ...engine,

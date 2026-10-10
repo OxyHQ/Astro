@@ -30,11 +30,11 @@
 // registered and would work -- upstream uses it only to reveal the image-labels
 // row, which is not drawn, so nothing here calls it.
 
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
-import {SelectRow, type SelectOption} from '../components/select-row.tsx';
-import {ToggleRow} from '../components/toggle-row.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
+import { SelectRow, type SelectOption } from '../components/select-row.tsx';
+import { ToggleRow } from '../components/toggle-row.tsx';
 
 /**
  * `ToastAlertLevel`, whose values run the other way round from the switch
@@ -43,8 +43,8 @@ import {ToggleRow} from '../components/toggle-row.tsx';
  * is what keeps that from reading backwards.
  */
 const TOAST_LEVELS: readonly SelectOption[] = [
-  {value: 0, label: 'settings.accessibility.toastLevel.all'},
-  {value: 1, label: 'settings.accessibility.toastLevel.actionable'},
+  { value: 0, label: 'settings.accessibility.toastLevel.all' },
+  { value: 1, label: 'settings.accessibility.toastLevel.actionable' },
 ];
 
 export function AccessibilitySection() {

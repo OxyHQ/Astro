@@ -50,8 +50,7 @@ export const adblockPageStrings = {
     '||example.com/ads/*\nexample.com##.ad-banner\n@@||example.com/important.js',
   'adblock.rules.save': 'Save rules',
   'adblock.rules.saved': 'Saved.',
-  'adblock.rules.refused':
-    'Too long to store, so nothing was saved. Keep it under 64 KB.',
+  'adblock.rules.refused': 'Too long to store, so nothing was saved. Keep it under 64 KB.',
   // The honest part, and it is on the page rather than only in a comment: the
   // preference is real and the text survives, but no code path loads it into
   // the engine, so saving rules does not block anything today.

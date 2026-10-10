@@ -7,7 +7,7 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
-import type {SettingsControl} from '../controls.ts';
+import type { SettingsControl } from '../controls.ts';
 
 export const privacyStrings = {
   'settings.nav.privacy': 'Privacy and security',
@@ -33,7 +33,8 @@ export const privacyStrings = {
   'settings.privacy.clearData.sublabel': 'History, cookies, cache, downloads and site data',
   'settings.privacy.siteSettings': 'Site settings',
   'settings.privacy.siteSettings.sublabel': 'What a site may use, and what it may show you',
-  'settings.privacy.safetyHub.sublabel': 'Your version, and permissions withdrawn from unused sites',
+  'settings.privacy.safetyHub.sublabel':
+    'Your version, and permissions withdrawn from unused sites',
   'settings.privacy.securityKeys.sublabel': 'PINs and credentials stored on a physical key',
 
   // Security subpage.
@@ -45,8 +46,7 @@ export const privacyStrings = {
   'settings.privacy.security.httpsMode.balanced.description':
     'Astro upgrades what it can and warns only where dropping to HTTP is unexpected.',
   'settings.privacy.security.httpsMode.off': 'Do not warn',
-  'settings.privacy.security.httpsMode.off.description':
-    'Sites load over HTTP without a warning.',
+  'settings.privacy.security.httpsMode.off.description': 'Sites load over HTTP without a warning.',
 
   'settings.privacy.security.dns': 'Secure DNS',
   'settings.privacy.security.dns.mode': 'Use secure DNS',
@@ -76,7 +76,7 @@ export const privacyStrings = {
   'settings.privacy.cookies.policy.incognito.description':
     'Third-party cookies work as usual in a normal window and are blocked in an Incognito one.',
   'settings.privacy.cookies.footer':
-    'This decides who may set a cookie, not what is filtered out of a page. Astro\'s ad blocker is a separate section with its own controls.',
+    "This decides who may set a cookie, not what is filtered out of a page. Astro's ad blocker is a separate section with its own controls.",
   'settings.privacy.cookies.onDeviceNote':
     'Whether a site may store cookies at all is a site permission, and lives under Site settings.',
 
@@ -120,7 +120,7 @@ export const privacyStrings = {
   'settings.privacy.safetyHub.failed': 'The browser did not answer: {reason}',
   'settings.privacy.safetyHub.missing': 'What this check does not cover',
   'settings.privacy.safetyHub.missing.body':
-    'Chromium\'s own safety check also reports a Safe Browsing card, a saved-password card and an extension-review card. Safe Browsing is compiled out of Astro entirely. The other two need the password manager and the extensions surface, neither of which this page reaches yet.',
+    "Chromium's own safety check also reports a Safe Browsing card, a saved-password card and an extension-review card. Safe Browsing is compiled out of Astro entirely. The other two need the password manager and the extensions surface, neither of which this page reaches yet.",
 } as const;
 
 /**
@@ -152,16 +152,16 @@ export const privacyControls: readonly SettingsControl[] = [
   'settings.privacy.safetyHub.title',
   'settings.privacy.securityKeys.title',
 
-  {id: 'settings.privacy.security.httpsMode', on: '/security'},
-  {id: 'settings.privacy.security.dns.mode', on: '/security'},
-  {id: 'settings.privacy.security.dns.resolver', on: '/security'},
+  { id: 'settings.privacy.security.httpsMode', on: '/security' },
+  { id: 'settings.privacy.security.dns.mode', on: '/security' },
+  { id: 'settings.privacy.security.dns.resolver', on: '/security' },
 
-  {id: 'settings.privacy.clearData.timeRange', on: '/clearBrowserData'},
-  {id: 'settings.privacy.clearData.history', on: '/clearBrowserData'},
-  {id: 'settings.privacy.clearData.downloads', on: '/clearBrowserData'},
-  {id: 'settings.privacy.clearData.cookies', on: '/clearBrowserData'},
-  {id: 'settings.privacy.clearData.cache', on: '/clearBrowserData'},
-  {id: 'settings.privacy.clearData.formData', on: '/clearBrowserData'},
-  {id: 'settings.privacy.clearData.hostedApps', on: '/clearBrowserData'},
-  {id: 'settings.privacy.clearData.action', on: '/clearBrowserData'},
+  { id: 'settings.privacy.clearData.timeRange', on: '/clearBrowserData' },
+  { id: 'settings.privacy.clearData.history', on: '/clearBrowserData' },
+  { id: 'settings.privacy.clearData.downloads', on: '/clearBrowserData' },
+  { id: 'settings.privacy.clearData.cookies', on: '/clearBrowserData' },
+  { id: 'settings.privacy.clearData.cache', on: '/clearBrowserData' },
+  { id: 'settings.privacy.clearData.formData', on: '/clearBrowserData' },
+  { id: 'settings.privacy.clearData.hostedApps', on: '/clearBrowserData' },
+  { id: 'settings.privacy.clearData.action', on: '/clearBrowserData' },
 ];

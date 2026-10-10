@@ -7,7 +7,7 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
-import type {SettingsControl} from '../controls.ts';
+import type { SettingsControl } from '../controls.ts';
 
 export const performanceStrings = {
   'settings.nav.performance': 'Performance',
@@ -97,5 +97,5 @@ export const performanceControls: readonly SettingsControl[] = [
   'settings.performance.intervention',
   'settings.performance.preloading.link',
 
-  {id: 'settings.performance.preloading.choice', on: '/preloading'},
+  { id: 'settings.performance.preloading.choice', on: '/preloading' },
 ];

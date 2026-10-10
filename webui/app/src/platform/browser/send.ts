@@ -37,12 +37,12 @@ let resolvedBridge: Promise<ChromeSend> | undefined;
  */
 function bridge(): Promise<ChromeSend> {
   resolvedBridge ??= (async () => {
-    const api = (globalThis as {chrome?: ChromeSend}).chrome;
+    const api = (globalThis as { chrome?: ChromeSend }).chrome;
     if (api?.send) {
       return api;
     }
     if (import.meta.env.DEV) {
-      const {createSendMock} = await import('./mock/handlers.ts');
+      const { createSendMock } = await import('./mock/handlers.ts');
       return createSendMock();
     }
     // Not a soft failure. Without chrome.send every handler-backed screen
@@ -74,7 +74,7 @@ function install(): void {
   // The browser calls these by NAME on the global object. They are not
   // imports, and nothing here can be renamed by a bundler -- hence the
   // explicit assignment rather than exported functions.
-  const cr = ((globalThis as {cr?: Record<string, unknown>}).cr ??= {});
+  const cr = ((globalThis as { cr?: Record<string, unknown> }).cr ??= {});
 
   cr['webUIResponse'] = (id: string, ok: boolean, data: unknown) => {
     const waiting = pending.get(id);
@@ -105,16 +105,16 @@ export function sendWithPromise<T>(message: string, ...args: unknown[]): Promise
   // Registered BEFORE the call goes out: the browser can answer as soon as it
   // has been asked, and a pending entry created afterwards would miss the reply.
   const reply = new Promise<T>((resolve, reject) => {
-    pending.set(id, {resolve: resolve as (value: unknown) => void, reject});
+    pending.set(id, { resolve: resolve as (value: unknown) => void, reject });
   });
-  void bridge().then(api => api.send(message, [id, ...args]));
+  void bridge().then((api) => api.send(message, [id, ...args]));
   return reply;
 }
 
 /** Call a handler that does not reply. */
 export function send(message: string, ...args: unknown[]): void {
   install();
-  void bridge().then(api => api.send(message, args));
+  void bridge().then((api) => api.send(message, args));
 }
 
 /** Subscribe to a handler's push updates. Returns the unsubscribe. */

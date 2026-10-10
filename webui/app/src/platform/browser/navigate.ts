@@ -12,12 +12,12 @@
 
 /** Every surface this app serves. Adding an entry means adding a page. */
 export const ROUTES = {
-  settings: {host: 'settings', title: 'Settings'},
-  newTab: {host: 'astro-ntp', title: 'New tab'},
-  alia: {host: 'alia', title: 'Alia'},
-  adBlock: {host: 'adblock', title: 'Ad blocker'},
-  management: {host: 'management', title: 'Management'},
-  whatsNew: {host: 'whats-new', title: "What's new"},
+  settings: { host: 'settings', title: 'Settings' },
+  newTab: { host: 'astro-ntp', title: 'New tab' },
+  alia: { host: 'alia', title: 'Alia' },
+  adBlock: { host: 'adblock', title: 'Ad blocker' },
+  management: { host: 'management', title: 'Management' },
+  whatsNew: { host: 'whats-new', title: "What's new" },
 } as const;
 
 export type RouteId = keyof typeof ROUTES;
@@ -29,7 +29,7 @@ export type RouteId = keyof typeof ROUTES;
  * first path segment instead -- the same key `main.tsx` resolves a page from.
  */
 export function hrefFor(route: RouteId): string {
-  const {host} = ROUTES[route];
+  const { host } = ROUTES[route];
   return import.meta.env.DEV ? `/${host}` : `//${host}/`;
 }
 

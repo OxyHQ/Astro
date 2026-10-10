@@ -29,14 +29,14 @@
 // `setAsDefaultBrowser` takes for it is inside a BUILDFLAG(IS_WIN) block, so
 // sending it from a Linux build would be an argument nothing reads.
 
-import {Button, SettingsListItem} from '@oxy.so/bloom';
-import {useSyncExternalStore} from 'react';
+import { Button, SettingsListItem } from '@oxy.so/bloom';
+import { useSyncExternalStore } from 'react';
 
-import {SectionCard, addWebUIListener, send, sendWithPromise, t} from '@astro/platform';
+import { SectionCard, addWebUIListener, send, sendWithPromise, t } from '@astro/platform';
 
-import {ControlAnchor} from '../components/control-anchor.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
+import { ControlAnchor } from '../components/control-anchor.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
 
 interface DefaultBrowserState {
   readonly isDefault: boolean;
@@ -51,7 +51,7 @@ interface Snapshot {
   readonly reason: string | undefined;
 }
 
-let snapshot: Snapshot = {status: 'pending', state: undefined, reason: undefined};
+let snapshot: Snapshot = { status: 'pending', state: undefined, reason: undefined };
 const listeners = new Set<() => void>();
 let started = false;
 
@@ -84,16 +84,16 @@ function subscribe(listener: () => void): () => void {
     addWebUIListener('browser-default-state-changed', (...args: unknown[]) => {
       const state = toState(args[0]);
       if (state) {
-        publish({status: 'ready', state, reason: undefined});
+        publish({ status: 'ready', state, reason: undefined });
       }
     });
     void sendWithPromise<unknown>('requestDefaultBrowserState').then(
-      raw => {
+      (raw) => {
         const state = toState(raw);
         publish(
           state
-            ? {status: 'ready', state, reason: undefined}
-            : {status: 'failed', state: undefined, reason: 'unrecognised reply'},
+            ? { status: 'ready', state, reason: undefined }
+            : { status: 'failed', state: undefined, reason: 'unrecognised reply' },
         );
       },
       (reason: unknown) => {
@@ -120,7 +120,7 @@ function statusText(snapshotValue: Snapshot): string {
     return t('settings.defaultBrowser.status.pending');
   }
   if (snapshotValue.status === 'failed' || !snapshotValue.state) {
-    return t('settings.defaultBrowser.status.failed', {reason: snapshotValue.reason ?? ''});
+    return t('settings.defaultBrowser.status.failed', { reason: snapshotValue.reason ?? '' });
   }
   if (snapshotValue.state.isDefault) {
     return t('settings.defaultBrowser.status.is');
@@ -134,7 +134,8 @@ function statusText(snapshotValue: Snapshot): string {
 export function DefaultBrowserSection() {
   const current = useSyncExternalStore(subscribe, getSnapshot);
   const state = current.state;
-  const canAsk = state !== undefined && !state.isDefault && state.canBeDefault && !state.isDisabledByPolicy;
+  const canAsk =
+    state !== undefined && !state.isDefault && state.canBeDefault && !state.isDisabledByPolicy;
 
   return (
     <>

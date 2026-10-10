@@ -13,8 +13,7 @@ export const onStartupStrings = {
 
   'settings.onStartup.mode': 'When Astro opens',
   'settings.onStartup.mode.newTab': 'Open the New Tab page',
-  'settings.onStartup.mode.newTab.description':
-    'Every window starts on Astro\'s own new tab page.',
+  'settings.onStartup.mode.newTab.description': "Every window starts on Astro's own new tab page.",
   'settings.onStartup.mode.last': 'Continue where you left off',
   'settings.onStartup.mode.last.description':
     'Reopens the tabs that were on screen when you last closed Astro.',

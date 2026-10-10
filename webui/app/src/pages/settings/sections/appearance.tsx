@@ -12,9 +12,13 @@
 // Nothing here applies a local change. The browser stores the choice, re-themes
 // its own toolbar and menus, and echoes back to every open Astro page.
 
-import {SegmentedControl, SegmentedControlItem, SegmentedControlItemText} from '@oxy.so/bloom';
-import {APP_COLOR_PRESETS, FREE_COLOR_NAMES, type AppColorName} from '@oxy.so/bloom/color-presets';
-import {Pressable, View} from 'react-native';
+import { SegmentedControl, SegmentedControlItem, SegmentedControlItemText } from '@oxy.so/bloom';
+import {
+  APP_COLOR_PRESETS,
+  FREE_COLOR_NAMES,
+  type AppColorName,
+} from '@oxy.so/bloom/color-presets';
+import { Pressable, View } from 'react-native';
 
 import {
   SectionCard,
@@ -28,23 +32,23 @@ import {
   type ThemeMode,
 } from '@astro/platform';
 
-import {ActionRow} from '../components/action-row.tsx';
-import {ControlAnchor} from '../components/control-anchor.tsx';
-import {InfoRow} from '../components/info-row.tsx';
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
-import {SelectRow, type SelectOption} from '../components/select-row.tsx';
-import {ToggleRow} from '../components/toggle-row.tsx';
+import { ActionRow } from '../components/action-row.tsx';
+import { ControlAnchor } from '../components/control-anchor.tsx';
+import { InfoRow } from '../components/info-row.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
+import { SelectRow, type SelectOption } from '../components/select-row.tsx';
+import { ToggleRow } from '../components/toggle-row.tsx';
 
-const MODES: readonly {readonly id: ThemeMode; readonly label: MessageId}[] = [
-  {id: 'system', label: 'settings.appearance.mode.system'},
-  {id: 'light', label: 'settings.appearance.mode.light'},
-  {id: 'dark', label: 'settings.appearance.mode.dark'},
+const MODES: readonly { readonly id: ThemeMode; readonly label: MessageId }[] = [
+  { id: 'system', label: 'settings.appearance.mode.system' },
+  { id: 'light', label: 'settings.appearance.mode.light' },
+  { id: 'dark', label: 'settings.appearance.mode.dark' },
 ];
 
 /** The three mode names, which the section declares as searchable in their own right. */
-const MODE_LABELS: readonly MessageId[] = MODES.map(entry => entry.label);
+const MODE_LABELS: readonly MessageId[] = MODES.map((entry) => entry.label);
 
 /**
  * The colours offered.
@@ -64,11 +68,11 @@ const PRESETS: readonly AppColorName[] = ['oxy', ...FREE_COLOR_NAMES];
  * different set would show the row as having no selection.
  */
 const FONT_SIZES: readonly SelectOption[] = [
-  {value: 9, label: 'settings.appearance.fontSize.verySmall'},
-  {value: 12, label: 'settings.appearance.fontSize.small'},
-  {value: 16, label: 'settings.appearance.fontSize.medium'},
-  {value: 20, label: 'settings.appearance.fontSize.large'},
-  {value: 24, label: 'settings.appearance.fontSize.veryLarge'},
+  { value: 9, label: 'settings.appearance.fontSize.verySmall' },
+  { value: 12, label: 'settings.appearance.fontSize.small' },
+  { value: 16, label: 'settings.appearance.fontSize.medium' },
+  { value: 20, label: 'settings.appearance.fontSize.large' },
+  { value: 24, label: 'settings.appearance.fontSize.veryLarge' },
 ];
 
 /**
@@ -80,11 +84,11 @@ const FONT_SIZES: readonly SelectOption[] = [
  * The unselected state keeps the same transparent ring so the geometry is
  * identical in both states.
  */
-function Swatch({name, selected}: {name: AppColorName; selected: boolean}) {
+function Swatch({ name, selected }: { name: AppColorName; selected: boolean }) {
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityState={{selected}}
+      accessibilityState={{ selected }}
       accessibilityLabel={name}
       onPress={() => setPreset(name)}
       className={
@@ -98,14 +102,14 @@ function Swatch({name, selected}: {name: AppColorName; selected: boolean}) {
           the palette in two places. */}
       <View
         className="size-8 rounded-radius-max"
-        style={{backgroundColor: APP_COLOR_PRESETS[name].hex}}
+        style={{ backgroundColor: APP_COLOR_PRESETS[name].hex }}
       />
     </Pressable>
   );
 }
 
 export function AppearanceSection() {
-  const {mode, preset} = useThemeState();
+  const { mode, preset } = useThemeState();
   // `homepage` is a URL-typed pref and there is no text-input row in the
   // control vocabulary, so it is reported rather than offered. Reading it is
   // still worth doing: with the New Tab page toggle off, this is the address
@@ -128,7 +132,7 @@ export function AppearanceSection() {
             value={mode}
             onChange={setMode}
           >
-            {MODES.map(entry => (
+            {MODES.map((entry) => (
               <SegmentedControlItem key={entry.id} value={entry.id}>
                 <SegmentedControlItemText>{t(entry.label)}</SegmentedControlItemText>
               </SegmentedControlItem>
@@ -143,7 +147,7 @@ export function AppearanceSection() {
           description={t('settings.appearance.preset.description')}
         >
           <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2">
-            {PRESETS.map(name => (
+            {PRESETS.map((name) => (
               <Swatch key={name} name={name} selected={name === preset} />
             ))}
           </View>

@@ -13,8 +13,8 @@
 // and had no way to hear any of it -- so a number it showed was only ever true
 // for the instant it arrived.
 
-import {MissingBrowserApiError} from '@astro/platform';
-import {useSyncExternalStore} from 'react';
+import { MissingBrowserApiError } from '@astro/platform';
+import { useSyncExternalStore } from 'react';
 
 /** One list in the browser's compiled-in catalogue. */
 export interface FilterList {
@@ -78,7 +78,7 @@ let started = false;
 let resolved: Promise<AdBlockSource> | undefined;
 
 function publish(patch: Partial<AdBlockState>): void {
-  snapshot = {...snapshot, ...patch};
+  snapshot = { ...snapshot, ...patch };
   for (const listener of listeners) {
     listener();
   }
@@ -91,11 +91,11 @@ function adBlockSource(): Promise<AdBlockSource> {
     // or the build mode: those say where the page came from, this says whether
     // there is a pipe to bind.
     if ('Mojo' in globalThis) {
-      const {createAdBlockSource} = await import('./adblock-mojo.ts');
+      const { createAdBlockSource } = await import('./adblock-mojo.ts');
       return createAdBlockSource();
     }
     if (import.meta.env.DEV) {
-      const {createAdBlockMock} = await import('./mock.ts');
+      const { createAdBlockMock } = await import('./mock.ts');
       return createAdBlockMock();
     }
     throw new MissingBrowserApiError(
@@ -112,10 +112,10 @@ function start(): void {
     return;
   }
   started = true;
-  void adBlockSource().then(source => {
+  void adBlockSource().then((source) => {
     source.onChanged(publish);
-    void source.getState().then(state => {
-      publish({...state, ready: true});
+    void source.getState().then((state) => {
+      publish({ ...state, ready: true });
     });
   });
 }
@@ -142,13 +142,13 @@ export function useAdBlock(): AdBlockState {
 // stored -- including when it stored nothing.
 
 export function setEnabled(enabled: boolean): void {
-  void adBlockSource().then(source => source.setEnabled(enabled));
+  void adBlockSource().then((source) => source.setEnabled(enabled));
 }
 
 export function removeSiteException(host: string): Promise<boolean> {
-  return adBlockSource().then(source => source.removeSiteException(host));
+  return adBlockSource().then((source) => source.removeSiteException(host));
 }
 
 export function setCustomRules(rules: string): Promise<boolean> {
-  return adBlockSource().then(source => source.setCustomRules(rules));
+  return adBlockSource().then((source) => source.setCustomRules(rules));
 }

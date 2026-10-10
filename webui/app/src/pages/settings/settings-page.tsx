@@ -23,7 +23,7 @@
 // its searchable control list and its dev fixtures all live in files the
 // section owns; this table names them once.
 
-import {SettingsListGroup, SettingsListItem} from '@oxy.so/bloom';
+import { SettingsListGroup, SettingsListItem } from '@oxy.so/bloom';
 import {
   RiAccessibilityLine,
   RiResetLeftLine,
@@ -43,8 +43,8 @@ import {
   RiWindowLine,
   RiFlashlightLine,
 } from '@oxy.so/bloom/icons';
-import {Text} from '@oxy.so/bloom/typography';
-import {Suspense, lazy, useState, type ComponentType} from 'react';
+import { Text } from '@oxy.so/bloom/typography';
+import { Suspense, lazy, useState, type ComponentType } from 'react';
 
 import {
   PageShell,
@@ -57,30 +57,30 @@ import {
   type NavIcon,
 } from '@astro/platform';
 
-import {revealControl} from './components/control-anchor.tsx';
-import {controlId, controlPath, type SettingsControl} from './controls.ts';
-import {CONTENT_TYPES} from './sections/site-settings.content-types.ts';
+import { revealControl } from './components/control-anchor.tsx';
+import { controlId, controlPath, type SettingsControl } from './controls.ts';
+import { CONTENT_TYPES } from './sections/site-settings.content-types.ts';
 
 // The searchable control list each section declares. Read here rather than
 // written here: a section fills its own list in as it grows controls, and this
 // file is not touched.
-import {aboutControls} from './sections/about.strings.ts';
-import {accessibilityControls} from './sections/accessibility.strings.ts';
-import {adblockControls} from './sections/adblock.strings.ts';
-import {aliaControls} from './sections/alia.strings.ts';
-import {appearanceControls} from './sections/appearance.strings.ts';
-import {autofillControls} from './sections/autofill.strings.ts';
-import {defaultBrowserControls} from './sections/default-browser.strings.ts';
-import {downloadsControls} from './sections/downloads.strings.ts';
-import {languagesControls} from './sections/languages.strings.ts';
-import {onStartupControls} from './sections/on-startup.strings.ts';
-import {performanceControls} from './sections/performance.strings.ts';
-import {privacyControls} from './sections/privacy.strings.ts';
-import {resetControls} from './sections/reset.strings.ts';
-import {searchControls} from './sections/search.strings.ts';
-import {siteSettingsControls} from './sections/site-settings.strings.ts';
-import {systemControls} from './sections/system.strings.ts';
-import {youAndAstroControls} from './sections/you-and-astro.strings.ts';
+import { aboutControls } from './sections/about.strings.ts';
+import { accessibilityControls } from './sections/accessibility.strings.ts';
+import { adblockControls } from './sections/adblock.strings.ts';
+import { aliaControls } from './sections/alia.strings.ts';
+import { appearanceControls } from './sections/appearance.strings.ts';
+import { autofillControls } from './sections/autofill.strings.ts';
+import { defaultBrowserControls } from './sections/default-browser.strings.ts';
+import { downloadsControls } from './sections/downloads.strings.ts';
+import { languagesControls } from './sections/languages.strings.ts';
+import { onStartupControls } from './sections/on-startup.strings.ts';
+import { performanceControls } from './sections/performance.strings.ts';
+import { privacyControls } from './sections/privacy.strings.ts';
+import { resetControls } from './sections/reset.strings.ts';
+import { searchControls } from './sections/search.strings.ts';
+import { siteSettingsControls } from './sections/site-settings.strings.ts';
+import { systemControls } from './sections/system.strings.ts';
+import { youAndAstroControls } from './sections/you-and-astro.strings.ts';
 
 /**
  * A screen: one thing the content column can be showing.
@@ -139,12 +139,12 @@ interface SectionDef extends ScreenDef {
  * fragment and the title, and forty-eight hand-written entries is forty-eight
  * chances to point one at the wrong component.
  */
-const SITE_SETTINGS_TYPES: readonly ScreenDef[] = CONTENT_TYPES.map(type => ({
+const SITE_SETTINGS_TYPES: readonly ScreenDef[] = CONTENT_TYPES.map((type) => ({
   title: type.title,
   path: `/content/${type.segment}`,
   upstream: [type.route],
   render: lazy(() =>
-    import('./sections/site-settings-detail.tsx').then(m => ({
+    import('./sections/site-settings-detail.tsx').then((m) => ({
       default: m.SiteSettingsDetailScreen,
     })),
   ),
@@ -161,7 +161,7 @@ const SECTIONS = {
     upstream: ['APPEARANCE', 'BASIC'],
     controls: appearanceControls,
     render: lazy(() =>
-      import('./sections/appearance.tsx').then(m => ({default: m.AppearanceSection})),
+      import('./sections/appearance.tsx').then((m) => ({ default: m.AppearanceSection })),
     ),
     subpages: [
       {
@@ -169,7 +169,9 @@ const SECTIONS = {
         path: '/fonts',
         upstream: ['FONTS'],
         render: lazy(() =>
-          import('./sections/appearance-fonts.tsx').then(m => ({default: m.AppearanceFontsScreen})),
+          import('./sections/appearance-fonts.tsx').then((m) => ({
+            default: m.AppearanceFontsScreen,
+          })),
         ),
       },
     ],
@@ -180,14 +182,14 @@ const SECTIONS = {
     path: '/search',
     upstream: ['SEARCH'],
     controls: searchControls,
-    render: lazy(() => import('./sections/search.tsx').then(m => ({default: m.SearchSection}))),
+    render: lazy(() => import('./sections/search.tsx').then((m) => ({ default: m.SearchSection }))),
     subpages: [
       {
         title: 'settings.searchEngine.engines.title',
         path: '/searchEngines',
         upstream: ['SEARCH_ENGINES'],
         render: lazy(() =>
-          import('./sections/search-engines.tsx').then(m => ({default: m.SearchEnginesScreen})),
+          import('./sections/search-engines.tsx').then((m) => ({ default: m.SearchEnginesScreen })),
         ),
       },
     ],
@@ -198,14 +200,18 @@ const SECTIONS = {
     path: '/privacy',
     upstream: ['PRIVACY'],
     controls: privacyControls,
-    render: lazy(() => import('./sections/privacy.tsx').then(m => ({default: m.PrivacySection}))),
+    render: lazy(() =>
+      import('./sections/privacy.tsx').then((m) => ({ default: m.PrivacySection })),
+    ),
     subpages: [
       {
         title: 'settings.privacy.security.title',
         path: '/security',
         upstream: ['SECURITY'],
         render: lazy(() =>
-          import('./sections/privacy-security.tsx').then(m => ({default: m.PrivacySecurityScreen})),
+          import('./sections/privacy-security.tsx').then((m) => ({
+            default: m.PrivacySecurityScreen,
+          })),
         ),
       },
       {
@@ -213,7 +219,9 @@ const SECTIONS = {
         path: '/cookies',
         upstream: ['COOKIES'],
         render: lazy(() =>
-          import('./sections/privacy-cookies.tsx').then(m => ({default: m.PrivacyCookiesScreen})),
+          import('./sections/privacy-cookies.tsx').then((m) => ({
+            default: m.PrivacyCookiesScreen,
+          })),
         ),
       },
       {
@@ -221,7 +229,7 @@ const SECTIONS = {
         path: '/clearBrowserData',
         upstream: ['CLEAR_BROWSER_DATA'],
         render: lazy(() =>
-          import('./sections/privacy-clear-data.tsx').then(m => ({
+          import('./sections/privacy-clear-data.tsx').then((m) => ({
             default: m.PrivacyClearDataScreen,
           })),
         ),
@@ -231,7 +239,7 @@ const SECTIONS = {
         path: '/safetyCheck',
         upstream: ['SAFETY_HUB'],
         render: lazy(() =>
-          import('./sections/privacy-safety-hub.tsx').then(m => ({
+          import('./sections/privacy-safety-hub.tsx').then((m) => ({
             default: m.PrivacySafetyHubScreen,
           })),
         ),
@@ -241,7 +249,7 @@ const SECTIONS = {
         path: '/securityKeys',
         upstream: ['SECURITY_KEYS'],
         render: lazy(() =>
-          import('./sections/privacy-security-keys.tsx').then(m => ({
+          import('./sections/privacy-security-keys.tsx').then((m) => ({
             default: m.PrivacySecurityKeysScreen,
           })),
         ),
@@ -255,7 +263,7 @@ const SECTIONS = {
     upstream: ['SITE_SETTINGS'],
     controls: siteSettingsControls,
     render: lazy(() =>
-      import('./sections/site-settings.tsx').then(m => ({default: m.SiteSettingsSection})),
+      import('./sections/site-settings.tsx').then((m) => ({ default: m.SiteSettingsSection })),
     ),
     subpages: [
       {
@@ -263,7 +271,7 @@ const SECTIONS = {
         path: '/content/all',
         upstream: ['SITE_SETTINGS_ALL'],
         render: lazy(() =>
-          import('./sections/site-settings-all.tsx').then(m => ({
+          import('./sections/site-settings-all.tsx').then((m) => ({
             default: m.SiteSettingsAllScreen,
           })),
         ),
@@ -273,7 +281,7 @@ const SECTIONS = {
         path: '/content/siteDetails',
         upstream: ['SITE_SETTINGS_SITE_DETAILS'],
         render: lazy(() =>
-          import('./sections/site-settings-site-details.tsx').then(m => ({
+          import('./sections/site-settings-site-details.tsx').then((m) => ({
             default: m.SiteSettingsSiteDetailsScreen,
           })),
         ),
@@ -283,7 +291,7 @@ const SECTIONS = {
         path: '/handlers',
         upstream: ['SITE_SETTINGS_HANDLERS'],
         render: lazy(() =>
-          import('./sections/site-settings-handlers.tsx').then(m => ({
+          import('./sections/site-settings-handlers.tsx').then((m) => ({
             default: m.SiteSettingsHandlersScreen,
           })),
         ),
@@ -296,7 +304,7 @@ const SECTIONS = {
         path: '/content/filesystem/siteDetails',
         upstream: ['SITE_SETTINGS_FILE_SYSTEM_WRITE_DETAILS'],
         render: lazy(() =>
-          import('./sections/site-settings-filesystem-details.tsx').then(m => ({
+          import('./sections/site-settings-filesystem-details.tsx').then((m) => ({
             default: m.SiteSettingsFilesystemDetailsScreen,
           })),
         ),
@@ -313,14 +321,16 @@ const SECTIONS = {
     // never constructs both.
     upstream: ['AUTOFILL', 'YOUR_SAVED_INFO'],
     controls: autofillControls,
-    render: lazy(() => import('./sections/autofill.tsx').then(m => ({default: m.AutofillSection}))),
+    render: lazy(() =>
+      import('./sections/autofill.tsx').then((m) => ({ default: m.AutofillSection })),
+    ),
     subpages: [
       {
         title: 'settings.autofill.payments.title',
         path: '/payments',
         upstream: ['PAYMENTS'],
         render: lazy(() =>
-          import('./sections/autofill-payments.tsx').then(m => ({
+          import('./sections/autofill-payments.tsx').then((m) => ({
             default: m.AutofillPaymentsScreen,
           })),
         ),
@@ -330,7 +340,7 @@ const SECTIONS = {
         path: '/addresses',
         upstream: ['ADDRESSES'],
         render: lazy(() =>
-          import('./sections/autofill-addresses.tsx').then(m => ({
+          import('./sections/autofill-addresses.tsx').then((m) => ({
             default: m.AutofillAddressesScreen,
           })),
         ),
@@ -340,7 +350,7 @@ const SECTIONS = {
         path: '/passkeys',
         upstream: ['PASSKEYS'],
         render: lazy(() =>
-          import('./sections/autofill-passkeys.tsx').then(m => ({
+          import('./sections/autofill-passkeys.tsx').then((m) => ({
             default: m.AutofillPasskeysScreen,
           })),
         ),
@@ -350,7 +360,7 @@ const SECTIONS = {
         path: '/enhancedAutofill',
         upstream: ['AUTOFILL_AI'],
         render: lazy(() =>
-          import('./sections/autofill-enhanced.tsx').then(m => ({
+          import('./sections/autofill-enhanced.tsx').then((m) => ({
             default: m.AutofillEnhancedScreen,
           })),
         ),
@@ -360,7 +370,7 @@ const SECTIONS = {
         path: '/contactInfo',
         upstream: ['YOUR_SAVED_INFO_CONTACT_INFO'],
         render: lazy(() =>
-          import('./sections/autofill-contact-info.tsx').then(m => ({
+          import('./sections/autofill-contact-info.tsx').then((m) => ({
             default: m.AutofillContactInfoScreen,
           })),
         ),
@@ -370,7 +380,7 @@ const SECTIONS = {
         path: '/identityDocs',
         upstream: ['YOUR_SAVED_INFO_IDENTITY_DOCS'],
         render: lazy(() =>
-          import('./sections/autofill-identity-docs.tsx').then(m => ({
+          import('./sections/autofill-identity-docs.tsx').then((m) => ({
             default: m.AutofillIdentityDocsScreen,
           })),
         ),
@@ -380,7 +390,9 @@ const SECTIONS = {
         path: '/travel',
         upstream: ['YOUR_SAVED_INFO_TRAVEL'],
         render: lazy(() =>
-          import('./sections/autofill-travel.tsx').then(m => ({default: m.AutofillTravelScreen})),
+          import('./sections/autofill-travel.tsx').then((m) => ({
+            default: m.AutofillTravelScreen,
+          })),
         ),
       },
     ],
@@ -392,7 +404,7 @@ const SECTIONS = {
     upstream: ['ON_STARTUP'],
     controls: onStartupControls,
     render: lazy(() =>
-      import('./sections/on-startup.tsx').then(m => ({default: m.OnStartupSection})),
+      import('./sections/on-startup.tsx').then((m) => ({ default: m.OnStartupSection })),
     ),
   },
   downloads: {
@@ -402,7 +414,7 @@ const SECTIONS = {
     upstream: ['DOWNLOADS'],
     controls: downloadsControls,
     render: lazy(() =>
-      import('./sections/downloads.tsx').then(m => ({default: m.DownloadsSection})),
+      import('./sections/downloads.tsx').then((m) => ({ default: m.DownloadsSection })),
     ),
   },
   defaultBrowser: {
@@ -412,7 +424,7 @@ const SECTIONS = {
     upstream: ['DEFAULT_BROWSER'],
     controls: defaultBrowserControls,
     render: lazy(() =>
-      import('./sections/default-browser.tsx').then(m => ({default: m.DefaultBrowserSection})),
+      import('./sections/default-browser.tsx').then((m) => ({ default: m.DefaultBrowserSection })),
     ),
   },
   youAndAstro: {
@@ -429,7 +441,7 @@ const SECTIONS = {
     upstream: [],
     controls: youAndAstroControls,
     render: lazy(() =>
-      import('./sections/you-and-astro.tsx').then(m => ({default: m.YouAndAstroSection})),
+      import('./sections/you-and-astro.tsx').then((m) => ({ default: m.YouAndAstroSection })),
     ),
     subpages: [
       {
@@ -437,7 +449,7 @@ const SECTIONS = {
         path: '/importData',
         upstream: ['IMPORT_DATA'],
         render: lazy(() =>
-          import('./sections/you-and-astro-import-data.tsx').then(m => ({
+          import('./sections/you-and-astro-import-data.tsx').then((m) => ({
             default: m.YouAndAstroImportDataScreen,
           })),
         ),
@@ -450,7 +462,9 @@ const SECTIONS = {
     path: '/adblock',
     upstream: [],
     controls: adblockControls,
-    render: lazy(() => import('./sections/adblock.tsx').then(m => ({default: m.AdblockSection}))),
+    render: lazy(() =>
+      import('./sections/adblock.tsx').then((m) => ({ default: m.AdblockSection })),
+    ),
   },
   alia: {
     title: 'settings.alia.title',
@@ -458,7 +472,7 @@ const SECTIONS = {
     path: '/alia',
     upstream: [],
     controls: aliaControls,
-    render: lazy(() => import('./sections/alia.tsx').then(m => ({default: m.AliaSection}))),
+    render: lazy(() => import('./sections/alia.tsx').then((m) => ({ default: m.AliaSection }))),
   },
   performance: {
     title: 'settings.performance.title',
@@ -471,7 +485,7 @@ const SECTIONS = {
     upstream: ['PERFORMANCE', 'ADVANCED'],
     controls: performanceControls,
     render: lazy(() =>
-      import('./sections/performance.tsx').then(m => ({default: m.PerformanceSection})),
+      import('./sections/performance.tsx').then((m) => ({ default: m.PerformanceSection })),
     ),
     subpages: [
       {
@@ -479,7 +493,7 @@ const SECTIONS = {
         path: '/preloading',
         upstream: ['PRELOADING'],
         render: lazy(() =>
-          import('./sections/performance-preloading.tsx').then(m => ({
+          import('./sections/performance-preloading.tsx').then((m) => ({
             default: m.PerformancePreloadingScreen,
           })),
         ),
@@ -493,7 +507,7 @@ const SECTIONS = {
     upstream: ['LANGUAGES'],
     controls: languagesControls,
     render: lazy(() =>
-      import('./sections/languages.tsx').then(m => ({default: m.LanguagesSection})),
+      import('./sections/languages.tsx').then((m) => ({ default: m.LanguagesSection })),
     ),
     subpages: [
       {
@@ -501,7 +515,7 @@ const SECTIONS = {
         path: '/spellCheck',
         upstream: ['SPELL_CHECK'],
         render: lazy(() =>
-          import('./sections/languages-spell-check.tsx').then(m => ({
+          import('./sections/languages-spell-check.tsx').then((m) => ({
             default: m.LanguagesSpellCheckScreen,
           })),
         ),
@@ -511,7 +525,7 @@ const SECTIONS = {
         path: '/editDictionary',
         upstream: ['EDIT_DICTIONARY'],
         render: lazy(() =>
-          import('./sections/languages-edit-dictionary.tsx').then(m => ({
+          import('./sections/languages-edit-dictionary.tsx').then((m) => ({
             default: m.LanguagesEditDictionaryScreen,
           })),
         ),
@@ -525,7 +539,7 @@ const SECTIONS = {
     upstream: ['ACCESSIBILITY'],
     controls: accessibilityControls,
     render: lazy(() =>
-      import('./sections/accessibility.tsx').then(m => ({default: m.AccessibilitySection})),
+      import('./sections/accessibility.tsx').then((m) => ({ default: m.AccessibilitySection })),
     ),
     subpages: [
       {
@@ -533,7 +547,7 @@ const SECTIONS = {
         path: '/captions',
         upstream: ['CAPTIONS'],
         render: lazy(() =>
-          import('./sections/accessibility-captions.tsx').then(m => ({
+          import('./sections/accessibility-captions.tsx').then((m) => ({
             default: m.AccessibilityCaptionsScreen,
           })),
         ),
@@ -546,7 +560,7 @@ const SECTIONS = {
     path: '/system',
     upstream: ['SYSTEM'],
     controls: systemControls,
-    render: lazy(() => import('./sections/system.tsx').then(m => ({default: m.SystemSection}))),
+    render: lazy(() => import('./sections/system.tsx').then((m) => ({ default: m.SystemSection }))),
   },
   reset: {
     title: 'settings.reset.title',
@@ -554,14 +568,14 @@ const SECTIONS = {
     path: '/reset',
     upstream: ['RESET'],
     controls: resetControls,
-    render: lazy(() => import('./sections/reset.tsx').then(m => ({default: m.ResetSection}))),
+    render: lazy(() => import('./sections/reset.tsx').then((m) => ({ default: m.ResetSection }))),
     subpages: [
       {
         title: 'settings.reset.dialog.title',
         path: '/resetProfileSettings',
         upstream: ['RESET_DIALOG'],
         render: lazy(() =>
-          import('./sections/reset-dialog.tsx').then(m => ({default: m.ResetDialogScreen})),
+          import('./sections/reset-dialog.tsx').then((m) => ({ default: m.ResetDialogScreen })),
         ),
       },
       {
@@ -569,7 +583,9 @@ const SECTIONS = {
         path: '/triggeredResetProfileSettings',
         upstream: ['TRIGGERED_RESET_DIALOG'],
         render: lazy(() =>
-          import('./sections/reset-triggered.tsx').then(m => ({default: m.ResetTriggeredScreen})),
+          import('./sections/reset-triggered.tsx').then((m) => ({
+            default: m.ResetTriggeredScreen,
+          })),
         ),
       },
     ],
@@ -581,7 +597,7 @@ const SECTIONS = {
     aliases: ['/about'],
     upstream: ['ABOUT'],
     controls: aboutControls,
-    render: lazy(() => import('./sections/about.tsx').then(m => ({default: m.AboutSection}))),
+    render: lazy(() => import('./sections/about.tsx').then((m) => ({ default: m.AboutSection }))),
   },
 } as const satisfies Record<string, SectionDef>;
 
@@ -599,7 +615,7 @@ const SECTION_IDS = Object.keys(SECTIONS) as readonly SectionId[];
 const DEFAULT_SECTION: SectionId = 'appearance';
 
 /** The rail, in the order a Chromium user expects to find these in. */
-const GROUPS: readonly {readonly title?: MessageId; readonly ids: readonly SectionId[]}[] = [
+const GROUPS: readonly { readonly title?: MessageId; readonly ids: readonly SectionId[] }[] = [
   {
     ids: [
       'appearance',
@@ -612,12 +628,12 @@ const GROUPS: readonly {readonly title?: MessageId; readonly ids: readonly Secti
       'defaultBrowser',
     ],
   },
-  {title: 'settings.group.astro', ids: ['youAndAstro', 'adblock', 'alia']},
+  { title: 'settings.group.astro', ids: ['youAndAstro', 'adblock', 'alia'] },
   {
     title: 'settings.group.advanced',
     ids: ['performance', 'languages', 'accessibility', 'system', 'reset'],
   },
-  {ids: ['about']},
+  { ids: ['about'] },
 ];
 
 /** What a fragment resolves to: the rail entry, and the screen in the column. */
@@ -627,13 +643,13 @@ interface Target {
 }
 
 const BY_PATH = new Map<string, Target>(
-  SECTION_IDS.flatMap(id => {
+  SECTION_IDS.flatMap((id) => {
     const section: SectionDef = SECTIONS[id];
     const own = [section.path, ...(section.aliases ?? [])].map(
-      path => [path, {section: id, screen: section}] as const,
+      (path) => [path, { section: id, screen: section }] as const,
     );
     const below = (section.subpages ?? []).map(
-      subpage => [subpage.path, {section: id, screen: subpage}] as const,
+      (subpage) => [subpage.path, { section: id, screen: subpage }] as const,
     );
     return [...own, ...below];
   }),
@@ -686,7 +702,7 @@ interface Hit {
 }
 
 function search(query: string): readonly Hit[] {
-  return SECTION_IDS.flatMap(id => {
+  return SECTION_IDS.flatMap((id) => {
     const section: SectionDef = SECTIONS[id];
     const title = t(section.title);
     const hits: Hit[] = [];
@@ -701,15 +717,13 @@ function search(query: string): readonly Hit[] {
     // A subpage titled the same as its section is that section under another
     // name -- upstream's reset confirmation is literally "Reset settings" --
     // and offering both produces two rows a user cannot tell apart.
-    const subpages = (section.subpages ?? []).filter(
-      subpage => t(subpage.title) !== title,
-    );
+    const subpages = (section.subpages ?? []).filter((subpage) => t(subpage.title) !== title);
     // The same name is often BOTH a row on the section and a screen of its own:
     // every site-settings permission is drawn as a link on the category list
     // and has its own page. One hit, and it opens the page rather than the list
     // the link is on -- otherwise "Camera" appears twice, identically labelled,
     // and one of the two is a worse answer.
-    const asSubpage = new Set(subpages.map(subpage => t(subpage.title)));
+    const asSubpage = new Set(subpages.map((subpage) => t(subpage.title)));
 
     for (const control of section.controls) {
       const controlName = controlId(control);
@@ -727,14 +741,14 @@ function search(query: string): readonly Hit[] {
     for (const subpage of subpages) {
       const label = t(subpage.title);
       if (label.toLowerCase().includes(query)) {
-        hits.push({id, path: subpage.path, label, context: title});
+        hits.push({ id, path: subpage.path, label, context: title });
       }
     }
     return hits;
   });
 }
 
-function SearchResults({query, onOpen}: {query: string; onOpen: (hit: Hit) => void}) {
+function SearchResults({ query, onOpen }: { query: string; onOpen: (hit: Hit) => void }) {
   const hits = search(query);
   return (
     <>
@@ -742,12 +756,12 @@ function SearchResults({query, onOpen}: {query: string; onOpen: (hit: Hit) => vo
       {hits.length === 0 ? (
         <SectionCard>
           <Text className="text-body text-text-secondary">
-            {t('settings.search.none', {query})}
+            {t('settings.search.none', { query })}
           </Text>
         </SectionCard>
       ) : (
         <SettingsListGroup>
-          {hits.map(hit => (
+          {hits.map((hit) => (
             // Keyed by destination: two screens may legitimately share a label,
             // and the fragment is what actually distinguishes them.
             <SettingsListItem
@@ -793,12 +807,14 @@ export function SettingsPage() {
 
   // While searching, the rail narrows to the sections that matched -- the same
   // index the results are built from, so the two can never disagree.
-  const matched = new Set(search(normalized).map(hit => hit.id));
-  const groups: readonly NavGroup<SectionId>[] = GROUPS.flatMap(group => {
+  const matched = new Set(search(normalized).map((hit) => hit.id));
+  const groups: readonly NavGroup<SectionId>[] = GROUPS.flatMap((group) => {
     const entries = group.ids
-      .filter(id => normalized === '' || matched.has(id))
-      .map(id => ({id, title: t(SECTIONS[id].title), icon: SECTIONS[id].icon}));
-    return entries.length === 0 ? [] : [{title: group.title ? t(group.title) : undefined, entries}];
+      .filter((id) => normalized === '' || matched.has(id))
+      .map((id) => ({ id, title: t(SECTIONS[id].title), icon: SECTIONS[id].icon }));
+    return entries.length === 0
+      ? []
+      : [{ title: group.title ? t(group.title) : undefined, entries }];
   });
 
   const Screen = target.screen.render;

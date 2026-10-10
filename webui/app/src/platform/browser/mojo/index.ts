@@ -24,7 +24,7 @@ import {
   type Theme as MojoTheme,
 } from 'astro-mojom/chrome/browser/oxy/webui/astro_theme.mojom-webui.js';
 
-import type {RawTheme, ThemeMode, ThemeSource} from '../theme-store.ts';
+import type { RawTheme, ThemeMode, ThemeSource } from '../theme-store.ts';
 
 function toMode(mode: MojoThemeMode): ThemeMode {
   switch (mode) {
@@ -49,7 +49,7 @@ function toMojoMode(mode: ThemeMode): MojoThemeMode {
 }
 
 function toRawTheme(theme: MojoTheme): RawTheme {
-  return {mode: toMode(theme.mode), preset: theme.preset};
+  return { mode: toMode(theme.mode), preset: theme.preset };
 }
 
 /**
@@ -90,19 +90,19 @@ export function createThemeSource(): ThemeSource {
   provider.addObserver(observer.$.bindNewPipeAndPassRemote());
 
   return {
-    getTheme: () => provider.getTheme().then(({theme}) => toRawTheme(theme)),
+    getTheme: () => provider.getTheme().then(({ theme }) => toRawTheme(theme)),
 
     // Fire-and-forget on the wire, so this resolves before the browser has
     // done anything. Nothing waits on it: the store renders from the echo,
     // which is also what makes a change an enterprise policy refuses show up
     // as the control returning to the value the policy holds.
-    setMode: mode => {
+    setMode: (mode) => {
       settings().setThemeMode(toMojoMode(mode));
       return Promise.resolve();
     },
 
-    setPreset: async preset => {
-      const {accepted} = await settings().setColorPreset(preset);
+    setPreset: async (preset) => {
+      const { accepted } = await settings().setColorPreset(preset);
       if (!accepted) {
         // The browser stored nothing, so no echo is coming and the control
         // returns to the colour that is actually set. Rejecting is what names
@@ -117,7 +117,7 @@ export function createThemeSource(): ThemeSource {
       }
     },
 
-    onThemeChanged: listener => {
+    onThemeChanged: (listener) => {
       const id = observer.onThemeChanged.addListener((theme: MojoTheme) => {
         listener(toRawTheme(theme));
       });

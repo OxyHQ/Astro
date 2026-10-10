@@ -14,7 +14,7 @@
 // default section. Resolving a path to a section is the page's job; this
 // module only owns reading, writing and observing the value.
 
-import {useSyncExternalStore} from 'react';
+import { useSyncExternalStore } from 'react';
 
 /** The current fragment, normalised to a leading slash. `'/'` when absent. */
 function read(): string {

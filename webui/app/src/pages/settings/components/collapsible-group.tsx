@@ -12,12 +12,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@oxy.so/bloom/accordion';
-import {useState, type ReactNode} from 'react';
-import {View} from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { View } from 'react-native';
 
-import {t, type MessageId} from '@astro/platform';
+import { t, type MessageId } from '@astro/platform';
 
-import {ControlAnchor} from './control-anchor.tsx';
+import { ControlAnchor } from './control-anchor.tsx';
 
 export interface CollapsibleGroupProps {
   title: MessageId;
@@ -31,7 +31,7 @@ export interface CollapsibleGroupProps {
 // is open. `defaultOpen` seeds that state; nothing else reads the name.
 const GROUP_ROW = 'group';
 
-export function CollapsibleGroup({title, defaultOpen, children}: CollapsibleGroupProps) {
+export function CollapsibleGroup({ title, defaultOpen, children }: CollapsibleGroupProps) {
   const [open, setOpen] = useState<string | string[] | undefined>(
     defaultOpen ? GROUP_ROW : undefined,
   );

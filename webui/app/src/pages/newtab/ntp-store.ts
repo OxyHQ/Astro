@@ -17,8 +17,8 @@
 // profile. #22 requires that obsolete frontend storage not remain as a second
 // source of truth, and nothing in this directory writes to it.
 
-import {MissingBrowserApiError} from '@astro/platform';
-import {useSyncExternalStore} from 'react';
+import { MissingBrowserApiError } from '@astro/platform';
+import { useSyncExternalStore } from 'react';
 
 /**
  * The widgets the grid lays out.
@@ -145,7 +145,7 @@ let started = false;
 let resolved: Promise<NtpSource> | undefined;
 
 function publish(patch: Partial<NtpState>): void {
-  snapshot = {...snapshot, ...patch};
+  snapshot = { ...snapshot, ...patch };
   for (const listener of listeners) {
     listener();
   }
@@ -158,11 +158,11 @@ function ntpSource(): Promise<NtpSource> {
     // URL or the build mode: those say where the page came from, this says
     // whether there is a pipe to bind.
     if ('Mojo' in globalThis) {
-      const {createNtpSource} = await import('./ntp-mojo.ts');
+      const { createNtpSource } = await import('./ntp-mojo.ts');
       return createNtpSource();
     }
     if (import.meta.env.DEV) {
-      const {createNtpMock} = await import('./mock.ts');
+      const { createNtpMock } = await import('./mock.ts');
       return createNtpMock();
     }
     throw new MissingBrowserApiError(
@@ -179,10 +179,10 @@ function start(): void {
     return;
   }
   started = true;
-  void ntpSource().then(source => {
+  void ntpSource().then((source) => {
     source.onChanged(publish);
-    void source.getState().then(state => {
-      publish({...state, ready: true});
+    void source.getState().then((state) => {
+      publish({ ...state, ready: true });
     });
   });
 }
@@ -211,47 +211,43 @@ export function useNtp(): NtpState {
 // stored — including when it stored nothing.
 
 export function setWidgetVisible(id: WidgetId, visible: boolean): void {
-  void ntpSource().then(source => source.setWidgetVisible(id, visible));
+  void ntpSource().then((source) => source.setWidgetVisible(id, visible));
 }
 
 export function setWidgetOrder(order: readonly WidgetId[]): void {
-  void ntpSource().then(source => source.setWidgetOrder(order));
+  void ntpSource().then((source) => source.setWidgetOrder(order));
 }
 
 export function addQuickLink(title: string, url: string): Promise<boolean> {
-  return ntpSource().then(source => source.addQuickLink(title, url));
+  return ntpSource().then((source) => source.addQuickLink(title, url));
 }
 
-export function updateQuickLink(
-  index: number,
-  title: string,
-  url: string,
-): Promise<boolean> {
-  return ntpSource().then(source => source.updateQuickLink(index, title, url));
+export function updateQuickLink(index: number, title: string, url: string): Promise<boolean> {
+  return ntpSource().then((source) => source.updateQuickLink(index, title, url));
 }
 
 export function removeQuickLink(index: number): void {
-  void ntpSource().then(source => source.removeQuickLink(index));
+  void ntpSource().then((source) => source.removeQuickLink(index));
 }
 
 export function setNotes(notes: string): void {
-  void ntpSource().then(source => source.setNotes(notes));
+  void ntpSource().then((source) => source.setNotes(notes));
 }
 
 export function setDefaultSearchEngine(id: string): Promise<boolean> {
-  return ntpSource().then(source => source.setDefaultSearchEngine(id));
+  return ntpSource().then((source) => source.setDefaultSearchEngine(id));
 }
 
 export function search(query: string): void {
-  void ntpSource().then(source => source.search(query));
+  void ntpSource().then((source) => source.search(query));
 }
 
 export function openCustomizeChrome(): void {
-  void ntpSource().then(source => source.openCustomizeChrome());
+  void ntpSource().then((source) => source.openCustomizeChrome());
 }
 
 export function openAliaSidePanel(): void {
-  void ntpSource().then(source => source.openAliaSidePanel());
+  void ntpSource().then((source) => source.openAliaSidePanel());
 }
 
 /**
@@ -262,12 +258,8 @@ export function openAliaSidePanel(): void {
  * a move computed from a filtered or reordered view of the widgets would send
  * an order that silently drops the ones it could not see.
  */
-export function moveWidget(
-  widgets: readonly Widget[],
-  id: WidgetId,
-  delta: -1 | 1,
-): void {
-  const order = widgets.map(widget => widget.id);
+export function moveWidget(widgets: readonly Widget[], id: WidgetId, delta: -1 | 1): void {
+  const order = widgets.map((widget) => widget.id);
   const from = order.indexOf(id);
   const to = from + delta;
   if (from === -1 || to < 0 || to >= order.length) {

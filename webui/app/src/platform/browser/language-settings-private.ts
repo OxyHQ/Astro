@@ -29,7 +29,7 @@
 //   * `retryDownloadDictionary`, which is only meaningful beside the download
 //     progress UI that would call it.
 
-import {MissingBrowserApiError} from './env.ts';
+import { MissingBrowserApiError } from './env.ts';
 
 /** One language the browser knows about. Not necessarily one the user enabled. */
 export interface LanguageInfo {
@@ -94,20 +94,20 @@ interface ChromeLanguageSettingsPrivate {
 
 function wrap(api: ChromeLanguageSettingsPrivate): LanguageSettingsPrivateApi {
   return {
-    getLanguages: () => new Promise(resolve => api.getLanguageList(resolve)),
-    enableLanguage: code => api.enableLanguage(code),
-    disableLanguage: code => api.disableLanguage(code),
+    getLanguages: () => new Promise((resolve) => api.getLanguageList(resolve)),
+    enableLanguage: (code) => api.enableLanguage(code),
+    disableLanguage: (code) => api.disableLanguage(code),
     moveLanguage: (code, move) => api.moveLanguage(code, move),
     getDictionaryStatuses: () =>
-      new Promise(resolve => api.getSpellcheckDictionaryStatuses(resolve)),
-    getCustomWords: () => new Promise(resolve => api.getSpellcheckWords(resolve)),
-    addCustomWord: word => api.addSpellcheckWord(word),
-    removeCustomWord: word => api.removeSpellcheckWord(word),
-    onCustomWordsChanged: listener => {
+      new Promise((resolve) => api.getSpellcheckDictionaryStatuses(resolve)),
+    getCustomWords: () => new Promise((resolve) => api.getSpellcheckWords(resolve)),
+    addCustomWord: (word) => api.addSpellcheckWord(word),
+    removeCustomWord: (word) => api.removeSpellcheckWord(word),
+    onCustomWordsChanged: (listener) => {
       api.onCustomDictionaryChanged.addListener(listener);
       return () => api.onCustomDictionaryChanged.removeListener(listener);
     },
-    onDictionariesChanged: listener => {
+    onDictionariesChanged: (listener) => {
       api.onSpellcheckDictionariesChanged.addListener(listener);
       return () => api.onSpellcheckDictionariesChanged.removeListener(listener);
     },
@@ -120,13 +120,13 @@ let resolved: Promise<LanguageSettingsPrivateApi> | undefined;
 export function languageSettingsPrivate(): Promise<LanguageSettingsPrivateApi> {
   resolved ??= (async () => {
     const real = (
-      globalThis as {chrome?: {languageSettingsPrivate?: ChromeLanguageSettingsPrivate}}
+      globalThis as { chrome?: { languageSettingsPrivate?: ChromeLanguageSettingsPrivate } }
     ).chrome?.languageSettingsPrivate;
     if (real) {
       return wrap(real);
     }
     if (import.meta.env.DEV) {
-      const {createLanguageSettingsPrivateMock} = await import(
+      const { createLanguageSettingsPrivateMock } = await import(
         './mock/language-settings-private.ts'
       );
       return createLanguageSettingsPrivateMock();

@@ -9,12 +9,12 @@
 // rows ("Astro may use a web service to help resolve navigation errors"), and
 // it belongs to the group rather than to the last row in it.
 
-import {SettingsListGroup} from '@oxy.so/bloom';
-import type {ReactNode} from 'react';
+import { SettingsListGroup } from '@oxy.so/bloom';
+import type { ReactNode } from 'react';
 
-import {t, type MessageId} from '@astro/platform';
+import { t, type MessageId } from '@astro/platform';
 
-import {ControlAnchor} from './control-anchor.tsx';
+import { ControlAnchor } from './control-anchor.tsx';
 
 export interface RowGroupProps {
   title?: MessageId;
@@ -22,7 +22,7 @@ export interface RowGroupProps {
   children: ReactNode;
 }
 
-export function RowGroup({title, footer, children}: RowGroupProps) {
+export function RowGroup({ title, footer, children }: RowGroupProps) {
   const group = (
     <SettingsListGroup title={title ? t(title) : undefined} footer={footer ? t(footer) : undefined}>
       {children}

@@ -7,7 +7,7 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
-import type {SettingsControl} from '../controls.ts';
+import type { SettingsControl } from '../controls.ts';
 
 export const resetStrings = {
   'settings.nav.reset': 'Reset settings',
@@ -49,8 +49,7 @@ export const resetStrings = {
     'The browser refused the request. Nothing has been changed.',
 
   'settings.reset.confirm.description':
-    'This cannot be undone. Read what a reset changes before you press the ' +
-    'button.',
+    'This cannot be undone. Read what a reset changes before you press the ' + 'button.',
   'settings.reset.confirm': 'Reset settings',
   'settings.reset.confirm.sublabel': 'Applies immediately to this profile.',
   'settings.reset.confirm.action': 'Reset',
@@ -60,8 +59,7 @@ export const resetStrings = {
   'settings.reset.done.sublabel':
     'Open windows keep the pages they are on. New windows use the defaults.',
   'settings.reset.failed': 'The reset did not run',
-  'settings.reset.failed.sublabel':
-    'The browser refused the request, so nothing has been changed.',
+  'settings.reset.failed.sublabel': 'The browser refused the request, so nothing has been changed.',
   'settings.reset.report.footer':
     'Chromium offers to upload a report of the settings that were reset, ' +
     'ticked by default, to a Google endpoint that no enterprise policy can ' +
@@ -87,5 +85,5 @@ export const resetControls: readonly SettingsControl[] = [
   'settings.reset.link',
   'settings.reset.tampered',
 
-  {id: 'settings.reset.confirm', on: '/resetProfileSettings'},
+  { id: 'settings.reset.confirm', on: '/resetProfileSettings' },
 ];

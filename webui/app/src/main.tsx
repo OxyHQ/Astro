@@ -10,10 +10,16 @@
 // bytes by the same C++ controller. Path segments below the host belong to the
 // page.
 
-import {Text} from '@oxy.so/bloom/typography';
-import {Suspense, lazy, type ComponentType, type LazyExoticComponent, type ReactNode} from 'react';
-import {createRoot} from 'react-dom/client';
-import {Pressable, View} from 'react-native';
+import { Text } from '@oxy.so/bloom/typography';
+import {
+  Suspense,
+  lazy,
+  type ComponentType,
+  type LazyExoticComponent,
+  type ReactNode,
+} from 'react';
+import { createRoot } from 'react-dom/client';
+import { Pressable, View } from 'react-native';
 
 import {
   BloomThemeProvider,
@@ -33,21 +39,23 @@ import {
  */
 const PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
   settings: lazy(() =>
-    import('./pages/settings/settings-page.tsx').then(module => ({default: module.SettingsPage})),
+    import('./pages/settings/settings-page.tsx').then((module) => ({
+      default: module.SettingsPage,
+    })),
   ),
   // Keyed by the HOST the browser serves it from, which is not `newtab` — see
   // kAstroNtpHost in astro_ntp_ui.h for why the canonical spelling has to wait
   // for the scheme composition.
   'astro-ntp': lazy(() =>
-    import('./pages/newtab/new-tab-page.tsx').then(module => ({default: module.NewTabPage})),
+    import('./pages/newtab/new-tab-page.tsx').then((module) => ({ default: module.NewTabPage })),
   ),
   alia: lazy(() =>
-    import('./pages/alia/alia-page.tsx').then(module => ({default: module.AliaPage})),
+    import('./pages/alia/alia-page.tsx').then((module) => ({ default: module.AliaPage })),
   ),
   // Astro's own host, ADDED rather than swapped: nothing upstream registers
   // `adblock`, so 054-adblock-webui-register.patch has a line of its own.
   adblock: lazy(() =>
-    import('./pages/adblock/adblock-page.tsx').then(module => ({
+    import('./pages/adblock/adblock-page.tsx').then((module) => ({
       default: module.AdBlockPage,
     })),
   ),
@@ -55,7 +63,7 @@ const PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
   // Safe to swap because nothing under chrome/browser/ui/views/ names
   // ManagementUI's concrete type — see the controller header.
   management: lazy(() =>
-    import('./pages/management/management-page.tsx').then(module => ({
+    import('./pages/management/management-page.tsx').then((module) => ({
       default: module.ManagementPage,
     })),
   ),
@@ -63,7 +71,7 @@ const PAGES: Record<string, LazyExoticComponent<ComponentType>> = {
   // rather than registered beside it — WebUIConfigMap CHECKs on a duplicate
   // origin.
   'whats-new': lazy(() =>
-    import('./pages/whatsnew/whats-new-page.tsx').then(module => ({
+    import('./pages/whatsnew/whats-new-page.tsx').then((module) => ({
       default: module.WhatsNewPage,
     })),
   ),
@@ -82,7 +90,7 @@ function pageKey(): string {
 
 const PAGE_KEY = pageKey();
 const ROUTE_IDS = Object.keys(ROUTES) as readonly RouteId[];
-const IMPLEMENTED = ROUTE_IDS.filter(id => ROUTES[id].host in PAGES);
+const IMPLEMENTED = ROUTE_IDS.filter((id) => ROUTES[id].host in PAGES);
 
 /**
  * A host that reached this bundle with no page behind it.
@@ -92,7 +100,7 @@ const IMPLEMENTED = ROUTE_IDS.filter(id => ROUTES[id].host in PAGES);
  * the registration and the app disagree -- and a placeholder would ship as
  * though the page existed.
  */
-function UnknownHost({host}: {host: string}) {
+function UnknownHost({ host }: { host: string }) {
   return (
     <View className="flex-1 items-center justify-center gap-3 bg-background p-8">
       <Text className="text-headerBold text-destructive">{t('app.unknownHost.title')}</Text>
@@ -111,7 +119,7 @@ function DevIndex() {
       <Text className="text-headerBold text-foreground">{t('app.devIndex.title')}</Text>
       <Text className="text-body text-text-secondary">{t('app.devIndex.body')}</Text>
       <View className="gap-2">
-        {IMPLEMENTED.map(id => (
+        {IMPLEMENTED.map((id) => (
           <Pressable
             key={id}
             accessibilityRole="link"
@@ -148,8 +156,8 @@ function Page() {
  * the whole page with new tokens -- no reload, and no page-side copy of the
  * choice to drift from the browser's own UI.
  */
-function ThemeRoot({children}: {children: ReactNode}) {
-  const {mode, preset} = useThemeState();
+function ThemeRoot({ children }: { children: ReactNode }) {
+  const { mode, preset } = useThemeState();
   return (
     <BloomThemeProvider mode={mode} colorPreset={preset}>
       {children}
@@ -157,7 +165,9 @@ function ThemeRoot({children}: {children: ReactNode}) {
   );
 }
 
-const routeTitle = ROUTE_IDS.map(id => ROUTES[id]).find(route => route.host === PAGE_KEY)?.title;
+const routeTitle = ROUTE_IDS.map((id) => ROUTES[id]).find(
+  (route) => route.host === PAGE_KEY,
+)?.title;
 if (routeTitle) {
   document.title = routeTitle;
 }

@@ -1,11 +1,11 @@
-import {existsSync, readFileSync, writeFileSync} from 'node:fs';
-import {createRequire} from 'node:module';
-import {dirname, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import tailwindcss from '@tailwindcss/vite';
 import viteReact from '@vitejs/plugin-react';
-import {defineConfig, type Plugin} from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import reactNativeWeb from 'vite-plugin-react-native-web';
 
 // Astro's internal pages, as ONE Vite + Tailwind + Bloom app.
@@ -73,7 +73,7 @@ function mojomGenDir(): string {
     return resolve(override);
   }
   const tsconfig = JSON.parse(readFileSync(resolve(packageDir, 'tsconfig.json'), 'utf8')) as {
-    compilerOptions?: {paths?: Record<string, string[]>};
+    compilerOptions?: { paths?: Record<string, string[]> };
   };
   const mapped = tsconfig.compilerOptions?.paths?.['astro-mojom/*']?.[0];
   if (!mapped) {
@@ -108,7 +108,7 @@ function astroMojom(genDir: string): Plugin {
     enforce: 'pre',
     resolveId(source, importer) {
       if (source === MOJO_CORE_MODULE) {
-        return {id: source, external: true};
+        return { id: source, external: true };
       }
       const requested = source.startsWith(prefix)
         ? resolve(genDir, source.slice(prefix.length))
@@ -173,16 +173,23 @@ function astroManifest(build: BuildName, outDir: string): Plugin {
         entry: build === 'app' ? 'index.html' : 'platform.js',
         files: Object.keys(bundle).sort(),
       };
-      writeFileSync(manifestPath, `${JSON.stringify({
-        generated_by: 'webui/app/vite.config.ts (astro-manifest plugin)',
-        regenerate: 'cd webui/app && bun run build && bun run build:platform',
-        builds,
-      }, null, 2)}\n`);
+      writeFileSync(
+        manifestPath,
+        `${JSON.stringify(
+          {
+            generated_by: 'webui/app/vite.config.ts (astro-manifest plugin)',
+            regenerate: 'cd webui/app && bun run build && bun run build:platform',
+            builds,
+          },
+          null,
+          2,
+        )}\n`,
+      );
     },
   };
 }
 
-export default defineConfig(({command, mode}) => {
+export default defineConfig(({ command, mode }) => {
   // Deliberately NOT `mode !== 'production'`, the form both reference configs
   // use. `--mode platform` is a named RELEASE mode, and that test would hand it
   // a development React plus every `import.meta.env.DEV` branch -- including the
@@ -222,16 +229,16 @@ export default defineConfig(({command, mode}) => {
         // with StyleSheet, look perfect. That asymmetry is what makes it read
         // as "some Bloom components are broken".
         exclude: [/[\\/]node_modules[\\/](?!@oxyhq[\\/]bloom[\\/])/],
-        babel: {presets: [reactNativeCssBabel]},
+        babel: { presets: [reactNativeCssBabel] },
       }),
       astroManifest(build, outDir),
     ],
     resolve: {
       alias: [
-        {find: '@astro/platform', replacement: resolve(packageDir, 'src/platform/index.ts')},
+        { find: '@astro/platform', replacement: resolve(packageDir, 'src/platform/index.ts') },
         // Deep native-only internals that hoisting pulls in transitively and
         // that have no web implementation.
-        {find: /^react-native\/Libraries\/.*/, replacement: emptyModule},
+        { find: /^react-native\/Libraries\/.*/, replacement: emptyModule },
         // Native-only navigation primitives used by Bloom's FullWindowOverlay,
         // which renders straight through on web. An empty module is not
         // enough -- consumers use NAMED imports, a link-time error in dev's raw

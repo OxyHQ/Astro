@@ -27,14 +27,7 @@ import {
   type Widget as MojoWidget,
 } from 'astro-mojom/chrome/browser/oxy/webui/astro_ntp.mojom-webui.js';
 
-import type {
-  NtpSource,
-  QuickLink,
-  SearchEngine,
-  Tile,
-  Widget,
-  WidgetId,
-} from './ntp-store.ts';
+import type { NtpSource, QuickLink, SearchEngine, Tile, Widget, WidgetId } from './ntp-store.ts';
 
 /**
  * The enum, both ways.
@@ -62,22 +55,22 @@ function toWidgets(widgets: MojoWidget[]): Widget[] {
   // hole. The browser sends only what it has, so this fires when a page and
   // the browser serving it were built from different .mojom files — the one
   // case where the page cannot know what to draw.
-  return widgets.flatMap(widget => {
+  return widgets.flatMap((widget) => {
     const id = WIDGET_BY_MOJO.get(widget.id);
-    return id ? [{id, visible: widget.visible}] : [];
+    return id ? [{ id, visible: widget.visible }] : [];
   });
 }
 
 function toQuickLinks(links: MojoQuickLink[]): QuickLink[] {
-  return links.map(link => ({title: link.title, url: link.url}));
+  return links.map((link) => ({ title: link.title, url: link.url }));
 }
 
 function toTiles(tiles: MojoTile[]): Tile[] {
-  return tiles.map(tile => ({title: tile.title, url: tile.url}));
+  return tiles.map((tile) => ({ title: tile.title, url: tile.url }));
 }
 
 function toSearchEngines(engines: MojoSearchEngine[]): SearchEngine[] {
-  return engines.map(engine => ({
+  return engines.map((engine) => ({
     // int64 arrives as a bigint. Decimal string from here on — see the field's
     // comment in ntp-store.ts.
     id: engine.id.toString(),
@@ -98,7 +91,7 @@ export function createNtpSource(): NtpSource {
 
   return {
     getState: () =>
-      handler.getState().then(({state}) => ({
+      handler.getState().then(({ state }) => ({
         widgets: toWidgets(state.widgets),
         quickLinks: toQuickLinks(state.quickLinks),
         notes: state.notes,
@@ -106,31 +99,29 @@ export function createNtpSource(): NtpSource {
         searchEngines: toSearchEngines(state.searchEngines),
       })),
 
-    onChanged: listener => {
+    onChanged: (listener) => {
       // Six callbacks, one subscription. Each publishes only the slice it
       // carries, so a widget change does not make the notes textarea
       // re-render with a value the user is in the middle of typing over.
       const ids = [
         router.onWidgetsChanged.addListener((widgets: MojoWidget[]) => {
-          listener({widgets: toWidgets(widgets)});
+          listener({ widgets: toWidgets(widgets) });
         }),
         router.onQuickLinksChanged.addListener((links: MojoQuickLink[]) => {
-          listener({quickLinks: toQuickLinks(links)});
+          listener({ quickLinks: toQuickLinks(links) });
         }),
         router.onNotesChanged.addListener((notes: string) => {
-          listener({notes});
+          listener({ notes });
         }),
         router.onBlockedCountChanged.addListener((blockedCount: number) => {
-          listener({blockedCount});
+          listener({ blockedCount });
         }),
         router.onTopSitesChanged.addListener((tiles: MojoTile[]) => {
-          listener({tiles: toTiles(tiles)});
+          listener({ tiles: toTiles(tiles) });
         }),
-        router.onSearchEnginesChanged.addListener(
-          (engines: MojoSearchEngine[]) => {
-            listener({searchEngines: toSearchEngines(engines)});
-          },
-        ),
+        router.onSearchEnginesChanged.addListener((engines: MojoSearchEngine[]) => {
+          listener({ searchEngines: toSearchEngines(engines) });
+        }),
       ];
       return () => {
         for (const id of ids) {
@@ -146,33 +137,32 @@ export function createNtpSource(): NtpSource {
       }
     },
 
-    setWidgetOrder: order => {
+    setWidgetOrder: (order) => {
       handler.setWidgetOrder(
-        order.flatMap(id => {
+        order.flatMap((id) => {
           const mojoId = MOJO_BY_WIDGET.get(id);
           return mojoId === undefined ? [] : [mojoId];
         }),
       );
     },
 
-    addQuickLink: (title, url) =>
-      handler.addQuickLink(title, url).then(({accepted}) => accepted),
+    addQuickLink: (title, url) => handler.addQuickLink(title, url).then(({ accepted }) => accepted),
 
     updateQuickLink: (index, title, url) =>
-      handler.updateQuickLink(index, title, url).then(({accepted}) => accepted),
+      handler.updateQuickLink(index, title, url).then(({ accepted }) => accepted),
 
-    removeQuickLink: index => {
+    removeQuickLink: (index) => {
       handler.removeQuickLink(index);
     },
 
-    setNotes: notes => {
+    setNotes: (notes) => {
       handler.setNotes(notes);
     },
 
-    setDefaultSearchEngine: id =>
-      handler.setDefaultSearchEngine(BigInt(id)).then(({accepted}) => accepted),
+    setDefaultSearchEngine: (id) =>
+      handler.setDefaultSearchEngine(BigInt(id)).then(({ accepted }) => accepted),
 
-    search: query => {
+    search: (query) => {
       handler.searchWithDefaultEngine(query);
     },
 

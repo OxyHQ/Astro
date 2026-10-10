@@ -19,10 +19,10 @@
 // display-language control on this platform for the same reason upstream has
 // none.
 
-import {Button, SettingsListItem} from '@oxy.so/bloom';
-import {TextFieldInput} from '@oxy.so/bloom';
-import {useState} from 'react';
-import {View} from 'react-native';
+import { Button, SettingsListItem } from '@oxy.so/bloom';
+import { TextFieldInput } from '@oxy.so/bloom';
+import { useState } from 'react';
+import { View } from 'react-native';
 
 import {
   disableLanguage,
@@ -34,11 +34,11 @@ import {
   type LanguageInfo,
 } from '@astro/platform';
 
-import {CollapsibleGroup} from '../components/collapsible-group.tsx';
-import {InfoRow} from '../components/info-row.tsx';
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
+import { CollapsibleGroup } from '../components/collapsible-group.tsx';
+import { InfoRow } from '../components/info-row.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
 
 /** The pref that holds the enabled codes, comma-joined and in priority order. */
 const ACCEPT_LANGUAGES = 'intl.accept_languages';
@@ -109,11 +109,11 @@ export function LanguagesSection() {
   const locked = accepted?.enforcement === 'ENFORCED';
   const raw = typeof accepted?.value === 'string' ? accepted.value : undefined;
   const codes = raw === undefined || raw === '' ? [] : raw.split(',');
-  const byCode = new Map((known ?? []).map(language => [language.code, language]));
+  const byCode = new Map((known ?? []).map((language) => [language.code, language]));
 
   const query = filter.trim().toLowerCase();
   const addable = (known ?? []).filter(
-    language =>
+    (language) =>
       !codes.includes(language.code) &&
       !language.isProhibitedLanguage &&
       (query === '' ||
@@ -131,7 +131,9 @@ export function LanguagesSection() {
 
       <RowGroup
         title="settings.languages.group.preferred"
-        footer={locked ? 'settings.languages.preferred.locked' : 'settings.languages.preferred.footer'}
+        footer={
+          locked ? 'settings.languages.preferred.locked' : 'settings.languages.preferred.footer'
+        }
       >
         {accepted === undefined || known === undefined ? (
           <InfoRow label="settings.languages.preferred" />
@@ -157,15 +159,13 @@ export function LanguagesSection() {
             onChangeText={setFilter}
           />
           <RowGroup
-            footer={
-              addable.length > PICKER_LIMIT ? 'settings.languages.add.narrow' : undefined
-            }
+            footer={addable.length > PICKER_LIMIT ? 'settings.languages.add.narrow' : undefined}
           >
             {/* Capped, and the footer says so when the cap bites. The browser
                 knows some six hundred languages; a list that long is not a
                 picker, and silently truncating it would be a list that lies
                 about what is available. */}
-            {addable.slice(0, PICKER_LIMIT).map(language => (
+            {addable.slice(0, PICKER_LIMIT).map((language) => (
               <SettingsListItem
                 key={language.code}
                 title={language.displayName}

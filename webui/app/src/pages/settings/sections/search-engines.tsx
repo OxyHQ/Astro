@@ -21,10 +21,10 @@
 // renderer down. Deleting needs the confirmation upstream puts in front of it,
 // and a destructive button without that dialog is not the same control.
 
-import {Button, RadioIndicator, SettingsListItem} from '@oxy.so/bloom';
-import {Text} from '@oxy.so/bloom/typography';
-import {useSyncExternalStore, type ReactNode} from 'react';
-import {View} from 'react-native';
+import { Button, RadioIndicator, SettingsListItem } from '@oxy.so/bloom';
+import { Text } from '@oxy.so/bloom/typography';
+import { useSyncExternalStore, type ReactNode } from 'react';
+import { View } from 'react-native';
 
 import {
   addWebUIListener,
@@ -35,9 +35,9 @@ import {
   type MessageId,
 } from '@astro/platform';
 
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
-import {ToggleRow} from '../components/toggle-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
+import { ToggleRow } from '../components/toggle-row.tsx';
 
 /**
  * One engine, as `CreateDictionaryForEngine` builds it.
@@ -68,7 +68,7 @@ export interface SearchEngineList {
   readonly extensions: readonly SearchEngine[];
 }
 
-const EMPTY: SearchEngineList = {defaults: [], actives: [], others: [], extensions: []};
+const EMPTY: SearchEngineList = { defaults: [], actives: [], others: [], extensions: [] };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -198,7 +198,7 @@ export function makeDefaultSearchEngine(modelIndex: number): void {
 }
 
 /** A row that names an engine, with whatever control belongs on its right. */
-function EngineRow({engine, action}: {engine: SearchEngine; action?: ReactNode}) {
+function EngineRow({ engine, action }: { engine: SearchEngine; action?: ReactNode }) {
   return (
     <SettingsListItem
       title={engine.displayName}
@@ -210,7 +210,7 @@ function EngineRow({engine, action}: {engine: SearchEngine; action?: ReactNode})
 }
 
 /** What a group renders instead of itself when the browser reported none. */
-function EmptyGroup({message}: {message: MessageId}) {
+function EmptyGroup({ message }: { message: MessageId }) {
   return (
     <SectionCard>
       <Text className="text-body text-text-secondary">{t(message)}</Text>
@@ -244,7 +244,7 @@ export function SearchEnginesScreen() {
           title="settings.searchEngine.siteSearch"
           footer="settings.searchEngine.siteSearch.footer"
         >
-          {engines.actives.map(engine => (
+          {engines.actives.map((engine) => (
             <EngineRow
               key={engine.modelIndex}
               engine={engine}
@@ -271,7 +271,7 @@ export function SearchEnginesScreen() {
           title="settings.searchEngine.inactive"
           footer="settings.searchEngine.inactive.footer"
         >
-          {engines.others.map(engine => (
+          {engines.others.map((engine) => (
             <EngineRow
               key={engine.modelIndex}
               engine={engine}
@@ -296,7 +296,7 @@ export function SearchEnginesScreen() {
           title="settings.searchEngine.extensions"
           footer="settings.searchEngine.extensions.footer"
         >
-          {engines.extensions.map(engine => (
+          {engines.extensions.map((engine) => (
             <EngineRow key={engine.modelIndex} engine={engine} />
           ))}
         </RowGroup>
@@ -320,7 +320,7 @@ export function SearchEnginesScreen() {
  * `default_search_provider_data.template_url_data`, which is why the group
  * takes an `enforced` flag from the caller rather than deciding for itself.
  */
-export function DefaultEngineChooser({enforced}: {enforced: boolean}) {
+export function DefaultEngineChooser({ enforced }: { enforced: boolean }) {
   const engines = useSearchEngines();
 
   if (engines.defaults.length === 0) {
@@ -335,7 +335,7 @@ export function DefaultEngineChooser({enforced}: {enforced: boolean}) {
 
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={t('settings.searchEngine.default')}>
-      {engines.defaults.map(engine => (
+      {engines.defaults.map((engine) => (
         <SettingsListItem
           key={engine.modelIndex}
           title={engine.displayName}

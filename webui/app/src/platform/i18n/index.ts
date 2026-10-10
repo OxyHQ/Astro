@@ -1,6 +1,6 @@
-import {en, type MessageId} from './en.ts';
+import { en, type MessageId } from './en.ts';
 
-export type {MessageId};
+export type { MessageId };
 
 /**
  * A message, by id.

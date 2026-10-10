@@ -21,10 +21,10 @@
 // `kHttpsFirstBalancedMode` is set leaves the browser still warning, and the
 // switch would sit there reading "off" while it was on.
 
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
-import {ToggleRow} from '../components/toggle-row.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
+import { ToggleRow } from '../components/toggle-row.tsx';
 
 export function PrivacySection() {
   return (

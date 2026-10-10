@@ -16,7 +16,7 @@
 // a screen that kept its own copy would look correct in dev and then find, in
 // the browser, that the model had already moved on.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 /** The dev browser's stand-in for `cr.webUIListenerCallback`. */
 interface CrListenerGlobal {
@@ -29,8 +29,8 @@ interface Page {
 }
 
 const pages: Page[] = [
-  {title: 'Oxy', url: 'https://oxy.so/'},
-  {title: 'Mention', url: 'https://mention.earth/'},
+  { title: 'Oxy', url: 'https://oxy.so/' },
+  { title: 'Mention', url: 'https://mention.earth/' },
 ];
 
 /**
@@ -40,7 +40,7 @@ const pages: Page[] = [
  * assigns it, so a screen that mishandles an index fails here too.
  */
 function pushPages(): void {
-  (globalThis as {cr?: CrListenerGlobal}).cr?.webUIListenerCallback?.(
+  (globalThis as { cr?: CrListenerGlobal }).cr?.webUIListenerCallback?.(
     'update-startup-pages',
     pages.map((page, index) => ({
       title: page.title,
@@ -78,7 +78,7 @@ export const onStartupFixtures: SectionFixtures = {
         return false;
       }
       const spec = url.startsWith('http') ? url : `https://${url}/`;
-      pages.push({title: spec, url: spec});
+      pages.push({ title: spec, url: spec });
       setTimeout(pushPages, 0);
       return true;
     },
@@ -94,7 +94,7 @@ export const onStartupFixtures: SectionFixtures = {
       }
     },
     setStartupPagesToCurrentPages: () => {
-      pages.splice(0, pages.length, {title: 'Astro settings', url: 'astro://settings/'});
+      pages.splice(0, pages.length, { title: 'Astro settings', url: 'astro://settings/' });
       setTimeout(pushPages, 0);
     },
   },

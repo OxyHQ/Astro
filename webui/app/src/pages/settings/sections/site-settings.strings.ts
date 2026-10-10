@@ -7,9 +7,9 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
-import type {MessageId} from '@astro/platform';
+import type { MessageId } from '@astro/platform';
 
-import {CONTENT_TYPES} from './site-settings.content-types.ts';
+import { CONTENT_TYPES } from './site-settings.content-types.ts';
 
 export const siteSettingsStrings = {
   'settings.nav.siteSettings': 'Site settings',
@@ -32,11 +32,9 @@ export const siteSettingsStrings = {
   'settings.siteSettings.default': 'Default behaviour',
   'settings.siteSettings.default.description':
     'What Astro does on a site you have not given a setting of its own.',
-  'settings.siteSettings.default.pending':
-    'The browser has not reported this permission yet.',
+  'settings.siteSettings.default.pending': 'The browser has not reported this permission yet.',
   'settings.siteSettings.default.allow': 'Allowed',
-  'settings.siteSettings.default.allow.description':
-    'Sites may use this without asking first.',
+  'settings.siteSettings.default.allow.description': 'Sites may use this without asking first.',
   'settings.siteSettings.default.ask': 'Ask first',
   'settings.siteSettings.default.ask.description': 'A site must ask you before it may use this.',
   'settings.siteSettings.default.block': 'Blocked',
@@ -126,5 +124,5 @@ export const siteSettingsControls: readonly MessageId[] = [
   'settings.siteSettings.thirdPartyCookies',
   'settings.siteSettings.autoRevoke',
   'settings.siteSettings.default',
-  ...CONTENT_TYPES.filter(type => type.group !== undefined).map(type => type.title),
+  ...CONTENT_TYPES.filter((type) => type.group !== undefined).map((type) => type.title),
 ];

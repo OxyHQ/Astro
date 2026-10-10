@@ -20,10 +20,10 @@ import {
   type FilterList as MojoFilterList,
 } from 'astro-mojom/chrome/browser/oxy/webui/astro_adblock.mojom-webui.js';
 
-import type {AdBlockSource, FilterList} from './adblock-store.ts';
+import type { AdBlockSource, FilterList } from './adblock-store.ts';
 
 function toFilterLists(lists: MojoFilterList[]): FilterList[] {
-  return lists.map(list => ({
+  return lists.map((list) => ({
     id: list.id,
     name: list.name,
     description: list.description,
@@ -41,7 +41,7 @@ export function createAdBlockSource(): AdBlockSource {
 
   return {
     getState: () =>
-      handler.getState().then(({state}) => ({
+      handler.getState().then(({ state }) => ({
         enabled: state.enabled,
         blockedCount: state.blockedCount,
         filterLists: toFilterLists(state.filterLists),
@@ -49,7 +49,7 @@ export function createAdBlockSource(): AdBlockSource {
         customRules: state.customRules,
       })),
 
-    onChanged: listener => {
+    onChanged: (listener) => {
       // Four callbacks, one subscription. Each publishes only the slice it
       // carries -- which is why the interface splits them at all: the blocked
       // count changes while someone is typing in the custom-rules box, and a
@@ -57,16 +57,16 @@ export function createAdBlockSource(): AdBlockSource {
       // request.
       const ids = [
         router.onEnabledChanged.addListener((enabled: boolean) => {
-          listener({enabled});
+          listener({ enabled });
         }),
         router.onBlockedCountChanged.addListener((blockedCount: number) => {
-          listener({blockedCount});
+          listener({ blockedCount });
         }),
         router.onDisabledSitesChanged.addListener((disabledSites: string[]) => {
-          listener({disabledSites});
+          listener({ disabledSites });
         }),
         router.onCustomRulesChanged.addListener((customRules: string) => {
-          listener({customRules});
+          listener({ customRules });
         }),
       ];
       return () => {
@@ -76,14 +76,13 @@ export function createAdBlockSource(): AdBlockSource {
       };
     },
 
-    setEnabled: enabled => {
+    setEnabled: (enabled) => {
       handler.setEnabled(enabled);
     },
 
-    removeSiteException: host =>
-      handler.removeSiteException(host).then(({accepted}) => accepted),
+    removeSiteException: (host) =>
+      handler.removeSiteException(host).then(({ accepted }) => accepted),
 
-    setCustomRules: rules =>
-      handler.setCustomRules(rules).then(({accepted}) => accepted),
+    setCustomRules: (rules) => handler.setCustomRules(rules).then(({ accepted }) => accepted),
   };
 }

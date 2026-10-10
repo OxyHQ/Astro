@@ -17,14 +17,14 @@
 // serve an exception-list editor this page does not have, and
 // `openPerformanceFeedbackDialog` opens Chrome's feedback dialog.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 export const performanceFixtures: SectionFixtures = {
   prefs: [
     // MemorySaverModeState::kEnabled.
-    {key: 'performance_tuning.high_efficiency_mode.state', type: 'NUMBER', value: 2},
+    { key: 'performance_tuning.high_efficiency_mode.state', type: 'NUMBER', value: 2 },
     // MemorySaverModeAggressiveness::kMedium.
-    {key: 'performance_tuning.high_efficiency_mode.aggressiveness', type: 'NUMBER', value: 1},
+    { key: 'performance_tuning.high_efficiency_mode.aggressiveness', type: 'NUMBER', value: 1 },
 
     // BatterySaverModeState::kEnabledBelowThreshold, ENFORCED so the locked
     // radio column -- disabled rows, and the sentence naming what locked them --
@@ -39,8 +39,8 @@ export const performanceFixtures: SectionFixtures = {
       enforcement: 'ENFORCED',
     },
 
-    {key: 'performance_tuning.discard_ring_treatment.enabled', type: 'BOOLEAN', value: true},
-    {key: 'performance_tuning.intervention_notification.enabled', type: 'BOOLEAN', value: true},
+    { key: 'performance_tuning.discard_ring_treatment.enabled', type: 'BOOLEAN', value: true },
+    { key: 'performance_tuning.intervention_notification.enabled', type: 'BOOLEAN', value: true },
 
     // Keyed by the exception rule, valued by the Windows-epoch timestamp the
     // rule was added -- the shape `setPrefDictEntry` writes. Only the number of
@@ -58,6 +58,6 @@ export const performanceFixtures: SectionFixtures = {
     // NetworkPredictionOptions::kStandard. Chromium registers this pref at
     // kDisabled (2); the fixture sits at 0 so the middle option of the three is
     // the one rendered as chosen.
-    {key: 'net.network_prediction_options', type: 'NUMBER', value: 0},
+    { key: 'net.network_prediction_options', type: 'NUMBER', value: 0 },
   ],
 };

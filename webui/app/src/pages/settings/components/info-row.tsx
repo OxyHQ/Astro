@@ -10,11 +10,11 @@
 // browser at runtime — a version, a count, a size — and is not translatable
 // text this app owns.
 
-import {SettingsListItem} from '@oxy.so/bloom';
+import { SettingsListItem } from '@oxy.so/bloom';
 
-import {t, type MessageId} from '@astro/platform';
+import { t, type MessageId } from '@astro/platform';
 
-import {ControlAnchor} from './control-anchor.tsx';
+import { ControlAnchor } from './control-anchor.tsx';
 
 export interface InfoRowProps {
   label: MessageId;
@@ -23,7 +23,7 @@ export interface InfoRowProps {
   sublabel?: MessageId;
 }
 
-export function InfoRow({label, value, sublabel}: InfoRowProps) {
+export function InfoRow({ label, value, sublabel }: InfoRowProps) {
   return (
     <ControlAnchor id={label}>
       <SettingsListItem

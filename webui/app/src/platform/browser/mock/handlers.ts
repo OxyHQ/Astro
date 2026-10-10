@@ -14,7 +14,7 @@
 // point -- a mock that quietly resolved undefined would let a section ship
 // calling a handler that does not exist.
 
-import {fixtureActions, fixtureReplies} from './sections.ts';
+import { fixtureActions, fixtureReplies } from './sections.ts';
 
 /** The narrow shape `send.ts` needs of `chrome`. */
 export interface SendBridge {
@@ -52,7 +52,7 @@ export function createSendMock(): SendBridge {
       // first, and the browser answers by name on the global.
       const [id, ...rest] = args;
       const reply = replies[message];
-      const cr = (globalThis as {cr?: CrGlobal}).cr;
+      const cr = (globalThis as { cr?: CrGlobal }).cr;
       if (typeof id !== 'string' || !cr?.webUIResponse) {
         throw new Error(
           `dev fixtures: no handler answers "${message}", and the call carried no ` +

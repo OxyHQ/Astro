@@ -12,13 +12,13 @@
 // of the app, which is driven by astro_theme.mojom, so a preset change repaints
 // this page at the same instant it repaints the toolbar.
 
-import {RiRobot2Line} from '@oxy.so/bloom/icons';
-import {useThemeColor} from '@oxy.so/bloom/theme';
-import {Text} from '@oxy.so/bloom/typography';
-import {useRef, useState, useSyncExternalStore, type ReactNode} from 'react';
-import {Image, Pressable, TextInput, View} from 'react-native';
+import { RiRobot2Line } from '@oxy.so/bloom/icons';
+import { useThemeColor } from '@oxy.so/bloom/theme';
+import { Text } from '@oxy.so/bloom/typography';
+import { useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { Image, Pressable, TextInput, View } from 'react-native';
 
-import {t} from '@astro/platform';
+import { t } from '@astro/platform';
 
 import {
   openAliaSidePanel,
@@ -59,7 +59,7 @@ function faviconUrl(pageUrl: string, size: number): string {
  * window, so the card's height has to follow its own width or the rows stop
  * lining up at every breakpoint.
  */
-export function WidgetCard({children}: {children: ReactNode}) {
+export function WidgetCard({ children }: { children: ReactNode }) {
   return (
     <View className="aspect-square w-full overflow-hidden rounded-2xl border border-border bg-card">
       {children}
@@ -68,10 +68,8 @@ export function WidgetCard({children}: {children: ReactNode}) {
 }
 
 /** The small uppercase label at the top of a card. */
-function CardKicker({children}: {children: ReactNode}) {
-  return (
-    <Text className="text-caption text-text-tertiary uppercase">{children}</Text>
-  );
+function CardKicker({ children }: { children: ReactNode }) {
+  return <Text className="text-caption text-text-tertiary uppercase">{children}</Text>;
 }
 
 // -- Clock --------------------------------------------------------------------
@@ -123,13 +121,13 @@ export function ClockWidget() {
             never a format string, which is how a browser ends up showing a
             24-hour clock to someone whose system is set to 12. */}
         <Text className="text-headerBold text-foreground text-4xl tabular-nums">
-          {now.toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'})}
+          {now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
         </Text>
         <Text className="text-bodySmall text-text-secondary">
-          {now.toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}
+          {now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
         </Text>
         <Text className="text-caption text-text-tertiary uppercase">
-          {now.toLocaleDateString(undefined, {weekday: 'short'})}
+          {now.toLocaleDateString(undefined, { weekday: 'short' })}
         </Text>
       </View>
     </WidgetCard>
@@ -161,9 +159,7 @@ export function WeatherWidget() {
           <Text className="text-bodyTitleSmall text-foreground">
             {t('newtab.weather.unavailable')}
           </Text>
-          <Text className="text-caption text-text-tertiary">
-            {t('newtab.weather.reason')}
-          </Text>
+          <Text className="text-caption text-text-tertiary">{t('newtab.weather.reason')}</Text>
         </View>
       </View>
     </WidgetCard>
@@ -172,7 +168,7 @@ export function WeatherWidget() {
 
 // -- Quick links --------------------------------------------------------------
 
-function LinkTile({link, size}: {link: QuickLink; size: number}) {
+function LinkTile({ link, size }: { link: QuickLink; size: number }) {
   return (
     <View
       href={link.url}
@@ -181,9 +177,9 @@ function LinkTile({link, size}: {link: QuickLink; size: number}) {
       className="min-w-0 flex-row items-center gap-2 rounded-radius-12 p-1.5 hover:bg-fill-hover"
     >
       <Image
-        source={{uri: faviconUrl(link.url, size)}}
+        source={{ uri: faviconUrl(link.url, size) }}
         accessibilityLabel=""
-        style={{width: size, height: size, borderRadius: 4}}
+        style={{ width: size, height: size, borderRadius: 4 }}
       />
       <Text numberOfLines={1} className="text-bodySmall text-foreground flex-1">
         {link.title}
@@ -192,26 +188,22 @@ function LinkTile({link, size}: {link: QuickLink; size: number}) {
   );
 }
 
-export function QuickLinksWidget({onEdit}: {onEdit: () => void}) {
-  const {quickLinks} = useNtp();
+export function QuickLinksWidget({ onEdit }: { onEdit: () => void }) {
+  const { quickLinks } = useNtp();
   return (
     <WidgetCard>
       <View className="flex-1 gap-1 p-3">
         <View className="flex-row items-center justify-between">
           <CardKicker>{t('newtab.widget.quickLinks')}</CardKicker>
           <Pressable accessibilityRole="button" onPress={onEdit}>
-            <Text className="text-caption text-primary">
-              {t('newtab.quickLinks.edit')}
-            </Text>
+            <Text className="text-caption text-primary">{t('newtab.quickLinks.edit')}</Text>
           </Pressable>
         </View>
         {quickLinks.length === 0 ? (
-          <Text className="text-caption text-text-tertiary">
-            {t('newtab.quickLinks.empty')}
-          </Text>
+          <Text className="text-caption text-text-tertiary">{t('newtab.quickLinks.empty')}</Text>
         ) : (
           <View className="min-h-0 flex-1 flex-row flex-wrap content-start">
-            {quickLinks.slice(0, 8).map(link => (
+            {quickLinks.slice(0, 8).map((link) => (
               <View key={link.url} className="w-1/2">
                 <LinkTile link={link} size={16} />
               </View>
@@ -240,7 +232,7 @@ export function QuickLinksWidget({onEdit}: {onEdit: () => void}) {
  * adopted.
  */
 export function NotesWidget() {
-  const {notes} = useNtp();
+  const { notes } = useNtp();
   const [seen, setSeen] = useState(notes);
   const [draft, setDraft] = useState(notes);
   const sent = useRef<string | undefined>(undefined);
@@ -260,7 +252,7 @@ export function NotesWidget() {
         <TextInput
           multiline
           value={draft}
-          onChangeText={next => {
+          onChangeText={(next) => {
             setDraft(next);
             sent.current = next;
             clearTimeout(timer.current);
@@ -269,7 +261,7 @@ export function NotesWidget() {
           placeholder={t('newtab.notes.placeholder')}
           accessibilityLabel={t('newtab.widget.notes')}
           className="text-bodySmall text-foreground min-h-0 flex-1"
-          style={{textAlignVertical: 'top'}}
+          style={{ textAlignVertical: 'top' }}
         />
       </View>
     </WidgetCard>
@@ -301,9 +293,7 @@ export function DiscoverWidget() {
         className="flex-1 justify-between bg-primary-subtle p-3"
       >
         <CardKicker>{t('newtab.discover.kicker')}</CardKicker>
-        <Text className="text-bodyTitleSmall text-foreground">
-          {t('newtab.discover.title')}
-        </Text>
+        <Text className="text-bodyTitleSmall text-foreground">{t('newtab.discover.title')}</Text>
       </Pressable>
     </WidgetCard>
   );
@@ -327,13 +317,9 @@ export function AliaWidget() {
               styles, so the `style.color` an icon reads as its fallback fill
               is never there. */}
           <RiRobot2Line size="lg" fill={iconColor} />
-          <Text className="text-caption text-text-tertiary">
-            {t('newtab.alia.kicker')}
-          </Text>
+          <Text className="text-caption text-text-tertiary">{t('newtab.alia.kicker')}</Text>
         </View>
-        <Text className="text-bodySmall text-foreground">
-          {t('newtab.alia.prompt')}
-        </Text>
+        <Text className="text-bodySmall text-foreground">{t('newtab.alia.prompt')}</Text>
       </Pressable>
     </WidgetCard>
   );
@@ -341,7 +327,7 @@ export function AliaWidget() {
 
 // -- Most visited -------------------------------------------------------------
 
-function TileCard({tile}: {tile: Tile}) {
+function TileCard({ tile }: { tile: Tile }) {
   return (
     <WidgetCard>
       <View
@@ -351,14 +337,11 @@ function TileCard({tile}: {tile: Tile}) {
         className="flex-1 items-center justify-center gap-2 p-3 hover:bg-fill-hover"
       >
         <Image
-          source={{uri: faviconUrl(tile.url, 32)}}
+          source={{ uri: faviconUrl(tile.url, 32) }}
           accessibilityLabel=""
-          style={{width: 32, height: 32, borderRadius: 8}}
+          style={{ width: 32, height: 32, borderRadius: 8 }}
         />
-        <Text
-          numberOfLines={1}
-          className="text-caption text-text-secondary w-full text-center"
-        >
+        <Text numberOfLines={1} className="text-caption text-text-secondary w-full text-center">
           {tile.title}
         </Text>
       </View>
@@ -375,7 +358,7 @@ function TileCard({tile}: {tile: Tile}) {
  * four cards instead of four cells.
  */
 export function SitesWidgets() {
-  const {tiles, ready} = useNtp();
+  const { tiles, ready } = useNtp();
   if (tiles.length === 0) {
     // Before the history query answers there is nothing to say. Afterwards, an
     // empty result is a real state — a fresh profile — and gets a card saying
@@ -384,9 +367,7 @@ export function SitesWidgets() {
       <View className="w-1/2 p-1.5 md:w-1/3 lg:w-1/4">
         <WidgetCard>
           <View className="flex-1 justify-center p-3">
-            <Text className="text-caption text-text-tertiary">
-              {t('newtab.sites.empty')}
-            </Text>
+            <Text className="text-caption text-text-tertiary">{t('newtab.sites.empty')}</Text>
           </View>
         </WidgetCard>
       </View>
@@ -394,7 +375,7 @@ export function SitesWidgets() {
   }
   return (
     <>
-      {tiles.map(tile => (
+      {tiles.map((tile) => (
         <View key={tile.url} className="w-1/2 p-1.5 md:w-1/3 lg:w-1/4">
           <TileCard tile={tile} />
         </View>

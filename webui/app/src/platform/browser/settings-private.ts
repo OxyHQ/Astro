@@ -16,7 +16,7 @@
 // allowlist, and adding them there would make every one of them writable by
 // the generic path this project deliberately removed. They use typed Mojo.
 
-import {MissingBrowserApiError} from './env.ts';
+import { MissingBrowserApiError } from './env.ts';
 
 export type PrefType = 'BOOLEAN' | 'NUMBER' | 'STRING' | 'URL' | 'LIST' | 'DICTIONARY';
 
@@ -73,13 +73,13 @@ interface ChromeSettingsPrivate {
 
 function wrap(api: ChromeSettingsPrivate): SettingsPrivateApi {
   return {
-    getAllPrefs: () => new Promise(resolve => api.getAllPrefs(resolve)),
-    getPref: key => new Promise(resolve => api.getPref(key, resolve)),
+    getAllPrefs: () => new Promise((resolve) => api.getAllPrefs(resolve)),
+    getPref: (key) => new Promise((resolve) => api.getPref(key, resolve)),
     // The page id is the browser's own de-duplication of change notifications
     // between two settings tabs. This app renders from the echo rather than
     // from a local guess, so it wants every notification.
-    setPref: (key, value) => new Promise(resolve => api.setPref(key, value, '', resolve)),
-    onPrefsChanged: listener => {
+    setPref: (key, value) => new Promise((resolve) => api.setPref(key, value, '', resolve)),
+    onPrefsChanged: (listener) => {
       api.onPrefsChanged.addListener(listener);
       return () => api.onPrefsChanged.removeListener(listener);
     },
@@ -91,13 +91,13 @@ let resolved: Promise<SettingsPrivateApi> | undefined;
 /** The prefs API for this page, resolved once. */
 export function settingsPrivate(): Promise<SettingsPrivateApi> {
   resolved ??= (async () => {
-    const real = (globalThis as {chrome?: {settingsPrivate?: ChromeSettingsPrivate}})
-      .chrome?.settingsPrivate;
+    const real = (globalThis as { chrome?: { settingsPrivate?: ChromeSettingsPrivate } }).chrome
+      ?.settingsPrivate;
     if (real) {
       return wrap(real);
     }
     if (import.meta.env.DEV) {
-      const {createSettingsPrivateMock} = await import('./mock/settings-private.ts');
+      const { createSettingsPrivateMock } = await import('./mock/settings-private.ts');
       return createSettingsPrivateMock();
     }
     throw new MissingBrowserApiError(

@@ -9,27 +9,27 @@
 // the browser resolves it against the profile's own default provider and
 // navigates the tab itself.
 
-import {RiArrowDownSLine, RiSearchLine} from '@oxy.so/bloom/icons';
-import {useThemeColor} from '@oxy.so/bloom/theme';
-import {Text} from '@oxy.so/bloom/typography';
-import {useEffect, useRef, useState} from 'react';
-import {Pressable, TextInput, View, type TextInput as TextInputRef} from 'react-native';
+import { RiArrowDownSLine, RiSearchLine } from '@oxy.so/bloom/icons';
+import { useThemeColor } from '@oxy.so/bloom/theme';
+import { Text } from '@oxy.so/bloom/typography';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, TextInput, View, type TextInput as TextInputRef } from 'react-native';
 
-import {navigateTo, t} from '@astro/platform';
+import { navigateTo, t } from '@astro/platform';
 
-import {search, setDefaultSearchEngine, useNtp} from './ntp-store.ts';
+import { search, setDefaultSearchEngine, useNtp } from './ntp-store.ts';
 
 /** The search box's DOM id, for the click-away test below. */
 const SEARCH_BOX_ID = 'astro-ntp-search';
 
 export function SearchBox() {
-  const {searchEngines} = useNtp();
+  const { searchEngines } = useNtp();
   const [query, setQuery] = useState('');
   const [enginesOpen, setEnginesOpen] = useState(false);
   const input = useRef<TextInputRef | null>(null);
   const iconColor = useThemeColor('textSecondary');
 
-  const current = searchEngines.find(engine => engine.isDefault);
+  const current = searchEngines.find((engine) => engine.isDefault);
   const pinned = current !== undefined && !current.selectable;
 
   // Two document listeners, and one of the few places an effect is the right
@@ -52,7 +52,10 @@ export function SearchBox() {
         input.current?.blur();
         return;
       }
-      if ((event.key === '/' && !typing) || (event.key === 'k' && (event.metaKey || event.ctrlKey))) {
+      if (
+        (event.key === '/' && !typing) ||
+        (event.key === 'k' && (event.metaKey || event.ctrlKey))
+      ) {
         event.preventDefault();
         input.current?.focus();
         return;
@@ -128,15 +131,13 @@ export function SearchBox() {
             accessibilityLabel={t('newtab.search.engine')}
             aria-expanded={enginesOpen}
             disabled={pinned}
-            onPress={() => setEnginesOpen(open => !open)}
+            onPress={() => setEnginesOpen((open) => !open)}
             className="flex-row items-center gap-1 rounded-radius-max px-2 py-1 hover:bg-fill-hover"
           >
             <Text className="text-bodySmall text-text-secondary">
               {current?.name ?? t('newtab.search.engine')}
             </Text>
-            {pinned ? undefined : (
-              <RiArrowDownSLine size="sm" fill={iconColor} />
-            )}
+            {pinned ? undefined : <RiArrowDownSLine size="sm" fill={iconColor} />}
           </Pressable>
         ) : undefined}
 
@@ -146,9 +147,7 @@ export function SearchBox() {
           onPress={submit}
           className="rounded-radius-max bg-primary px-4 py-2"
         >
-          <Text className="text-bodySmall text-onPrimary">
-            {t('newtab.search.submit')}
-          </Text>
+          <Text className="text-bodySmall text-onPrimary">{t('newtab.search.submit')}</Text>
         </Pressable>
       </View>
 
@@ -167,7 +166,7 @@ export function SearchBox() {
           accessibilityRole="menu"
           className="gap-1 rounded-2xl border border-border bg-card p-2"
         >
-          {searchEngines.map(engine => (
+          {searchEngines.map((engine) => (
             <Pressable
               key={engine.id}
               accessibilityRole="menuitem"

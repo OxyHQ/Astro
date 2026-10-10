@@ -11,9 +11,9 @@
 // numeric order, because the three are a scale and reading them as one is the
 // point of a radio column.
 
-import {RadioGroup, type RadioOption} from '../components/radio-group.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
+import { RadioGroup, type RadioOption } from '../components/radio-group.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
 
 const PRELOADING: readonly RadioOption[] = [
   {

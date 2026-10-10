@@ -40,11 +40,11 @@
 // heuristic, so the panel's URL resolves and the value it carries is finally
 // readable.
 
-import {useThemeColor} from '@oxy.so/bloom/theme';
-import {Text} from '@oxy.so/bloom/typography';
-import {ScrollView, View} from 'react-native';
+import { useThemeColor } from '@oxy.so/bloom/theme';
+import { Text } from '@oxy.so/bloom/typography';
+import { ScrollView, View } from 'react-native';
 
-import {AstroMark, SectionCard, t, type MessageId} from '@astro/platform';
+import { AstroMark, SectionCard, t, type MessageId } from '@astro/platform';
 
 /**
  * The tab the browser told this panel about.
@@ -60,11 +60,11 @@ import {AstroMark, SectionCard, t, type MessageId} from '@astro/platform';
 const TAB_CONTEXT = (() => {
   const parameters = new URLSearchParams(location.search);
   const url = parameters.get('context_url');
-  return url === null ? undefined : {url, title: parameters.get('context_title') ?? ''};
+  return url === null ? undefined : { url, title: parameters.get('context_title') ?? '' };
 })();
 
 /** One of the three things #17 has to build before this page can answer. */
-function Requirement({title, body}: {title: MessageId; body: MessageId}) {
+function Requirement({ title, body }: { title: MessageId; body: MessageId }) {
   return (
     <View className="gap-1">
       <Text className="text-bodySmall font-semibold text-foreground">{t(title)}</Text>
@@ -74,7 +74,7 @@ function Requirement({title, body}: {title: MessageId; body: MessageId}) {
 }
 
 /** A label above the value it names, for a fact rather than a control. */
-function Fact({label, value}: {label: MessageId; value: string}) {
+function Fact({ label, value }: { label: MessageId; value: string }) {
   return (
     <View className="gap-0.5">
       <Text className="text-caption text-text-tertiary uppercase">{t(label)}</Text>
@@ -121,10 +121,7 @@ export function AliaPage() {
 
           <SectionCard title={t('alia.pending.waiting')}>
             <View className="gap-4">
-              <Requirement
-                title="alia.pending.isolation"
-                body="alia.pending.isolation.body"
-              />
+              <Requirement title="alia.pending.isolation" body="alia.pending.isolation.body" />
               <Requirement title="alia.pending.bridge" body="alia.pending.bridge.body" />
               <Requirement title="alia.pending.consent" body="alia.pending.consent.body" />
             </View>
@@ -132,9 +129,7 @@ export function AliaPage() {
 
           <SectionCard title={t('alia.context.title')}>
             {TAB_CONTEXT === undefined ? (
-              <Text className="text-bodySmall text-text-secondary">
-                {t('alia.context.none')}
-              </Text>
+              <Text className="text-bodySmall text-text-secondary">{t('alia.context.none')}</Text>
             ) : (
               <View className="gap-3">
                 <Fact
@@ -142,9 +137,7 @@ export function AliaPage() {
                   value={TAB_CONTEXT.title === '' ? t('alia.context.untitled') : TAB_CONTEXT.title}
                 />
                 <Fact label="alia.context.pageUrl" value={TAB_CONTEXT.url} />
-                <Text className="text-caption text-text-tertiary">
-                  {t('alia.context.note')}
-                </Text>
+                <Text className="text-caption text-text-tertiary">{t('alia.context.note')}</Text>
               </View>
             )}
           </SectionCard>

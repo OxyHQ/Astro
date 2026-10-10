@@ -21,32 +21,32 @@
 //
 // The reset itself is one screen further in, at `/resetProfileSettings`.
 
-import {SectionCard, sendWithPromise, t} from '@astro/platform';
-import {useState} from 'react';
+import { SectionCard, sendWithPromise, t } from '@astro/platform';
+import { useState } from 'react';
 
-import {ActionRow} from '../components/action-row.tsx';
-import {InfoRow} from '../components/info-row.tsx';
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
+import { ActionRow } from '../components/action-row.tsx';
+import { InfoRow } from '../components/info-row.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
 
 /** What the tampered-settings check has told us so far. */
 type Check =
-  | {readonly state: 'idle'}
-  | {readonly state: 'checking'}
-  | {readonly state: 'answered'; readonly labels: readonly string[]}
-  | {readonly state: 'failed'};
+  | { readonly state: 'idle' }
+  | { readonly state: 'checking' }
+  | { readonly state: 'answered'; readonly labels: readonly string[] }
+  | { readonly state: 'failed' };
 
 export function ResetSection() {
   // Handler-backed and asked for, not loaded: the check runs when the user
   // presses the button, so there is no mount effect and no round trip on a
   // screen the user is only passing through.
-  const [check, setCheck] = useState<Check>({state: 'idle'});
+  const [check, setCheck] = useState<Check>({ state: 'idle' });
 
   const run = (): void => {
-    setCheck({state: 'checking'});
+    setCheck({ state: 'checking' });
     void sendWithPromise<readonly unknown[]>('getTamperedPreferencePaths').then(
-      answer => {
+      (answer) => {
         setCheck({
           state: 'answered',
           labels: answer.filter((entry): entry is string => typeof entry === 'string'),
@@ -54,7 +54,7 @@ export function ResetSection() {
       },
       // The rejection is rendered, not swallowed: a failed check that fell back
       // to the empty state would read as "nothing was changed".
-      () => setCheck({state: 'failed'}),
+      () => setCheck({ state: 'failed' }),
     );
   };
 

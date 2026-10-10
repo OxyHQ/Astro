@@ -18,14 +18,14 @@
 // already renders it. A second copy would give the page's search field two hits
 // for one setting, and two switches that must agree.
 
-import {ControlAnchor} from '../components/control-anchor.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
+import { ControlAnchor } from '../components/control-anchor.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
 
-import {SectionCard, t, usePref} from '@astro/platform';
+import { SectionCard, t, usePref } from '@astro/platform';
 
-import {DefaultEngineChooser} from './search-engines.tsx';
+import { DefaultEngineChooser } from './search-engines.tsx';
 
 /** The pref a policy or an extension reports a forced default engine on. */
 const DEFAULT_ENGINE_PREF = 'default_search_provider_data.template_url_data';
@@ -43,7 +43,7 @@ export function SearchSection() {
           title={t('settings.searchEngine.default')}
           description={
             enforced && provider?.controlledByName
-              ? t('pref.enforcedBy', {controller: provider.controlledByName})
+              ? t('pref.enforcedBy', { controller: provider.controlledByName })
               : t('settings.searchEngine.default.description')
           }
         >

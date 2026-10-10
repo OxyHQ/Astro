@@ -11,12 +11,12 @@
 // the write goes out and the browser's echo is what moves it. A local guess
 // would show the new position on a pref the browser refused.
 
-import {SettingsListItem, Switch} from '@oxy.so/bloom';
+import { SettingsListItem, Switch } from '@oxy.so/bloom';
 
-import {setPref, t, type MessageId} from '@astro/platform';
+import { setPref, t, type MessageId } from '@astro/platform';
 
-import {ControlAnchor} from './control-anchor.tsx';
-import {usePrefControl} from './policy.ts';
+import { ControlAnchor } from './control-anchor.tsx';
+import { usePrefControl } from './policy.ts';
 
 export interface ToggleRowProps {
   /** The Chromium pref path. Must be one settingsPrivate's allowlist carries. */
@@ -26,8 +26,8 @@ export interface ToggleRowProps {
   sublabel?: MessageId;
 }
 
-export function ToggleRow({prefKey, label, sublabel}: ToggleRowProps) {
-  const {pref, enforced, note} = usePrefControl(prefKey);
+export function ToggleRow({ prefKey, label, sublabel }: ToggleRowProps) {
+  const { pref, enforced, note } = usePrefControl(prefKey);
 
   if (!pref) {
     return (

@@ -33,10 +33,10 @@
 // controls -- so the prefs are what you asked for and the handler is what you
 // got.
 
-import {RadioIndicator, SettingsListItem} from '@oxy.so/bloom';
-import {Text} from '@oxy.so/bloom/typography';
-import {useSyncExternalStore} from 'react';
-import {View} from 'react-native';
+import { RadioIndicator, SettingsListItem } from '@oxy.so/bloom';
+import { Text } from '@oxy.so/bloom/typography';
+import { useSyncExternalStore } from 'react';
+import { View } from 'react-native';
 
 import {
   SectionCard,
@@ -47,12 +47,12 @@ import {
   usePref,
 } from '@astro/platform';
 
-import {usePrefControl} from '../components/policy.ts';
-import {RadioGroup} from '../components/radio-group.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SearchableLabel} from '../components/searchable-label.tsx';
-import {SelectRow} from '../components/select-row.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
+import { usePrefControl } from '../components/policy.ts';
+import { RadioGroup } from '../components/radio-group.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SearchableLabel } from '../components/searchable-label.tsx';
+import { SelectRow } from '../components/select-row.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
 
 const DNS_MODE_PREF = 'dns_over_https.mode';
 const DNS_TEMPLATES_PREF = 'dns_over_https.templates';
@@ -104,7 +104,7 @@ function isResolver(value: unknown): value is Resolver {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
-  const candidate = value as {name?: unknown; value?: unknown};
+  const candidate = value as { name?: unknown; value?: unknown };
   return typeof candidate.name === 'string' && typeof candidate.value === 'string';
 }
 
@@ -112,7 +112,7 @@ function toEffective(value: unknown): EffectiveDns | undefined {
   if (typeof value !== 'object' || value === null) {
     return undefined;
   }
-  const candidate = value as {mode?: unknown; config?: unknown; managementMode?: unknown};
+  const candidate = value as { mode?: unknown; config?: unknown; managementMode?: unknown };
   if (typeof candidate.mode !== 'string' || typeof candidate.config !== 'string') {
     return undefined;
   }
@@ -142,7 +142,7 @@ function subscribe(listener: () => void): () => void {
     addWebUIListener('secure-dns-setting-changed', (...args: unknown[]) => {
       const effective = toEffective(args[0]);
       if (effective) {
-        publish({...snapshot, effective});
+        publish({ ...snapshot, effective });
       }
     });
     void Promise.all([
@@ -190,8 +190,8 @@ function useSecureDns(): DnsState {
  * even if the names were known. The written value is the DoH template string
  * the handler handed over, never one this page composed.
  */
-function ResolverChoice({resolvers}: {resolvers: readonly Resolver[]}) {
-  const {pref, enforced, note} = usePrefControl(DNS_TEMPLATES_PREF);
+function ResolverChoice({ resolvers }: { resolvers: readonly Resolver[] }) {
+  const { pref, enforced, note } = usePrefControl(DNS_TEMPLATES_PREF);
   const current = typeof pref?.value === 'string' ? pref.value : '';
 
   return (
@@ -201,7 +201,7 @@ function ResolverChoice({resolvers}: {resolvers: readonly Resolver[]}) {
         accessibilityRole="radiogroup"
         accessibilityLabel={t('settings.privacy.security.dns.resolver')}
       >
-        {resolvers.map(resolver => (
+        {resolvers.map((resolver) => (
           <SettingsListItem
             key={resolver.value}
             title={resolver.name}
@@ -229,9 +229,9 @@ function SecureDnsCard() {
           prefKey={DNS_MODE_PREF}
           label="settings.privacy.security.dns.mode"
           options={[
-            {value: 'off', label: 'settings.privacy.security.dns.mode.off'},
-            {value: 'automatic', label: 'settings.privacy.security.dns.mode.automatic'},
-            {value: 'secure', label: 'settings.privacy.security.dns.mode.secure'},
+            { value: 'off', label: 'settings.privacy.security.dns.mode.off' },
+            { value: 'automatic', label: 'settings.privacy.security.dns.mode.automatic' },
+            { value: 'secure', label: 'settings.privacy.security.dns.mode.secure' },
           ]}
         />
         {state.effective ? (

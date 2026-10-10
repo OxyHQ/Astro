@@ -15,7 +15,7 @@
 // exists to remove: a page that keeps its own palette does not re-theme when
 // the browser does.
 
-import Svg, {G, Path} from 'react-native-svg';
+import Svg, { G, Path } from 'react-native-svg';
 
 /**
  * The two subpaths of `branding/astro-logo-colored.svg`, and the transform its
@@ -44,13 +44,13 @@ export interface AstroMarkProps {
   fill: string;
 }
 
-export function AstroMark({size, fill}: AstroMarkProps) {
+export function AstroMark({ size, fill }: AstroMarkProps) {
   // The viewBox is the branding file's own, so the aspect ratio is the mark's
   // rather than a square it would be squashed into.
   return (
     <Svg width={(size * 163) / 169} height={size} viewBox="0 0 163 169">
       <G transform={MARK_TRANSFORM} fill={fill}>
-        {MARK_PATHS.map(path => (
+        {MARK_PATHS.map((path) => (
           <Path key={path} d={path} />
         ))}
       </G>

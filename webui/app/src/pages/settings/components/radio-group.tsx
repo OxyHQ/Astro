@@ -10,13 +10,13 @@
 // independent radios: a screen reader announces "2 of 3" only when the rows
 // share a group, and keyboard users expect one tab stop for the whole choice.
 
-import {RadioIndicator, SettingsListItem} from '@oxy.so/bloom';
-import {View} from 'react-native';
+import { RadioIndicator, SettingsListItem } from '@oxy.so/bloom';
+import { View } from 'react-native';
 
-import {setPref, t, type MessageId} from '@astro/platform';
+import { setPref, t, type MessageId } from '@astro/platform';
 
-import {usePrefControl} from './policy.ts';
-import {SearchableLabel} from './searchable-label.tsx';
+import { usePrefControl } from './policy.ts';
+import { SearchableLabel } from './searchable-label.tsx';
 
 export interface RadioOption {
   /** The value as the browser stores it. */
@@ -32,12 +32,12 @@ export interface RadioGroupProps {
   options: readonly RadioOption[];
 }
 
-export function RadioGroup({prefKey, label, options}: RadioGroupProps) {
+export function RadioGroup({ prefKey, label, options }: RadioGroupProps) {
   const describe = (value: unknown): string => {
-    const match = options.find(option => option.value === value);
+    const match = options.find((option) => option.value === value);
     return match ? t(match.label) : String(value ?? '');
   };
-  const {pref, enforced, note} = usePrefControl(prefKey, describe);
+  const { pref, enforced, note } = usePrefControl(prefKey, describe);
   const allowed = pref?.userSelectableValues;
 
   return (
@@ -45,11 +45,11 @@ export function RadioGroup({prefKey, label, options}: RadioGroupProps) {
       {/* The option names are searchable in their own right where a section
           declares them, and none of them has a row the page can mark on its
           own -- so a search for one reveals the choice they belong to. */}
-      <SearchableLabel id={label} note={note} also={options.map(option => option.label)} />
+      <SearchableLabel id={label} note={note} also={options.map((option) => option.label)} />
       <View accessibilityRole="radiogroup" accessibilityLabel={t(label)}>
         {options
-          .filter(option => allowed === undefined || allowed.includes(option.value))
-          .map(option => {
+          .filter((option) => allowed === undefined || allowed.includes(option.value))
+          .map((option) => {
             const selected = pref?.value === option.value;
             return (
               <SettingsListItem

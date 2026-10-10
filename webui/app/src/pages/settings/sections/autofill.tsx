@@ -34,18 +34,15 @@
 // `authenticateUserAndFlipMandatoryAuthToggle()` -- writing that pref directly
 // would turn the reauthentication requirement off without reauthenticating.
 
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
-import {ToggleRow} from '../components/toggle-row.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
+import { ToggleRow } from '../components/toggle-row.tsx';
 
 export function AutofillSection() {
   return (
     <>
-      <SectionHeader
-        title="settings.autofill.title"
-        description="settings.autofill.description"
-      />
+      <SectionHeader title="settings.autofill.title" description="settings.autofill.description" />
 
       <RowGroup title="settings.autofill.group.filling">
         <ToggleRow

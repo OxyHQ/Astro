@@ -11,9 +11,9 @@
 // apart is what stops a fixture module that imports this type from sitting in
 // an import cycle with the module that collects it.
 
-import type {SavedAddress, SavedCard, SavedIban} from '../autofill-private.ts';
-import type {DictionaryStatus, LanguageInfo} from '../language-settings-private.ts';
-import type {Pref} from '../settings-private.ts';
+import type { SavedAddress, SavedCard, SavedIban } from '../autofill-private.ts';
+import type { DictionaryStatus, LanguageInfo } from '../language-settings-private.ts';
+import type { Pref } from '../settings-private.ts';
 
 /** A handler call that replies, as `sendWithPromise` makes it. */
 export type HandlerReply = (...args: unknown[]) => unknown;

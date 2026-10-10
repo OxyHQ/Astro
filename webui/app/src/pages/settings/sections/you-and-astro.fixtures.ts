@@ -19,7 +19,7 @@
 // failure in a real build, not a blank card. The account state on this screen
 // is a sentence, and a sentence needs no fixture.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 /** The dev browser's stand-in for `cr.webUIListenerCallback`. */
 interface CrListenerGlobal {
@@ -27,7 +27,7 @@ interface CrListenerGlobal {
 }
 
 function fire(event: string, ...args: unknown[]): void {
-  (globalThis as {cr?: CrListenerGlobal}).cr?.webUIListenerCallback?.(event, ...args);
+  (globalThis as { cr?: CrListenerGlobal }).cr?.webUIListenerCallback?.(event, ...args);
 }
 
 let profileName = 'Person 1';
@@ -75,15 +75,15 @@ const SOURCES = [
 
 export const youAndAstroFixtures: SectionFixtures = {
   prefs: [
-    {key: 'import_dialog_bookmarks', type: 'BOOLEAN', value: true},
-    {key: 'import_dialog_history', type: 'BOOLEAN', value: false},
-    {key: 'import_dialog_saved_passwords', type: 'BOOLEAN', value: true},
-    {key: 'import_dialog_search_engine', type: 'BOOLEAN', value: false},
-    {key: 'import_dialog_autofill_form_data', type: 'BOOLEAN', value: false},
+    { key: 'import_dialog_bookmarks', type: 'BOOLEAN', value: true },
+    { key: 'import_dialog_history', type: 'BOOLEAN', value: false },
+    { key: 'import_dialog_saved_passwords', type: 'BOOLEAN', value: true },
+    { key: 'import_dialog_search_engine', type: 'BOOLEAN', value: false },
+    { key: 'import_dialog_autofill_form_data', type: 'BOOLEAN', value: false },
   ],
 
   replies: {
-    getProfileInfo: () => ({name: profileName, iconUrl: ''}),
+    getProfileInfo: () => ({ name: profileName, iconUrl: '' }),
     initializeImportDialog: () => SOURCES,
   },
 
@@ -92,7 +92,7 @@ export const youAndAstroFixtures: SectionFixtures = {
       const [name] = args;
       if (typeof name === 'string' && name.trim() !== '') {
         profileName = name.trim();
-        setTimeout(() => fire('profile-info-changed', {name: profileName, iconUrl: ''}), 0);
+        setTimeout(() => fire('profile-info-changed', { name: profileName, iconUrl: '' }), 0);
       }
     },
     importData: () => {

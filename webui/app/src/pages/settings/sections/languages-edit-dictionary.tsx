@@ -12,10 +12,10 @@
 // the same rule every other control on this page follows, and the reason two
 // settings tabs cannot drift apart.
 
-import {Button, TextFieldInput} from '@oxy.so/bloom';
-import {Text} from '@oxy.so/bloom/typography';
-import {useState} from 'react';
-import {View} from 'react-native';
+import { Button, TextFieldInput } from '@oxy.so/bloom';
+import { Text } from '@oxy.so/bloom/typography';
+import { useState } from 'react';
+import { View } from 'react-native';
 
 import {
   SectionCard,
@@ -26,10 +26,10 @@ import {
   usePref,
 } from '@astro/platform';
 
-import {ControlAnchor} from '../components/control-anchor.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
-import {SettingsListItem} from '@oxy.so/bloom';
+import { ControlAnchor } from '../components/control-anchor.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
+import { SettingsListItem } from '@oxy.so/bloom';
 
 export function LanguagesEditDictionaryScreen() {
   const words = useCustomWords();
@@ -80,7 +80,7 @@ export function LanguagesEditDictionaryScreen() {
           </View>
           {duplicate ? (
             <Text className="text-bodySmall text-text-secondary">
-              {t('settings.languages.editDictionary.duplicate', {word: trimmed})}
+              {t('settings.languages.editDictionary.duplicate', { word: trimmed })}
             </Text>
           ) : undefined}
         </SectionCard>
@@ -104,7 +104,7 @@ export function LanguagesEditDictionaryScreen() {
               : 'settings.languages.editDictionary.footer'
           }
         >
-          {words.map(word => (
+          {words.map((word) => (
             <SettingsListItem
               key={word}
               title={word}

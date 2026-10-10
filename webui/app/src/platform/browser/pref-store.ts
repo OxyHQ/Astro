@@ -8,9 +8,9 @@
 // controls disagree about the same pref, and a memoising compiler is entitled
 // to freeze the first value it computed from an out-of-band read.
 
-import {useSyncExternalStore} from 'react';
+import { useSyncExternalStore } from 'react';
 
-import {settingsPrivate, type Pref} from './settings-private.ts';
+import { settingsPrivate, type Pref } from './settings-private.ts';
 
 type Snapshot = ReadonlyMap<string, Pref>;
 
@@ -37,7 +37,7 @@ function start(): void {
     return;
   }
   started = true;
-  void settingsPrivate().then(api => {
+  void settingsPrivate().then((api) => {
     // The change listener is registered BEFORE the first read, so a pref that
     // changes while getAllPrefs is in flight is not lost.
     api.onPrefsChanged(publish);
@@ -76,5 +76,5 @@ export function usePref(key: string): Pref | undefined {
  * local guess would show the new value even where a policy refused the write.
  */
 export function setPref(key: string, value: unknown): void {
-  void settingsPrivate().then(api => api.setPref(key, value));
+  void settingsPrivate().then((api) => api.setPref(key, value));
 }

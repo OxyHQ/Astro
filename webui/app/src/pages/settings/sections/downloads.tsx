@@ -19,16 +19,16 @@
 // and is reported as one: "the browser has not said" is not "there is
 // nothing".
 
-import {Button, SettingsListItem} from '@oxy.so/bloom';
-import {useSyncExternalStore} from 'react';
+import { Button, SettingsListItem } from '@oxy.so/bloom';
+import { useSyncExternalStore } from 'react';
 
-import {addWebUIListener, send, t} from '@astro/platform';
+import { addWebUIListener, send, t } from '@astro/platform';
 
-import {ControlAnchor} from '../components/control-anchor.tsx';
-import {usePrefControl} from '../components/policy.ts';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
-import {ToggleRow} from '../components/toggle-row.tsx';
+import { ControlAnchor } from '../components/control-anchor.tsx';
+import { usePrefControl } from '../components/policy.ts';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
+import { ToggleRow } from '../components/toggle-row.tsx';
 
 const DOWNLOAD_DIRECTORY_PREF = 'download.default_directory';
 
@@ -64,7 +64,7 @@ function getSnapshot(): boolean | undefined {
 }
 
 function DownloadLocationRow() {
-  const {pref, enforced, note} = usePrefControl(DOWNLOAD_DIRECTORY_PREF);
+  const { pref, enforced, note } = usePrefControl(DOWNLOAD_DIRECTORY_PREF);
   const path = typeof pref?.value === 'string' ? pref.value : undefined;
 
   return (

@@ -11,8 +11,7 @@ export const newTabStrings = {
   'newtab.search.placeholder': 'Search the web',
   'newtab.search.submit': 'Search',
   'newtab.search.engine': 'Search engine',
-  'newtab.search.enginePinned':
-    'Your organisation chooses the search engine for this browser.',
+  'newtab.search.enginePinned': 'Your organisation chooses the search engine for this browser.',
 
   'newtab.blocked': '{count} ads and trackers blocked',
 
@@ -53,8 +52,7 @@ export const newTabStrings = {
   'newtab.customize.title': 'Customize this page',
   'newtab.customize.close': 'Close',
   'newtab.customize.widgets': 'Widgets',
-  'newtab.customize.widgetsHint':
-    'Show, hide and reorder the cards on this page.',
+  'newtab.customize.widgetsHint': 'Show, hide and reorder the cards on this page.',
   'newtab.customize.moveUp': 'Move {widget} earlier',
   'newtab.customize.moveDown': 'Move {widget} later',
   'newtab.customize.links': 'Quick links',
@@ -64,8 +62,7 @@ export const newTabStrings = {
   'newtab.customize.linkUrl': 'Address',
   'newtab.customize.linkAdd': 'Add link',
   'newtab.customize.linkRemove': 'Remove {title}',
-  'newtab.customize.linkRejected':
-    'The browser refused that address. It stored nothing.',
+  'newtab.customize.linkRejected': 'The browser refused that address. It stored nothing.',
   'newtab.customize.engines': 'Search engine',
   'newtab.customize.enginesHint':
     'The browser’s default search provider — the same one the address bar ' +

@@ -28,13 +28,13 @@
 // `getReportedSettings` renders that snapshot for inspection, which is a viewer
 // for a report this screen never sends.
 
-import {sendWithPromise, t} from '@astro/platform';
-import {useState} from 'react';
+import { sendWithPromise, t } from '@astro/platform';
+import { useState } from 'react';
 
-import {ActionRow} from '../components/action-row.tsx';
-import {InfoRow} from '../components/info-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
+import { ActionRow } from '../components/action-row.tsx';
+import { InfoRow } from '../components/info-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
 
 type Reset = 'idle' | 'running' | 'done' | 'failed';
 

@@ -22,12 +22,12 @@ import {
   SelectValue,
   SettingsListItem,
 } from '@oxy.so/bloom';
-import {View} from 'react-native';
+import { View } from 'react-native';
 
-import {setPref, t, type MessageId} from '@astro/platform';
+import { setPref, t, type MessageId } from '@astro/platform';
 
-import {ControlAnchor} from './control-anchor.tsx';
-import {usePrefControl} from './policy.ts';
+import { ControlAnchor } from './control-anchor.tsx';
+import { usePrefControl } from './policy.ts';
 
 export interface SelectOption {
   /** The value as the browser stores it. */
@@ -48,7 +48,7 @@ interface Item {
   readonly label: string;
 }
 
-export function SelectRow({prefKey, label, sublabel, options}: SelectRowProps) {
+export function SelectRow({ prefKey, label, sublabel, options }: SelectRowProps) {
   /**
    * The label for a value, wherever the value came from.
    *
@@ -60,10 +60,10 @@ export function SelectRow({prefKey, label, sublabel, options}: SelectRowProps) {
    * the second.
    */
   const describe = (value: unknown): string => {
-    const match = options.find(option => String(option.value) === String(value));
+    const match = options.find((option) => String(option.value) === String(value));
     return match ? t(match.label) : String(value ?? '');
   };
-  const {pref, enforced, note} = usePrefControl(prefKey, describe);
+  const { pref, enforced, note } = usePrefControl(prefKey, describe);
 
   if (!pref) {
     return (
@@ -75,11 +75,11 @@ export function SelectRow({prefKey, label, sublabel, options}: SelectRowProps) {
 
   const allowed = pref.userSelectableValues;
   const items: Item[] = options
-    .filter(option => allowed === undefined || allowed.includes(option.value))
-    .map(option => ({value: String(option.value), label: t(option.label)}));
+    .filter((option) => allowed === undefined || allowed.includes(option.value))
+    .map((option) => ({ value: String(option.value), label: t(option.label) }));
 
   const write = (next: string): void => {
-    const option = options.find(candidate => String(candidate.value) === next);
+    const option = options.find((candidate) => String(candidate.value) === next);
     if (option) {
       setPref(prefKey, option.value);
     }
