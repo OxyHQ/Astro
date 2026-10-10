@@ -74,6 +74,7 @@ Two of the four are on hosts upstream already owns, and both were taken by SWAPP
 
 ```bash
 cd webui/app && bun install && bun run dev
+cd webui/app && bun run lint      # Biome; `bun run format` rewrites
 ```
 
 The app's dev server runs every page against in-memory mocks of the browser APIs, so you can iterate on one without rebuilding the browser. There is one workspace and one port; the pages that used to be Bun workspaces of their own are gone.

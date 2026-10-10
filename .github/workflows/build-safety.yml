@@ -18,6 +18,8 @@ on:
       - 'browser.lock.schema.json'
       - 'docs/astro-next/**'
       - 'gn_args/**'
+      - 'webui/**'
+      - 'biome.json'
       - '.github/workflows/**'
   push:
     branches: [master]
@@ -92,3 +94,24 @@ jobs:
             fi
           done
           echo "No override set."
+
+  # Biome formats and lints Oxy's own web UI (webui/app) and nothing else:
+  # biome.json scopes it to webui/app/** and excludes the JSON that the
+  # Chromium build and this suite consume (manifest.json is rewritten by every
+  # Vite build and compared as text), plus the generated theme-fallback.css.
+  # Patches, the C++ overlay and everything copied into Chromium stay out.
+  webui-lint:
+    name: WebUI lint (Biome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+
+      - name: Install the WebUI dependencies
+        working-directory: webui/app
+        run: bun install --frozen-lockfile
+
+      - name: Biome
+        run: webui/app/node_modules/.bin/biome ci .
