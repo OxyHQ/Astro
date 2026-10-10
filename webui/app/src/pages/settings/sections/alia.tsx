@@ -20,12 +20,12 @@
 // `astro://alia` is served by `AstroAliaUI`. It goes through the route table
 // rather than a composed URL, so it stays correct across a scheme rename.
 
-import {SectionCard, t} from '@astro/platform';
+import { SectionCard, t } from '@astro/platform';
 
-import {InfoRow} from '../components/info-row.tsx';
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
+import { InfoRow } from '../components/info-row.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
 
 export function AliaSection() {
   return (

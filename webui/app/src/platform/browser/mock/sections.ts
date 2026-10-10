@@ -18,25 +18,25 @@ import {
   type LanguageFixtures,
   type SectionFixtures,
 } from './fixtures.ts';
-import type {Pref} from '../settings-private.ts';
+import type { Pref } from '../settings-private.ts';
 
-import {aboutFixtures} from '../../../pages/settings/sections/about.fixtures.ts';
-import {accessibilityFixtures} from '../../../pages/settings/sections/accessibility.fixtures.ts';
-import {adblockFixtures} from '../../../pages/settings/sections/adblock.fixtures.ts';
-import {aliaFixtures} from '../../../pages/settings/sections/alia.fixtures.ts';
-import {appearanceFixtures} from '../../../pages/settings/sections/appearance.fixtures.ts';
-import {autofillFixtures} from '../../../pages/settings/sections/autofill.fixtures.ts';
-import {defaultBrowserFixtures} from '../../../pages/settings/sections/default-browser.fixtures.ts';
-import {downloadsFixtures} from '../../../pages/settings/sections/downloads.fixtures.ts';
-import {languagesFixtures} from '../../../pages/settings/sections/languages.fixtures.ts';
-import {onStartupFixtures} from '../../../pages/settings/sections/on-startup.fixtures.ts';
-import {performanceFixtures} from '../../../pages/settings/sections/performance.fixtures.ts';
-import {privacyFixtures} from '../../../pages/settings/sections/privacy.fixtures.ts';
-import {resetFixtures} from '../../../pages/settings/sections/reset.fixtures.ts';
-import {searchFixtures} from '../../../pages/settings/sections/search.fixtures.ts';
-import {siteSettingsFixtures} from '../../../pages/settings/sections/site-settings.fixtures.ts';
-import {systemFixtures} from '../../../pages/settings/sections/system.fixtures.ts';
-import {youAndAstroFixtures} from '../../../pages/settings/sections/you-and-astro.fixtures.ts';
+import { aboutFixtures } from '../../../pages/settings/sections/about.fixtures.ts';
+import { accessibilityFixtures } from '../../../pages/settings/sections/accessibility.fixtures.ts';
+import { adblockFixtures } from '../../../pages/settings/sections/adblock.fixtures.ts';
+import { aliaFixtures } from '../../../pages/settings/sections/alia.fixtures.ts';
+import { appearanceFixtures } from '../../../pages/settings/sections/appearance.fixtures.ts';
+import { autofillFixtures } from '../../../pages/settings/sections/autofill.fixtures.ts';
+import { defaultBrowserFixtures } from '../../../pages/settings/sections/default-browser.fixtures.ts';
+import { downloadsFixtures } from '../../../pages/settings/sections/downloads.fixtures.ts';
+import { languagesFixtures } from '../../../pages/settings/sections/languages.fixtures.ts';
+import { onStartupFixtures } from '../../../pages/settings/sections/on-startup.fixtures.ts';
+import { performanceFixtures } from '../../../pages/settings/sections/performance.fixtures.ts';
+import { privacyFixtures } from '../../../pages/settings/sections/privacy.fixtures.ts';
+import { resetFixtures } from '../../../pages/settings/sections/reset.fixtures.ts';
+import { searchFixtures } from '../../../pages/settings/sections/search.fixtures.ts';
+import { siteSettingsFixtures } from '../../../pages/settings/sections/site-settings.fixtures.ts';
+import { systemFixtures } from '../../../pages/settings/sections/system.fixtures.ts';
+import { youAndAstroFixtures } from '../../../pages/settings/sections/you-and-astro.fixtures.ts';
 
 /** Section id and contribution, so a collision can name who declared it twice. */
 const CONTRIBUTIONS: readonly (readonly [string, SectionFixtures])[] = [

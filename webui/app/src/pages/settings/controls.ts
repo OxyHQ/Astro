@@ -15,7 +15,7 @@
 // go, and why a section that grows a subpage control does not have to touch
 // any file but its own.
 
-import type {MessageId} from '@astro/platform';
+import type { MessageId } from '@astro/platform';
 
 /**
  * One thing the search field can find inside a section.
@@ -29,7 +29,7 @@ import type {MessageId} from '@astro/platform';
  * someone searching for a privacy setting to the appearance page, and nothing
  * anywhere reports an error.
  */
-export type SettingsControl = MessageId | {readonly id: MessageId; readonly on: string};
+export type SettingsControl = MessageId | { readonly id: MessageId; readonly on: string };
 
 /** The message id, whichever form the entry was written in. */
 export function controlId(control: SettingsControl): MessageId {

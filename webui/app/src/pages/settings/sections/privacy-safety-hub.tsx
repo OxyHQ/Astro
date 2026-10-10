@@ -30,13 +30,13 @@
 // undo has to hold that dictionary; the row is not important enough to carry
 // the state, and re-revoking is what the site permission screens are for.
 
-import {Button, SettingsListItem} from '@oxy.so/bloom';
-import {useSyncExternalStore} from 'react';
+import { Button, SettingsListItem } from '@oxy.so/bloom';
+import { useSyncExternalStore } from 'react';
 
-import {SectionCard, send, sendWithPromise, t} from '@astro/platform';
+import { SectionCard, send, sendWithPromise, t } from '@astro/platform';
 
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
 
 /** The version card, in the browser's own words. */
 interface VersionCard {
@@ -51,7 +51,7 @@ interface HubState {
   readonly reason: string | undefined;
 }
 
-let snapshot: HubState = {status: 'loading', version: undefined, origins: [], reason: undefined};
+let snapshot: HubState = { status: 'loading', version: undefined, origins: [], reason: undefined };
 const listeners = new Set<() => void>();
 let started = false;
 
@@ -66,11 +66,11 @@ function toVersionCard(value: unknown): VersionCard | undefined {
   if (typeof value !== 'object' || value === null) {
     return undefined;
   }
-  const candidate = value as {header?: unknown; subheader?: unknown};
+  const candidate = value as { header?: unknown; subheader?: unknown };
   if (typeof candidate.header !== 'string' || typeof candidate.subheader !== 'string') {
     return undefined;
   }
-  return {header: candidate.header, subheader: candidate.subheader};
+  return { header: candidate.header, subheader: candidate.subheader };
 }
 
 /**
@@ -85,7 +85,7 @@ function originOf(value: unknown): string | undefined {
   if (typeof value !== 'object' || value === null) {
     return undefined;
   }
-  const candidate = value as {origin?: unknown};
+  const candidate = value as { origin?: unknown };
   return typeof candidate.origin === 'string' ? candidate.origin : undefined;
 }
 
@@ -151,7 +151,7 @@ export function PrivacySafetyHubScreen() {
 
       {state.status === 'failed' ? (
         <SectionCard
-          description={t('settings.privacy.safetyHub.failed', {reason: state.reason ?? ''})}
+          description={t('settings.privacy.safetyHub.failed', { reason: state.reason ?? '' })}
         />
       ) : undefined}
 
@@ -173,7 +173,7 @@ export function PrivacySafetyHubScreen() {
             : undefined
         }
       >
-        {state.origins.map(origin => (
+        {state.origins.map((origin) => (
           <SettingsListItem
             key={origin}
             title={origin}

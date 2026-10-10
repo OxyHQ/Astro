@@ -9,7 +9,7 @@
 // `settings_ui.cc:444`, and both messages below are `sendWithPromise` in the
 // C++ as well -- each takes a callback id and resolves.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 export const resetFixtures: SectionFixtures = {
   replies: {
@@ -38,7 +38,7 @@ export const resetFixtures: SectionFixtures = {
      * all.
      */
     performResetProfileSettings: () =>
-      new Promise<undefined>(resolve => {
+      new Promise<undefined>((resolve) => {
         setTimeout(() => resolve(undefined), 900);
       }),
   },

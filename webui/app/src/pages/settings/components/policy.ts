@@ -11,7 +11,7 @@
 // control is how one of them comes to accept a tap that the browser then
 // silently refuses.
 
-import {t, usePref, type Pref} from '@astro/platform';
+import { t, usePref, type Pref } from '@astro/platform';
 
 /** A pref and the three things a control needs to decide from it. */
 export interface PrefControl {
@@ -49,7 +49,7 @@ export function selectableValues(pref: Pref | undefined): readonly unknown[] | u
 function policyNote(pref: Pref, formatValue?: (value: unknown) => string): string | undefined {
   if (pref.enforcement === 'ENFORCED') {
     return pref.controlledByName
-      ? t('pref.enforcedBy', {controller: pref.controlledByName})
+      ? t('pref.enforcedBy', { controller: pref.controlledByName })
       : t('pref.enforced');
   }
   if (pref.enforcement === 'RECOMMENDED') {
@@ -59,7 +59,7 @@ function policyNote(pref: Pref, formatValue?: (value: unknown) => string): strin
     const shown = formatValue
       ? formatValue(pref.recommendedValue)
       : String(pref.recommendedValue ?? '');
-    return t('pref.recommendedValue', {value: shown});
+    return t('pref.recommendedValue', { value: shown });
   }
   return undefined;
 }
@@ -71,7 +71,7 @@ export function usePrefControl(
 ): PrefControl {
   const pref = usePref(prefKey);
   if (!pref) {
-    return {pref: undefined, enforced: false, note: t('pref.unavailable')};
+    return { pref: undefined, enforced: false, note: t('pref.unavailable') };
   }
   return {
     pref,

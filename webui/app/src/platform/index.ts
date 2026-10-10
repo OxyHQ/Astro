@@ -30,24 +30,24 @@ import './global.css';
 // Bloom's theme context is a globalThis-anchored singleton precisely because
 // that duplication otherwise ends in "useTheme outside a BloomThemeProvider"
 // with the provider plainly mounted.
-export {BloomThemeProvider} from '@oxy.so/bloom/theme';
+export { BloomThemeProvider } from '@oxy.so/bloom/theme';
 
 // The product's own mark, drawn by two entries and by neither of them twice.
-export {AstroMark} from './brand/astro-mark.tsx';
-export type {AstroMarkProps} from './brand/astro-mark.tsx';
+export { AstroMark } from './brand/astro-mark.tsx';
+export type { AstroMarkProps } from './brand/astro-mark.tsx';
 
-export {PageShell} from './shell/page-shell.tsx';
-export type {NavEntry, NavGroup, NavIcon, PageShellProps} from './shell/page-shell.tsx';
+export { PageShell } from './shell/page-shell.tsx';
+export type { NavEntry, NavGroup, NavIcon, PageShellProps } from './shell/page-shell.tsx';
 
-export {SectionCard} from './shell/section-card.tsx';
-export type {SectionCardProps} from './shell/section-card.tsx';
+export { SectionCard } from './shell/section-card.tsx';
+export type { SectionCardProps } from './shell/section-card.tsx';
 
-export {t} from './i18n/index.ts';
-export type {MessageId} from './i18n/index.ts';
+export { t } from './i18n/index.ts';
+export type { MessageId } from './i18n/index.ts';
 
-export {MissingBrowserApiError} from './browser/env.ts';
+export { MissingBrowserApiError } from './browser/env.ts';
 
-export {settingsPrivate} from './browser/settings-private.ts';
+export { settingsPrivate } from './browser/settings-private.ts';
 export type {
   ControlledBy,
   Enforcement,
@@ -56,13 +56,13 @@ export type {
   SettingsPrivateApi,
 } from './browser/settings-private.ts';
 
-export {setPref, usePref} from './browser/pref-store.ts';
+export { setPref, usePref } from './browser/pref-store.ts';
 
 // Lane 1 of the transport contract, alongside settingsPrivate: purpose-typed
 // Chromium APIs the browser grants this host by URL pattern. Each facade
 // exposes only the operations a screen calls -- never the API object -- so the
 // surface a page can reach is the surface someone chose to give it.
-export {removeAddress, removePaymentsEntity, usePersonalData} from './browser/autofill-store.ts';
+export { removeAddress, removePaymentsEntity, usePersonalData } from './browser/autofill-store.ts';
 export type {
   AutofillMetadata,
   PersonalData,
@@ -99,8 +99,8 @@ export type {
   SectionFixtures,
 } from './browser/mock/fixtures.ts';
 
-export {setMode, setPreset, useThemeState} from './browser/theme-store.ts';
-export type {RawTheme, ThemeMode, ThemeSource, ThemeState} from './browser/theme-store.ts';
+export { setMode, setPreset, useThemeState } from './browser/theme-store.ts';
+export type { RawTheme, ThemeMode, ThemeSource, ThemeState } from './browser/theme-store.ts';
 
 export {
   COLOR_SCHEME_DARK,
@@ -110,14 +110,14 @@ export {
   THEME_PRESET_PREF,
 } from './browser/pref-ids.ts';
 
-export {hrefFor, navigateTo, ROUTES} from './browser/navigate.ts';
-export type {RouteId} from './browser/navigate.ts';
+export { hrefFor, navigateTo, ROUTES } from './browser/navigate.ts';
+export type { RouteId } from './browser/navigate.ts';
 
-export {setHashPath, useHashPath} from './browser/hash-route.ts';
+export { setHashPath, useHashPath } from './browser/hash-route.ts';
 
-export {addWebUIListener, send, sendWithPromise} from './browser/send.ts';
+export { addWebUIListener, send, sendWithPromise } from './browser/send.ts';
 
 // The browser's own string table, for the message NAMES an adopted upstream
 // handler sends instead of text. See the module for why this is the one
 // exception to strings living in i18n/en.ts.
-export {browserString} from './browser/load-time-data.ts';
+export { browserString } from './browser/load-time-data.ts';

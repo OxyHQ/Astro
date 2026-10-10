@@ -151,10 +151,12 @@ harness::assert_output_contains "routed by appearance instead" "names the sectio
 # matching anywhere in the file, and both the registry and the strings modules
 # discuss fragments in prose throughout.
 
+# The fixture patterns below tolerate the spaces inside braces that Biome's
+# formatter writes (`{ id: ... }`), so they match the source either way.
 commented="$(copy_app declaration-in-a-comment)"
 edit "$commented/$PRIVACY" \
-    "text.replace(\"{id: 'settings.privacy.security.dns.mode', on: '/security'},\",
-                  \"/* {id: 'settings.privacy.security.dns.mode', on: '/securty'}, */\", 1)"
+    "re.sub(r\"\{\s*id: 'settings\.privacy\.security\.dns\.mode', on: '/security'\s*\},\",
+            \"/* {id: 'settings.privacy.security.dns.mode', on: '/securty'}, */\", text, count=1)"
 
 scan "$commented"
 harness::assert_status 0 "a declaration inside a comment declares nothing"
@@ -164,7 +166,7 @@ harness::assert_output_lacks "/securty" "a commented-out fragment is not checked
 
 orphaned="$(copy_app control-list-not-imported)"
 edit "$orphaned/$REGISTRY" \
-    "text.replace(\"import {privacyControls} from './sections/privacy.strings.ts';\", '', 1)"
+    "re.sub(r\"import \{\s*privacyControls\s*\} from './sections/privacy\.strings\.ts';\", '', text, count=1)"
 edit "$orphaned/$PRIVACY" \
     "text.replace('export const privacyControls', 'export const privacyControlsRenamed', 1)"
 
@@ -191,7 +193,7 @@ path = sys.argv[1]
 with open(path, encoding="utf-8") as handle:
     text = handle.read()
 with open(path, "w", encoding="utf-8") as handle:
-    handle.write(re.sub(r"\{id: ('[^']*'), on: '[^']*'\}", r"\1", text))
+    handle.write(re.sub(r"\{\s*id: ('[^']*'), on: '[^']*'\s*\}", r"\1", text))
 PYEOF
 done
 

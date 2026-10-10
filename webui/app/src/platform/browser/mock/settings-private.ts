@@ -1,7 +1,7 @@
 // chrome.settingsPrivate, over the dev fixtures. DEV ONLY -- see ./state.ts.
 
-import type {Pref, SettingsPrivateApi} from '../settings-private.ts';
-import {allPrefs, onPrefsChanged, readPref, writePref} from './state.ts';
+import type { Pref, SettingsPrivateApi } from '../settings-private.ts';
+import { allPrefs, onPrefsChanged, readPref, writePref } from './state.ts';
 
 export function createSettingsPrivateMock(): SettingsPrivateApi {
   return {

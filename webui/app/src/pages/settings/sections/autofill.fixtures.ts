@@ -25,11 +25,11 @@
 // the delete button disappear, and a fixture set of local records only cannot
 // tell a screen that honours that from one that ignores it.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 export const autofillFixtures: SectionFixtures = {
   prefs: [
-    {key: 'autofill.profile_enabled', type: 'BOOLEAN', value: true},
+    { key: 'autofill.profile_enabled', type: 'BOOLEAN', value: true },
     // ENFORCED, so the locked rendering path is drivable here without a managed
     // profile: a policy that switches card filling off is one of the commonest
     // real enterprise configurations, and the row must say who locked it rather
@@ -42,22 +42,26 @@ export const autofillFixtures: SectionFixtures = {
       controlledByName: 'Astro dev policy',
       enforcement: 'ENFORCED',
     },
-    {key: 'payments.can_make_payment_enabled', type: 'BOOLEAN', value: true},
+    { key: 'payments.can_make_payment_enabled', type: 'BOOLEAN', value: true },
   ],
 
   autofill: {
     addresses: [
       {
         guid: 'addr-home',
-        metadata: {summaryLabel: 'Carrer de Mallorca 401', summarySublabel: 'Barcelona', isLocal: true},
+        metadata: {
+          summaryLabel: 'Carrer de Mallorca 401',
+          summarySublabel: 'Barcelona',
+          isLocal: true,
+        },
       },
       {
         guid: 'addr-work',
-        metadata: {summaryLabel: 'Gran Via 28', summarySublabel: 'Madrid', isLocal: true},
+        metadata: { summaryLabel: 'Gran Via 28', summarySublabel: 'Madrid', isLocal: true },
       },
       {
         guid: 'addr-account',
-        metadata: {summaryLabel: '10 Downing Street', summarySublabel: 'London', isLocal: false},
+        metadata: { summaryLabel: '10 Downing Street', summarySublabel: 'London', isLocal: false },
       },
     ],
     cards: [
@@ -66,19 +70,23 @@ export const autofillFixtures: SectionFixtures = {
         network: 'Visa',
         expirationMonth: '04',
         expirationYear: '2029',
-        metadata: {summaryLabel: 'Visa \u2022\u2022\u2022\u2022 4242', summarySublabel: '04/2029', isLocal: true},
+        metadata: {
+          summaryLabel: 'Visa \u2022\u2022\u2022\u2022 4242',
+          summarySublabel: '04/2029',
+          isLocal: true,
+        },
       },
       {
         guid: 'card-account',
         network: 'Mastercard',
-        metadata: {summaryLabel: 'Mastercard \u2022\u2022\u2022\u2022 5454', isLocal: false},
+        metadata: { summaryLabel: 'Mastercard \u2022\u2022\u2022\u2022 5454', isLocal: false },
       },
     ],
     ibans: [
       {
         guid: 'iban-savings',
         nickname: 'Savings',
-        metadata: {summaryLabel: 'ES91 \u2022\u2022\u2022\u2022 0418', isLocal: true},
+        metadata: { summaryLabel: 'ES91 \u2022\u2022\u2022\u2022 0418', isLocal: true },
       },
     ],
   },

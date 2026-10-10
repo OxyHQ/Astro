@@ -19,12 +19,12 @@
 // Type-only: the shell describes what an icon must accept, it does not import
 // one. A value import here would put Bloom's whole icon barrel in the shared
 // bundle to satisfy a `keyof typeof`.
-import type {sizes} from '@oxy.so/bloom/icons';
-import {Search} from '@oxy.so/bloom/search';
-import {useThemeColor} from '@oxy.so/bloom/theme';
-import {Text} from '@oxy.so/bloom/typography';
-import type {ComponentType, ReactNode} from 'react';
-import {Pressable, ScrollView, View} from 'react-native';
+import type { sizes } from '@oxy.so/bloom/icons';
+import { Search } from '@oxy.so/bloom/search';
+import { useThemeColor } from '@oxy.so/bloom/theme';
+import { Text } from '@oxy.so/bloom/typography';
+import type { ComponentType, ReactNode } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
 
 /**
  * A Bloom icon, as the rail uses one.
@@ -32,7 +32,7 @@ import {Pressable, ScrollView, View} from 'react-native';
  * `size` is keyed off Bloom's own scale rather than restated, so a rename in
  * Bloom is a type error here instead of a rail of default-sized icons.
  */
-export type NavIcon = ComponentType<{size?: keyof typeof sizes; fill?: string}>;
+export type NavIcon = ComponentType<{ size?: keyof typeof sizes; fill?: string }>;
 
 export interface NavEntry<Id extends string> {
   readonly id: Id;
@@ -188,7 +188,7 @@ export function PageShell<Id extends string>({
                   {group.title}
                 </Text>
               ) : undefined}
-              {group.entries.map(entry => (
+              {group.entries.map((entry) => (
                 <RailRow
                   key={entry.id}
                   entry={entry}

@@ -28,11 +28,11 @@
 //     patches/ungoogled/core/ungoogled-chromium/disable-privacy-sandbox.patch,
 //     so the pref is read by nothing left in the binary.
 
-import {SectionCard, t} from '@astro/platform';
-import {Text} from '@oxy.so/bloom/typography';
+import { SectionCard, t } from '@astro/platform';
+import { Text } from '@oxy.so/bloom/typography';
 
-import {RadioGroup} from '../components/radio-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
+import { RadioGroup } from '../components/radio-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
 
 export function PrivacyCookiesScreen() {
   return (

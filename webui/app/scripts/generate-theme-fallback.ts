@@ -21,14 +21,14 @@
 // Bloom's provider always wins at runtime: it writes inline custom properties
 // on the root element, which outrank any :root rule here.
 
-import {writeFileSync} from 'node:fs';
-import {dirname, resolve} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import { writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Bloom's own token resolver, from its narrow `./preset-vars` export rather
 // than the `./theme` barrel: the barrel reaches react-native, whose Flow-typed
 // entry no Node-side runtime parses, while this module is pure colour maths.
-import {getPresetVars} from '@oxy.so/bloom/preset-vars';
+import { getPresetVars } from '@oxy.so/bloom/preset-vars';
 
 /** The preset a page falls back to before the browser reports the user's. */
 const FALLBACK_PRESET = 'oxy';

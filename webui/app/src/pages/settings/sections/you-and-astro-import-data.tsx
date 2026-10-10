@@ -32,8 +32,8 @@
 // does not have is dropped from the request by the handler anyway -- so the
 // row for it is disabled here rather than being offered and quietly ignored.
 
-import {Button, Checkbox, RadioIndicator, SettingsListItem} from '@oxy.so/bloom';
-import {useState, useSyncExternalStore} from 'react';
+import { Button, Checkbox, RadioIndicator, SettingsListItem } from '@oxy.so/bloom';
+import { useState, useSyncExternalStore } from 'react';
 
 import {
   SectionCard,
@@ -46,9 +46,9 @@ import {
   type MessageId,
 } from '@astro/platform';
 
-import {usePrefControl} from '../components/policy.ts';
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
+import { usePrefControl } from '../components/policy.ts';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
 
 /**
  * The five kinds, joined to the pref that stores the choice and to the field
@@ -62,8 +62,12 @@ const KINDS: readonly {
   readonly label: MessageId;
   readonly supported: 'history' | 'favorites' | 'passwords' | 'search' | 'autofillFormData';
 }[] = [
-  {pref: 'import_dialog_bookmarks', label: 'settings.import.kind.bookmarks', supported: 'favorites'},
-  {pref: 'import_dialog_history', label: 'settings.import.kind.history', supported: 'history'},
+  {
+    pref: 'import_dialog_bookmarks',
+    label: 'settings.import.kind.bookmarks',
+    supported: 'favorites',
+  },
+  { pref: 'import_dialog_history', label: 'settings.import.kind.history', supported: 'history' },
   {
     pref: 'import_dialog_saved_passwords',
     label: 'settings.import.kind.passwords',
@@ -143,11 +147,11 @@ function subscribe(listener: () => void): () => void {
     addWebUIListener('import-data-status-changed', (...args: unknown[]) => {
       const [status] = args;
       if (typeof status === 'string') {
-        publish({...snapshot, progress: status});
+        publish({ ...snapshot, progress: status });
       }
     });
     void sendWithPromise<unknown>('initializeImportDialog').then(
-      raw => {
+      (raw) => {
         publish({
           status: 'ready',
           sources: Array.isArray(raw)
@@ -200,7 +204,7 @@ function KindRow({
   label: MessageId;
   supported: boolean;
 }) {
-  const {pref, enforced, note} = usePrefControl(prefKey);
+  const { pref, enforced, note } = usePrefControl(prefKey);
   const checked = pref?.value === true;
   const locked = enforced || !pref || !supported;
 
@@ -217,7 +221,7 @@ function KindRow({
           checked={checked && supported}
           disabled={locked}
           accessibilityLabel={t(label)}
-          onCheckedChange={next => setPref(prefKey, next)}
+          onCheckedChange={(next) => setPref(prefKey, next)}
         />
       }
     />
@@ -244,7 +248,7 @@ function useTypesPayload(source: Source | undefined): Record<string, boolean> {
 export function YouAndAstroImportDataScreen() {
   const state = useSyncExternalStore(subscribe, getSnapshot);
   const [chosen, setChosen] = useState<number | undefined>(undefined);
-  const source = state.sources.find(candidate => candidate.index === chosen);
+  const source = state.sources.find((candidate) => candidate.index === chosen);
   const types = useTypesPayload(source);
   const anySelected = Object.values(types).some(Boolean);
   const progress = progressMessage(state.progress);
@@ -258,9 +262,7 @@ export function YouAndAstroImportDataScreen() {
       />
 
       {state.status === 'failed' ? (
-        <SectionCard
-          description={t('settings.import.failed', {reason: state.reason ?? ''})}
-        />
+        <SectionCard description={t('settings.import.failed', { reason: state.reason ?? '' })} />
       ) : undefined}
 
       <RowGroup
@@ -271,7 +273,7 @@ export function YouAndAstroImportDataScreen() {
             : undefined
         }
       >
-        {state.sources.map(candidate => (
+        {state.sources.map((candidate) => (
           <SettingsListItem
             key={candidate.index}
             title={candidate.name}
@@ -285,7 +287,7 @@ export function YouAndAstroImportDataScreen() {
       </RowGroup>
 
       <RowGroup title="settings.import.kinds" footer="settings.import.kinds.footer">
-        {KINDS.map(kind => (
+        {KINDS.map((kind) => (
           <KindRow
             key={kind.pref}
             prefKey={kind.pref}

@@ -13,11 +13,11 @@
 // the user to the reset they can actually perform. No handler call, and no
 // control that writes anywhere.
 
-import {SectionCard, t} from '@astro/platform';
+import { SectionCard, t } from '@astro/platform';
 
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
 
 export function ResetTriggeredScreen() {
   return (

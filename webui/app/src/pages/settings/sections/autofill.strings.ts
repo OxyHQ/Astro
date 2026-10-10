@@ -25,8 +25,7 @@ export const autofillStrings = {
   'settings.autofill.profileEnabled.sublabel':
     'Names, phone numbers, email addresses and postal addresses.',
   'settings.autofill.creditCardEnabled': 'Save and fill payment methods',
-  'settings.autofill.canMakePayment':
-    'Let sites check whether you have a payment method saved',
+  'settings.autofill.canMakePayment': 'Let sites check whether you have a payment method saved',
   'settings.autofill.canMakePayment.sublabel':
     'A site is told only whether something is saved, never what it is.',
 
@@ -38,18 +37,15 @@ export const autofillStrings = {
     'them once they are built.',
   'settings.autofill.remove': 'Remove',
   'settings.autofill.inAccount': 'In your account',
-  'settings.autofill.addresses.description':
-    'Addresses Astro offers to fill in for you.',
+  'settings.autofill.addresses.description': 'Addresses Astro offers to fill in for you.',
   'settings.autofill.addresses.empty':
-    'No saved addresses. Astro offers to save one the first time you fill an ' +
-    'address form.',
+    'No saved addresses. Astro offers to save one the first time you fill an ' + 'address form.',
   'settings.autofill.addresses.unnamed': 'Saved address',
   'settings.autofill.addresses.footer':
     'Stored on this device. Removing one here does not change anything you ' +
     'have already submitted to a site.',
   'settings.autofill.addresses.locked':
-    'Your organisation has switched address filling off, so these cannot be ' +
-    'removed here.',
+    'Your organisation has switched address filling off, so these cannot be ' + 'removed here.',
   'settings.autofill.addresses.noEditor':
     'Adding and editing an address is not built into this page yet. Astro ' +
     'still offers to save one when you fill an address form.',
@@ -58,13 +54,11 @@ export const autofillStrings = {
   'settings.autofill.payments.cards': 'Cards',
   'settings.autofill.payments.ibans': 'Account numbers',
   'settings.autofill.payments.empty':
-    'No saved payment methods. Astro offers to save one the first time you ' +
-    'pay on a site.',
+    'No saved payment methods. Astro offers to save one the first time you ' + 'pay on a site.',
   'settings.autofill.payments.unnamedCard': 'Saved card',
   'settings.autofill.payments.expires': 'Expires {month}/{year}',
   'settings.autofill.payments.locked':
-    'Your organisation has switched card filling off, so these cannot be ' +
-    'removed here.',
+    'Your organisation has switched card filling off, so these cannot be ' + 'removed here.',
   'settings.autofill.payments.noEditor':
     'Adding and editing a payment method is not built into this page yet, and ' +
     'card numbers are deliberately never shown here.',

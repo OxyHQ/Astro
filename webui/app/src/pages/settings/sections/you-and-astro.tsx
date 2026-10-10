@@ -28,18 +28,18 @@
 // browser process. The button below is disabled on exactly that input; the
 // guard is not politeness.
 
-import {Button, TextField, TextFieldInput} from '@oxy.so/bloom';
-import {Text} from '@oxy.so/bloom/typography';
-import {useState, useSyncExternalStore} from 'react';
-import {View} from 'react-native';
+import { Button, TextField, TextFieldInput } from '@oxy.so/bloom';
+import { Text } from '@oxy.so/bloom/typography';
+import { useState, useSyncExternalStore } from 'react';
+import { View } from 'react-native';
 
-import {SectionCard, addWebUIListener, send, sendWithPromise, t} from '@astro/platform';
+import { SectionCard, addWebUIListener, send, sendWithPromise, t } from '@astro/platform';
 
-import {ControlAnchor} from '../components/control-anchor.tsx';
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SearchableLabel} from '../components/searchable-label.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
+import { ControlAnchor } from '../components/control-anchor.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SearchableLabel } from '../components/searchable-label.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
 
 interface ProfileState {
   readonly status: 'pending' | 'ready' | 'failed';
@@ -47,7 +47,7 @@ interface ProfileState {
   readonly reason: string | undefined;
 }
 
-let snapshot: ProfileState = {status: 'pending', name: undefined, reason: undefined};
+let snapshot: ProfileState = { status: 'pending', name: undefined, reason: undefined };
 const listeners = new Set<() => void>();
 let started = false;
 
@@ -62,7 +62,7 @@ function nameOf(value: unknown): string | undefined {
   if (typeof value !== 'object' || value === null) {
     return undefined;
   }
-  const candidate = value as {name?: unknown};
+  const candidate = value as { name?: unknown };
   return typeof candidate.name === 'string' ? candidate.name : undefined;
 }
 
@@ -72,12 +72,12 @@ function subscribe(listener: () => void): () => void {
     addWebUIListener('profile-info-changed', (...args: unknown[]) => {
       const name = nameOf(args[0]);
       if (name !== undefined) {
-        publish({status: 'ready', name, reason: undefined});
+        publish({ status: 'ready', name, reason: undefined });
       }
     });
     void sendWithPromise<unknown>('getProfileInfo').then(
-      raw => {
-        publish({status: 'ready', name: nameOf(raw), reason: undefined});
+      (raw) => {
+        publish({ status: 'ready', name: nameOf(raw), reason: undefined });
       },
       (reason: unknown) => {
         publish({
@@ -106,7 +106,7 @@ function getSnapshot(): ProfileState {
  * being copied in by an effect. Nothing is applied locally: the write goes out
  * and `profile-info-changed` is what moves the row.
  */
-function ProfileNameEditor({initial}: {initial: string}) {
+function ProfileNameEditor({ initial }: { initial: string }) {
   const [draft, setDraft] = useState(initial);
   const trimmed = draft.trim();
 
@@ -146,7 +146,7 @@ function LocalProfile() {
   if (profile.status === 'failed') {
     return (
       <SectionCard
-        description={t('settings.youAndAstro.profile.failed', {reason: profile.reason ?? ''})}
+        description={t('settings.youAndAstro.profile.failed', { reason: profile.reason ?? '' })}
       />
     );
   }

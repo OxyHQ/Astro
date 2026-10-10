@@ -51,12 +51,12 @@
 // applications, websites and threat-protection entries -- is unexercised; the
 // store names the command that would exercise it.
 
-import {SettingsListGroup, SettingsListItem} from '@oxy.so/bloom';
-import {useThemeColor} from '@oxy.so/bloom/theme';
-import {Text} from '@oxy.so/bloom/typography';
-import {ScrollView, View} from 'react-native';
+import { SettingsListGroup, SettingsListItem } from '@oxy.so/bloom';
+import { useThemeColor } from '@oxy.so/bloom/theme';
+import { Text } from '@oxy.so/bloom/typography';
+import { ScrollView, View } from 'react-native';
 
-import {AstroMark, browserString, t} from '@astro/platform';
+import { AstroMark, browserString, t } from '@astro/platform';
 
 import {
   useManagement,
@@ -89,20 +89,20 @@ function Section({
   );
 }
 
-function ItemRows({items}: {items: readonly ManagedItem[]}) {
+function ItemRows({ items }: { items: readonly ManagedItem[] }) {
   if (items.length === 0) {
     return <SettingsListItem title={t('management.empty')} showChevron={false} disabled />;
   }
   return (
     <>
-      {items.map(item => (
+      {items.map((item) => (
         <SettingsListItem
           key={item.name}
           title={item.name}
           description={
             item.permissions.length === 0
               ? undefined
-              : t('management.permissions', {permissions: item.permissions.join(', ')})
+              : t('management.permissions', { permissions: item.permissions.join(', ') })
           }
           showChevron={false}
         />
@@ -111,13 +111,13 @@ function ItemRows({items}: {items: readonly ManagedItem[]}) {
   );
 }
 
-function ReportingRows({rows}: {rows: readonly ReportingRow[]}) {
+function ReportingRows({ rows }: { rows: readonly ReportingRow[] }) {
   if (rows.length === 0) {
     return <SettingsListItem title={t('management.empty')} showChevron={false} disabled />;
   }
   return (
     <>
-      {rows.map(row => (
+      {rows.map((row) => (
         <SettingsListItem
           key={row.messageId}
           // The browser's own wording for the name it sent, from the table its
@@ -126,7 +126,7 @@ function ReportingRows({rows}: {rows: readonly ReportingRow[]}) {
           // must not read as "the browser reports nothing".
           title={
             browserString(row.messageId) ??
-            t('management.reporting.unresolved', {id: row.messageId})
+            t('management.reporting.unresolved', { id: row.messageId })
           }
           showChevron={false}
         />
@@ -135,13 +135,13 @@ function ReportingRows({rows}: {rows: readonly ReportingRow[]}) {
   );
 }
 
-function ThreatRows({rows}: {rows: readonly ThreatProtectionRow[]}) {
+function ThreatRows({ rows }: { rows: readonly ThreatProtectionRow[] }) {
   if (rows.length === 0) {
     return <SettingsListItem title={t('management.empty')} showChevron={false} disabled />;
   }
   return (
     <>
-      {rows.map(row => (
+      {rows.map((row) => (
         <SettingsListItem
           key={row.title}
           title={row.title}
@@ -208,13 +208,9 @@ export function ManagementPage() {
                 subtitle={state.managedWebsitesSubtitle}
               >
                 {state.managedWebsites.length === 0 ? (
-                  <SettingsListItem
-                    title={t('management.empty')}
-                    showChevron={false}
-                    disabled
-                  />
+                  <SettingsListItem title={t('management.empty')} showChevron={false} disabled />
                 ) : (
-                  state.managedWebsites.map(site => (
+                  state.managedWebsites.map((site) => (
                     <SettingsListItem key={site} title={site} showChevron={false} />
                   ))
                 )}

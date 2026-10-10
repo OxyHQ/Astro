@@ -30,17 +30,24 @@
 // which is why the screen renders from that echo rather than from the value it
 // just wrote.
 
-import {RadioIndicator, SettingsListItem} from '@oxy.so/bloom';
-import {Text} from '@oxy.so/bloom/typography';
-import {useCallback, useSyncExternalStore} from 'react';
-import {View} from 'react-native';
+import { RadioIndicator, SettingsListItem } from '@oxy.so/bloom';
+import { Text } from '@oxy.so/bloom/typography';
+import { useCallback, useSyncExternalStore } from 'react';
+import { View } from 'react-native';
 
-import {addWebUIListener, SectionCard, send, sendWithPromise, t, useHashPath} from '@astro/platform';
+import {
+  addWebUIListener,
+  SectionCard,
+  send,
+  sendWithPromise,
+  t,
+  useHashPath,
+} from '@astro/platform';
 
-import {PendingScreen} from '../components/pending-screen.tsx';
-import {SearchableLabel} from '../components/searchable-label.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
-import {contentTypeForSegment, type ContentTypeDef} from './site-settings.content-types.ts';
+import { PendingScreen } from '../components/pending-screen.tsx';
+import { SearchableLabel } from '../components/searchable-label.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
+import { contentTypeForSegment, type ContentTypeDef } from './site-settings.content-types.ts';
 
 const PREFIX = '/content/';
 
@@ -69,13 +76,13 @@ function parse(reply: unknown): DefaultSetting | undefined {
   if (typeof reply !== 'object' || reply === null) {
     return undefined;
   }
-  const record: Record<string, unknown> = {...reply};
+  const record: Record<string, unknown> = { ...reply };
   const setting = record['setting'];
   const source = record['source'];
   if (typeof setting !== 'string') {
     return undefined;
   }
-  return {setting, source: typeof source === 'string' ? source : undefined};
+  return { setting, source: typeof source === 'string' ? source : undefined };
 }
 
 // The defaults, as an external store keyed by group name.
@@ -103,7 +110,7 @@ function publish(contentType: string, value: DefaultSetting | undefined): void {
 }
 
 function load(contentType: string): void {
-  void sendWithPromise<unknown>('getDefaultValueForContentType', contentType).then(reply =>
+  void sendWithPromise<unknown>('getDefaultValueForContentType', contentType).then((reply) =>
     publish(contentType, parse(reply)),
   );
 }
@@ -152,7 +159,7 @@ function useDefaultSetting(contentType: string): DefaultSetting | undefined {
  * that component binds a PREF, and a content setting is not one. The markup is
  * deliberately the same so the two read identically to a screen reader.
  */
-function DefaultBehaviour({type}: {type: ContentTypeDef & {contentType: string}}) {
+function DefaultBehaviour({ type }: { type: ContentTypeDef & { contentType: string } }) {
   const current = useDefaultSetting(type.contentType);
   const enforced = current?.source !== undefined && current.source !== USER_SOURCE;
   const enabledValue = type.defaultBehaviour === 'allow' ? ALLOW : ASK;
@@ -179,16 +186,9 @@ function DefaultBehaviour({type}: {type: ContentTypeDef & {contentType: string}}
     <View className="gap-2">
       <SearchableLabel
         id="settings.siteSettings.default"
-        note={
-          enforced
-            ? t('pref.enforced')
-            : t('settings.siteSettings.default.description')
-        }
+        note={enforced ? t('pref.enforced') : t('settings.siteSettings.default.description')}
       />
-      <View
-        accessibilityRole="radiogroup"
-        accessibilityLabel={t('settings.siteSettings.default')}
-      >
+      <View accessibilityRole="radiogroup" accessibilityLabel={t('settings.siteSettings.default')}>
         <SettingsListItem
           title={
             type.defaultBehaviour === 'allow'
@@ -236,7 +236,7 @@ export function SiteSettingsDetailScreen() {
         />
         <SectionCard>
           <Text className="text-body text-text-secondary">
-            {t('settings.siteSettings.unknownType', {path})}
+            {t('settings.siteSettings.unknownType', { path })}
           </Text>
         </SectionCard>
       </>
@@ -255,14 +255,10 @@ export function SiteSettingsDetailScreen() {
 
   return (
     <>
-      <SubpageHeader
-        title={type.title}
-        backTo="/content"
-        backLabel="settings.nav.siteSettings"
-      />
+      <SubpageHeader title={type.title} backTo="/content" backLabel="settings.nav.siteSettings" />
 
       <SectionCard>
-        <DefaultBehaviour type={{...type, contentType: type.contentType}} />
+        <DefaultBehaviour type={{ ...type, contentType: type.contentType }} />
       </SectionCard>
 
       <SectionCard title={t('settings.siteSettings.exceptions')}>

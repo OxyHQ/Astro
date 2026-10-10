@@ -33,48 +33,48 @@
 // `openSystemCaptionsDialog` is registered but its body is
 // `IS_WIN || IS_MAC`, so on Linux it does nothing at all.
 
-import {t, usePref} from '@astro/platform';
+import { t, usePref } from '@astro/platform';
 
-import {InfoRow} from '../components/info-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
-import {SelectRow, type SelectOption} from '../components/select-row.tsx';
+import { InfoRow } from '../components/info-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
+import { SelectRow, type SelectOption } from '../components/select-row.tsx';
 
 const SIZES: readonly SelectOption[] = [
-  {value: '25%', label: 'settings.accessibility.captions.size.verySmall'},
-  {value: '50%', label: 'settings.accessibility.captions.size.small'},
-  {value: '', label: 'settings.accessibility.captions.size.medium'},
-  {value: '150%', label: 'settings.accessibility.captions.size.large'},
-  {value: '200%', label: 'settings.accessibility.captions.size.veryLarge'},
+  { value: '25%', label: 'settings.accessibility.captions.size.verySmall' },
+  { value: '50%', label: 'settings.accessibility.captions.size.small' },
+  { value: '', label: 'settings.accessibility.captions.size.medium' },
+  { value: '150%', label: 'settings.accessibility.captions.size.large' },
+  { value: '200%', label: 'settings.accessibility.captions.size.veryLarge' },
 ];
 
 const COLOURS: readonly SelectOption[] = [
-  {value: '', label: 'settings.accessibility.captions.colour.default'},
-  {value: '0,0,0', label: 'settings.accessibility.captions.colour.black'},
-  {value: '255,255,255', label: 'settings.accessibility.captions.colour.white'},
-  {value: '255,0,0', label: 'settings.accessibility.captions.colour.red'},
-  {value: '0,255,0', label: 'settings.accessibility.captions.colour.green'},
-  {value: '0,0,255', label: 'settings.accessibility.captions.colour.blue'},
-  {value: '255,255,0', label: 'settings.accessibility.captions.colour.yellow'},
-  {value: '0,255,255', label: 'settings.accessibility.captions.colour.cyan'},
-  {value: '255,0,255', label: 'settings.accessibility.captions.colour.magenta'},
+  { value: '', label: 'settings.accessibility.captions.colour.default' },
+  { value: '0,0,0', label: 'settings.accessibility.captions.colour.black' },
+  { value: '255,255,255', label: 'settings.accessibility.captions.colour.white' },
+  { value: '255,0,0', label: 'settings.accessibility.captions.colour.red' },
+  { value: '0,255,0', label: 'settings.accessibility.captions.colour.green' },
+  { value: '0,0,255', label: 'settings.accessibility.captions.colour.blue' },
+  { value: '255,255,0', label: 'settings.accessibility.captions.colour.yellow' },
+  { value: '0,255,255', label: 'settings.accessibility.captions.colour.cyan' },
+  { value: '255,0,255', label: 'settings.accessibility.captions.colour.magenta' },
 ];
 
 /** Text bottoms out at 10 and background at 0; upstream's own two lists. */
 const TEXT_OPACITIES: readonly SelectOption[] = [
-  {value: 100, label: 'settings.accessibility.captions.opacity.opaque'},
-  {value: 50, label: 'settings.accessibility.captions.opacity.semi'},
-  {value: 10, label: 'settings.accessibility.captions.opacity.transparent'},
+  { value: 100, label: 'settings.accessibility.captions.opacity.opaque' },
+  { value: 50, label: 'settings.accessibility.captions.opacity.semi' },
+  { value: 10, label: 'settings.accessibility.captions.opacity.transparent' },
 ];
 
 const BACKGROUND_OPACITIES: readonly SelectOption[] = [
-  {value: 100, label: 'settings.accessibility.captions.opacity.opaque'},
-  {value: 50, label: 'settings.accessibility.captions.opacity.semi'},
-  {value: 0, label: 'settings.accessibility.captions.opacity.transparent'},
+  { value: 100, label: 'settings.accessibility.captions.opacity.opaque' },
+  { value: 50, label: 'settings.accessibility.captions.opacity.semi' },
+  { value: 0, label: 'settings.accessibility.captions.opacity.transparent' },
 ];
 
 const SHADOWS: readonly SelectOption[] = [
-  {value: '', label: 'settings.accessibility.captions.shadow.none'},
+  { value: '', label: 'settings.accessibility.captions.shadow.none' },
   {
     value: '-2px -2px 4px rgba(0, 0, 0, 0.5)',
     label: 'settings.accessibility.captions.shadow.raised',
@@ -84,8 +84,7 @@ const SHADOWS: readonly SelectOption[] = [
     label: 'settings.accessibility.captions.shadow.depressed',
   },
   {
-    value:
-      '-1px 0px 0px black, 0px -1px 0px black, 1px 0px 0px black, 0px  1px 0px black',
+    value: '-1px 0px 0px black, 0px -1px 0px black, 1px 0px 0px black, 0px  1px 0px black',
     label: 'settings.accessibility.captions.shadow.uniform',
   },
   {
@@ -134,11 +133,7 @@ export function AccessibilityCaptionsScreen() {
           // The empty string is the stored DEFAULT, not an absent value, so it
           // is named. Passing it through would leave the right-hand side blank,
           // which reads as a pref the browser failed to report.
-          value={
-            family === ''
-              ? t('settings.accessibility.captions.textFont.default')
-              : family
-          }
+          value={family === '' ? t('settings.accessibility.captions.textFont.default') : family}
         />
       </RowGroup>
 

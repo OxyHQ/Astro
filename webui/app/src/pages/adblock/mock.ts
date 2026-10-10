@@ -11,7 +11,7 @@
 // It is a fixture, not a second source of truth: the browser sends the real
 // catalogue over the wire and the page never consults this in a real build.
 
-import type {AdBlockSource, AdBlockState} from './adblock-store.ts';
+import type { AdBlockSource, AdBlockState } from './adblock-store.ts';
 
 type Snapshot = Omit<AdBlockState, 'ready'>;
 
@@ -94,47 +94,47 @@ const INITIAL: Snapshot = {
 const MAX_CUSTOM_RULES_LENGTH = 64 * 1024;
 
 export function createAdBlockMock(): AdBlockSource {
-  let state: Snapshot = {...INITIAL};
+  let state: Snapshot = { ...INITIAL };
   const listeners = new Set<(patch: Partial<AdBlockState>) => void>();
 
   function push(patch: Partial<AdBlockState>): void {
-    state = {...state, ...patch};
+    state = { ...state, ...patch };
     for (const listener of listeners) {
       listener(patch);
     }
   }
 
   return {
-    getState: () => Promise.resolve({...state}),
+    getState: () => Promise.resolve({ ...state }),
 
-    onChanged: listener => {
+    onChanged: (listener) => {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
       };
     },
 
-    setEnabled: enabled => {
-      push({enabled});
+    setEnabled: (enabled) => {
+      push({ enabled });
     },
 
     // The same refusal the browser gives: a host it has no exception for
     // changes nothing and says so, rather than removing a row the browser
     // still has. Without it, the one branch of the UI that handles a refusal
     // would never run on the dev server.
-    removeSiteException: host => {
+    removeSiteException: (host) => {
       if (!state.disabledSites.includes(host)) {
         return Promise.resolve(false);
       }
-      push({disabledSites: state.disabledSites.filter(site => site !== host)});
+      push({ disabledSites: state.disabledSites.filter((site) => site !== host) });
       return Promise.resolve(true);
     },
 
-    setCustomRules: rules => {
+    setCustomRules: (rules) => {
       if (rules.length > MAX_CUSTOM_RULES_LENGTH) {
         return Promise.resolve(false);
       }
-      push({customRules: rules});
+      push({ customRules: rules });
       return Promise.resolve(true);
     },
   };

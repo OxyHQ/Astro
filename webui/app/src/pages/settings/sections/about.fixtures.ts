@@ -10,7 +10,7 @@
 // `update-status-changed` event, which is why the fixture fires the listener
 // instead of returning a value.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 /** The dev browser's stand-in for `cr.webUIListenerCallback`. */
 interface CrListenerGlobal {
@@ -18,7 +18,7 @@ interface CrListenerGlobal {
 }
 
 function fireListener(event: string, ...args: unknown[]): void {
-  (globalThis as {cr?: CrListenerGlobal}).cr?.webUIListenerCallback?.(event, ...args);
+  (globalThis as { cr?: CrListenerGlobal }).cr?.webUIListenerCallback?.(event, ...args);
 }
 
 export const aboutFixtures: SectionFixtures = {

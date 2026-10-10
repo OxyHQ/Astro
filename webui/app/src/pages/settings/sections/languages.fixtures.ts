@@ -20,7 +20,7 @@
 // pref with no entry here renders as a language with no name (deliberately
 // exercised by the `zz` entry).
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 export const languagesFixtures: SectionFixtures = {
   prefs: [
@@ -29,7 +29,7 @@ export const languagesFixtures: SectionFixtures = {
     // `zz` is not in the known list below, on purpose: a profile can carry a
     // language this build does not know, and the row must show the bare code
     // rather than inventing a name or dropping the entry.
-    {key: 'intl.accept_languages', type: 'STRING', value: 'en-GB,en,es-ES,zz'},
+    { key: 'intl.accept_languages', type: 'STRING', value: 'en-GB,en,es-ES,zz' },
 
     // RECOMMENDED rather than plain, so the "your organisation recommends this
     // on" path is drivable without a managed profile. The switch must stay
@@ -47,7 +47,7 @@ export const languagesFixtures: SectionFixtures = {
     // A LIST, which the dev browser can serve but not write -- the mock refuses
     // a write of any type other than boolean, number or string, exactly as this
     // section's read-only row expects.
-    {key: 'spellcheck.dictionaries', type: 'LIST', value: ['en-GB', 'es']},
+    { key: 'spellcheck.dictionaries', type: 'LIST', value: ['en-GB', 'es'] },
   ],
 
   languages: {
@@ -55,25 +55,65 @@ export const languagesFixtures: SectionFixtures = {
     // hundred. Enough here to drive the picker, its filter and the cap message
     // without pretending to be the real list.
     languages: [
-      {code: 'en-GB', displayName: 'English (United Kingdom)', nativeDisplayName: 'English (United Kingdom)', supportsSpellcheck: true},
-      {code: 'en', displayName: 'English', nativeDisplayName: 'English', supportsSpellcheck: true},
-      {code: 'es-ES', displayName: 'Spanish (Spain)', nativeDisplayName: 'espa\u00f1ol (Espa\u00f1a)', supportsSpellcheck: true},
-      {code: 'es', displayName: 'Spanish', nativeDisplayName: 'espa\u00f1ol', supportsSpellcheck: true},
-      {code: 'ca', displayName: 'Catalan', nativeDisplayName: 'catal\u00e0', supportsSpellcheck: true},
-      {code: 'fr', displayName: 'French', nativeDisplayName: 'fran\u00e7ais', supportsSpellcheck: true},
-      {code: 'de', displayName: 'German', nativeDisplayName: 'Deutsch', supportsSpellcheck: true},
-      {code: 'pt-BR', displayName: 'Portuguese (Brazil)', nativeDisplayName: 'portugu\u00eas (Brasil)', supportsSpellcheck: true},
-      {code: 'ja', displayName: 'Japanese', nativeDisplayName: '\u65e5\u672c\u8a9e'},
+      {
+        code: 'en-GB',
+        displayName: 'English (United Kingdom)',
+        nativeDisplayName: 'English (United Kingdom)',
+        supportsSpellcheck: true,
+      },
+      {
+        code: 'en',
+        displayName: 'English',
+        nativeDisplayName: 'English',
+        supportsSpellcheck: true,
+      },
+      {
+        code: 'es-ES',
+        displayName: 'Spanish (Spain)',
+        nativeDisplayName: 'espa\u00f1ol (Espa\u00f1a)',
+        supportsSpellcheck: true,
+      },
+      {
+        code: 'es',
+        displayName: 'Spanish',
+        nativeDisplayName: 'espa\u00f1ol',
+        supportsSpellcheck: true,
+      },
+      {
+        code: 'ca',
+        displayName: 'Catalan',
+        nativeDisplayName: 'catal\u00e0',
+        supportsSpellcheck: true,
+      },
+      {
+        code: 'fr',
+        displayName: 'French',
+        nativeDisplayName: 'fran\u00e7ais',
+        supportsSpellcheck: true,
+      },
+      { code: 'de', displayName: 'German', nativeDisplayName: 'Deutsch', supportsSpellcheck: true },
+      {
+        code: 'pt-BR',
+        displayName: 'Portuguese (Brazil)',
+        nativeDisplayName: 'portugu\u00eas (Brasil)',
+        supportsSpellcheck: true,
+      },
+      { code: 'ja', displayName: 'Japanese', nativeDisplayName: '\u65e5\u672c\u8a9e' },
       // Prohibited, so the picker's refusal to offer it is drivable. Without
       // one, a screen that ignored the flag would look identical to one that
       // honours it.
-      {code: 'qps-ploc', displayName: 'Pseudolocale', nativeDisplayName: 'Pseudolocale', isProhibitedLanguage: true},
+      {
+        code: 'qps-ploc',
+        displayName: 'Pseudolocale',
+        nativeDisplayName: 'Pseudolocale',
+        isProhibitedLanguage: true,
+      },
     ],
     dictionaries: [
-      {languageCode: 'en-GB', isReady: true},
+      { languageCode: 'en-GB', isReady: true },
       // Mid-download, which is a state the screen renders differently and
       // nothing in a dev server would otherwise reach.
-      {languageCode: 'es', isReady: false, isDownloading: true},
+      { languageCode: 'es', isReady: false, isDownloading: true },
     ],
     customWords: ['Astro', 'de-Googled', 'Oxy', 'ungoogled'],
   },

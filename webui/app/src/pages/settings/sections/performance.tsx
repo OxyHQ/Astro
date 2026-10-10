@@ -25,15 +25,15 @@
 // battery card, the next two serve an exception-list editor this page does not
 // have, and the last opens Chrome's feedback dialog, which is a Google service.
 
-import {t, usePref} from '@astro/platform';
+import { t, usePref } from '@astro/platform';
 
-import {InfoRow} from '../components/info-row.tsx';
-import {LinkRow} from '../components/link-row.tsx';
-import {RadioGroup, type RadioOption} from '../components/radio-group.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
-import {SelectRow, type SelectOption} from '../components/select-row.tsx';
-import {ToggleRow} from '../components/toggle-row.tsx';
+import { InfoRow } from '../components/info-row.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RadioGroup, type RadioOption } from '../components/radio-group.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
+import { SelectRow, type SelectOption } from '../components/select-row.tsx';
+import { ToggleRow } from '../components/toggle-row.tsx';
 
 /**
  * `MemorySaverModeState`. 1 (`kDeprecated`) is deliberately absent: it was only
@@ -41,8 +41,8 @@ import {ToggleRow} from '../components/toggle-row.tsx';
  * would let a user store a value nothing in the browser reads.
  */
 const MEMORY_SAVER_STATES: readonly SelectOption[] = [
-  {value: 0, label: 'settings.performance.memorySaver.off'},
-  {value: 2, label: 'settings.performance.memorySaver.on'},
+  { value: 0, label: 'settings.performance.memorySaver.off' },
+  { value: 2, label: 'settings.performance.memorySaver.on' },
 ];
 
 /** `MemorySaverModeAggressiveness`. */
@@ -73,7 +73,7 @@ const AGGRESSIVENESS: readonly RadioOption[] = [
  * selection, which is the honest outcome rather than a silent rewrite.
  */
 const BATTERY_SAVER_STATES: readonly RadioOption[] = [
-  {value: 0, label: 'settings.performance.batterySaver.off'},
+  { value: 0, label: 'settings.performance.batterySaver.off' },
   {
     value: 1,
     label: 'settings.performance.batterySaver.low',
@@ -128,12 +128,15 @@ export function PerformanceSection() {
           value={
             exceptionCount === undefined
               ? undefined
-              : t('settings.performance.exceptions.count', {count: String(exceptionCount)})
+              : t('settings.performance.exceptions.count', { count: String(exceptionCount) })
           }
         />
       </RowGroup>
 
-      <RowGroup title="settings.performance.group.battery" footer="settings.performance.battery.footer">
+      <RowGroup
+        title="settings.performance.group.battery"
+        footer="settings.performance.battery.footer"
+      >
         <RadioGroup
           prefKey="performance_tuning.battery_saver_mode.state"
           label="settings.performance.batterySaver"

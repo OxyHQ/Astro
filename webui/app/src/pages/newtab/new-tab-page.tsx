@@ -26,16 +26,16 @@ import {
   RiShieldLine,
   RiSparklingLine,
 } from '@oxy.so/bloom/icons';
-import {useThemeColor} from '@oxy.so/bloom/theme';
-import {Text} from '@oxy.so/bloom/typography';
-import {useState, type ReactNode} from 'react';
-import {Pressable, ScrollView, View} from 'react-native';
+import { useThemeColor } from '@oxy.so/bloom/theme';
+import { Text } from '@oxy.so/bloom/typography';
+import { useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
 
-import {hrefFor, t, type MessageId, type NavIcon} from '@astro/platform';
+import { hrefFor, t, type MessageId, type NavIcon } from '@astro/platform';
 
-import {CustomizePanel} from './customize-panel.tsx';
-import {openCustomizeChrome, useNtp, type WidgetId} from './ntp-store.ts';
-import {SearchBox} from './search-box.tsx';
+import { CustomizePanel } from './customize-panel.tsx';
+import { openCustomizeChrome, useNtp, type WidgetId } from './ntp-store.ts';
+import { SearchBox } from './search-box.tsx';
 import {
   AliaWidget,
   ClockWidget,
@@ -90,34 +90,42 @@ function RailRow({
 
 /** The ad blocker's lifetime count, live. */
 function BlockedBadge() {
-  const {blockedCount} = useNtp();
+  const { blockedCount } = useNtp();
   const iconColor = useThemeColor('primary');
   return (
     <View className="flex-row items-center gap-2 rounded-radius-max border border-border bg-card px-3 py-1.5">
       <RiShieldLine size="sm" fill={iconColor} />
       <Text className="text-bodySmall text-primary">
-        {t('newtab.blocked', {count: blockedCount.toLocaleString()})}
+        {t('newtab.blocked', { count: blockedCount.toLocaleString() })}
       </Text>
     </View>
   );
 }
 
 /** One grid cell. The widgets do not know how wide they are. */
-function Cell({children}: {children: ReactNode}) {
+function Cell({ children }: { children: ReactNode }) {
   return <View className="w-1/2 p-1.5 md:w-1/3 lg:w-1/4">{children}</View>;
 }
 
 export function NewTabPage() {
-  const {widgets} = useNtp();
+  const { widgets } = useNtp();
   const [customizing, setCustomizing] = useState(false);
   const railIconColor = useThemeColor('textSecondary');
 
   function widgetFor(id: WidgetId): ReactNode {
     switch (id) {
       case 'weather':
-        return <Cell key={id}><WeatherWidget /></Cell>;
+        return (
+          <Cell key={id}>
+            <WeatherWidget />
+          </Cell>
+        );
       case 'clock':
-        return <Cell key={id}><ClockWidget /></Cell>;
+        return (
+          <Cell key={id}>
+            <ClockWidget />
+          </Cell>
+        );
       case 'quickLinks':
         return (
           <Cell key={id}>
@@ -125,11 +133,23 @@ export function NewTabPage() {
           </Cell>
         );
       case 'notes':
-        return <Cell key={id}><NotesWidget /></Cell>;
+        return (
+          <Cell key={id}>
+            <NotesWidget />
+          </Cell>
+        );
       case 'discover':
-        return <Cell key={id}><DiscoverWidget /></Cell>;
+        return (
+          <Cell key={id}>
+            <DiscoverWidget />
+          </Cell>
+        );
       case 'alia':
-        return <Cell key={id}><AliaWidget /></Cell>;
+        return (
+          <Cell key={id}>
+            <AliaWidget />
+          </Cell>
+        );
       case 'sites':
         // A group, not a card: it draws one cell per tile the browser sent, at
         // whatever position the arrangement puts it.
@@ -149,21 +169,9 @@ export function NewTabPage() {
           label="newtab.nav.customize"
           onPress={() => setCustomizing(true)}
         />
-        <RailRow
-          icon={RiPaletteLine}
-          label="newtab.nav.appearance"
-          onPress={openCustomizeChrome}
-        />
-        <RailRow
-          icon={RiSparklingLine}
-          label="newtab.nav.whatsNew"
-          href={hrefFor('whatsNew')}
-        />
-        <RailRow
-          icon={RiSettings3Line}
-          label="newtab.nav.settings"
-          href={hrefFor('settings')}
-        />
+        <RailRow icon={RiPaletteLine} label="newtab.nav.appearance" onPress={openCustomizeChrome} />
+        <RailRow icon={RiSparklingLine} label="newtab.nav.whatsNew" href={hrefFor('whatsNew')} />
+        <RailRow icon={RiSettings3Line} label="newtab.nav.settings" href={hrefFor('settings')} />
       </View>
 
       <View className="min-w-0 flex-1">
@@ -178,10 +186,7 @@ export function NewTabPage() {
               onPress={() => setCustomizing(true)}
               className="rounded-radius-max p-2 hover:bg-fill-hover"
             >
-              <RiEqualizerLine
-                size="md"
-                fill={railIconColor}
-              />
+              <RiEqualizerLine size="md" fill={railIconColor} />
             </Pressable>
           </View>
         </View>
@@ -190,9 +195,7 @@ export function NewTabPage() {
           <View className="w-full max-w-3xl gap-4 pt-6">
             <SearchBox />
             <View className="w-full flex-row flex-wrap -m-1.5">
-              {widgets
-                .filter(widget => widget.visible)
-                .map(widget => widgetFor(widget.id))}
+              {widgets.filter((widget) => widget.visible).map((widget) => widgetFor(widget.id))}
             </View>
           </View>
         </ScrollView>

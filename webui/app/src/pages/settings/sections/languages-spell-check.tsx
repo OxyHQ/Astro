@@ -23,31 +23,27 @@
 // sets `google_api_key = ""`). The preference stays allowlisted and stays
 // unwritten.
 
-import {
-  t,
-  useCustomWords,
-  useDictionaryStatuses,
-  useLanguages,
-  usePref,
-} from '@astro/platform';
+import { t, useCustomWords, useDictionaryStatuses, useLanguages, usePref } from '@astro/platform';
 
-import {InfoRow} from '../components/info-row.tsx';
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
-import {ToggleRow} from '../components/toggle-row.tsx';
+import { InfoRow } from '../components/info-row.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
+import { ToggleRow } from '../components/toggle-row.tsx';
 
 export function LanguagesSpellCheckScreen() {
   const dictionaries = usePref('spellcheck.dictionaries');
   const value = dictionaries?.value;
-  const codes = Array.isArray(value) ? value.filter(entry => typeof entry === 'string') : undefined;
+  const codes = Array.isArray(value)
+    ? value.filter((entry) => typeof entry === 'string')
+    : undefined;
   const known = useLanguages();
   const statuses = useDictionaryStatuses();
   const words = useCustomWords();
 
-  const byCode = new Map((known ?? []).map(language => [language.code, language]));
+  const byCode = new Map((known ?? []).map((language) => [language.code, language]));
   const statusFor = (code: string): string | undefined => {
-    const status = (statuses ?? []).find(entry => entry.languageCode === code);
+    const status = (statuses ?? []).find((entry) => entry.languageCode === code);
     if (!status) {
       return undefined;
     }
@@ -82,7 +78,7 @@ export function LanguagesSpellCheckScreen() {
             value={t('settings.languages.spellCheck.dictionaries.none')}
           />
         ) : (
-          codes.map(code => (
+          codes.map((code) => (
             <InfoRow
               key={code}
               label="settings.languages.spellCheck.dictionary"
@@ -93,11 +89,11 @@ export function LanguagesSpellCheckScreen() {
         )}
       </RowGroup>
 
-      {codes !== undefined && codes.some(code => statusFor(code) !== undefined) ? (
+      {codes !== undefined && codes.some((code) => statusFor(code) !== undefined) ? (
         <RowGroup title="settings.languages.spellCheck.downloads">
           {codes
-            .filter(code => statusFor(code) !== undefined)
-            .map(code => (
+            .filter((code) => statusFor(code) !== undefined)
+            .map((code) => (
               <InfoRow
                 key={code}
                 label="settings.languages.spellCheck.dictionary"

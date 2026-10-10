@@ -12,7 +12,7 @@
 // and two unrelated things under one prefix is how a string ends up rendered in
 // the wrong place.
 
-import type {SettingsControl} from '../controls.ts';
+import type { SettingsControl } from '../controls.ts';
 
 export const searchStrings = {
   'settings.nav.search': 'Search engine',
@@ -22,8 +22,7 @@ export const searchStrings = {
   'settings.searchEngine.default': 'Default search engine',
   'settings.searchEngine.default.description':
     'The engine the address bar uses when what you type is a search rather than an address.',
-  'settings.searchEngine.default.pending':
-    'The browser has not reported its search engines yet.',
+  'settings.searchEngine.default.pending': 'The browser has not reported its search engines yet.',
   'settings.searchEngine.manage': 'Manage search engines and site search',
 
   'settings.searchEngine.keywordSpace': 'Press Space to start a site search',
@@ -68,6 +67,6 @@ export const searchControls: readonly SettingsControl[] = [
   'settings.searchEngine.default',
   'settings.searchEngine.manage',
 
-  {id: 'settings.searchEngine.keywordSpace', on: '/searchEngines'},
-  {id: 'settings.searchEngine.siteSearch', on: '/searchEngines'},
+  { id: 'settings.searchEngine.keywordSpace', on: '/searchEngines' },
+  { id: 'settings.searchEngine.siteSearch', on: '/searchEngines' },
 ];

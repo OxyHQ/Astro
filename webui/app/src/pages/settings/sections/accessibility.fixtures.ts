@@ -15,31 +15,31 @@
 // gates a row this section does not draw, and every CaptionsHandler message is
 // about live caption's downloadable speech model, which Astro cannot fetch.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 export const accessibilityFixtures: SectionFixtures = {
   prefs: [
-    {key: 'settings.a11y.focus_highlight', type: 'BOOLEAN', value: true},
-    {key: 'settings.a11y.caretbrowsing.enabled', type: 'BOOLEAN', value: false},
-    {key: 'settings.a11y.overscroll_history_navigation', type: 'BOOLEAN', value: true},
+    { key: 'settings.a11y.focus_highlight', type: 'BOOLEAN', value: true },
+    { key: 'settings.a11y.caretbrowsing.enabled', type: 'BOOLEAN', value: false },
+    { key: 'settings.a11y.overscroll_history_navigation', type: 'BOOLEAN', value: true },
     // ToastAlertLevel::kAll.
-    {key: 'settings.toast.alert_level', type: 'NUMBER', value: 0},
+    { key: 'settings.toast.alert_level', type: 'NUMBER', value: 0 },
 
     // Captions. Every value is one the corresponding menu offers, so each row
     // renders with a selection rather than falling back to its placeholder --
     // except the two that sit at the stored default, which IS the empty string
     // and is worth exercising: it is the one value that is a real choice and
     // looks like an absent one.
-    {key: 'accessibility.captions.text_size', type: 'STRING', value: '150%'},
-    {key: 'accessibility.captions.text_font', type: 'STRING', value: ''},
-    {key: 'accessibility.captions.text_color', type: 'STRING', value: '255,255,255'},
-    {key: 'accessibility.captions.text_opacity', type: 'NUMBER', value: 100},
+    { key: 'accessibility.captions.text_size', type: 'STRING', value: '150%' },
+    { key: 'accessibility.captions.text_font', type: 'STRING', value: '' },
+    { key: 'accessibility.captions.text_color', type: 'STRING', value: '255,255,255' },
+    { key: 'accessibility.captions.text_opacity', type: 'NUMBER', value: 100 },
     {
       key: 'accessibility.captions.text_shadow',
       type: 'STRING',
       value: '0px 0px 2px rgba(0, 0, 0, 0.5), 2px 2px 2px black',
     },
-    {key: 'accessibility.captions.background_color', type: 'STRING', value: '0,0,0'},
-    {key: 'accessibility.captions.background_opacity', type: 'NUMBER', value: 50},
+    { key: 'accessibility.captions.background_color', type: 'STRING', value: '0,0,0' },
+    { key: 'accessibility.captions.background_opacity', type: 'NUMBER', value: 50 },
   ],
 };

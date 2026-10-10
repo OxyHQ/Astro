@@ -15,7 +15,7 @@
 // list, so the store applies the delta. Re-fetching on every notification would
 // work and would also make each keystroke a round trip.
 
-import {useSyncExternalStore} from 'react';
+import { useSyncExternalStore } from 'react';
 
 import {
   languageSettingsPrivate,
@@ -42,8 +42,8 @@ function start(): void {
     return;
   }
   started = true;
-  void languageSettingsPrivate().then(api => {
-    api.onDictionariesChanged(next => {
+  void languageSettingsPrivate().then((api) => {
+    api.onDictionariesChanged((next) => {
       dictionaries = next;
       notify();
     });
@@ -60,15 +60,15 @@ function start(): void {
       customWords = [...next].sort((a, b) => a.localeCompare(b));
       notify();
     });
-    void api.getLanguages().then(next => {
+    void api.getLanguages().then((next) => {
       languages = next;
       notify();
     });
-    void api.getDictionaryStatuses().then(next => {
+    void api.getDictionaryStatuses().then((next) => {
       dictionaries = next;
       notify();
     });
-    void api.getCustomWords().then(next => {
+    void api.getCustomWords().then((next) => {
       customWords = [...next].sort((a, b) => a.localeCompare(b));
       notify();
     });
@@ -99,21 +99,21 @@ export function useCustomWords(): readonly string[] | undefined {
 }
 
 export function enableLanguage(code: string): void {
-  void languageSettingsPrivate().then(api => api.enableLanguage(code));
+  void languageSettingsPrivate().then((api) => api.enableLanguage(code));
 }
 
 export function disableLanguage(code: string): void {
-  void languageSettingsPrivate().then(api => api.disableLanguage(code));
+  void languageSettingsPrivate().then((api) => api.disableLanguage(code));
 }
 
 export function moveLanguage(code: string, move: LanguageMove): void {
-  void languageSettingsPrivate().then(api => api.moveLanguage(code, move));
+  void languageSettingsPrivate().then((api) => api.moveLanguage(code, move));
 }
 
 export function addCustomWord(word: string): void {
-  void languageSettingsPrivate().then(api => api.addCustomWord(word));
+  void languageSettingsPrivate().then((api) => api.addCustomWord(word));
 }
 
 export function removeCustomWord(word: string): void {
-  void languageSettingsPrivate().then(api => api.removeCustomWord(word));
+  void languageSettingsPrivate().then((api) => api.removeCustomWord(word));
 }

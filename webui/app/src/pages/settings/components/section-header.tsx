@@ -7,12 +7,12 @@
 // back the only exit is the browser's Back button — a dead end for anyone who
 // arrived by deep link. `SubpageHeader` is that way back.
 
-import {RiArrowLeftSLine} from '@oxy.so/bloom/icons';
-import {useThemeColor} from '@oxy.so/bloom/theme';
-import {Text} from '@oxy.so/bloom/typography';
-import {Pressable, View} from 'react-native';
+import { RiArrowLeftSLine } from '@oxy.so/bloom/icons';
+import { useThemeColor } from '@oxy.so/bloom/theme';
+import { Text } from '@oxy.so/bloom/typography';
+import { Pressable, View } from 'react-native';
 
-import {setHashPath, t, type MessageId} from '@astro/platform';
+import { setHashPath, t, type MessageId } from '@astro/platform';
 
 export interface SectionHeaderProps {
   title: MessageId;
@@ -20,7 +20,7 @@ export interface SectionHeaderProps {
   description?: MessageId;
 }
 
-export function SectionHeader({title, description}: SectionHeaderProps) {
+export function SectionHeader({ title, description }: SectionHeaderProps) {
   return (
     <View className="gap-1">
       <Text className="text-sectionTitle text-foreground">{t(title)}</Text>
@@ -40,7 +40,7 @@ export interface SubpageHeaderProps {
   backLabel: MessageId;
 }
 
-export function SubpageHeader({title, description, backTo, backLabel}: SubpageHeaderProps) {
+export function SubpageHeader({ title, description, backTo, backLabel }: SubpageHeaderProps) {
   // Icons take a colour, not a class: on web react-native-css hands the
   // component `{$$css: true, className}` rather than resolved styles, so the
   // `style.color` an icon reads as its fallback fill is never there.
@@ -49,7 +49,7 @@ export function SubpageHeader({title, description, backTo, backLabel}: SubpageHe
     <View className="gap-2">
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel={t('settings.backTo', {section: t(backLabel)})}
+        accessibilityLabel={t('settings.backTo', { section: t(backLabel) })}
         onPress={() => setHashPath(backTo)}
         className="-ml-2 flex-row items-center gap-1 self-start rounded-radius-max px-2 py-1 hover:bg-fill-hover"
       >

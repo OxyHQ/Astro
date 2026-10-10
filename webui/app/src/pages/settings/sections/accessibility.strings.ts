@@ -7,7 +7,7 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
-import type {SettingsControl} from '../controls.ts';
+import type { SettingsControl } from '../controls.ts';
 
 export const accessibilityStrings = {
   'settings.nav.accessibility': 'Accessibility',
@@ -31,8 +31,7 @@ export const accessibilityStrings = {
   'settings.accessibility.toastLevel.actionable': 'Only ones with something to do',
 
   'settings.accessibility.captions.link': 'Captions',
-  'settings.accessibility.captions.link.sublabel':
-    'How captions look when a video provides them.',
+  'settings.accessibility.captions.link.sublabel': 'How captions look when a video provides them.',
   'settings.accessibility.omitted.footer':
     'Three of the switches Chromium draws on this page are missing on purpose. ' +
     'Image descriptions and the main-node annotations both send page content ' +
@@ -106,7 +105,7 @@ export const accessibilityControls: readonly SettingsControl[] = [
   'settings.accessibility.toastLevel',
   'settings.accessibility.captions.link',
 
-  {id: 'settings.accessibility.captions.textSize', on: '/captions'},
-  {id: 'settings.accessibility.captions.textFont', on: '/captions'},
-  {id: 'settings.accessibility.captions.textShadow', on: '/captions'},
+  { id: 'settings.accessibility.captions.textSize', on: '/captions' },
+  { id: 'settings.accessibility.captions.textFont', on: '/captions' },
+  { id: 'settings.accessibility.captions.textShadow', on: '/captions' },
 ];

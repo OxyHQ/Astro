@@ -12,18 +12,18 @@
 // C++ handler to do it — so offering one here would be a row that looks live
 // and does nothing until that handler exists.
 
-import {SettingsListItem} from '@oxy.so/bloom';
+import { SettingsListItem } from '@oxy.so/bloom';
 
-import {navigateTo, setHashPath, t, type MessageId, type RouteId} from '@astro/platform';
+import { navigateTo, setHashPath, t, type MessageId, type RouteId } from '@astro/platform';
 
-import {ControlAnchor} from './control-anchor.tsx';
+import { ControlAnchor } from './control-anchor.tsx';
 
 export type LinkRowProps = {
   label: MessageId;
   sublabel?: MessageId;
   /** The current value, shown at the right ("English", "3 sites"). */
   value?: string;
-} & ({to: string; route?: never} | {route: RouteId; to?: never});
+} & ({ to: string; route?: never } | { route: RouteId; to?: never });
 
 // Not destructured: `to` and `route` are the two arms of a union, and TypeScript
 // narrows the union on the object, not on variables pulled out of it.

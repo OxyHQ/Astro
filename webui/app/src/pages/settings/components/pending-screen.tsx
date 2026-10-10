@@ -11,10 +11,10 @@
 // worse than an empty section — the user would set it, believe it, and be
 // wrong.
 
-import {SectionCard, t, type MessageId} from '@astro/platform';
-import {Text} from '@oxy.so/bloom/typography';
+import { SectionCard, t, type MessageId } from '@astro/platform';
+import { Text } from '@oxy.so/bloom/typography';
 
-import {SectionHeader, SubpageHeader} from './section-header.tsx';
+import { SectionHeader, SubpageHeader } from './section-header.tsx';
 
 export interface PendingScreenProps {
   title: MessageId;
@@ -26,7 +26,7 @@ export interface PendingScreenProps {
   backLabel?: MessageId;
 }
 
-export function PendingScreen({title, backTo, backLabel}: PendingScreenProps) {
+export function PendingScreen({ title, backTo, backLabel }: PendingScreenProps) {
   return (
     <>
       {backTo !== undefined && backLabel !== undefined ? (

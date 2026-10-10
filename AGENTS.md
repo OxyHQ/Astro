@@ -29,6 +29,7 @@ tools/baseline/generate-all.sh
 tools/tests/run.sh               # Build-safety suite without a Chromium checkout
 tools/verify-clean-head.sh --commit SHA
 cd webui/app && bun run dev
+cd webui/app && bun run lint     # Biome check; lint:fix / format write
 ```
 
 `--dry-run` on `sync-sources.sh`, `apply-patches.sh`, `sync-overlay.sh` and
@@ -101,6 +102,10 @@ in `docs/reproducibility.mdx`.
 The surface model and scheme composition live in `docs/webui.mdx` and
 `docs/engineering/webui.md`.
 
+- Biome (root `biome.json`) formats and lints only `webui/app`. It excludes
+  the JSON the build and `tools/tests` consume (`manifest.json` is rewritten by
+  Vite and compared as text) and the generated `theme-fallback.css`. CI runs
+  `biome ci .`; never point Biome at patches, the overlay or Chromium.
 - New frontend work is an entry in `webui/app`, never another top-level WebUI
   application. Its committed `manifest.json` owns the emitted hosts.
 - Taking an upstream host means replacing its registration, not adding a second

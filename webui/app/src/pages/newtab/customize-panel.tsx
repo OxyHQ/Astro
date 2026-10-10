@@ -20,17 +20,14 @@
 // drag needs does not arrive. Buttons are also the only version of this that
 // was ever reachable from a keyboard — the drag had no keyboard path at all.
 
-import {
-  RiAddLine,
-  RiDeleteBin6Line,
-} from '@oxy.so/bloom/icons';
-import {useThemeColor} from '@oxy.so/bloom/theme';
-import {Switch} from '@oxy.so/bloom/switch';
-import {Text} from '@oxy.so/bloom/typography';
-import {useState, type ReactNode} from 'react';
-import {Pressable, ScrollView, TextInput, View} from 'react-native';
+import { RiAddLine, RiDeleteBin6Line } from '@oxy.so/bloom/icons';
+import { useThemeColor } from '@oxy.so/bloom/theme';
+import { Switch } from '@oxy.so/bloom/switch';
+import { Text } from '@oxy.so/bloom/typography';
+import { useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
-import {t, type MessageId} from '@astro/platform';
+import { t, type MessageId } from '@astro/platform';
 
 import {
   addQuickLink,
@@ -82,7 +79,7 @@ function PanelSection({
  * storing nothing — a per-keystroke commit would spend the whole edit in the
  * rejected state.
  */
-function LinkRow({index, link}: {index: number; link: QuickLink}) {
+function LinkRow({ index, link }: { index: number; link: QuickLink }) {
   const [title, setTitle] = useState(link.title);
   const [url, setUrl] = useState(link.url);
   const [rejected, setRejected] = useState(false);
@@ -92,7 +89,7 @@ function LinkRow({index, link}: {index: number; link: QuickLink}) {
     if (title === link.title && url === link.url) {
       return;
     }
-    void updateQuickLink(index, title, url).then(accepted => {
+    void updateQuickLink(index, title, url).then((accepted) => {
       setRejected(!accepted);
       if (!accepted) {
         // Back to what the browser actually holds. Leaving the refused text in
@@ -124,7 +121,7 @@ function LinkRow({index, link}: {index: number; link: QuickLink}) {
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t('newtab.customize.linkRemove', {title: link.title})}
+          accessibilityLabel={t('newtab.customize.linkRemove', { title: link.title })}
           onPress={() => removeQuickLink(index)}
           className="rounded-radius-max p-2 hover:bg-fill-hover"
         >
@@ -132,9 +129,7 @@ function LinkRow({index, link}: {index: number; link: QuickLink}) {
         </Pressable>
       </View>
       {rejected ? (
-        <Text className="text-caption text-destructive">
-          {t('newtab.customize.linkRejected')}
-        </Text>
+        <Text className="text-caption text-destructive">{t('newtab.customize.linkRejected')}</Text>
       ) : undefined}
     </View>
   );
@@ -167,7 +162,7 @@ function AddLinkRow() {
           accessibilityRole="button"
           accessibilityLabel={t('newtab.customize.linkAdd')}
           onPress={() => {
-            void addQuickLink(title.trim() || url, url.trim()).then(accepted => {
+            void addQuickLink(title.trim() || url, url.trim()).then((accepted) => {
               setRejected(!accepted);
               if (accepted) {
                 setTitle('');
@@ -181,16 +176,14 @@ function AddLinkRow() {
         </Pressable>
       </View>
       {rejected ? (
-        <Text className="text-caption text-destructive">
-          {t('newtab.customize.linkRejected')}
-        </Text>
+        <Text className="text-caption text-destructive">{t('newtab.customize.linkRejected')}</Text>
       ) : undefined}
     </View>
   );
 }
 
-export function CustomizePanel({onClose}: {onClose: () => void}) {
-  const {widgets, quickLinks, searchEngines} = useNtp();
+export function CustomizePanel({ onClose }: { onClose: () => void }) {
+  const { widgets, quickLinks, searchEngines } = useNtp();
 
   return (
     // A scrim over the page, dismissable by clicking away from the panel. Not
@@ -206,17 +199,13 @@ export function CustomizePanel({onClose}: {onClose: () => void}) {
       />
       <View className="h-full w-full max-w-md border-l border-border bg-background">
         <View className="h-16 shrink-0 flex-row items-center justify-between border-b border-border px-4">
-          <Text className="text-headerBold text-foreground">
-            {t('newtab.customize.title')}
-          </Text>
+          <Text className="text-headerBold text-foreground">{t('newtab.customize.title')}</Text>
           <Pressable
             accessibilityRole="button"
             onPress={onClose}
             className="rounded-radius-max px-3 py-2 hover:bg-fill-hover"
           >
-            <Text className="text-bodySmall text-primary">
-              {t('newtab.customize.close')}
-            </Text>
+            <Text className="text-bodySmall text-primary">{t('newtab.customize.close')}</Text>
           </Pressable>
         </View>
 
@@ -265,7 +254,7 @@ export function CustomizePanel({onClose}: {onClose: () => void}) {
           </PanelSection>
 
           <PanelSection title="newtab.customize.engines" hint="newtab.customize.enginesHint">
-            {searchEngines.map(engine => (
+            {searchEngines.map((engine) => (
               <Pressable
                 key={engine.id}
                 accessibilityRole="radio"

@@ -9,7 +9,7 @@
 // DefaultBrowserHandler. Handler messages must be ones the C++ handler
 // registered by `settings_ui.cc` actually answers.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 /** The dev browser's stand-in for `cr.webUIListenerCallback`. */
 interface CrListenerGlobal {
@@ -44,7 +44,7 @@ export const defaultBrowserFixtures: SectionFixtures = {
     setAsDefaultBrowser: () => {
       isDefault = true;
       setTimeout(() => {
-        (globalThis as {cr?: CrListenerGlobal}).cr?.webUIListenerCallback?.(
+        (globalThis as { cr?: CrListenerGlobal }).cr?.webUIListenerCallback?.(
           'browser-default-state-changed',
           state(),
         );

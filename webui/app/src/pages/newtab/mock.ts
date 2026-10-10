@@ -9,37 +9,37 @@
 // persisted would let a component start reading from one again and the dev
 // server would be the last place anyone noticed.
 
-import {WIDGET_IDS, type NtpSource, type NtpState, type WidgetId} from './ntp-store.ts';
+import { WIDGET_IDS, type NtpSource, type NtpState, type WidgetId } from './ntp-store.ts';
 
 type Snapshot = Omit<NtpState, 'ready'>;
 
 const INITIAL: Snapshot = {
-  widgets: WIDGET_IDS.map(id => ({id, visible: true})),
+  widgets: WIDGET_IDS.map((id) => ({ id, visible: true })),
   quickLinks: [
-    {title: 'GitHub', url: 'https://github.com'},
-    {title: 'Reddit', url: 'https://reddit.com'},
-    {title: 'YouTube', url: 'https://youtube.com'},
-    {title: 'Wikipedia', url: 'https://wikipedia.org'},
+    { title: 'GitHub', url: 'https://github.com' },
+    { title: 'Reddit', url: 'https://reddit.com' },
+    { title: 'YouTube', url: 'https://youtube.com' },
+    { title: 'Wikipedia', url: 'https://wikipedia.org' },
   ],
   notes: '',
   blockedCount: 12_408,
   searchEngines: [
-    {id: '1', name: 'DuckDuckGo', keyword: 'duckduckgo.com', isDefault: true, selectable: true},
-    {id: '2', name: 'Startpage', keyword: 'startpage.com', isDefault: false, selectable: true},
-    {id: '3', name: 'Wikipedia', keyword: 'wikipedia.org', isDefault: false, selectable: true},
+    { id: '1', name: 'DuckDuckGo', keyword: 'duckduckgo.com', isDefault: true, selectable: true },
+    { id: '2', name: 'Startpage', keyword: 'startpage.com', isDefault: false, selectable: true },
+    { id: '3', name: 'Wikipedia', keyword: 'wikipedia.org', isDefault: false, selectable: true },
   ],
   tiles: [
-    {title: 'Hacker News', url: 'https://news.ycombinator.com'},
-    {title: 'MDN', url: 'https://developer.mozilla.org'},
+    { title: 'Hacker News', url: 'https://news.ycombinator.com' },
+    { title: 'MDN', url: 'https://developer.mozilla.org' },
   ],
 };
 
 export function createNtpMock(): NtpSource {
-  let state: Snapshot = {...INITIAL};
+  let state: Snapshot = { ...INITIAL };
   const listeners = new Set<(patch: Partial<NtpState>) => void>();
 
   function push(patch: Partial<NtpState>): void {
-    state = {...state, ...patch};
+    state = { ...state, ...patch };
     for (const listener of listeners) {
       listener(patch);
     }
@@ -67,11 +67,11 @@ export function createNtpMock(): NtpSource {
         searchEngines: state.searchEngines,
       }),
 
-    onChanged: listener => {
+    onChanged: (listener) => {
       listeners.add(listener);
       // Top sites are pushed rather than returned by getState in the browser
       // too, so the dev server exercises the same "arrives later" path.
-      const timer = setTimeout(() => push({tiles: INITIAL.tiles}), 250);
+      const timer = setTimeout(() => push({ tiles: INITIAL.tiles }), 250);
       return () => {
         clearTimeout(timer);
         listeners.delete(listener);
@@ -80,15 +80,15 @@ export function createNtpMock(): NtpSource {
 
     setWidgetVisible: (id, visible) => {
       push({
-        widgets: state.widgets.map(widget =>
-          widget.id === id ? {...widget, visible} : widget,
+        widgets: state.widgets.map((widget) =>
+          widget.id === id ? { ...widget, visible } : widget,
         ),
       });
     },
 
     setWidgetOrder: (order: readonly WidgetId[]) => {
-      const byId = new Map(state.widgets.map(widget => [widget.id, widget]));
-      const next = order.flatMap(id => {
+      const byId = new Map(state.widgets.map((widget) => [widget.id, widget]));
+      const next = order.flatMap((id) => {
         const widget = byId.get(id);
         return widget ? [widget] : [];
       });
@@ -97,14 +97,14 @@ export function createNtpMock(): NtpSource {
           next.push(widget);
         }
       }
-      push({widgets: next});
+      push({ widgets: next });
     },
 
     addQuickLink: (title, url) => {
       if (!accepts(url) || state.quickLinks.length >= 8) {
         return Promise.resolve(false);
       }
-      push({quickLinks: [...state.quickLinks, {title, url}]});
+      push({ quickLinks: [...state.quickLinks, { title, url }] });
       return Promise.resolve(true);
     },
 
@@ -113,27 +113,25 @@ export function createNtpMock(): NtpSource {
         return Promise.resolve(false);
       }
       push({
-        quickLinks: state.quickLinks.map((link, at) =>
-          at === index ? {title, url} : link,
-        ),
+        quickLinks: state.quickLinks.map((link, at) => (at === index ? { title, url } : link)),
       });
       return Promise.resolve(true);
     },
 
-    removeQuickLink: index => {
-      push({quickLinks: state.quickLinks.filter((_, at) => at !== index)});
+    removeQuickLink: (index) => {
+      push({ quickLinks: state.quickLinks.filter((_, at) => at !== index) });
     },
 
-    setNotes: notes => {
-      push({notes});
+    setNotes: (notes) => {
+      push({ notes });
     },
 
-    setDefaultSearchEngine: id => {
-      if (!state.searchEngines.some(engine => engine.id === id)) {
+    setDefaultSearchEngine: (id) => {
+      if (!state.searchEngines.some((engine) => engine.id === id)) {
         return Promise.resolve(false);
       }
       push({
-        searchEngines: state.searchEngines.map(engine => ({
+        searchEngines: state.searchEngines.map((engine) => ({
           ...engine,
           isDefault: engine.id === id,
         })),
@@ -141,7 +139,7 @@ export function createNtpMock(): NtpSource {
       return Promise.resolve(true);
     },
 
-    search: query => {
+    search: (query) => {
       // The browser navigates the tab; the dev server has no browser to ask,
       // and a page that opened a real search from a mock would be lying about
       // which engine chose the URL.

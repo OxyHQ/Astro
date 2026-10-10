@@ -47,9 +47,9 @@ import {
   SelectValue,
   SettingsListItem,
 } from '@oxy.so/bloom';
-import {Text} from '@oxy.so/bloom/typography';
-import {useState, useSyncExternalStore} from 'react';
-import {View} from 'react-native';
+import { Text } from '@oxy.so/bloom/typography';
+import { useState, useSyncExternalStore } from 'react';
+import { View } from 'react-native';
 
 import {
   SectionCard,
@@ -62,10 +62,10 @@ import {
   type MessageId,
 } from '@astro/platform';
 
-import {ControlAnchor} from '../components/control-anchor.tsx';
-import {usePrefControl} from '../components/policy.ts';
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
+import { ControlAnchor } from '../components/control-anchor.tsx';
+import { usePrefControl } from '../components/policy.ts';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
 
 const TIME_PERIOD_PREF = 'browser.clear_data.time_period';
 
@@ -76,24 +76,24 @@ const TIME_PERIOD_PREF = 'browser.clear_data.time_period';
  * are permanent; the ORDER below is the one a user reads them in, which is not
  * the numeric one.
  */
-const TIME_PERIODS: readonly {readonly value: number; readonly label: MessageId}[] = [
-  {value: 6, label: 'settings.privacy.clearData.timeRange.15min'},
-  {value: 0, label: 'settings.privacy.clearData.timeRange.hour'},
-  {value: 1, label: 'settings.privacy.clearData.timeRange.day'},
-  {value: 2, label: 'settings.privacy.clearData.timeRange.week'},
-  {value: 3, label: 'settings.privacy.clearData.timeRange.fourWeeks'},
-  {value: 4, label: 'settings.privacy.clearData.timeRange.allTime'},
+const TIME_PERIODS: readonly { readonly value: number; readonly label: MessageId }[] = [
+  { value: 6, label: 'settings.privacy.clearData.timeRange.15min' },
+  { value: 0, label: 'settings.privacy.clearData.timeRange.hour' },
+  { value: 1, label: 'settings.privacy.clearData.timeRange.day' },
+  { value: 2, label: 'settings.privacy.clearData.timeRange.week' },
+  { value: 3, label: 'settings.privacy.clearData.timeRange.fourWeeks' },
+  { value: 4, label: 'settings.privacy.clearData.timeRange.allTime' },
 ];
 
 /** The seven deletion prefs the handler both counts and accepts. */
-const DATA_TYPES: readonly {readonly pref: string; readonly label: MessageId}[] = [
-  {pref: 'browser.clear_data.browsing_history', label: 'settings.privacy.clearData.history'},
-  {pref: 'browser.clear_data.download_history', label: 'settings.privacy.clearData.downloads'},
-  {pref: 'browser.clear_data.cookies', label: 'settings.privacy.clearData.cookies'},
-  {pref: 'browser.clear_data.cache', label: 'settings.privacy.clearData.cache'},
-  {pref: 'browser.clear_data.form_data', label: 'settings.privacy.clearData.formData'},
-  {pref: 'browser.clear_data.site_settings', label: 'settings.privacy.clearData.siteSettings'},
-  {pref: 'browser.clear_data.hosted_apps_data', label: 'settings.privacy.clearData.hostedApps'},
+const DATA_TYPES: readonly { readonly pref: string; readonly label: MessageId }[] = [
+  { pref: 'browser.clear_data.browsing_history', label: 'settings.privacy.clearData.history' },
+  { pref: 'browser.clear_data.download_history', label: 'settings.privacy.clearData.downloads' },
+  { pref: 'browser.clear_data.cookies', label: 'settings.privacy.clearData.cookies' },
+  { pref: 'browser.clear_data.cache', label: 'settings.privacy.clearData.cache' },
+  { pref: 'browser.clear_data.form_data', label: 'settings.privacy.clearData.formData' },
+  { pref: 'browser.clear_data.site_settings', label: 'settings.privacy.clearData.siteSettings' },
+  { pref: 'browser.clear_data.hosted_apps_data', label: 'settings.privacy.clearData.hostedApps' },
 ];
 
 interface CountersState {
@@ -103,7 +103,7 @@ interface CountersState {
   readonly text: ReadonlyMap<string, string>;
 }
 
-let snapshot: CountersState = {failed: false, text: new Map()};
+let snapshot: CountersState = { failed: false, text: new Map() };
 const listeners = new Set<() => void>();
 let started = false;
 
@@ -129,11 +129,11 @@ function subscribe(listener: () => void): () => void {
       if (typeof pref === 'string' && typeof text === 'string') {
         const next = new Map(snapshot.text);
         next.set(pref, text);
-        publish({...snapshot, text: next});
+        publish({ ...snapshot, text: next });
       }
     });
     void sendWithPromise<void>('initializeClearBrowsingData').catch(() => {
-      publish({...snapshot, failed: true});
+      publish({ ...snapshot, failed: true });
     });
   }
   listeners.add(listener);
@@ -185,10 +185,10 @@ function useTimePeriod(): number | undefined {
 
 function TimeRangeRow() {
   const describe = (value: unknown): string => {
-    const match = TIME_PERIODS.find(period => period.value === value);
+    const match = TIME_PERIODS.find((period) => period.value === value);
     return match ? t(match.label) : String(value ?? '');
   };
-  const {pref, enforced, note} = usePrefControl(TIME_PERIOD_PREF, describe);
+  const { pref, enforced, note } = usePrefControl(TIME_PERIOD_PREF, describe);
 
   if (!pref) {
     return (
@@ -205,8 +205,8 @@ function TimeRangeRow() {
 
   const allowed = pref.userSelectableValues;
   const items = TIME_PERIODS.filter(
-    period => allowed === undefined || allowed.includes(period.value),
-  ).map(period => ({value: String(period.value), label: t(period.label)}));
+    (period) => allowed === undefined || allowed.includes(period.value),
+  ).map((period) => ({ value: String(period.value), label: t(period.label) }));
 
   return (
     <ControlAnchor id="settings.privacy.clearData.timeRange">
@@ -221,7 +221,7 @@ function TimeRangeRow() {
               value={String(pref.value)}
               disabled={enforced}
               onValueChange={(next: string) => {
-                const period = TIME_PERIODS.find(candidate => String(candidate.value) === next);
+                const period = TIME_PERIODS.find((candidate) => String(candidate.value) === next);
                 if (!period) {
                   return;
                 }
@@ -235,14 +235,14 @@ function TimeRangeRow() {
                     value here is a browsing_data::TimePeriod, so without it the
                     trigger reads "1" instead of "Last 24 hours". */}
                 <SelectValue placeholder={describe(pref.value)}>
-                  {value => describe(Number(value))}
+                  {(value) => describe(Number(value))}
                 </SelectValue>
                 <SelectIcon />
               </SelectTrigger>
               <SelectContent
                 label={t('settings.privacy.clearData.timeRange')}
                 items={items}
-                renderItem={(item: {value: string; label: string}) => (
+                renderItem={(item: { value: string; label: string }) => (
                   <SelectItem value={item.value} label={item.label}>
                     <SelectItemIndicator />
                     <SelectItemText>{item.label}</SelectItemText>
@@ -266,7 +266,7 @@ function DataTypeRow({
   label: MessageId;
   counter: string | undefined;
 }) {
-  const {pref, enforced, note} = usePrefControl(prefKey);
+  const { pref, enforced, note } = usePrefControl(prefKey);
   const checked = pref?.value === true;
   const locked = enforced || !pref;
 
@@ -287,7 +287,7 @@ function DataTypeRow({
             checked={checked}
             disabled={locked}
             accessibilityLabel={t(label)}
-            onCheckedChange={next => setPref(prefKey, next)}
+            onCheckedChange={(next) => setPref(prefKey, next)}
           />
         }
       />
@@ -297,25 +297,25 @@ function DataTypeRow({
 
 /** What the delete button is doing right now. Per-interaction, not shared. */
 type Progress =
-  | {readonly kind: 'idle'}
-  | {readonly kind: 'confirming'}
-  | {readonly kind: 'working'}
-  | {readonly kind: 'done'}
-  | {readonly kind: 'failed'; readonly reason: string};
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'confirming' }
+  | { readonly kind: 'working' }
+  | { readonly kind: 'done' }
+  | { readonly kind: 'failed'; readonly reason: string };
 
 export function PrivacyClearDataScreen() {
   const counters = useCounters();
-  const [progress, setProgress] = useState<Progress>({kind: 'idle'});
+  const [progress, setProgress] = useState<Progress>({ kind: 'idle' });
 
   const selected = useSelectedDataTypes();
   const period = useTimePeriod();
   const canDelete = selected.length > 0 && period !== undefined;
 
   const clear = (period: number): void => {
-    setProgress({kind: 'working'});
+    setProgress({ kind: 'working' });
     sendWithPromise<unknown>('clearBrowsingData', selected, period).then(
       () => {
-        setProgress({kind: 'done'});
+        setProgress({ kind: 'done' });
         // What is left to delete has just changed, so every amount on screen
         // is now describing data that is gone.
         restartCounters(period);
@@ -345,7 +345,7 @@ export function PrivacyClearDataScreen() {
         title="settings.privacy.clearData.types"
         footer={counters.failed ? 'settings.privacy.clearData.countersFailed' : undefined}
       >
-        {DATA_TYPES.map(type => (
+        {DATA_TYPES.map((type) => (
           <DataTypeRow
             key={type.pref}
             prefKey={type.pref}
@@ -367,7 +367,7 @@ export function PrivacyClearDataScreen() {
             <Button variant="destructive" size="small" onPress={() => clear(period)}>
               {t('settings.privacy.clearData.confirm.yes')}
             </Button>
-            <Button variant="secondary" size="small" onPress={() => setProgress({kind: 'idle'})}>
+            <Button variant="secondary" size="small" onPress={() => setProgress({ kind: 'idle' })}>
               {t('settings.privacy.clearData.confirm.no')}
             </Button>
           </View>
@@ -377,9 +377,7 @@ export function PrivacyClearDataScreen() {
           <ControlAnchor id="settings.privacy.clearData.action">
             <SettingsListItem
               title={t('settings.privacy.clearData.action')}
-              description={
-                canDelete ? undefined : t('settings.privacy.clearData.action.nothing')
-              }
+              description={canDelete ? undefined : t('settings.privacy.clearData.action.nothing')}
               showChevron={false}
               rightElement={
                 <Button
@@ -387,7 +385,7 @@ export function PrivacyClearDataScreen() {
                   size="small"
                   disabled={!canDelete || progress.kind === 'working'}
                   loading={progress.kind === 'working'}
-                  onPress={() => setProgress({kind: 'confirming'})}
+                  onPress={() => setProgress({ kind: 'confirming' })}
                 >
                   {t('settings.privacy.clearData.action.button')}
                 </Button>
@@ -402,7 +400,7 @@ export function PrivacyClearDataScreen() {
       ) : undefined}
       {progress.kind === 'failed' ? (
         <SectionCard
-          description={t('settings.privacy.clearData.failed', {reason: progress.reason})}
+          description={t('settings.privacy.clearData.failed', { reason: progress.reason })}
         />
       ) : undefined}
 

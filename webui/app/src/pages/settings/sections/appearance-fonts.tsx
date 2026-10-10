@@ -15,35 +15,33 @@
 // `prefs::kWebKitCommonScript` -- the per-script suffix Chromium stores font
 // families under, and the only script upstream's own fonts page edits.
 
-import {InfoRow} from '../components/info-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
-import {SliderRow} from '../components/slider-row.tsx';
+import { InfoRow } from '../components/info-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
+import { SliderRow } from '../components/slider-row.tsx';
 
-import {usePref, type MessageId} from '@astro/platform';
+import { usePref, type MessageId } from '@astro/platform';
 
 /** Upstream's `FONT_SIZE_RANGE` and `MINIMUM_FONT_SIZE_RANGE`, in pixels. */
 const SIZE_MIN = 9;
 const SIZE_MAX = 72;
 const MINIMUM_SIZE_MAX = 24;
 
-const FAMILIES: readonly {readonly prefKey: string; readonly label: MessageId}[] = [
-  {prefKey: 'webkit.webprefs.fonts.standard.Zyyy', label: 'settings.appearance.fonts.standard'},
-  {prefKey: 'webkit.webprefs.fonts.serif.Zyyy', label: 'settings.appearance.fonts.serif'},
+const FAMILIES: readonly { readonly prefKey: string; readonly label: MessageId }[] = [
+  { prefKey: 'webkit.webprefs.fonts.standard.Zyyy', label: 'settings.appearance.fonts.standard' },
+  { prefKey: 'webkit.webprefs.fonts.serif.Zyyy', label: 'settings.appearance.fonts.serif' },
   {
     prefKey: 'webkit.webprefs.fonts.sansserif.Zyyy',
     label: 'settings.appearance.fonts.sansSerif',
   },
-  {prefKey: 'webkit.webprefs.fonts.fixed.Zyyy', label: 'settings.appearance.fonts.fixed'},
-  {prefKey: 'webkit.webprefs.fonts.math.Zyyy', label: 'settings.appearance.fonts.math'},
+  { prefKey: 'webkit.webprefs.fonts.fixed.Zyyy', label: 'settings.appearance.fonts.fixed' },
+  { prefKey: 'webkit.webprefs.fonts.math.Zyyy', label: 'settings.appearance.fonts.math' },
 ];
 
 /** One family, as the browser currently reports it. */
-function FamilyRow({prefKey, label}: {prefKey: string; label: MessageId}) {
+function FamilyRow({ prefKey, label }: { prefKey: string; label: MessageId }) {
   const pref = usePref(prefKey);
-  return (
-    <InfoRow label={label} value={typeof pref?.value === 'string' ? pref.value : undefined} />
-  );
+  return <InfoRow label={label} value={typeof pref?.value === 'string' ? pref.value : undefined} />;
 }
 
 const pixels = (value: number): string => `${value} px`;
@@ -79,7 +77,7 @@ export function AppearanceFontsScreen() {
         title="settings.appearance.fonts.families"
         footer="settings.appearance.fonts.families.footer"
       >
-        {FAMILIES.map(family => (
+        {FAMILIES.map((family) => (
           <FamilyRow key={family.prefKey} prefKey={family.prefKey} label={family.label} />
         ))}
       </RowGroup>

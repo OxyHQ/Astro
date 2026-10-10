@@ -31,8 +31,7 @@ export const systemStrings = {
   'settings.system.group.network': 'Network',
   'settings.system.proxy': 'Proxy',
   'settings.system.proxy.sublabel':
-    'Astro uses this device\'s own proxy configuration and has no proxy ' +
-    'settings of its own.',
+    "Astro uses this device's own proxy configuration and has no proxy " + 'settings of its own.',
   'settings.system.proxy.managed':
     'A policy or an extension is setting the proxy, so the system settings ' +
     'would not be what Astro uses.',

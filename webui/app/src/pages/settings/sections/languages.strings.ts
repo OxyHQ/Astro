@@ -7,7 +7,7 @@
 // (`platform/i18n/en.ts`), the control list by the page's registry -- and both
 // of those are written once and never edited again to add a control here.
 
-import type {SettingsControl} from '../controls.ts';
+import type { SettingsControl } from '../controls.ts';
 
 export const languagesStrings = {
   'settings.nav.languages': 'Languages',
@@ -16,8 +16,7 @@ export const languagesStrings = {
   'settings.languages.editDictionary.title': 'Custom dictionary',
 
   'settings.languages.description':
-    'Which languages Astro asks websites for, and which ones it checks your ' +
-    'spelling in.',
+    'Which languages Astro asks websites for, and which ones it checks your ' + 'spelling in.',
 
   'settings.languages.group.preferred': 'Preferred languages',
   'settings.languages.preferred': 'Languages you read',
@@ -61,8 +60,7 @@ export const languagesStrings = {
   'settings.languages.add': 'Add a language',
   'settings.languages.add.filter': 'Filter languages',
   'settings.languages.add.action': 'Add',
-  'settings.languages.add.narrow':
-    'Only the first 40 are shown. Type above to narrow the list.',
+  'settings.languages.add.narrow': 'Only the first 40 are shown. Type above to narrow the list.',
   'settings.languages.editDictionary.description':
     'Words you added are never underlined as misspelled, in any language.',
   'settings.languages.editDictionary.add': 'Add a word',
@@ -73,8 +71,7 @@ export const languagesStrings = {
     'Nothing here yet. Words you add from a page\u2019s right-click menu show up ' +
     'in this list too.',
   'settings.languages.editDictionary.footer':
-    'These words are stored on this device only. Astro never sends them ' +
-    'anywhere.',
+    'These words are stored on this device only. Astro never sends them ' + 'anywhere.',
   'settings.languages.editDictionary.inert':
     'Spell check is currently off, so nothing is being underlined and these ' +
     'words are not in use. They are kept for when you turn it back on.',
@@ -102,7 +99,7 @@ export const languagesControls: readonly SettingsControl[] = [
   'settings.languages.spellCheck.link',
   'settings.languages.add',
 
-  {id: 'settings.languages.spellCheck.enabled', on: '/spellCheck'},
-  {id: 'settings.languages.spellCheck.dictionaries', on: '/spellCheck'},
-  {id: 'settings.languages.editDictionary.add', on: '/editDictionary'},
+  { id: 'settings.languages.spellCheck.enabled', on: '/spellCheck' },
+  { id: 'settings.languages.spellCheck.dictionaries', on: '/spellCheck' },
+  { id: 'settings.languages.editDictionary.add', on: '/editDictionary' },
 ];

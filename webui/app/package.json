@@ -7,7 +7,10 @@
     "build": "vite build",
     "build:platform": "vite build --mode platform",
     "generate:theme-fallback": "bun run scripts/generate-theme-fallback.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write ."
   },
   "dependencies": {
     "@oxy.so/bloom": "^4.28.0",
@@ -16,6 +19,7 @@
     "react-native-web": "~0.21.2"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",

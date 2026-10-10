@@ -15,18 +15,18 @@
 // the call reached a handler rather than falling through to the dev bridge's
 // unknown-message failure -- there is nothing for a dev browser to relaunch.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 export const systemFixtures: SectionFixtures = {
   prefs: [
-    {key: 'background_mode.enabled', type: 'BOOLEAN', value: false},
-    {key: 'hardware_acceleration_mode.enabled', type: 'BOOLEAN', value: true},
+    { key: 'background_mode.enabled', type: 'BOOLEAN', value: false },
+    { key: 'hardware_acceleration_mode.enabled', type: 'BOOLEAN', value: true },
 
     // The dictionary the proxy row reads for its policy state rather than for
     // its value. Unmanaged here, so the button renders live; give it an
     // `enforcement` of `ENFORCED` to see the managed sentence and the disabled
     // button instead.
-    {key: 'proxy', type: 'DICTIONARY', value: {mode: 'system'}},
+    { key: 'proxy', type: 'DICTIONARY', value: { mode: 'system' } },
   ],
 
   actions: {

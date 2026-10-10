@@ -32,16 +32,16 @@
 // reports that it could not be read rather than showing an empty list -- "you
 // have no startup pages" and "this window cannot see them" are different facts.
 
-import {Button, SettingsListItem, TextField, TextFieldInput} from '@oxy.so/bloom';
-import {useState, useSyncExternalStore} from 'react';
-import {View} from 'react-native';
+import { Button, SettingsListItem, TextField, TextFieldInput } from '@oxy.so/bloom';
+import { useState, useSyncExternalStore } from 'react';
+import { View } from 'react-native';
 
-import {SectionCard, addWebUIListener, send, sendWithPromise, t, usePref} from '@astro/platform';
+import { SectionCard, addWebUIListener, send, sendWithPromise, t, usePref } from '@astro/platform';
 
-import {ControlAnchor} from '../components/control-anchor.tsx';
-import {RadioGroup} from '../components/radio-group.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
+import { ControlAnchor } from '../components/control-anchor.tsx';
+import { RadioGroup } from '../components/radio-group.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
 
 const STARTUP_MODE_PREF = 'session.restore_on_startup';
 
@@ -63,7 +63,7 @@ interface PagesState {
   readonly pages: readonly StartupPage[] | undefined;
 }
 
-let snapshot: PagesState = {pages: undefined};
+let snapshot: PagesState = { pages: undefined };
 const listeners = new Set<() => void>();
 let started = false;
 
@@ -78,7 +78,7 @@ function toPage(value: unknown): StartupPage | undefined {
   if (typeof value !== 'object' || value === null) {
     return undefined;
   }
-  const candidate = value as {title?: unknown; url?: unknown; modelIndex?: unknown};
+  const candidate = value as { title?: unknown; url?: unknown; modelIndex?: unknown };
   if (typeof candidate.modelIndex !== 'number') {
     return undefined;
   }
@@ -98,9 +98,7 @@ function subscribe(listener: () => void): () => void {
       const [raw] = args;
       if (Array.isArray(raw)) {
         publish({
-          pages: raw
-            .map(toPage)
-            .filter((page): page is StartupPage => page !== undefined),
+          pages: raw.map(toPage).filter((page): page is StartupPage => page !== undefined),
         });
       }
     });
@@ -126,7 +124,7 @@ function AddPageRow() {
       return;
     }
     void sendWithPromise<boolean>('addStartupPage', url).then(
-      accepted => {
+      (accepted) => {
         setRejected(!accepted);
         if (accepted) {
           // Cleared only on success, so a mistyped address stays on screen to
@@ -168,7 +166,7 @@ function AddPageRow() {
 }
 
 function StartupPages() {
-  const {pages} = useSyncExternalStore(subscribe, getSnapshot);
+  const { pages } = useSyncExternalStore(subscribe, getSnapshot);
 
   if (pages === undefined) {
     return <SectionCard description={t('settings.onStartup.pages.unavailable')} />;
@@ -180,7 +178,7 @@ function StartupPages() {
         title="settings.onStartup.pages"
         footer={pages.length === 0 ? 'settings.onStartup.pages.empty' : undefined}
       >
-        {pages.map(page => (
+        {pages.map((page) => (
           <SettingsListItem
             key={page.modelIndex}
             title={page.title === '' ? page.url : page.title}

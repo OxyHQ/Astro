@@ -16,8 +16,7 @@ export const adblockStrings = {
 
   'settings.adblock.group.controls': 'Where the controls are',
   'settings.adblock.open': 'Open the ad blocker',
-  'settings.adblock.open.sublabel':
-    'The switch, your site exceptions and your own rules.',
+  'settings.adblock.open.sublabel': 'The switch, your site exceptions and your own rules.',
   'settings.adblock.status.body':
     'The ad blocker has a page of its own, and the controls are all there rather ' +
     'than here. The browser grants the ad blocker’s interface to that page alone, ' +

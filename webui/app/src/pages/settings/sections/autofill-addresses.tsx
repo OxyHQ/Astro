@@ -13,13 +13,13 @@
 // this page deciding how an address reads in every country the browser
 // supports, and getting it wrong for most of them.
 
-import {Button, SettingsListItem} from '@oxy.so/bloom';
-import {Text} from '@oxy.so/bloom/typography';
+import { Button, SettingsListItem } from '@oxy.so/bloom';
+import { Text } from '@oxy.so/bloom/typography';
 
-import {SectionCard, removeAddress, t, usePersonalData, usePref} from '@astro/platform';
+import { SectionCard, removeAddress, t, usePersonalData, usePref } from '@astro/platform';
 
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
 
 export function AutofillAddressesScreen() {
   const data = usePersonalData();
@@ -48,12 +48,10 @@ export function AutofillAddressesScreen() {
       ) : (
         <RowGroup
           footer={
-            locked
-              ? 'settings.autofill.addresses.locked'
-              : 'settings.autofill.addresses.footer'
+            locked ? 'settings.autofill.addresses.locked' : 'settings.autofill.addresses.footer'
           }
         >
-          {data.addresses.map(address => (
+          {data.addresses.map((address) => (
             <SettingsListItem
               key={address.guid ?? address.metadata?.summaryLabel}
               title={address.metadata?.summaryLabel ?? t('settings.autofill.addresses.unnamed')}
@@ -61,9 +59,7 @@ export function AutofillAddressesScreen() {
               // An account record is not the browser's to delete; upstream
               // sends the user to their account to remove one.
               value={
-                address.metadata?.isLocal === false
-                  ? t('settings.autofill.inAccount')
-                  : undefined
+                address.metadata?.isLocal === false ? t('settings.autofill.inAccount') : undefined
               }
               showChevron={false}
               rightElement={

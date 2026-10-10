@@ -19,10 +19,10 @@
 // the native toolbar and the WebUI pages cannot drift apart. There is no
 // localStorage anywhere in this path, by design.
 
-import {APP_COLOR_NAMES, type AppColorName} from '@oxy.so/bloom/color-presets';
-import {useSyncExternalStore} from 'react';
+import { APP_COLOR_NAMES, type AppColorName } from '@oxy.so/bloom/color-presets';
+import { useSyncExternalStore } from 'react';
 
-import {MissingBrowserApiError} from './env.ts';
+import { MissingBrowserApiError } from './env.ts';
 
 /**
  * Bloom's ThemeMode without `adaptive`.
@@ -62,7 +62,7 @@ export interface ThemeSource {
 }
 
 /** What a page renders with until the browser has answered. */
-const DEFAULT_THEME: ThemeState = {mode: 'system', preset: 'oxy'};
+const DEFAULT_THEME: ThemeState = { mode: 'system', preset: 'oxy' };
 
 /**
  * A preset name the browser reported that this Bloom does not have.
@@ -90,7 +90,7 @@ function publish(next: RawTheme): void {
     // useSyncExternalStore re-renders every subscriber on every echo.
     return;
   }
-  snapshot = {mode: next.mode, preset};
+  snapshot = { mode: next.mode, preset };
   for (const listener of listeners) {
     listener();
   }
@@ -104,11 +104,11 @@ function themeSource(): Promise<ThemeSource> {
     // build mode or the user agent: those say where the page came from, this
     // says whether there is a pipe to bind.
     if ('Mojo' in globalThis) {
-      const {createThemeSource} = await import('./mojo/index.ts');
+      const { createThemeSource } = await import('./mojo/index.ts');
       return createThemeSource();
     }
     if (import.meta.env.DEV) {
-      const {createThemeMock} = await import('./mock/theme.ts');
+      const { createThemeMock } = await import('./mock/theme.ts');
       return createThemeMock();
     }
     throw new MissingBrowserApiError(
@@ -125,7 +125,7 @@ function start(): void {
     return;
   }
   started = true;
-  void themeSource().then(source => {
+  void themeSource().then((source) => {
     source.onThemeChanged(publish);
     void source.getTheme().then(publish);
   });
@@ -156,10 +156,10 @@ export function useThemeState(): ThemeState {
  * store. A local guess would show a scheme a policy had refused.
  */
 export function setMode(mode: ThemeMode): void {
-  void themeSource().then(source => source.setMode(mode));
+  void themeSource().then((source) => source.setMode(mode));
 }
 
 /** Change the colour preset. Same round trip as {@link setMode}. */
 export function setPreset(preset: AppColorName): void {
-  void themeSource().then(source => source.setPreset(preset));
+  void themeSource().then((source) => source.setPreset(preset));
 }

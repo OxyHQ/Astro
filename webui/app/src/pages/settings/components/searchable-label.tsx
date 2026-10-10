@@ -12,12 +12,12 @@
 // field promise a control the page does not draw. Passing the id through is
 // what keeps the two the same value.
 
-import {Text} from '@oxy.so/bloom/typography';
-import {View} from 'react-native';
+import { Text } from '@oxy.so/bloom/typography';
+import { View } from 'react-native';
 
-import {t, type MessageId} from '@astro/platform';
+import { t, type MessageId } from '@astro/platform';
 
-import {ControlAnchor} from './control-anchor.tsx';
+import { ControlAnchor } from './control-anchor.tsx';
 
 export interface SearchableLabelProps {
   id: MessageId;
@@ -30,7 +30,7 @@ export interface SearchableLabelProps {
   also?: readonly MessageId[];
 }
 
-export function SearchableLabel({id, note, also}: SearchableLabelProps) {
+export function SearchableLabel({ id, note, also }: SearchableLabelProps) {
   return (
     <ControlAnchor id={id} also={also}>
       <View className="gap-1">

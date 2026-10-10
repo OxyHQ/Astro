@@ -29,13 +29,13 @@
 // row asks a question that can be answered truthfully -- "is one waiting?" --
 // rather than offering a check for updates that has no updater behind it.
 
-import {SectionCard, addWebUIListener, send, t} from '@astro/platform';
-import {useState, useSyncExternalStore} from 'react';
+import { SectionCard, addWebUIListener, send, t } from '@astro/platform';
+import { useState, useSyncExternalStore } from 'react';
 
-import {ActionRow} from '../components/action-row.tsx';
-import {InfoRow} from '../components/info-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
+import { ActionRow } from '../components/action-row.tsx';
+import { InfoRow } from '../components/info-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
 
 /**
  * The browser's own version, read once.
@@ -83,9 +83,8 @@ function subscribeUpdate(listener: () => void): () => void {
     // the answer the browser already gave.
     addWebUIListener('update-status-changed', (...args: unknown[]) => {
       const [payload] = args;
-      updateStatus = isUpdateStatusEvent(payload) && typeof payload.status === 'string'
-        ? payload.status
-        : '';
+      updateStatus =
+        isUpdateStatusEvent(payload) && typeof payload.status === 'string' ? payload.status : '';
       for (const each of updateListeners) {
         each();
       }

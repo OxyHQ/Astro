@@ -16,9 +16,9 @@
 // real browser is not a wrong value but a NOTREACHED that takes the renderer
 // down. Reading the same table the screen reads means the two cannot disagree.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
-import {CONTENT_TYPES} from './site-settings.content-types.ts';
+import { CONTENT_TYPES } from './site-settings.content-types.ts';
 
 /** What `getDefaultValueForContentType` answers: `{setting, source?}`. */
 interface DefaultSetting {
@@ -43,11 +43,11 @@ const BLOCKED_AT_START: readonly string[] = ['popups', 'ads', 'protected-content
 const POLICY_MANAGED = 'notifications';
 
 const defaults = new Map<string, DefaultSetting>(
-  CONTENT_TYPES.filter(type => type.contentType !== undefined && type.defaultBehaviour).map(
-    type => {
+  CONTENT_TYPES.filter((type) => type.contentType !== undefined && type.defaultBehaviour).map(
+    (type) => {
       const contentType = type.contentType ?? '';
       if (contentType === POLICY_MANAGED) {
-        return [contentType, {setting: 'block', source: 'policy'}];
+        return [contentType, { setting: 'block', source: 'policy' }];
       }
       return [
         contentType,
@@ -74,7 +74,7 @@ const defaults = new Map<string, DefaultSetting>(
 function notifyChanged(contentType: string): void {
   queueMicrotask(() => {
     const cr = (
-      globalThis as {cr?: {webUIListenerCallback?: (event: string, ...args: unknown[]) => void}}
+      globalThis as { cr?: { webUIListenerCallback?: (event: string, ...args: unknown[]) => void } }
     ).cr;
     cr?.webUIListenerCallback?.('contentSettingCategoryChanged', contentType);
   });
@@ -82,7 +82,7 @@ function notifyChanged(contentType: string): void {
 
 export const siteSettingsFixtures: SectionFixtures = {
   prefs: [
-    {key: 'safety_hub.unused_site_permissions_revocation.enabled', type: 'BOOLEAN', value: true},
+    { key: 'safety_hub.unused_site_permissions_revocation.enabled', type: 'BOOLEAN', value: true },
   ],
 
   replies: {
@@ -109,7 +109,7 @@ export const siteSettingsFixtures: SectionFixtures = {
         // whose disabled state nobody has looked at.
         return;
       }
-      defaults.set(contentType, {setting});
+      defaults.set(contentType, { setting });
       notifyChanged(contentType);
     },
   },

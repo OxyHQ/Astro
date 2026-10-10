@@ -43,12 +43,12 @@
 // are `kUpdateInterval` and `kInitialDelay` from
 // `astro_adblock_filter_list_updater.cc`.
 
-import {t, type MessageId} from '@astro/platform';
+import { t, type MessageId } from '@astro/platform';
 
-import {InfoRow} from '../components/info-row.tsx';
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
+import { InfoRow } from '../components/info-row.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
 
 interface CatalogueEntry {
   readonly label: MessageId;
@@ -57,17 +57,17 @@ interface CatalogueEntry {
 }
 
 const CATALOGUE: readonly CatalogueEntry[] = [
-  {label: 'settings.adblock.list.easylist', fetched: true},
-  {label: 'settings.adblock.list.easyprivacy', fetched: true},
-  {label: 'settings.adblock.list.fanboyAnnoyance', fetched: false},
-  {label: 'settings.adblock.list.fanboySocial', fetched: false},
-  {label: 'settings.adblock.list.peterLowe', fetched: false},
-  {label: 'settings.adblock.list.germany', fetched: false},
-  {label: 'settings.adblock.list.spain', fetched: false},
-  {label: 'settings.adblock.list.france', fetched: false},
-  {label: 'settings.adblock.list.china', fetched: false},
-  {label: 'settings.adblock.list.dutch', fetched: false},
-  {label: 'settings.adblock.list.italy', fetched: false},
+  { label: 'settings.adblock.list.easylist', fetched: true },
+  { label: 'settings.adblock.list.easyprivacy', fetched: true },
+  { label: 'settings.adblock.list.fanboyAnnoyance', fetched: false },
+  { label: 'settings.adblock.list.fanboySocial', fetched: false },
+  { label: 'settings.adblock.list.peterLowe', fetched: false },
+  { label: 'settings.adblock.list.germany', fetched: false },
+  { label: 'settings.adblock.list.spain', fetched: false },
+  { label: 'settings.adblock.list.france', fetched: false },
+  { label: 'settings.adblock.list.china', fetched: false },
+  { label: 'settings.adblock.list.dutch', fetched: false },
+  { label: 'settings.adblock.list.italy', fetched: false },
 ];
 
 export function AdblockSection() {
@@ -84,7 +84,7 @@ export function AdblockSection() {
       </RowGroup>
 
       <RowGroup title="settings.adblock.group.lists" footer="settings.adblock.lists.footer">
-        {CATALOGUE.map(entry => (
+        {CATALOGUE.map((entry) => (
           <InfoRow
             key={entry.label}
             label={entry.label}
@@ -94,10 +94,7 @@ export function AdblockSection() {
       </RowGroup>
 
       <RowGroup title="settings.adblock.group.updates" footer="settings.adblock.updates.footer">
-        <InfoRow
-          label="settings.adblock.interval"
-          value={t('settings.adblock.interval.value')}
-        />
+        <InfoRow label="settings.adblock.interval" value={t('settings.adblock.interval.value')} />
         <InfoRow
           label="settings.adblock.firstCheck"
           value={t('settings.adblock.firstCheck.value')}

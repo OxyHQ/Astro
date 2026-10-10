@@ -17,10 +17,10 @@
 // owns only what the browser does with them: refuse a write a policy forbids,
 // refuse a value of the wrong type, and notify.
 
-import type {Pref} from '../settings-private.ts';
-import {fixturePrefs} from './sections.ts';
+import type { Pref } from '../settings-private.ts';
+import { fixturePrefs } from './sections.ts';
 
-const prefs = new Map<string, Pref>(fixturePrefs().map(pref => [pref.key, pref]));
+const prefs = new Map<string, Pref>(fixturePrefs().map((pref) => [pref.key, pref]));
 const listeners = new Set<(changed: readonly Pref[]) => void>();
 
 export function allPrefs(): readonly Pref[] {
@@ -48,7 +48,7 @@ export function writePref(key: string, value: unknown): boolean {
   if (typeof value !== expected) {
     return false;
   }
-  const next: Pref = {...pref, value};
+  const next: Pref = { ...pref, value };
   prefs.set(key, next);
   for (const listener of listeners) {
     listener([next]);

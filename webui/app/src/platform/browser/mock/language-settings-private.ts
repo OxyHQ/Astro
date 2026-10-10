@@ -17,8 +17,8 @@ import type {
   LanguageInfo,
   LanguageSettingsPrivateApi,
 } from '../language-settings-private.ts';
-import {fixtureLanguages} from './sections.ts';
-import {readPref, writePref} from './state.ts';
+import { fixtureLanguages } from './sections.ts';
+import { readPref, writePref } from './state.ts';
 
 /** The pref that holds which languages are enabled, and in what order. */
 const ACCEPT_LANGUAGES = 'intl.accept_languages';
@@ -50,19 +50,19 @@ export function createLanguageSettingsPrivateMock(): LanguageSettingsPrivateApi 
   return {
     getLanguages: () => Promise.resolve(known),
 
-    enableLanguage: code => {
+    enableLanguage: (code) => {
       const codes = acceptLanguages();
       if (!codes.includes(code)) {
         writeAcceptLanguages([...codes, code]);
       }
     },
 
-    disableLanguage: code => {
+    disableLanguage: (code) => {
       const codes = acceptLanguages();
       // The browser refuses to leave the list empty -- a profile with no
       // accepted language has no UI language to fall back to.
       if (codes.length > 1) {
-        writeAcceptLanguages(codes.filter(entry => entry !== code));
+        writeAcceptLanguages(codes.filter((entry) => entry !== code));
       }
     },
 
@@ -86,7 +86,7 @@ export function createLanguageSettingsPrivateMock(): LanguageSettingsPrivateApi 
 
     getCustomWords: () => Promise.resolve(customWords),
 
-    addCustomWord: word => {
+    addCustomWord: (word) => {
       if (customWords.includes(word)) {
         return;
       }
@@ -96,24 +96,24 @@ export function createLanguageSettingsPrivateMock(): LanguageSettingsPrivateApi 
       }
     },
 
-    removeCustomWord: word => {
+    removeCustomWord: (word) => {
       if (!customWords.includes(word)) {
         return;
       }
-      customWords = customWords.filter(entry => entry !== word);
+      customWords = customWords.filter((entry) => entry !== word);
       for (const listener of wordListeners) {
         listener([], [word]);
       }
     },
 
-    onCustomWordsChanged: listener => {
+    onCustomWordsChanged: (listener) => {
       wordListeners.add(listener);
       return () => {
         wordListeners.delete(listener);
       };
     },
 
-    onDictionariesChanged: listener => {
+    onDictionariesChanged: (listener) => {
       dictionaryListeners.add(listener);
       return () => {
         dictionaryListeners.delete(listener);

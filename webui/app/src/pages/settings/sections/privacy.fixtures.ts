@@ -19,7 +19,7 @@
 // grows -- a fixture set where nothing is managed is a fixture set that never
 // exercises the managed state.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 /**
  * The DoH provider table, as SecureDnsHandler would hand it over.
@@ -29,9 +29,9 @@ import type {SectionFixtures} from '@astro/platform';
  * exactly what arrives here into `dns_over_https.templates`.
  */
 const DOH_PROVIDERS = [
-  {name: 'Cloudflare (1.1.1.1)', value: 'https://chrome.cloudflare-dns.com/dns-query'},
-  {name: 'Quad9 (9.9.9.9)', value: 'https://dns.quad9.net/dns-query{?dns}'},
-  {name: 'OpenDNS', value: 'https://doh.opendns.com/dns-query'},
+  { name: 'Cloudflare (1.1.1.1)', value: 'https://chrome.cloudflare-dns.com/dns-query' },
+  { name: 'Quad9 (9.9.9.9)', value: 'https://dns.quad9.net/dns-query{?dns}' },
+  { name: 'OpenDNS', value: 'https://doh.opendns.com/dns-query' },
 ];
 
 /**
@@ -41,9 +41,9 @@ const DOH_PROVIDERS = [
  * the same list whatever was pressed would make a screen whose regrant does
  * nothing look identical to one whose regrant works.
  */
-const revokedSites: {origin: string; permissions: string[]}[] = [
-  {origin: 'https://maps.example', permissions: ['location']},
-  {origin: 'https://recorder.example', permissions: ['microphone', 'camera']},
+const revokedSites: { origin: string; permissions: string[] }[] = [
+  { origin: 'https://maps.example', permissions: ['location'] },
+  { origin: 'https://recorder.example', permissions: ['microphone', 'camera'] },
 ];
 
 /** Counter text as ClearBrowsingDataHandler phrases it, per deletion pref. */
@@ -63,7 +63,7 @@ interface CrListenerGlobal {
 }
 
 function fireListener(event: string, ...args: unknown[]): void {
-  (globalThis as {cr?: CrListenerGlobal}).cr?.webUIListenerCallback?.(event, ...args);
+  (globalThis as { cr?: CrListenerGlobal }).cr?.webUIListenerCallback?.(event, ...args);
 }
 
 /**
@@ -82,8 +82,8 @@ function pushCounters(): void {
 
 export const privacyFixtures: SectionFixtures = {
   prefs: [
-    {key: 'enable_do_not_track', type: 'BOOLEAN', value: false},
-    {key: 'profile.password_manager_leak_detection', type: 'BOOLEAN', value: true},
+    { key: 'enable_do_not_track', type: 'BOOLEAN', value: false },
+    { key: 'profile.password_manager_leak_detection', type: 'BOOLEAN', value: true },
     {
       key: 'search.suggest_enabled',
       type: 'BOOLEAN',
@@ -97,8 +97,8 @@ export const privacyFixtures: SectionFixtures = {
     // Security. `generated.https_first_mode_enabled` is a GENERATED pref: it
     // has no stored value, and its NUMBER is HttpsFirstModeSetting -- 0
     // disabled, 2 full, 3 balanced.
-    {key: 'generated.https_first_mode_enabled', type: 'NUMBER', value: 3},
-    {key: 'dns_over_https.mode', type: 'STRING', value: 'secure'},
+    { key: 'generated.https_first_mode_enabled', type: 'NUMBER', value: 3 },
+    { key: 'dns_over_https.mode', type: 'STRING', value: 'secure' },
     {
       key: 'dns_over_https.templates',
       type: 'STRING',
@@ -106,16 +106,16 @@ export const privacyFixtures: SectionFixtures = {
     },
 
     // Third-party cookies. 0 blocks them everywhere, 1 in Incognito only.
-    {key: 'generated.third_party_cookie_blocking_setting', type: 'NUMBER', value: 1},
+    { key: 'generated.third_party_cookie_blocking_setting', type: 'NUMBER', value: 1 },
 
     // Delete browsing data. The time period is browsing_data::TimePeriod;
     // 1 is LAST_DAY, which is what upstream defaults a fresh profile to.
-    {key: 'browser.clear_data.time_period', type: 'NUMBER', value: 1},
-    {key: 'browser.clear_data.browsing_history', type: 'BOOLEAN', value: true},
-    {key: 'browser.clear_data.download_history', type: 'BOOLEAN', value: false},
-    {key: 'browser.clear_data.cookies', type: 'BOOLEAN', value: true},
-    {key: 'browser.clear_data.cache', type: 'BOOLEAN', value: true},
-    {key: 'browser.clear_data.form_data', type: 'BOOLEAN', value: false},
+    { key: 'browser.clear_data.time_period', type: 'NUMBER', value: 1 },
+    { key: 'browser.clear_data.browsing_history', type: 'BOOLEAN', value: true },
+    { key: 'browser.clear_data.download_history', type: 'BOOLEAN', value: false },
+    { key: 'browser.clear_data.cookies', type: 'BOOLEAN', value: true },
+    { key: 'browser.clear_data.cache', type: 'BOOLEAN', value: true },
+    { key: 'browser.clear_data.form_data', type: 'BOOLEAN', value: false },
     {
       // A policy that fixes one row without touching the rest: the checkbox
       // must lock and name what locked it while its neighbours stay usable.
@@ -126,7 +126,7 @@ export const privacyFixtures: SectionFixtures = {
       controlledByName: 'Astro dev policy',
       enforcement: 'ENFORCED',
     },
-    {key: 'browser.clear_data.hosted_apps_data', type: 'BOOLEAN', value: false},
+    { key: 'browser.clear_data.hosted_apps_data', type: 'BOOLEAN', value: false },
   ],
 
   replies: {
@@ -141,7 +141,7 @@ export const privacyFixtures: SectionFixtures = {
       pushCounters();
       return undefined;
     },
-    clearBrowsingData: () => ({showHistoryNotice: false, showPasswordsNotice: false}),
+    clearBrowsingData: () => ({ showHistoryNotice: false, showPasswordsNotice: false }),
 
     getVersionCardData: () => ({
       header: 'Astro is up to date',
@@ -155,7 +155,7 @@ export const privacyFixtures: SectionFixtures = {
     restartClearBrowsingDataCounters: () => pushCounters(),
     allowPermissionsAgainForUnusedSite: (...args: unknown[]) => {
       const [origin] = args;
-      const at = revokedSites.findIndex(site => site.origin === origin);
+      const at = revokedSites.findIndex((site) => site.origin === origin);
       if (at !== -1) {
         revokedSites.splice(at, 1);
       }

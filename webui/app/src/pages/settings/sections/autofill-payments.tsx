@@ -16,17 +16,17 @@
 // recording and an accessibility tree. The browser's own label -- network and
 // last four digits -- is what identifies a card here.
 
-import {Button, SettingsListItem} from '@oxy.so/bloom';
-import {Text} from '@oxy.so/bloom/typography';
+import { Button, SettingsListItem } from '@oxy.so/bloom';
+import { Text } from '@oxy.so/bloom/typography';
 
-import {SectionCard, removePaymentsEntity, t, usePersonalData, usePref} from '@astro/platform';
+import { SectionCard, removePaymentsEntity, t, usePersonalData, usePref } from '@astro/platform';
 
-import {RowGroup} from '../components/row-group.tsx';
-import {SubpageHeader} from '../components/section-header.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SubpageHeader } from '../components/section-header.tsx';
 
 /** A card's expiry, as the two fields the browser stores it in. */
 function expiry(month: string | undefined, year: string | undefined): string | undefined {
-  return month && year ? t('settings.autofill.payments.expires', {month, year}) : undefined;
+  return month && year ? t('settings.autofill.payments.expires', { month, year }) : undefined;
 }
 
 export function AutofillPaymentsScreen() {
@@ -62,13 +62,12 @@ export function AutofillPaymentsScreen() {
           title="settings.autofill.payments.cards"
           footer={locked ? 'settings.autofill.payments.locked' : undefined}
         >
-          {data.cards.map(card => (
+          {data.cards.map((card) => (
             <SettingsListItem
               key={card.guid ?? card.metadata?.summaryLabel}
               title={card.metadata?.summaryLabel ?? t('settings.autofill.payments.unnamedCard')}
               description={
-                card.metadata?.summarySublabel ??
-                expiry(card.expirationMonth, card.expirationYear)
+                card.metadata?.summarySublabel ?? expiry(card.expirationMonth, card.expirationYear)
               }
               value={
                 card.metadata?.isLocal === false ? t('settings.autofill.inAccount') : undefined
@@ -93,7 +92,7 @@ export function AutofillPaymentsScreen() {
 
       {data !== undefined && data.ibans.length > 0 ? (
         <RowGroup title="settings.autofill.payments.ibans">
-          {data.ibans.map(iban => (
+          {data.ibans.map((iban) => (
             <SettingsListItem
               key={iban.guid ?? iban.metadata?.summaryLabel}
               // The browser's label first, the nickname under it. The other way

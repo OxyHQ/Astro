@@ -30,7 +30,7 @@ function api(): LoadTimeDataApi | undefined {
   // Feature-detected as the object itself, never inferred from the URL or the
   // build mode: a page whose controller added no strings has no table, and
   // that is a different thing from an id being absent from one.
-  const candidate = (globalThis as {loadTimeData?: LoadTimeDataApi}).loadTimeData;
+  const candidate = (globalThis as { loadTimeData?: LoadTimeDataApi }).loadTimeData;
   return candidate && typeof candidate.valueExists === 'function' ? candidate : undefined;
 }
 

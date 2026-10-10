@@ -10,11 +10,11 @@
 // upstream puts a confirmation dialog in front of every irreversible one, and a
 // red button on its own is not that dialog.
 
-import {Button, SettingsListItem} from '@oxy.so/bloom';
+import { Button, SettingsListItem } from '@oxy.so/bloom';
 
-import {t, type MessageId} from '@astro/platform';
+import { t, type MessageId } from '@astro/platform';
 
-import {ControlAnchor} from './control-anchor.tsx';
+import { ControlAnchor } from './control-anchor.tsx';
 
 export interface ActionRowProps {
   label: MessageId;

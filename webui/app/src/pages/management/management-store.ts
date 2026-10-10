@@ -26,8 +26,8 @@
 // setting e.g. `CloudReportingEnabled` — and re-read the same seven messages
 // with tools/cdp-navigate.py.
 
-import {sendWithPromise} from '@astro/platform';
-import {useSyncExternalStore} from 'react';
+import { sendWithPromise } from '@astro/platform';
+import { useSyncExternalStore } from 'react';
 
 /** An extension or an app the administrator installed. */
 export interface ManagedItem {
@@ -96,7 +96,7 @@ const listeners = new Set<() => void>();
 let started = false;
 
 function publish(patch: Partial<ManagementState>): void {
-  snapshot = {...snapshot, ...patch};
+  snapshot = { ...snapshot, ...patch };
   for (const listener of listeners) {
     listener();
   }

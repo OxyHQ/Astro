@@ -58,12 +58,12 @@ import {
   RiShieldLine,
   RiShieldCheckLine,
 } from '@oxy.so/bloom/icons';
-import {useThemeColor} from '@oxy.so/bloom/theme';
-import {Text} from '@oxy.so/bloom/typography';
-import {useEffect} from 'react';
-import {Pressable, ScrollView, View} from 'react-native';
+import { useThemeColor } from '@oxy.so/bloom/theme';
+import { Text } from '@oxy.so/bloom/typography';
+import { useEffect } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
 
-import {AstroMark, navigateTo, t, type MessageId, type NavIcon} from '@astro/platform';
+import { AstroMark, navigateTo, t, type MessageId, type NavIcon } from '@astro/platform';
 
 /**
  * The browser's major version, read once.
@@ -130,7 +130,7 @@ const FEATURES: readonly Feature[] = [
  * it, so a row added or removed cannot leave the line the wrong length -- which
  * is what a single absolutely-positioned rule behind the list would allow.
  */
-function FeatureRow({feature, last}: {feature: Feature; last: boolean}) {
+function FeatureRow({ feature, last }: { feature: Feature; last: boolean }) {
   const accent = useThemeColor('primary');
   const Icon = feature.icon;
   return (
@@ -157,14 +157,14 @@ function FeatureRow({feature, last}: {feature: Feature; last: boolean}) {
 }
 
 /** One external link in the footer. */
-function FooterLink({label, href}: {label: MessageId; href: string}) {
+function FooterLink({ label, href }: { label: MessageId; href: string }) {
   return (
     <View
       href={href}
       // Opened in a new tab, as they were: this page is shown after an update
       // and losing it to a website is not what the click meant. `noopener`
       // because the opener would be a WebUI page.
-      hrefAttrs={{target: '_blank', rel: 'noopener noreferrer'}}
+      hrefAttrs={{ target: '_blank', rel: 'noopener noreferrer' }}
       accessibilityRole="link"
       className="rounded-radius-8 px-2 py-1 hover:bg-fill-hover"
     >
@@ -208,7 +208,7 @@ export function WhatsNewPage() {
               <Text className="text-caption text-text-secondary">
                 {MAJOR_VERSION === undefined
                   ? t('whatsNew.version.unknown')
-                  : t('whatsNew.version', {version: MAJOR_VERSION})}
+                  : t('whatsNew.version', { version: MAJOR_VERSION })}
               </Text>
             </View>
             <Text className="text-headerBold text-foreground text-center">

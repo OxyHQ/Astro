@@ -12,15 +12,15 @@
 // echo of an early one arriving mid-drag would fight the thumb. The label
 // tracks the live position so the drag still reads as immediate.
 
-import {SettingsListItem, Slider} from '@oxy.so/bloom';
-import {Text} from '@oxy.so/bloom/typography';
-import {useState} from 'react';
-import {View} from 'react-native';
+import { SettingsListItem, Slider } from '@oxy.so/bloom';
+import { Text } from '@oxy.so/bloom/typography';
+import { useState } from 'react';
+import { View } from 'react-native';
 
-import {setPref, t, type MessageId} from '@astro/platform';
+import { setPref, t, type MessageId } from '@astro/platform';
 
-import {ControlAnchor} from './control-anchor.tsx';
-import {usePrefControl} from './policy.ts';
+import { ControlAnchor } from './control-anchor.tsx';
+import { usePrefControl } from './policy.ts';
 
 export interface SliderRowProps {
   prefKey: string;
@@ -42,7 +42,7 @@ export function SliderRow({
   step = 1,
   format,
 }: SliderRowProps) {
-  const {pref, enforced, note} = usePrefControl(prefKey, value =>
+  const { pref, enforced, note } = usePrefControl(prefKey, (value) =>
     typeof value === 'number' ? format(value) : String(value ?? ''),
   );
   // The position under the thumb DURING a drag. Undefined at rest, so the row
@@ -67,7 +67,7 @@ export function SliderRow({
           <Text className="text-bodyTitleSmall text-foreground">{t(label)}</Text>
           <Text className="text-body text-text-secondary">{format(shown)}</Text>
         </View>
-        {note ?? sublabel ? (
+        {(note ?? sublabel) ? (
           <Text className="text-bodySmall text-text-secondary">
             {note ?? (sublabel ? t(sublabel) : '')}
           </Text>
@@ -83,7 +83,7 @@ export function SliderRow({
           step={step}
           disabled={enforced}
           onValueChange={setDragging}
-          onSlidingComplete={next => {
+          onSlidingComplete={(next) => {
             setDragging(undefined);
             setPref(prefKey, next);
           }}

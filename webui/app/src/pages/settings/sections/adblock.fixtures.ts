@@ -23,6 +23,6 @@
 // catalogue and the updater's own constants -- which are compiled in and need
 // no transport at all.
 
-import type {SectionFixtures} from '@astro/platform';
+import type { SectionFixtures } from '@astro/platform';
 
 export const adblockFixtures: SectionFixtures = {};

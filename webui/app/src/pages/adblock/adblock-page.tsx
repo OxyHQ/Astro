@@ -52,12 +52,12 @@ import {
   TextField,
   TextFieldInput,
 } from '@oxy.so/bloom';
-import {useThemeColor} from '@oxy.so/bloom/theme';
-import {Text} from '@oxy.so/bloom/typography';
-import {useState} from 'react';
-import {ScrollView, View} from 'react-native';
+import { useThemeColor } from '@oxy.so/bloom/theme';
+import { Text } from '@oxy.so/bloom/typography';
+import { useState } from 'react';
+import { ScrollView, View } from 'react-native';
 
-import {AstroMark, t} from '@astro/platform';
+import { AstroMark, t } from '@astro/platform';
 
 import {
   removeSiteException,
@@ -68,7 +68,7 @@ import {
 } from './adblock-store.ts';
 
 /** One of the two numbers at the top. */
-function Stat({value, label}: {value: string; label: string}) {
+function Stat({ value, label }: { value: string; label: string }) {
   return (
     <View className="flex-1 items-center gap-1 rounded-2xl bg-card p-4">
       <Text className="text-headerBold text-primary">{value}</Text>
@@ -86,7 +86,7 @@ function Stat({value, label}: {value: string; label: string}) {
  * disappearing on a click that did nothing would be indistinguishable from one
  * disappearing on a click that worked.
  */
-function Exceptions({state}: {state: AdBlockState}) {
+function Exceptions({ state }: { state: AdBlockState }) {
   const [refused, setRefused] = useState(false);
 
   return (
@@ -95,13 +95,9 @@ function Exceptions({state}: {state: AdBlockState}) {
       footer={refused ? t('adblock.exceptions.refused') : t('adblock.exceptions.footer')}
     >
       {state.disabledSites.length === 0 ? (
-        <SettingsListItem
-          title={t('adblock.exceptions.empty')}
-          showChevron={false}
-          disabled
-        />
+        <SettingsListItem title={t('adblock.exceptions.empty')} showChevron={false} disabled />
       ) : (
-        state.disabledSites.map(host => (
+        state.disabledSites.map((host) => (
           <SettingsListItem
             key={host}
             title={host}
@@ -111,7 +107,7 @@ function Exceptions({state}: {state: AdBlockState}) {
                 variant="text"
                 size="small"
                 onPress={() => {
-                  void removeSiteException(host).then(accepted => {
+                  void removeSiteException(host).then((accepted) => {
                     setRefused(!accepted);
                   });
                 }}
@@ -135,7 +131,7 @@ function Exceptions({state}: {state: AdBlockState}) {
  * undefined and follows the echo again. A `useState(stored)` initialised once
  * would show a stale value forever after a change made in another window.
  */
-function CustomRules({stored}: {stored: string}) {
+function CustomRules({ stored }: { stored: string }) {
   const [draft, setDraft] = useState<string | undefined>(undefined);
   const [outcome, setOutcome] = useState<'saved' | 'refused' | undefined>(undefined);
   const value = draft ?? stored;
@@ -157,7 +153,7 @@ function CustomRules({stored}: {stored: string}) {
             label={t('adblock.rules.label')}
             placeholder={t('adblock.rules.placeholder')}
             value={value}
-            onChangeText={next => {
+            onChangeText={(next) => {
               setDraft(next);
               setOutcome(undefined);
             }}
@@ -174,7 +170,7 @@ function CustomRules({stored}: {stored: string}) {
             size="small"
             disabled={draft === undefined}
             onPress={() => {
-              void setCustomRules(value).then(accepted => {
+              void setCustomRules(value).then((accepted) => {
                 setOutcome(accepted ? 'saved' : 'refused');
                 if (accepted) {
                   // Back to following the browser. The echo carries what was
@@ -195,7 +191,7 @@ function CustomRules({stored}: {stored: string}) {
 export function AdBlockPage() {
   const markColor = useThemeColor('primary');
   const state = useAdBlock();
-  const applied = state.filterLists.filter(list => list.fetched).length;
+  const applied = state.filterLists.filter((list) => list.fetched).length;
 
   return (
     <View className="flex-1 bg-background">
@@ -213,11 +209,7 @@ export function AdBlockPage() {
 
           <View className="flex-row gap-4">
             <Stat
-              value={
-                state.ready
-                  ? state.blockedCount.toLocaleString()
-                  : t('adblock.stat.pending')
-              }
+              value={state.ready ? state.blockedCount.toLocaleString() : t('adblock.stat.pending')}
               label={t('adblock.stat.blocked')}
             />
             <Stat
@@ -226,10 +218,7 @@ export function AdBlockPage() {
             />
           </View>
 
-          <SettingsListGroup
-            title={t('adblock.group.status')}
-            footer={t('adblock.status.footer')}
-          >
+          <SettingsListGroup title={t('adblock.group.status')} footer={t('adblock.status.footer')}>
             <SettingsListItem
               title={t('adblock.enabled')}
               description={t('adblock.enabled.sublabel')}
@@ -247,11 +236,8 @@ export function AdBlockPage() {
 
           <Exceptions state={state} />
 
-          <SettingsListGroup
-            title={t('adblock.group.lists')}
-            footer={t('adblock.lists.footer')}
-          >
-            {state.filterLists.map(list => (
+          <SettingsListGroup title={t('adblock.group.lists')} footer={t('adblock.lists.footer')}>
+            {state.filterLists.map((list) => (
               <SettingsListItem
                 key={list.id}
                 title={list.name}

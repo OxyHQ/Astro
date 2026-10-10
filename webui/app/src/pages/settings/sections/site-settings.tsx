@@ -15,16 +15,16 @@
 // Two rows are not permissions. "All sites" and "Protocol handlers" are screens
 // of their own that upstream puts in this same list, so they are here too.
 
-import {useMemo} from 'react';
+import { useMemo } from 'react';
 
-import {t, type MessageId} from '@astro/platform';
+import { t, type MessageId } from '@astro/platform';
 
-import {CollapsibleGroup} from '../components/collapsible-group.tsx';
-import {LinkRow} from '../components/link-row.tsx';
-import {RowGroup} from '../components/row-group.tsx';
-import {SectionHeader} from '../components/section-header.tsx';
-import {ToggleRow} from '../components/toggle-row.tsx';
-import {CONTENT_TYPES, type CategoryGroup} from './site-settings.content-types.ts';
+import { CollapsibleGroup } from '../components/collapsible-group.tsx';
+import { LinkRow } from '../components/link-row.tsx';
+import { RowGroup } from '../components/row-group.tsx';
+import { SectionHeader } from '../components/section-header.tsx';
+import { ToggleRow } from '../components/toggle-row.tsx';
+import { CONTENT_TYPES, type CategoryGroup } from './site-settings.content-types.ts';
 
 interface CategoryRow {
   readonly title: MessageId;
@@ -34,17 +34,17 @@ interface CategoryRow {
 
 /** The permissions in one of upstream's four lists, by rendered name. */
 function categoryRows(group: CategoryGroup, extra: readonly CategoryRow[] = []): CategoryRow[] {
-  const rows = CONTENT_TYPES.filter(type => type.group === group).map(type => ({
+  const rows = CONTENT_TYPES.filter((type) => type.group === group).map((type) => ({
     title: type.title,
     to: `/content/${type.segment}`,
   }));
   return [...rows, ...extra].sort((left, right) => t(left.title).localeCompare(t(right.title)));
 }
 
-function CategoryList({rows}: {rows: readonly CategoryRow[]}) {
+function CategoryList({ rows }: { rows: readonly CategoryRow[] }) {
   return (
     <RowGroup>
-      {rows.map(row => (
+      {rows.map((row) => (
         <LinkRow key={row.to} label={row.title} to={row.to} />
       ))}
     </RowGroup>
@@ -61,13 +61,13 @@ export function SiteSettingsSection() {
       // Upstream puts protocol handlers among the advanced permissions, and it
       // is the one entry in that list that is not a content setting.
       permissionsAdvanced: categoryRows('permissionsAdvanced', [
-        {title: 'settings.siteSettings.handlers.title', to: '/handlers'},
+        { title: 'settings.siteSettings.handlers.title', to: '/handlers' },
       ]),
       // The third-party cookie controls are the privacy section's `/cookies`
       // screen, not one of the forty-eight. Upstream links to it from here, so
       // this page does too rather than leaving a gap where a user looks.
       contentBasic: categoryRows('contentBasic', [
-        {title: 'settings.siteSettings.thirdPartyCookies', to: '/cookies'},
+        { title: 'settings.siteSettings.thirdPartyCookies', to: '/cookies' },
       ]),
       contentAdvanced: categoryRows('contentAdvanced'),
     }),
@@ -86,7 +86,7 @@ export function SiteSettingsSection() {
       </RowGroup>
 
       <RowGroup title="settings.siteSettings.group.permissions">
-        {lists.permissionsBasic.map(row => (
+        {lists.permissionsBasic.map((row) => (
           <LinkRow key={row.to} label={row.title} to={row.to} />
         ))}
       </RowGroup>
@@ -95,7 +95,7 @@ export function SiteSettingsSection() {
       </CollapsibleGroup>
 
       <RowGroup title="settings.siteSettings.group.content">
-        {lists.contentBasic.map(row => (
+        {lists.contentBasic.map((row) => (
           <LinkRow key={row.to} label={row.title} to={row.to} />
         ))}
       </RowGroup>

@@ -18,10 +18,10 @@
 // screen that DOES anchor that id would light up for no reason the user could
 // connect to anything they did.
 
-import {useEffect, useSyncExternalStore, type ReactNode} from 'react';
-import {View} from 'react-native';
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { View } from 'react-native';
 
-import type {MessageId} from '@astro/platform';
+import type { MessageId } from '@astro/platform';
 
 /** How long the row stays marked once the anchor has claimed the request. */
 const HIGHLIGHT_MS = 2500;
@@ -99,7 +99,7 @@ export interface ControlAnchorProps {
   children: ReactNode;
 }
 
-export function ControlAnchor({id, also, children}: ControlAnchorProps) {
+export function ControlAnchor({ id, also, children }: ControlAnchorProps) {
   const request = useSyncExternalStore(subscribe, getSnapshot);
   const revealed = request !== undefined && (request === id || (also?.includes(request) ?? false));
 
@@ -111,7 +111,7 @@ export function ControlAnchor({id, also, children}: ControlAnchorProps) {
     // id rather than through a ref: under react-native-css a ref on a
     // className'd component does not resolve to the DOM node on web, and this
     // View carries a className the moment it is revealed.
-    document.getElementById(anchorId(id))?.scrollIntoView({block: 'center'});
+    document.getElementById(anchorId(id))?.scrollIntoView({ block: 'center' });
     // Claimed. The mark is brief from here rather than from the request, so a
     // screen that took a second to load still shows it for the full time.
     expireIn(HIGHLIGHT_MS);
