@@ -2,7 +2,9 @@
 
 #include "chrome/browser/astro/ac_engine_webui.h"
 
+#include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -21,6 +23,15 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_message_handler.h"
+#include "net/base/net_errors.h"
+#include "net/http/http_response_headers.h"
+#include "net/http/http_util.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
+#include "url/gurl.h"
 
 extern "C" {
 void ac_engine_set_event_sink(ac_engine_event_t sink, void* context);
@@ -70,6 +81,26 @@ constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_
 
 constexpr char kEventListener[] = "astro-engine-event";
 
+constexpr size_t kMaxFetchBody = 8 * 1024 * 1024;
+
+constexpr net::NetworkTrafficAnnotationTag kFetchAnnotation =
+    net::DefineNetworkTrafficAnnotation("astro_interface_fetch", R"(
+      semantics {
+        sender: "Astro interface"
+        description:
+          "Network requests Astro's own interface makes on Windows and Linux, "
+          "where it runs as a page: search suggestions from the user's search "
+          "engine and the feeds of live folders the user added."
+        trigger: "Typing in the address bar, or opening a live folder."
+        data: "The typed text for suggestions; nothing for feeds."
+        destination: OTHER
+      }
+      policy {
+        cookies_allowed: NO
+        setting: "Turning off search suggestions or removing the live folder."
+        policy_exception_justification: "Not implemented."
+      })");
+
 class EngineWebUIHandler;
 
 std::set<EngineWebUIHandler*>& Handlers() {
@@ -102,6 +133,9 @@ class EngineWebUIHandler : public content::WebUIMessageHandler {
     web_ui()->RegisterMessageCallback(
         "astroEngineCall", base::BindRepeating(&EngineWebUIHandler::HandleCall,
                                                base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroFetch", base::BindRepeating(&EngineWebUIHandler::HandleFetch,
+                                          base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroEngineTopics",
         base::BindRepeating(&EngineWebUIHandler::HandleTopics,
@@ -143,6 +177,90 @@ class EngineWebUIHandler : public content::WebUIMessageHandler {
                  &Replied, pending);
   }
 
+  void HandleFetch(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 5 || !args[1].is_string() || !args[2].is_string()) {
+      return;
+    }
+    const base::Value& callback_id = args[0];
+    GURL url(args[1].GetString());
+    const std::string& method = args[2].GetString();
+    if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS() ||
+        (method != "GET" && method != "POST" && method != "HEAD")) {
+      return ResolveJavascriptCallback(
+          callback_id, base::DictValue().Set("error", "refused"));
+    }
+    auto request = std::make_unique<network::ResourceRequest>();
+    request->url = url;
+    request->method = method;
+    request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+    if (args[3].is_dict()) {
+      for (const auto [name, value] : args[3].GetDict()) {
+        if (value.is_string() &&
+            net::HttpUtil::IsValidHeaderName(name) &&
+            net::HttpUtil::IsValidHeaderValue(value.GetString()) &&
+            net::HttpUtil::IsSafeHeader(name, value.GetString())) {
+          request->headers.SetHeader(name, value.GetString());
+        }
+      }
+    }
+    auto loader =
+        network::SimpleURLLoader::Create(std::move(request), kFetchAnnotation);
+    loader->SetAllowHttpErrorResults(true);
+    if (args[4].is_string() && method == "POST") {
+      std::string content_type;
+      if (args[3].is_dict()) {
+        if (const std::string* type = args[3].GetDict().FindString("Content-Type")) {
+          content_type = *type;
+        }
+      }
+      loader->AttachStringForUpload(
+          args[4].GetString(),
+          content_type.empty() ? "text/plain;charset=UTF-8" : content_type);
+    }
+    const int id = ++next_fetch_;
+    network::SimpleURLLoader* raw = loader.get();
+    fetches_[id] = std::move(loader);
+    raw->DownloadToString(
+        profile_->GetURLLoaderFactory().get(),
+        base::BindOnce(&EngineWebUIHandler::Fetched, weak_factory_.GetWeakPtr(),
+                       id, callback_id.Clone()),
+        kMaxFetchBody);
+  }
+
+  void Fetched(int id,
+               base::Value callback_id,
+               std::optional<std::string> body) {
+    auto found = fetches_.find(id);
+    if (found == fetches_.end()) {
+      return;
+    }
+    std::unique_ptr<network::SimpleURLLoader> loader = std::move(found->second);
+    fetches_.erase(found);
+    if (!IsJavascriptAllowed()) {
+      return;
+    }
+    const network::mojom::URLResponseHead* head = loader->ResponseInfo();
+    if (!head || !head->headers) {
+      return ResolveJavascriptCallback(
+          callback_id, base::DictValue().Set("error", net::ErrorToString(
+                                                          loader->NetError())));
+    }
+    base::ListValue headers;
+    size_t iterator = 0;
+    std::string name;
+    std::string value;
+    while (head->headers->EnumerateHeaderLines(&iterator, &name, &value)) {
+      headers.Append(base::ListValue().Append(name).Append(value));
+    }
+    ResolveJavascriptCallback(
+        callback_id,
+        base::DictValue()
+            .Set("status", head->headers->response_code())
+            .Set("headers", std::move(headers))
+            .Set("body", body ? base::Value(std::move(*body)) : base::Value()));
+  }
+
   void HandleTopics(const base::ListValue& args) {
     AllowJavascript();
     topics_.clear();
@@ -157,6 +275,8 @@ class EngineWebUIHandler : public content::WebUIMessageHandler {
 
   raw_ptr<Profile> profile_;
   std::set<std::string> topics_;
+  std::map<int, std::unique_ptr<network::SimpleURLLoader>> fetches_;
+  int next_fetch_ = 0;
   base::WeakPtrFactory<EngineWebUIHandler> weak_factory_{this};
 };
 

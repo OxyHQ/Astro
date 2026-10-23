@@ -9,8 +9,10 @@ import { startTabPages } from "../../browser/src/lib/tabPages";
 import { setStoreBatching } from "../../browser/src/store/browser";
 import { MenuHost } from "../../demo/src/shims/web/menus";
 import "../../demo/src/shims/web/motion/shortcuts";
+import { installEngineFetch } from "./host/fetch";
 import { WindowControls } from "./WindowControls";
 
+installEngineFetch();
 setStoreBatching(unstable_batchedUpdates);
 startPersistence();
 startTabPages();
