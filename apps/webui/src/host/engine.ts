@@ -30,6 +30,9 @@ export async function call(name: string, profile: string, args?: object): Promis
   }
 }
 
+export const pickFiles = async (kind: "files" | "folder"): Promise<string[]> =>
+  (await (await loadCr()).sendWithPromise<string[]>("astroPickFiles", kind)) ?? [];
+
 export async function boolPref(name: string, profile: string, value?: boolean): Promise<boolean> {
   if (profile !== DEFAULT_ENGINE_PROFILE) return true;
   const result = await (await loadCr()).sendWithPromise<boolean | null>("astroPref", name, value ?? null);

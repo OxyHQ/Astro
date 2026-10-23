@@ -6,7 +6,7 @@ declare const chrome: {
   browser: { attachIframeGuest(guestId: unknown, contentWindow: Window): void };
 };
 
-type Wire = { url?: string; title?: string; loading?: boolean; canGoBack?: boolean; canGoForward?: boolean; favicon?: string; opener?: number };
+type Wire = { url?: string; title?: string; loading?: boolean; canGoBack?: boolean; canGoForward?: boolean; favicon?: string; themeColor?: string | null; opener?: number };
 
 export const PROFILE_TAB_PREFIX = "p:";
 
@@ -17,6 +17,7 @@ const toState = (wire: Wire): TabState => ({
   isLoading: !!wire.loading,
   canGoBack: !!wire.canGoBack,
   canGoForward: !!wire.canGoForward,
+  themeColor: wire.themeColor ?? null,
 });
 
 const tabs = new Map<number, ProfileTab>();

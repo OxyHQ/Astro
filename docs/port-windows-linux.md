@@ -54,8 +54,10 @@ Steps 5 and 6 have a first cut that browses, built on Webium's own window instea
   activates and observes it, `PageHandler.getGuestIdForTabId` and `chrome.browser.attachIframeGuest` put it in the
   tab's iframe, and its `GuestHandler` navigates. Tabs a page opens become `onOpenWindow` with an `adoptId`. The last
   tab is parked on about:blank instead of closed, since Webium's window closes with its last tab.
-- `src/shims/shell.tsx`: documents persist in `localStorage` for now (they belong in profile preferences), and
-  `WindowDragRegion` sets `app-region: drag`. `src/WindowControls.tsx` makes the traffic lights close, minimise and
+- `src/shims/shell.tsx`: documents are files in the profile's `Astro Documents/`, written by the engine
+  (`ac_documents.cc`, on a sequence that finishes before shutdown). They are all read once before the interface starts,
+  so reads stay synchronous, and a write reaches the other windows over the `astro-documents` channel.
+  `localStorage` was not an option: Chromium commits it lazily and lost the session on quit. `WindowDragRegion` sets `app-region: drag`. `src/WindowControls.tsx` makes the traffic lights close, minimise and
   maximise the window.
 
 Engine calls go through `chrome.send` (`ac_engine_webui.cc`: the 18 calls macOS allows, for the default profile), and
@@ -86,9 +88,25 @@ Profiles: the `Default` Chromium profile is the window's, and each other Astro p
 (`Profile <name>`, as on macOS) whose tabs live in a hidden Webium browser of that profile and show in the window as
 guests (GuestContents attaches across profiles); its engine calls and events carry its name.
 
-Still missing: password export and installing extensions from disk (they need a native file dialog), a theme colour per page, persisting documents in profile preferences rather
-than `localStorage`, a packaged build (the interface in a pak instead of `--astro-ui-dir`), and one JS context per
-window.
+Windows: every Webium window runs its own copy of the interface, and the copies share one store
+(`apps/webui/src/host/windows.ts`). One page holds the `astro-window-leader` Web Lock: it hydrates and saves the
+session, runs the global effects (history, favicons, bookmarks) and opens and closes windows (`astroNewWindow` is
+`chrome::NewEmptyWindow`). A new page says hello on the `astro-windows` BroadcastChannel and is welcomed with a
+snapshot and the window it shows; after that each page sends what changed in the store, entry by entry, and applies
+what the others send. When the leader's page closes, the next page in the lock's queue takes over, asks the others
+which windows they show and closes the rest in the store. A page's window closes in the store when the page goes away,
+unless the leader goes too (quitting keeps the session). Tabs live in the tab strip of the page that shows them, so a
+tab moved to another window reloads there.
+
+The toolbar takes the page's theme colour (`<meta name="theme-color">`): `astroTabTheme` returns it and watches the
+tab, and `astro-tab-theme` reports changes; a profile tab's state carries it.
+
+Files: `astroPickFiles` opens the platform's file dialog, for a folder (an unpacked extension, which
+`ac_extensions_inspect` reads with Chromium's own loader before the install prompt) or for files to open.
+
+Still missing: password export (it needs the reauth decision below and a save dialog), a packaged
+build (the interface in a pak instead of `astro-ui/`), private windows (an incognito window's tabs open in the default
+profile), and OS reauth for passwords on Linux and Windows (denied today).
 
 ## Minimum steps to browse on Linux
 

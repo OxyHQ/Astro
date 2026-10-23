@@ -1,3 +1,5 @@
+import { loadCr } from "./engine";
+
 type TabData = {
   id: string;
   title: string;
@@ -48,6 +50,7 @@ const NETWORK_WAITING = 1;
 const NETWORK_LOADING = 2;
 const FIRST_URL_WAIT_MS = 500;
 const STARTUP_URL_WAIT_MS = 3000;
+const CLOSED_TAB_SETTLE_MS = 300;
 
 export type TabState = {
   url: string;
@@ -56,6 +59,7 @@ export type TabState = {
   isLoading: boolean;
   canGoBack: boolean;
   canGoForward: boolean;
+  themeColor: string | null;
 };
 
 export type ForeignTab = { id: string; url: string };
@@ -91,7 +95,8 @@ export class ChromiumTab implements EngineTab {
     readonly guest: GuestHandler,
     data: TabData,
   ) {
-    this.state = toState(data, false, false);
+    this.state = toState(data, false, false, null);
+    hub.themeListeners.set(id, (themeColor) => this.setTheme(themeColor));
     this.guestId = hub.page.getGuestIdForTabId(id, guest.$.bindNewPipeAndPassReceiver()).then((r) => r.guestId);
   }
 
@@ -105,8 +110,18 @@ export class ChromiumTab implements EngineTab {
     const activated = data.isActive && !this.active;
     this.active = data.isActive;
     if (activated && this.hub.requestedActive !== this.id) this.onActivatedByEngine?.();
-    const [{ canGoBack }, { canGoForward }] = await Promise.all([this.guest.canGoBack(), this.guest.canGoForward()]);
-    this.state = toState(data, canGoBack, canGoForward);
+    const [{ canGoBack }, { canGoForward }, themeColor] = await Promise.all([
+      this.guest.canGoBack(),
+      this.guest.canGoForward(),
+      loadCr().then((cr) => cr.sendWithPromise<string | null>("astroTabTheme", this.id)),
+    ]);
+    this.state = toState(data, canGoBack, canGoForward, themeColor);
+    for (const listener of this.listeners) listener(this.state);
+  }
+
+  setTheme(themeColor: string | null) {
+    if (themeColor === this.state.themeColor) return;
+    this.state = { ...this.state, themeColor };
     for (const listener of this.listeners) listener(this.state);
   }
 
@@ -149,11 +164,12 @@ export class ChromiumTab implements EngineTab {
 
   close() {
     this.listeners.clear();
+    this.hub.themeListeners.delete(this.id);
     this.hub.close(this);
   }
 }
 
-function toState(data: TabData, canGoBack: boolean, canGoForward: boolean): TabState {
+function toState(data: TabData, canGoBack: boolean, canGoForward: boolean, themeColor: string | null): TabState {
   return {
     url: data.url,
     title: data.title,
@@ -161,6 +177,7 @@ function toState(data: TabData, canGoBack: boolean, canGoForward: boolean): TabS
     isLoading: data.networkState === NETWORK_WAITING || data.networkState === NETWORK_LOADING,
     canGoBack,
     canGoForward,
+    themeColor,
   };
 }
 
@@ -180,6 +197,7 @@ export class TabHub {
   private foreignHandler: ((tab: ForeignTab) => void) | null = null;
   private waitingForHandler: TabData[] = [];
   onFocusLocationBar: (() => void) | null = null;
+  readonly themeListeners = new Map<string, (themeColor: string | null) => void>();
 
   constructor(
     readonly service: TabStripService,
@@ -199,6 +217,11 @@ export class TabHub {
     const proxy = browser.browserProxyFactory.getInstance();
     const hub = new TabHub(tabsApi.TabStripService.getRemote(), proxy.handler, () => new browser.GuestHandlerRemote());
     proxy.callbackRouter.setFocusToLocationBar.addListener(() => hub.onFocusLocationBar?.());
+    const cr = await loadCr();
+    (cr.addWebUiListener as unknown as (event: string, listener: (id: string, themeColor: string | null) => void) => void)(
+      "astro-tab-theme",
+      (id, themeColor) => hub.themeListeners.get(id)?.(themeColor),
+    );
     const snapshot = await hub.service.getTabs();
     for (const tab of flatten(snapshot.tabStrip)) {
       hub.known.set(tab.id, tab);
@@ -222,7 +245,7 @@ export class TabHub {
           this.spare = this.spare.filter((tab) => tab.id !== id);
           const tab = this.tabs.get(id);
           this.tabs.delete(id);
-          tab?.onClosed?.();
+          if (tab) setTimeout(() => tab.onClosed?.(), CLOSED_TAB_SETTLE_MS);
         }
       },
       onDataChanged: (event) => {

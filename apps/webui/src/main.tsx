@@ -4,31 +4,51 @@ import { createRoot } from "react-dom/client";
 import { unstable_batchedUpdates } from "react-native";
 import { WindowRoot } from "../../browser/src/App";
 import { startNativeSync } from "../../browser/src/lib/native";
-import { startPersistence } from "../../browser/src/lib/persist";
+import { flushPersistence, startPersistence } from "../../browser/src/lib/persist";
 import { startTabPages } from "../../browser/src/lib/tabPages";
 import { setStoreBatching, useBrowser } from "../../browser/src/store/browser";
-import { emitCommand } from "./shims/shell";
+import { emitCommand, loadDocuments } from "./shims/shell";
 import { MenuHost } from "../../demo/src/shims/web/menus";
 import "../../demo/src/shims/web/motion/shortcuts";
 import { installEngineFetch } from "./host/fetch";
+import { tabHub } from "./host/tabs";
+import { startWindows, usePageWindowId } from "./host/windows";
 import { UtilityWindows } from "./UtilityWindows";
 import { WindowControls } from "./WindowControls";
 
 installEngineFetch();
 setStoreBatching(unstable_batchedUpdates);
-startPersistence();
-startTabPages();
-startNativeSync();
 
 Object.assign(globalThis, { astro: { store: useBrowser, emitCommand } });
 
-createRoot(document.getElementById("root")!, { onUncaughtError: (error) => console.error("[astro] crashed", error) }).render(
-  <>
-    <div className="astro-window">
-      <WindowRoot />
-      <WindowControls />
-    </div>
-    <UtilityWindows />
-    <MenuHost />
-  </>,
-);
+const startPage = () =>
+  startWindows(
+    {
+      lead: (hydrate) => void startPersistence({ hydrate }),
+      begin: () => {
+        startTabPages();
+        startNativeSync();
+      },
+      end: () => flushPersistence({ final: true }),
+    },
+    () => void tabHub().then((hub) => hub.page.close()),
+  );
+
+void loadDocuments().then(startPage);
+
+function PageWindow() {
+  const windowId = usePageWindowId();
+  if (!windowId) return null;
+  return (
+    <>
+      <div className="astro-window">
+        <WindowRoot windowId={windowId} />
+        <WindowControls />
+      </div>
+      <UtilityWindows />
+      <MenuHost />
+    </>
+  );
+}
+
+createRoot(document.getElementById("root")!, { onUncaughtError: (error) => console.error("[astro] crashed", error) }).render(<PageWindow />);

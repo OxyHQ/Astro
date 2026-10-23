@@ -4,6 +4,7 @@ import type { NavigationState, WebViewHandle, WebViewProps } from "@astro-browse
 import type { BrowserCommand } from "@astro-browser-real/shell";
 import { openProfileTab, onProfileTabOpened, PROFILE_TAB_PREFIX } from "../host/profileTabs";
 import { type EngineTab, type TabState, tabHub } from "../host/tabs";
+import { pageWindowId } from "../host/windows";
 import { openFromPage } from "../../../browser/src/components/layout/openFromPage";
 import { useBrowser } from "../../../browser/src/store/browser";
 import { emitCommand } from "./shell";
@@ -17,7 +18,7 @@ const ENGINE_PAGES: [RegExp, BrowserCommand][] = [
   [/^chrome:\/\/history\b/, "showHistory"],
   [/^chrome:\/\/downloads\b/, "downloads"],
 ];
-const command = (name: BrowserCommand) => emitCommand({ command: name, arg: null, windowId: null });
+const command = (name: BrowserCommand) => emitCommand({ command: name, arg: null, windowId: pageWindowId() });
 
 function adoptForeign(id: string, url: string, closeIt: () => void) {
   const page = ENGINE_PAGES.find(([pattern]) => pattern.test(url));
@@ -28,9 +29,8 @@ function adoptForeign(id: string, url: string, closeIt: () => void) {
   }
   const request = { url, disposition: "foreground" as const, adoptId: id, userGesture: true };
   if (opener?.current.onOpenWindow) return opener.current.onOpenWindow(request);
-  const s = useBrowser.getState();
-  const windowId = s.ui.focusedWindowId ?? s.windowOrder[0];
-  const w = windowId ? s.windows[windowId] : undefined;
+  const windowId = pageWindowId();
+  const w = windowId ? useBrowser.getState().windows[windowId] : undefined;
   if (w) openFromPage(request, { windowId: w.id, profileId: w.profileId });
 }
 
@@ -58,8 +58,8 @@ function navigationState(state: TabState): NavigationState {
     canGoBack: state.canGoBack,
     canGoForward: state.canGoForward,
     isLoading: state.isLoading,
-    themeColor: null,
-    themeColorSource: null,
+    themeColor: state.themeColor,
+    themeColorSource: state.themeColor ? "meta" : null,
   };
 }
 

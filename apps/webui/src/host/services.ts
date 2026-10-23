@@ -1,5 +1,5 @@
 import { emitNativeEvent } from "../../../demo/src/shims/expo-modules-core";
-import { boolPref, call, DEFAULT_ENGINE_PROFILE, type EngineResult, onHostEngineEvent } from "./engine";
+import { boolPref, call, DEFAULT_ENGINE_PROFILE, type EngineResult, onHostEngineEvent, pickFiles } from "./engine";
 
 type Dict = Record<string, unknown>;
 
@@ -165,6 +165,13 @@ export const extensionServices = {
     for (const key of ["pinned", "incognito", "fileAccess", "siteAccess"]) if (options[key] !== undefined) args[key] = options[key];
     return run("ac_extensions_configure", profile, args, "configured");
   },
+  inspectUnpacked: (path: string) => call("ac_extensions_inspect", DEFAULT_ENGINE_PROFILE, { path }),
+  install: async (path: string, profile: string) => {
+    const result = await call("ac_extensions_install", profile, { path });
+    if (!result.error) changed(profile, result.id, "installed");
+    return result;
+  },
+  chooseFolder: async () => (await pickFiles("folder"))[0] ?? null,
   searchEngineList: async (profile: string) => {
     const result = await call("ac_search_engines_list", profile);
     return result.error ? result : { list: { engines: result.engines ?? [] } };
