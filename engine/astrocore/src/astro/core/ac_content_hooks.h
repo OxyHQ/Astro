@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 
+#include "base/functional/callback_forward.h"
 #include "extensions/common/extension_id.h"
 
 class GURL;
@@ -24,6 +25,10 @@ extern bool g_astro_opacity_from_default_color;
 bool AstroHasAccessedInitialMainDocument(WebContents* contents);
 }
 
+namespace crypto::apple {
+class KeychainV2;
+}
+
 namespace extensions {
 struct WebRequestInfo;
 namespace declarative_net_request {
@@ -32,6 +37,13 @@ struct RequestAction;
 }
 
 extern int g_astro_disk_space_check_seconds;
+
+extern bool (*g_astro_safe_storage_key_may_be_created)();
+
+extern void (*g_astro_safe_storage_unreadable)(int status,
+                                              base::OnceClosure retry);
+
+extern crypto::apple::KeychainV2* (*g_astro_test_keychain)();
 
 extern bool g_astro_lazy_storage_usage;
 
