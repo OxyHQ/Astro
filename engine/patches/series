@@ -4,7 +4,6 @@
 #
 #   chromium <patch>  a patch to chromium/src, after Helium's series and substitutions (step 4)
 #   layer <dir>       our own files, copied in by <dir>/apply.sh (engine/<layer>/src mirrors chromium/src)
-#   … macos|linux     after either: the line applies only when building for those platforms (env.sh's AC_PLATFORM)
 #
 # Lines run top to bottom; a patch is made against the tree as every line above it leaves it.
 # One concern per patch, named for it; a new patch goes where it belongs, not where its name sorts.
@@ -65,4 +64,4 @@ chromium chromium-ungoogled-mime-util-ymp.patch
 chromium chromium-astro-layer.patch
 
 layer engine/chromium
-layer engine/astrocore macos
+layer engine/astrocore

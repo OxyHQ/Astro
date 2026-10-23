@@ -402,9 +402,7 @@ The same steps build the engine on Linux (x64); `env.sh` picks the platform from
   `helium-pins.ini`) instead of helium-macos. Three of its patches are skipped (`PLATFORM_SKIP` in `03-helium.py`):
   branding and binary rename, which name the product Helium and keep its data in `~/.config/net.imput.helium`, and
   the middle-click paste flag, a chrome://flags toggle whose entry collides with `chromium-helium-branding.patch`.
-  With those out, our series applies unchanged on Linux but for `layer engine/astrocore`, AstroCore's AppKit window
-  and tab layer, which `series` marks `macos` (a trailing platform list limits a line to those platforms): its
-  hooks would give every non-Windows `ChromeMain` its delegate (`series.py check`: 52 steps, 215 paths).
+  With those out, our whole series applies unchanged on Linux (`series.py check`: 53 steps, 260 paths).
   Helium's generated icons are made with Pillow instead of `sips`: run step 3 with `~/chromium-build/py/bin/python`
   (a venv with Pillow).
 - **GN args**: `target_cpu="x64"`, out dir `out/Release_GN_x64`, and Helium's Linux flags (`use_sysroot`,

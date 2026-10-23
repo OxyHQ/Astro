@@ -36,10 +36,6 @@ SRC = os.environ.get("CHROMIUM_SRC", os.path.expanduser("~/chromium-build/chromi
 BASE = os.environ.get("AC_SERIES_BASE", os.path.expanduser("~/chromium-build/series-base"))
 
 
-PLATFORMS = ("macos", "linux")
-PLATFORM = os.environ.get("AC_PLATFORM") or ("macos" if sys.platform == "darwin" else "linux")
-
-
 class Step:
     def __init__(self, kind, name, line):
         self.kind, self.name, self.line = kind, name, line
@@ -108,23 +104,22 @@ def layer_paths(layer):
 
 
 def read_series():
-    steps, listed = [], []
+    steps = []
     for n, raw in enumerate(open(os.path.join(HERE, "series")), 1):
         line = raw.split("#", 1)[0].strip()
         if not line:
             continue
-        kind, name, *only = line.split()
-        if kind not in ("chromium", "layer") or not name or any(p not in PLATFORMS for p in only):
-            sys.exit(f"series:{n}: expected `chromium|layer <name> [{'|'.join(PLATFORMS)}…]`: {raw.rstrip()}")
+        kind, _, name = line.partition(" ")
+        name = name.strip()
+        if kind not in ("chromium", "layer") or not name:
+            sys.exit(f"series:{n}: expected `chromium|layer <name>`: {raw.rstrip()}")
         step = Step(kind, name, n)
         if kind != "layer" and not os.path.isfile(step.patch):
             sys.exit(f"series:{n}: no such patch {name}")
         if kind == "layer" and not os.path.isfile(os.path.join(REPO, name, "apply.sh")):
             sys.exit(f"series:{n}: no {name}/apply.sh")
-        listed.append(step)
-        if not only or PLATFORM in only:
-            steps.append(step)
-    names = [s.name for s in listed if s.kind != "layer"]
+        steps.append(step)
+    names = [s.name for s in steps if s.kind != "layer"]
     unlisted = sorted(set(f for f in os.listdir(HERE) if f.endswith(".patch")) - set(names))
     if unlisted:
         sys.exit("patches missing from series: " + ", ".join(unlisted))
