@@ -1,0 +1,33 @@
+body {
+  background: transparent;
+}
+
+.astro-window {
+  position: fixed;
+  inset: 0;
+  display: flex;
+}
+
+.astro-window > div:first-child {
+  flex: 1;
+  display: flex;
+}
+
+button,
+input,
+textarea,
+a,
+[role="button"],
+[tabindex] {
+  app-region: no-drag;
+}
+
+.astro-window-control {
+  position: absolute;
+  z-index: 1001;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: default;
+}

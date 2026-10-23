@@ -45,8 +45,25 @@ unverified; each window becomes its own JS context, where macOS shares one runti
 ## Status
 
 Steps 1 to 3 are done (2026-10-23): the Linux engine builds from the same series (`docs/engine-build.md` › "On
-Linux"), runs, and opens Webium's window with `--enable-features=Webium`; `//chrome/browser/astro` links into it. Next
-is step 4, `chrome://astro`.
+Linux"), runs, and opens Webium's window with `--enable-features=Webium`; `//chrome/browser/astro` links into it.
+
+Steps 5 and 6 have a first cut that browses, built on Webium's own window instead of a fork of it: `apps/webui` is
+`apps/browser` on react-native-web inside `chrome://webui-browser`. It reuses `apps/demo`'s web shims, and replaces two:
+
+- `src/shims/WebView.tsx` and `src/host/tabs.ts`: each tab is a real Chromium tab. `TabStripService` creates, closes,
+  activates and observes it, `PageHandler.getGuestIdForTabId` and `chrome.browser.attachIframeGuest` put it in the
+  tab's iframe, and its `GuestHandler` navigates. Tabs a page opens become `onOpenWindow` with an `adoptId`. The last
+  tab is parked on about:blank instead of closed, since Webium's window closes with its last tab.
+- `src/shims/shell.tsx`: documents persist in `localStorage` for now (they belong in profile preferences), and
+  `WindowDragRegion` sets `app-region: drag`. `src/WindowControls.tsx` makes the traffic lights close, minimise and
+  maximise the window.
+
+Run it: `pnpm -C apps/webui build` (or `dev`, which rebuilds on change), then
+`out/Release_GN_x64_dev/chrome --enable-features=Webium --astro-ui-dir=$PWD/apps/webui/dist`.
+
+Still missing: `ac_*` calls (step 4's Mojo interface; history, bookmarks, passwords and the rest answer nothing),
+search suggestions (the WebUI's CSP rightly blocks the page's own fetches), favicons for history, a theme colour per
+page, and one JS context per window.
 
 ## Minimum steps to browse on Linux
 
