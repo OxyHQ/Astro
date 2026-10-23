@@ -8,7 +8,6 @@ type Message =
   | { type: "hello"; page: string }
   | { type: "welcome"; page: string; windowId: string; state: Data }
   | { type: "patch"; patch: Patch }
-  | { type: "bye"; page: string; windowId: string }
   | { type: "close"; windowId: string }
   | { type: "focus"; windowId: string }
   | { type: "rollCall" }
@@ -23,6 +22,7 @@ export type WindowRoles = {
 declare const chrome: { send(method: string, args?: unknown[]): void };
 
 const LEADER_LOCK = "astro-window-leader";
+const pageLock = (id: string) => `astro-window-page:${id}`;
 const CHANNEL = "astro-windows";
 const CLOSE_DELAY_MS = 400;
 const ROLL_CALL_MS = 500;
@@ -137,16 +137,19 @@ export function focusPageWindow(id: string) {
 function welcome(newPage: string) {
   const s = useBrowser.getState();
   const id = waitingForWindow.shift() ?? s.createWindow();
-  owners.set(id, newPage);
+  closeWhenGone(id, newPage);
   post({ type: "welcome", page: newPage, windowId: id, state: snapshot() });
 }
 
-function closeLater(id: string, ownerPage: string) {
-  setTimeout(() => {
-    if (unloading || owners.get(id) !== ownerPage) return;
-    owners.delete(id);
-    useBrowser.getState().closeWindow(id);
-  }, CLOSE_DELAY_MS);
+function closeWhenGone(id: string, ownerPage: string) {
+  owners.set(id, ownerPage);
+  void navigator.locks.request(pageLock(ownerPage), () =>
+    setTimeout(() => {
+      if (unloading || owners.get(id) !== ownerPage) return;
+      owners.delete(id);
+      useBrowser.getState().closeWindow(id);
+    }, CLOSE_DELAY_MS),
+  );
 }
 
 const pendingHellos: string[] = [];
@@ -164,9 +167,6 @@ channel.onmessage = ({ data }: MessageEvent<Message>) => {
     case "patch":
       if (windowId) applyPatch(data.patch);
       return;
-    case "bye":
-      if (leader) closeLater(data.windowId, data.page);
-      return;
     case "close":
       if (data.windowId === windowId) closePage();
       return;
@@ -177,7 +177,7 @@ channel.onmessage = ({ data }: MessageEvent<Message>) => {
       if (windowId && !leader) post({ type: "here", page, windowId });
       return;
     case "here":
-      if (leader) owners.set(data.windowId, data.page);
+      if (leader) closeWhenGone(data.windowId, data.page);
       return;
   }
 };
@@ -226,9 +226,9 @@ export async function startWindows(roles: WindowRoles, close: () => void) {
   window.addEventListener("pagehide", () => {
     unloading = true;
     if (leader) roles.end();
-    else if (windowId) post({ type: "bye", page, windowId });
   });
 
+  void navigator.locks.request(pageLock(page), () => new Promise<never>(() => {}));
   if (await acquireLeadership(false)) return leadFromStart(roles);
 
   const leadership = acquireLeadership(true);

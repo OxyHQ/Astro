@@ -43,8 +43,7 @@ onProfileTabOpened(({ id, url }) =>
   adoptForeign(id, url, () => void openProfileTab("", id, undefined).then((tab) => tab?.close())),
 );
 
-const isProfileTab = (profile: string | undefined, adoptId: string | undefined) =>
-  adoptId?.startsWith(PROFILE_TAB_PREFIX) || (!!profile && !profile.includes("@"));
+const isProfileTab = (profile: string | undefined, adoptId: string | undefined) => adoptId?.startsWith(PROFILE_TAB_PREFIX) || !!profile;
 
 function openEngineTab(props: WebViewProps): Promise<EngineTab | null> {
   if (isProfileTab(props.profile, props.adoptId)) return openProfileTab(props.profile ?? "", props.adoptId, props.url);

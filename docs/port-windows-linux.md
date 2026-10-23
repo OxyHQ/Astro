@@ -84,6 +84,10 @@ Package it: `scripts/linux-package.sh` (`AC_ENGINE_PROFILE=dev` for the dev engi
 needs the AppArmor profile: `sudo cp /opt/astro-browser/apparmor.cfg /etc/apparmor.d/astro-browser && sudo
 apparmor_parser -r /etc/apparmor.d/astro-browser`. The dev engine's package is 116 MB.
 
+Private windows: their tabs are profile tabs of the original profile's primary off-the-record profile
+(`incognito:<session>@<profile>`), hosted by a hidden browser of that profile, which closes when its last tab does and
+takes the private session with it.
+
 Profiles: the `Default` Chromium profile is the window's, and each other Astro profile is a Chromium profile
 (`Profile <name>`, as on macOS) whose tabs live in a hidden Webium browser of that profile and show in the window as
 guests (GuestContents attaches across profiles); its engine calls and events carry its name.
@@ -94,8 +98,9 @@ session, runs the global effects (history, favicons, bookmarks) and opens and cl
 `chrome::NewEmptyWindow`). A new page says hello on the `astro-windows` BroadcastChannel and is welcomed with a
 snapshot and the window it shows; after that each page sends what changed in the store, entry by entry, and applies
 what the others send. When the leader's page closes, the next page in the lock's queue takes over, asks the others
-which windows they show and closes the rest in the store. A page's window closes in the store when the page goes away,
-unless the leader goes too (quitting keeps the session). Tabs live in the tab strip of the page that shows them, so a
+which windows they show and closes the rest in the store. Each page holds a Web Lock named after it, and the leader
+waits on it: when the page goes away however it goes, its window closes in the store, unless the leader goes too
+(quitting keeps the session). Tabs live in the tab strip of the page that shows them, so a
 tab moved to another window reloads there.
 
 The toolbar takes the page's theme colour (`<meta name="theme-color">`): `astroTabTheme` returns it and watches the
@@ -105,8 +110,7 @@ Files: `astroPickFiles` opens the platform's file dialog, for a folder (an unpac
 `ac_extensions_inspect` reads with Chromium's own loader before the install prompt) or for files to open.
 
 Still missing: password export (it needs the reauth decision below and a save dialog), a packaged
-build (the interface in a pak instead of `astro-ui/`), private windows (an incognito window's tabs open in the default
-profile), and OS reauth for passwords on Linux and Windows (denied today).
+build (the interface in a pak instead of `astro-ui/`), and OS reauth for passwords on Linux and Windows (denied today).
 
 ## Minimum steps to browse on Linux
 

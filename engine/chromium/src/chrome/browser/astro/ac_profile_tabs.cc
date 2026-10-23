@@ -2,6 +2,7 @@
 
 #include "chrome/browser/astro/ac_profile_tabs.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <utility>
@@ -10,11 +11,13 @@
 #include "base/callback_list.h"
 #include "base/files/file_path.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/no_destructor.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -30,6 +33,7 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "ui/base/base_window.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/gfx/image/image.h"
@@ -63,8 +67,14 @@ std::map<int, std::unique_ptr<TrackedTab>>& Tabs() {
   return *tabs;
 }
 
-std::map<base::FilePath, std::unique_ptr<HostBrowser>>& Hosts() {
-  static base::NoDestructor<std::map<base::FilePath, std::unique_ptr<HostBrowser>>>
+using HostKey = std::pair<base::FilePath, bool>;
+
+HostKey KeyFor(Profile* profile) {
+  return {profile->GetPath(), profile->IsOffTheRecord()};
+}
+
+std::map<HostKey, std::unique_ptr<HostBrowser>>& Hosts() {
+  static base::NoDestructor<std::map<HostKey, std::unique_ptr<HostBrowser>>>
       hosts;
   return *hosts;
 }
@@ -179,6 +189,17 @@ class HostBrowser : public TabStripModelObserver {
 
   BrowserWindowInterface* browser() const { return browser_; }
 
+  bool HostsTabs() const {
+    return std::ranges::any_of(
+        Tabs(), [this](const auto& tab) { return tab.second->host() == browser_; });
+  }
+
+  void CloseIfUnused() {
+    if (browser_ && !HostsTabs()) {
+      browser_->GetWindow()->Close();
+    }
+  }
+
   std::optional<int> Open(ProfileTabsClient* client, const GURL& url) {
     opening_ = true;
     content::WebContents* contents =
@@ -230,6 +251,11 @@ class HostBrowser : public TabStripModelObserver {
         Tabs().erase(id);
         client->OnProfileTabClosed(id);
       }
+      if (browser_->GetProfile()->IsOffTheRecord() && !HostsTabs()) {
+        base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE, base::BindOnce(&HostBrowser::CloseIfUnused,
+                                      weak_factory_.GetWeakPtr()));
+      }
     }
   }
 
@@ -258,10 +284,11 @@ class HostBrowser : public TabStripModelObserver {
   raw_ptr<BrowserWindowInterface> browser_;
   base::CallbackListSubscription closed_;
   bool opening_ = false;
+  base::WeakPtrFactory<HostBrowser> weak_factory_{this};
 };
 
 HostBrowser* HostFor(Profile* profile) {
-  auto found = Hosts().find(profile->GetPath());
+  auto found = Hosts().find(KeyFor(profile));
   if (found != Hosts().end() && found->second->browser()) {
     return found->second.get();
   }
@@ -273,7 +300,7 @@ HostBrowser* HostFor(Profile* profile) {
   }
   auto host = std::make_unique<HostBrowser>(browser);
   HostBrowser* raw = host.get();
-  Hosts()[profile->GetPath()] = std::move(host);
+  Hosts()[KeyFor(profile)] = std::move(host);
   return raw;
 }
 
@@ -333,21 +360,28 @@ void OpenProfileTab(ProfileTabsClient* client,
                     const std::string& profile_name,
                     const GURL& url,
                     base::OnceCallback<void(std::optional<int>)> done) {
-  if (profile_name.empty()) {
+  const size_t at = profile_name.find('@');
+  const bool off_the_record = at != std::string::npos;
+  const std::string original =
+      off_the_record ? profile_name.substr(at + 1) : profile_name;
+  if (!off_the_record && original.empty()) {
     std::move(done).Run(std::nullopt);
     return;
   }
-  WithProfile(profile_name,
+  WithProfile(original,
               base::BindOnce(
-                  [](ProfileTabsClient* client, GURL url,
+                  [](ProfileTabsClient* client, GURL url, bool off_the_record,
                      base::OnceCallback<void(std::optional<int>)> done,
                      Profile* profile) {
+                    if (profile && off_the_record) {
+                      profile = profile->GetPrimaryOTRProfile(true);
+                    }
                     HostBrowser* host = profile ? HostFor(profile) : nullptr;
                     std::move(done).Run(host ? host->Open(client, url)
                                              : std::nullopt);
                   },
                   client, url.is_valid() ? url : GURL("about:blank"),
-                  std::move(done)));
+                  off_the_record, std::move(done)));
 }
 
 std::optional<std::string> GuestIdForProfileTab(ProfileTabsClient* client,
