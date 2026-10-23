@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Packages the Linux engine and apps/webui as astro-browser-<version>-x86_64.tar.xz in ~/chromium-build/release.
+# Usage: scripts/linux-package.sh   (AC_ENGINE_PROFILE picks the engine build, release by default)
+set -euo pipefail
+root=$(cd "$(dirname "$0")/.." && pwd)
+source "$root/engine/patches/build/env.sh"
+out="$CB/chromium_git/chromium/src/out/$GN_OUT_CONFIGS"
+[[ -x "$out/chrome" ]] || { echo "linux-package.sh: no engine at $out/chrome (AC_ENGINE_PROFILE=dev for the dev build)" >&2; exit 1; }
+version="$(git -C "$root" describe --always --dirty)"
+name="astro-browser-$version-x86_64"
+release="$CB/release"
+dir="$release/$name"
+rm -rf "$dir"
+mkdir -p "$dir/locales"
+
+npx -y pnpm@11.1.3 -C "$root/apps/webui" build >/dev/null
+cp -r "$root/apps/webui/dist" "$dir/astro-ui"
+
+for file in chrome chrome_crashpad_handler chrome_100_percent.pak chrome_200_percent.pak resources.pak icudtl.dat \
+  v8_context_snapshot.bin libEGL.so libGLESv2.so libvk_swiftshader.so libvulkan.so.1 vk_swiftshader_icd.json \
+  libqt5_shim.so libqt6_shim.so; do
+  cp "$out/$file" "$dir/"
+done
+cp "$out/locales/"*.pak "$dir/locales/"
+find "$dir" -maxdepth 1 -type f \( -name chrome -o -name chrome_crashpad_handler -o -name '*.so' -o -name '*.so.1' \) \
+  -exec strip --strip-unneeded {} +
+
+install -m 755 "$root/engine/linux/astro-browser-wrapper.sh" "$dir/astro-browser"
+cp "$root/engine/linux/astro-browser.desktop" "$root/engine/linux/apparmor.cfg" "$dir/"
+cp "$root/engine/chromium/src/chrome/app/theme/chromium/product_logo_256.png" "$dir/astro-browser.png"
+
+tar -C "$release" -cJf "$release/$name.tar.xz" "$name"
+echo "$release/$name.tar.xz ($(du -h "$release/$name.tar.xz" | cut -f1))"

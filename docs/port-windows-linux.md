@@ -73,6 +73,15 @@ itself crashes Webium (it reopens the page as a tab, outside its window). Chromi
 `AttachUnownedInnerWebContents` a prototype not meant for production, and GuestContents says the same: both are the
 risk this design takes on.
 
+Package it: `scripts/linux-package.sh` (`AC_ENGINE_PROFILE=dev` for the dev engine) builds `apps/webui` and writes
+`~/chromium-build/release/astro-browser-<version>-x86_64.tar.xz`: the engine stripped, `astro-ui/`, the
+`astro-browser` launcher, `astro-browser.desktop`, its icon and an AppArmor profile (`engine/linux/`). Install it with
+`sudo tar -xJf astro-browser-*.tar.xz -C /opt && sudo mv /opt/astro-browser-*-x86_64 /opt/astro-browser`, link
+`/opt/astro-browser/astro-browser` into your PATH, and copy the desktop file and icon to
+`~/.local/share/applications/` and `~/.local/share/icons/hicolor/256x256/apps/`. On Ubuntu 24.04 and later the sandbox
+needs the AppArmor profile: `sudo cp /opt/astro-browser/apparmor.cfg /etc/apparmor.d/astro-browser && sudo
+apparmor_parser -r /etc/apparmor.d/astro-browser`. The dev engine's package is 116 MB.
+
 Still missing: the engine calls macOS reaches through other native modules (passwords, downloads, extensions,
 site settings), more than one profile, a theme colour per page, persisting documents in profile preferences rather
 than `localStorage`, a packaged build (the interface in a pak instead of `--astro-ui-dir`), and one JS context per
