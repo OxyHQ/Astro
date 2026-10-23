@@ -1,6 +1,7 @@
 import { type ComponentType, useEffect, useRef } from "react";
 import { View, type ViewProps } from "react-native";
 import type { OpenWindowOptions } from "@astro-browser-real/shell";
+import { useBrowser } from "../../../browser/src/store/browser";
 import { closeUtilityWindow, openUtilityWindow, openUtilityWindows } from "../utilityWindows";
 
 export * from "../../../demo/src/shims/shell";
@@ -32,4 +33,8 @@ export function WindowDragRegion({ titleBarDoubleClick: _double, onRegionDoubleC
 export const openWindow = async (id: string, _options: OpenWindowOptions = {}) => void openUtilityWindow(id);
 export const closeWindow = async (id: string) => closeUtilityWindow(id);
 export const focusWindow = async (_id: string) => {};
+export const setWindowTitle = async (id: string, title: string) => {
+  const s = useBrowser.getState();
+  if (id === (s.ui.focusedWindowId ?? s.windowOrder[0])) document.title = title || "Astro";
+};
 export const windowIds = async () => [...openUtilityWindows()];
