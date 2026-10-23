@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Step 1: check out Chromium $CHROMIUM_VERSION (env.sh) for the Mac, without history, and run its
+# Step 1: check out Chromium $CHROMIUM_VERSION (env.sh) for this host's platform, without history, and run its
 # hooks; no build. Then step 3 (ungoogled-chromium), step 4 (domain substitution and our series),
 # step 2 (GN args) and step 5 (build).
 set -euo pipefail
@@ -14,7 +14,7 @@ solutions = [{'managed': False, 'name': 'src',
   'url': 'https://chromium.googlesource.com/chromium/src.git@refs/tags/$CHROMIUM_VERSION',
   'custom_vars': {'checkout_pgo_profiles': True, 'source_tarball': False, 'siso_version': 'latest'},
   'custom_deps': {}, 'deps_file': 'DEPS', 'safesync_url': ''}]
-target_os = ['mac']
+target_os = ['$AC_TARGET_OS']
 GCLIENT
 if [ -d src/.git ]; then
   lowprio_net timeout 3600 git -C src fetch --depth=1 --no-tags origin "refs/tags/$CHROMIUM_VERSION:refs/tags/$CHROMIUM_VERSION"

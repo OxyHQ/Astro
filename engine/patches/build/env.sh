@@ -13,15 +13,33 @@ export PATH="$CB/depot_tools:$PATH"
 # (its patches and domain substitution lists are version-specific).
 export CHROMIUM_VERSION=155.0.8059.84
 export HELIUM_TAG=0.19.4
-export HELIUM_MACOS_TAG=0.19.4.1
 export HELIUM_DIR="$CB/helium"
+# The platform the engine is built for: this host's. Helium's platform series and our output dir follow it.
+case "$(uname -s)" in
+  Darwin) export AC_PLATFORM=macos AC_TARGET_OS=mac AC_TARGET_CPU=arm64 ;;
+  Linux) export AC_PLATFORM=linux AC_TARGET_OS=linux AC_TARGET_CPU=x64 ;;
+  *) echo "env.sh: the engine builds on macOS and Linux, not $(uname -s)" >&2; return 64 2>/dev/null || exit 64 ;;
+esac
+export HELIUM_MACOS_TAG=0.19.4.1
 export HELIUM_MACOS_DIR="$CB/helium-macos"
-export GN_OUT_CONFIGS=Release_GN_arm64
+export HELIUM_LINUX_TAG=0.19.4.1
+export HELIUM_LINUX_DIR="$CB/helium-linux"
+if [[ $AC_PLATFORM == macos ]]; then
+  export HELIUM_PLATFORM_TAG=$HELIUM_MACOS_TAG HELIUM_PLATFORM_DIR=$HELIUM_MACOS_DIR
+else
+  export HELIUM_PLATFORM_TAG=$HELIUM_LINUX_TAG HELIUM_PLATFORM_DIR=$HELIUM_LINUX_DIR
+fi
+export GN_OUT_CONFIGS="Release_GN_$AC_TARGET_CPU${AC_ENGINE_PROFILE:+_$AC_ENGINE_PROFILE}"
 # Low priority for everything heavy. CPU-bound steps (compile/link) run in the
 # background QoS band (-b): on this M5 Pro that confines them to the 10
 # lower-tier cores and throttles their disk I/O. Background QoS also throttles
 # network traffic to a crawl, so network-bound steps (sync) use the utility
 # clamp with throttled disk I/O instead.
-lowprio() { taskpolicy -b nice -n 19 "$@"; }
-lowprio_net() { taskpolicy -c utility -d throttle nice -n 19 "$@"; }
+if [[ $AC_PLATFORM == macos ]]; then
+  lowprio() { taskpolicy -b nice -n 19 "$@"; }
+  lowprio_net() { taskpolicy -c utility -d throttle nice -n 19 "$@"; }
+else
+  lowprio() { ionice -c 3 nice -n 19 "$@"; }
+  lowprio_net() { ionice -c 2 -n 7 nice -n 19 "$@"; }
+fi
 export DEPOT_TOOLS_METRICS=0

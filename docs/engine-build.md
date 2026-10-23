@@ -394,6 +394,28 @@ Rules for editing the tree after the first build:
      which. A patch whose file moved is rewritten for the new path, and the new path's file goes into the series
      base (`series-base/`) as steps 3 and 4 left it.
 
+### On Linux
+
+The same steps build the engine on Linux (x64); `env.sh` picks the platform from `uname`. What differs:
+
+- **Helium's platform repo** is helium-linux (`HELIUM_LINUX_TAG`, `~/chromium-build/helium-linux`, pinned in
+  `helium-pins.ini`) instead of helium-macos. Three of its patches are skipped (`PLATFORM_SKIP` in `03-helium.py`):
+  branding and binary rename, which name the product Helium and keep its data in `~/.config/net.imput.helium`, and
+  the middle-click paste flag, a chrome://flags toggle whose entry collides with `chromium-helium-branding.patch`.
+  With those out, our whole series applies unchanged on Linux (`series.py check`: 53 steps, 260 paths).
+  Helium's generated icons are made with Pillow instead of `sips`: run step 3 with `~/chromium-build/py/bin/python`
+  (a venv with Pillow).
+- **GN args**: `target_cpu="x64"`, out dir `out/Release_GN_x64`, and Helium's Linux flags (`use_sysroot`,
+  `use_vaapi`, `rtc_use_pipewire`, `use_kerberos=false`). CDM host verification, CDM storage ids and RLZ are
+  macOS-only: Chromium refuses them on Linux. Step 5 builds `chrome`, not `chrome_framework`.
+- **`AC_ENGINE_PROFILE=dev`** (either platform) builds without official build, PGO or LTO, with `symbol_level=1`, into
+  `out/Release_GN_<cpu>_dev`: much quicker to build and link, and its backtraces have function names.
+- **The lock**: Linux has no `lockf(1)`, so `scripts/agent/lockf` stands in for it (an flock that dies with its
+  holder and shows up in `ps` as `lockf`); `scripts/agent/locked` and `pathguard.py` use it when the system has none.
+- **Webium.** Stock Chromium 155 on Linux runs its all-WebUI browser window with `--enable-features=Webium`
+  (`chrome://webui-browser`, tabs as guest contents), but Helium 0.19.4.1's Linux build segfaults at startup with it.
+  Which Helium patch causes it is still open; a `dev` build's backtrace is the way to find it.
+
 ## Helium
 
 [Helium](https://github.com/imputnet/helium-chromium) is built on ungoogled-chromium. Step 3 (`03-helium.py`) applies

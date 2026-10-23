@@ -51,3 +51,5 @@ dist/
 
 scripts/.notary.env
 *.p8
+
+__pycache__/
