@@ -77,6 +77,7 @@ What the build adds:
 | `chromium-astro-engine-webui.patch` | Webium's window gets `astro::CreateEngineWebUIHandler`: `chrome.send('astroEngineCall', [id, name, args, profile])` runs one of the allowlisted `ac_*` calls for that profile (never a private one), `astroPref` reads and sets three autofill booleans, `astroFetch` makes the interface's network requests without cookies, `astroEngineTopics` picks the engine events it receives as `astro-engine-event`, and `astroProfileTab*` hosts tabs of other profiles (`ac_profile_tabs.cc`: a hidden Webium browser per profile, omitted from session restore, whose tabs the window shows as guests) |
 | `chromium-astro-webium-default.patch` | On Linux and Windows, `Webium` and `AttachUnownedInnerWebContents` are on by default, so the browser window is Webium's and its tabs can leave their iframes; macOS keeps both off. Chromium marks the second a prototype not meant for production |
 | `chromium-astro-linux-identity.patch` | Linux keeps its data in `~/.config/astro-browser` (Chromium's would be `~/.config/chromium`, which a Chromium install shares), and names its desktop file `astro-browser.desktop` and its icon `astro-browser`, as Astro's earlier Linux build did; helium-linux's own branding is skipped (`03-helium.py`) |
+| `chromium-astro-windows-identity.patch` | Windows keeps its data in `%LOCALAPPDATA%\\Oxy\\Astro` and registers as Astro (ProgIDs `AstroHTM`/`AstroPDF`, the `astro` launch scheme), with Astro's own Active Setup GUID and toast activator CLSID, so it never shares Chromium's; the elevation and tracing services keep Chromium's ids until there is an installer |
 | `chromium-pip-overlay-window.patch` | Chrome makes our `AstroVideoOverlayWindow` (`chrome/browser/astro/pip/`, a `VideoOverlayWindowViews` subclass with its own buttons, progress bar, fade and bounds memory; the hook makes six methods virtual): Dia's video Picture in Picture window (measured in `docs/dia-spec.md` › Picture in Picture): nothing but the video at rest (the origin shows only with the controls); on hover a 35 % black scrim, back to tab (top left) and close (top right) as 28 pt rounded squares with 1 pt line glyphs, the origin centred in 13 pt, a bare play/pause glyph and a 5 pt progress bar that seeks; no skip, time, mute, captions or minimize controls (the keyboard shortcuts stay). Controls fade in 200 ms ease-in-out. The window shows at once and fades out in Core Animation (100 ms from the close button, 70 ms otherwise, smooth while the tab is being shown), and a new window opens where the last one was left, sized to the new video and kept on screen (`AstroPictureInPicture.plist` in the user data dir). Closing it, by its button or by the window going away any other way, never pauses the video, which keeps playing in its tab, as in Dia and Arc (`OnCloseButtonPressed` asks for `kCloseWindowOnly`, and the subclass's `OnNativeWidgetDestroyed` tells the controller not to pause; Chrome paused whenever the window had a play/pause button) |
 
 Removed, all in git history:
@@ -427,6 +428,22 @@ The same steps build the engine on Linux (x64); `env.sh` picks the platform from
   picture-in-picture bounds, fade and input frame-rate hold do nothing. AstroCore's `ChromeMain` delegate stays
   macOS-only; Linux keeps Chromium's.
 - **Times** (32 cores, `dev`): steps 3 and 4 take 2 min; the first build, 2 h 13 min (57,000 actions).
+
+### Windows
+
+Windows is cross-built from Linux (`docs/win_cross.md` in Chromium): `AC_TARGET_PLATFORM=windows` makes `env.sh` target
+`win`/x64 with helium-windows (`HELIUM_WINDOWS_TAG`, pinned in `helium-pins.ini`) into `out/Release_GN_win_x64`. Its
+own build root (`AC_CHROMIUM_BUILD=~/chromium-build-win`) keeps it apart from the Linux tree, whose platform patches
+differ; it was made by copying the Linux checkout (no new download) and syncing with `target_os = ['win']`.
+`03-helium.py` skips helium-windows's branding, its remote-build toolchain rewrite and its WinSparkle updater, and,
+as on Linux, `remove-experimental-webui.patch`.
+
+The Windows SDK comes from a Windows machine with Visual Studio 2026 Build Tools (with ATL/MFC) and Windows SDK
+10.0.28000 with its debugging tools: `depot_tools/win_toolchain/package_from_installed.py 2026 -w 10.0.28000.0 --noarm`
+(for Build Tools, its `vswhere.exe` call needs `-products *`) writes `<hash>.zip`. Then, on Linux,
+`DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL=<dir of the zip>` and `GYP_MSVS_HASH_<TOOLCHAIN_HASH of build/vs_toolchain.py>=<hash>`
+before `gclient sync`/`runhooks`. On a WSL machine the Windows side is the host itself (`/mnt/c`, `cmd.exe`,
+`winget`); a portable Python is enough to run the packaging script.
 
 ## Helium
 

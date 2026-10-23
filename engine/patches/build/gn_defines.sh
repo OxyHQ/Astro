@@ -49,6 +49,13 @@ if [[ $AC_PLATFORM == macos ]]; then
     'alternate_cdm_storage_id_key="968b476909da4373b08903c28e859454"'
     enable_rlz=true
   )
+elif [[ $AC_PLATFORM == windows ]]; then
+  # Cross-built from Linux with the packaged Visual Studio toolchain; no CDM host verification or RLZ, which need
+  # Chrome's signing and branding.
+  _gn_args+=(
+    'target_os="win"'
+    use_kerberos=false
+  )
 else
   # Chromium allows CDM host verification, storage ids and RLZ only on Windows and macOS. The rest is Helium's Linux set.
   _gn_args+=(

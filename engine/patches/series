@@ -66,6 +66,7 @@ chromium chromium-astro-ui-dir.patch
 chromium chromium-astro-engine-webui.patch
 chromium chromium-astro-webium-default.patch
 chromium chromium-astro-linux-identity.patch
+chromium chromium-astro-windows-identity.patch
 
 layer engine/chromium
 layer engine/astrocore

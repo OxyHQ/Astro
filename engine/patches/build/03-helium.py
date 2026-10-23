@@ -70,15 +70,31 @@ PLATFORM_SKIP = {'macos': {
     'helium/linux/change-chromium-branding.patch':
         'brands the Linux build as Helium: its data dir (net.imput.helium), desktop file, package and maintainers',
     'helium/linux/rename-chrome-binary.patch': 'renames the binary and crash handler to helium',
-    'helium/core/remove-experimental-webui.patch':
-        'unregisters Webium (chrome://webui-browser) and drops its paks: Astro\'s Linux window is built on it',
     'helium/linux/add-middle-click-paste-flag.patch':
         'only a chrome://flags toggle (middle-click paste stays on); its flag entry collides with chromium-helium-branding.patch',
+}, 'windows': {
+    'helium/windows/change-branding.patch': 'brands the Windows build and its installer as Helium',
+    'helium/windows/rbe-linux-workers.patch': 'Helium\'s remote build setup; it rewrites the cross toolchain\'s setup',
+    'helium/windows/updater/winsparkle-drop-3rdparty-deps.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/winsparkle-api-extensions.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/winsparkle-headless-ui.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/glue.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/build-wiring.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/register.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/helper.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/update-notifications.patch': 'WinSparkle; Astro has its own updater',
 }}
+
+WEBIUM_SKIP = {
+    'helium/core/remove-experimental-webui.patch':
+        'unregisters Webium (chrome://webui-browser) and drops its paks: Astro\'s Windows and Linux window is built on it',
+}
 
 PLATFORM = os.environ.get('AC_PLATFORM') or ('macos' if sys.platform == 'darwin' else 'linux')
 PLATFORM_REPO = f'helium-{PLATFORM}'
 SKIP.update(PLATFORM_SKIP[PLATFORM])
+if PLATFORM != 'macos':
+    SKIP.update(WEBIUM_SKIP)
 
 GUARD_MARKERS = [
     ('keychain_password_mac.mm', False), ('Safe Storage', False), ('Storage Key', False),
