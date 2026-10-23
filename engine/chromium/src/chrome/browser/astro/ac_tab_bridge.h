@@ -3,10 +3,12 @@
 #ifndef CHROME_BROWSER_ASTRO_AC_TAB_BRIDGE_H_
 #define CHROME_BROWSER_ASTRO_AC_TAB_BRIDGE_H_
 
+#include <map>
 #include <string>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/values.h"
 #include "components/blocked_content/popup_blocker_tab_helper.h"
@@ -15,6 +17,8 @@
 #include "components/find_in_page/find_tab_helper.h"
 #include "components/zoom/zoom_controller.h"
 #include "components/zoom/zoom_observer.h"
+#include "content/public/browser/devtools_agent_host.h"
+#include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/browser/web_contents_observer.h"
 
 namespace astro {
@@ -24,7 +28,8 @@ base::DictValue SecurityInfo(content::WebContents* contents);
 class TabBridge : public content::WebContentsObserver,
                   public zoom::ZoomObserver,
                   public find_in_page::FindResultObserver,
-                  public blocked_content::UrlListManager::Observer {
+                  public blocked_content::UrlListManager::Observer,
+                  public content::DevToolsAgentHostClient {
  public:
   using Emit =
       base::RepeatingCallback<void(const std::string& kind,
@@ -51,6 +56,9 @@ class TabBridge : public content::WebContentsObserver,
   void DidToggleFullscreenModeForTab(bool entered_fullscreen,
                                      bool will_cause_resize) override;
   void WebContentsDestroyed() override;
+  void DispatchProtocolMessage(content::DevToolsAgentHost* agent_host,
+                               base::span<const uint8_t> message) override;
+  void AgentHostClosed(content::DevToolsAgentHost* agent_host) override;
 
   void OnZoomChanged(
       const zoom::ZoomController::ZoomChangedEventData& data) override;
@@ -67,6 +75,9 @@ class TabBridge : public content::WebContentsObserver,
   base::DictValue Zoom();
   void ObserveHelpers();
   void CheckSecurity();
+  void Evaluate(const std::string& code,
+                base::OnceCallback<void(base::Value)> done);
+  void Answer(int id, base::Value result);
 
   Emit emit_;
   base::DictValue security_;
@@ -78,6 +89,10 @@ class TabBridge : public content::WebContentsObserver,
   base::ScopedObservation<blocked_content::UrlListManager,
                           blocked_content::UrlListManager::Observer>
       popups_{this};
+  scoped_refptr<content::DevToolsAgentHost> agent_;
+  int last_message_id_ = 0;
+  std::map<int, base::OnceCallback<void(base::Value)>> evaluations_;
+  base::WeakPtrFactory<TabBridge> weak_factory_{this};
 };
 
 }

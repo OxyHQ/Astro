@@ -126,8 +126,16 @@ Extensions (`ac_extension_views.cc`, AstroCore's extension view host ported): a 
 (`executeExtensionAction`), reads each action's icon, badge and title (`actionStates`) and the side panel URL;
 `g_astro_open_action_popup` and `g_astro_extension_side_panel` reach the page that shows the active tab. Web Store
 installs ask through Astro's prompt (`ac_extension_prompts.cc`); Chromium's installed bubble, which needs a views anchor,
-is not shown. Evaluation keeps AstroCore's contract: the code is the body of `function(post){…}` and answers with
-`post("result", json)`; here it runs in an isolated world and only a `post` made before it returns is answered.
+is not shown. Evaluation keeps AstroCore's contract: the code is the body of `function(post){…}`, runs in the page's main world and
+answers with `post("result", json)`, whenever that comes. The bridge sends it as `Runtime.evaluate` (awaiting the
+promise) through an internal DevTools client attached to the tab, since content has no public API that runs main-world
+code and waits for a promise.
+
+Content blocker (`host/contentBlocker.ts`, AstroCore's `AstroCoreContentBlocker.mm` ported): uBlock Origin, fetched
+and patched by `packages/astrocore/scripts/ubo.sh`, ships as `extensions/ublock` beside the engine
+(`--astro-ublock-dir` in development; `pnpm linux` passes it) and loads as a component extension
+(`astroContentBlockerLoad`). Its settings are read and written by the same scripts as on macOS, run in a hidden
+`blank.html` extension view.
 
 System (`ac_system.cc`): open a file, show it in its folder, whether a file exists, open an external URL, the default
 browser (Chromium's worker), launch at login (a `~/.config/autostart` entry, or the `Run` key on Windows) and the

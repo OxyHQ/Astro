@@ -20,6 +20,9 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
+#include "base/base_paths.h"
+#include "base/command_line.h"
+#include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "base/json/json_reader.h"
@@ -33,7 +36,10 @@
 #include "chrome/browser/astro/public/ac_engine.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
+#include "chrome/browser/extensions/component_loader.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "extensions/browser/extension_registry.h"
+#include "extensions/common/extension.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 #include "components/guest_contents/browser/guest_contents_handle.h"
 #include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
@@ -188,6 +194,7 @@ constexpr char kTabEventListener[] = "astro-tab-event";
 constexpr char kHostEventListener[] = "astro-host-event";
 constexpr char kProfileTabPrefix[] = "p:";
 constexpr char kExtensionViewPrefix[] = "x:";
+constexpr char kUblockDirSwitch[] = "astro-ublock-dir";
 
 constexpr auto kBoolPrefs = base::MakeFixedFlatSet<std::string_view>({
     "autofill.credit_card_enabled",
@@ -300,6 +307,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroNewWindow", base::BindRepeating(&EngineWebUIHandler::HandleNewWindow,
                                               base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroContentBlockerLoad",
+        base::BindRepeating(&EngineWebUIHandler::HandleContentBlockerLoad,
+                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroExtensionInstallResolve",
         base::BindRepeating(&EngineWebUIHandler::HandleExtensionInstallResolve,
@@ -597,7 +608,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     }
     std::optional<int> id = OpenExtensionView(
         browser ? browser : WindowBrowser(), GURL(args[1].GetString()),
-        args[2].GetString() != "sidePanel");
+        args[2].GetString() == "popup");
     content::WebContents* contents = id ? ExtensionViewContents(*id) : nullptr;
     auto* handle = contents ? guest_contents::GuestContentsHandle::FromWebContents(
                                   contents)
@@ -609,6 +620,54 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
         args[0], base::DictValue()
                      .Set("ref", kExtensionViewPrefix + base::NumberToString(*id))
                      .Set("guestId", handle->id().ToString()));
+  }
+
+  static base::FilePath ContentBlockerDir() {
+    const base::CommandLine& command_line =
+        *base::CommandLine::ForCurrentProcess();
+    if (command_line.HasSwitch(kUblockDirSwitch)) {
+      return command_line.GetSwitchValuePath(kUblockDirSwitch);
+    }
+    base::FilePath exe_dir;
+    base::PathService::Get(base::DIR_EXE, &exe_dir);
+    return exe_dir.AppendASCII("extensions").AppendASCII("ublock");
+  }
+
+  void HandleContentBlockerLoad(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 2 || !args[1].is_string()) {
+      return;
+    }
+    WithProfile(
+        args[1].GetString(),
+        base::BindOnce(
+            [](base::WeakPtr<EngineWebUIHandler> self, base::Value callback_id,
+               Profile* profile) {
+              if (!self || !self->IsJavascriptAllowed()) {
+                return;
+              }
+              const base::FilePath root = ContentBlockerDir();
+              std::string id;
+              if (profile) {
+                for (const auto& extension :
+                     extensions::ExtensionRegistry::Get(profile)
+                         ->enabled_extensions()) {
+                  if (extension->location() ==
+                          extensions::mojom::ManifestLocation::kComponent &&
+                      extension->path() == root) {
+                    id = extension->id();
+                  }
+                }
+                if (id.empty()) {
+                  if (auto* loader = extensions::ComponentLoader::Get(profile)) {
+                    id = loader->AddOrReplace(root);
+                  }
+                }
+              }
+              self->ResolveJavascriptCallback(
+                  callback_id, id.empty() ? base::Value() : base::Value(id));
+            },
+            weak_factory_.GetWeakPtr(), args[0].Clone()));
   }
 
   void HandleExtensionInstallResolve(const base::ListValue& args) {

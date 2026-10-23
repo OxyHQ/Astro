@@ -8,6 +8,9 @@
 #include <utility>
 
 #include "base/json/json_writer.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
+#include "base/json/json_reader.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/astro/ac_extension_views.h"
@@ -259,7 +262,11 @@ TabBridge::TabBridge(content::WebContents* contents, Emit emit)
   security_ = SecurityInfo(contents);
 }
 
-TabBridge::~TabBridge() = default;
+TabBridge::~TabBridge() {
+  if (agent_) {
+    agent_->DetachClient(this);
+  }
+}
 
 base::DictValue TabBridge::Snapshot() {
   content::WebContents* contents = web_contents();
@@ -422,15 +429,11 @@ void TabBridge::Call(const std::string& method,
     if (!code) {
       return std::move(done).Run(base::Value());
     }
-    const std::string wrapped =
-        method == "evaluate"
-            ? "(() => { let out = null; const post = (kind, json) => { if "
-              "(kind === 'result' && out === null) out = json; }; "
-              "(function(post){'use strict';\n" +
-                  *code + "\n})(post); return out; })()"
-            : *code;
+    if (method == "evaluate") {
+      return Evaluate(*code, std::move(done));
+    }
     contents->GetPrimaryMainFrame()->ExecuteJavaScriptInIsolatedWorld(
-        base::UTF8ToUTF16(wrapped), std::move(done),
+        base::UTF8ToUTF16(*code), std::move(done),
         ISOLATED_WORLD_ID_CHROME_INTERNAL);
     return;
   } else if (method == "executeExtensionAction") {
@@ -539,6 +542,73 @@ void TabBridge::Call(const std::string& method,
     return std::move(done).Run(base::Value(SecurityInfo(contents)));
   }
   std::move(done).Run(base::Value());
+}
+
+constexpr base::TimeDelta kEvaluationTimeout = base::Seconds(20);
+
+void TabBridge::Evaluate(const std::string& code,
+                         base::OnceCallback<void(base::Value)> done) {
+  if (!agent_) {
+    agent_ = content::DevToolsAgentHost::GetOrCreateFor(web_contents());
+    if (!agent_ || !agent_->AttachClient(this)) {
+      agent_ = nullptr;
+      return std::move(done).Run(base::Value());
+    }
+  }
+  const int id = ++last_message_id_;
+  evaluations_[id] = std::move(done);
+  const std::string expression =
+      "new Promise((resolve) => { const post = (kind, json) => { if (kind === "
+      "'result') resolve(json); }; (function(post){'use strict';\n" +
+      code + "\n})(post); })";
+  const std::string message =
+      base::WriteJson(
+          base::DictValue()
+              .Set("id", id)
+              .Set("method", "Runtime.evaluate")
+              .Set("params", base::DictValue()
+                                 .Set("expression", expression)
+                                 .Set("awaitPromise", true)
+                                 .Set("returnByValue", true)))
+          .value_or("{}");
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&TabBridge::Answer, weak_factory_.GetWeakPtr(), id,
+                     base::Value()),
+      kEvaluationTimeout);
+  agent_->DispatchProtocolMessage(this, base::as_byte_span(message));
+}
+
+void TabBridge::Answer(int id, base::Value result) {
+  auto it = evaluations_.find(id);
+  if (it == evaluations_.end()) {
+    return;
+  }
+  base::OnceCallback<void(base::Value)> done = std::move(it->second);
+  evaluations_.erase(it);
+  std::move(done).Run(std::move(result));
+}
+
+void TabBridge::DispatchProtocolMessage(content::DevToolsAgentHost*,
+                                        base::span<const uint8_t> message) {
+  std::optional<base::DictValue> reply = base::JSONReader::ReadDict(
+      base::as_string_view(message), base::JSON_PARSE_RFC);
+  std::optional<int> id = reply ? reply->FindInt("id") : std::nullopt;
+  if (!id) {
+    return;
+  }
+  const std::string* value =
+      reply->FindStringByDottedPath("result.result.value");
+  Answer(*id, value ? base::Value(*value) : base::Value());
+}
+
+void TabBridge::AgentHostClosed(content::DevToolsAgentHost*) {
+  agent_ = nullptr;
+  std::map<int, base::OnceCallback<void(base::Value)>> pending =
+      std::move(evaluations_);
+  for (auto& [id, done] : pending) {
+    std::move(done).Run(base::Value());
+  }
 }
 
 void TabBridge::DidFinishNavigation(content::NavigationHandle* handle) {

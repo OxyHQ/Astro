@@ -15,6 +15,9 @@ mkdir -p "$dir/locales"
 
 npx -y pnpm@11.1.3 -C "$root/apps/webui" build >/dev/null
 cp -r "$root/apps/webui/dist" "$dir/astro-ui"
+PATH="$root/scripts/agent:$PATH" "$root/packages/astrocore/scripts/ubo.sh" >/dev/null
+mkdir -p "$dir/extensions"
+cp -r "$root/packages/astrocore/vendor/ubo/ext" "$dir/extensions/ublock"
 
 for file in chrome chrome_crashpad_handler chrome_100_percent.pak chrome_200_percent.pak resources.pak icudtl.dat \
   v8_context_snapshot.bin libEGL.so libGLESv2.so libvk_swiftshader.so libvulkan.so.1 vk_swiftshader_icd.json \
