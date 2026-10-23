@@ -18,6 +18,8 @@ source_set("astro") {
     "ac_downloads.h",
     "ac_engine.cc",
     "ac_engine.h",
+    "ac_engine_webui.cc",
+    "ac_engine_webui.h",
     "ac_extension_actions.cc",
     "ac_extension_actions.h",
     "ac_extensions.cc",

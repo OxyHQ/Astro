@@ -63,6 +63,7 @@ chromium chromium-ungoogled-disable-missing-key-warning.patch
 chromium chromium-ungoogled-mime-util-ymp.patch
 chromium chromium-astro-layer.patch
 chromium chromium-astro-ui-dir.patch
+chromium chromium-astro-engine-webui.patch
 
 layer engine/chromium
 layer engine/astrocore
