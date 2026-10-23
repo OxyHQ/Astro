@@ -12,6 +12,7 @@
 
 #include "base/base64.h"
 #include "base/containers/fixed_flat_map.h"
+#include "base/containers/fixed_flat_set.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -20,6 +21,7 @@
 #include "base/values.h"
 #include "chrome/browser/astro/public/ac_engine.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_ui.h"
@@ -36,38 +38,93 @@
 
 extern "C" {
 void ac_engine_set_event_sink(ac_engine_event_t sink, void* context);
-void ac_history_query(const char*, const char*, ac_engine_reply_t, void*);
-void ac_history_add(const char*, const char*, ac_engine_reply_t, void*);
-void ac_history_import(const char*, const char*, ac_engine_reply_t, void*);
-void ac_history_delete_urls(const char*, const char*, ac_engine_reply_t, void*);
-void ac_history_watch(const char*, const char*, ac_engine_reply_t, void*);
+void ac_autofill_addresses(const char*, const char*, ac_engine_reply_t, void*);
+void ac_autofill_card_number(const char*, const char*, ac_engine_reply_t, void*);
+void ac_autofill_cards(const char*, const char*, ac_engine_reply_t, void*);
+void ac_autofill_remove(const char*, const char*, ac_engine_reply_t, void*);
+void ac_autofill_save_address(const char*, const char*, ac_engine_reply_t, void*);
+void ac_autofill_save_card(const char*, const char*, ac_engine_reply_t, void*);
+void ac_battery_saver(const char*, const char*, ac_engine_reply_t, void*);
+void ac_bookmarks_apply(const char*, const char*, ac_engine_reply_t, void*);
+void ac_bookmarks_tree(const char*, const char*, ac_engine_reply_t, void*);
+void ac_bookmarks_watch(const char*, const char*, ac_engine_reply_t, void*);
+void ac_browsing_data_clear(const char*, const char*, ac_engine_reply_t, void*);
+void ac_cli_control(const char*, const char*, ac_engine_reply_t, void*);
+void ac_components_list(const char*, const char*, ac_engine_reply_t, void*);
+void ac_downloads_cancel(const char*, const char*, ac_engine_reply_t, void*);
+void ac_downloads_list(const char*, const char*, ac_engine_reply_t, void*);
+void ac_downloads_pause(const char*, const char*, ac_engine_reply_t, void*);
+void ac_downloads_resume(const char*, const char*, ac_engine_reply_t, void*);
+void ac_extensions_configure(const char*, const char*, ac_engine_reply_t, void*);
+void ac_extensions_list(const char*, const char*, ac_engine_reply_t, void*);
+void ac_extensions_reload(const char*, const char*, ac_engine_reply_t, void*);
+void ac_extensions_set_enabled(const char*, const char*, ac_engine_reply_t, void*);
+void ac_extensions_sync_apply(const char*, const char*, ac_engine_reply_t, void*);
+void ac_extensions_sync_state(const char*, const char*, ac_engine_reply_t, void*);
+void ac_extensions_uninstall(const char*, const char*, ac_engine_reply_t, void*);
+void ac_extensions_watch_actions(const char*, const char*, ac_engine_reply_t, void*);
+void ac_external_apps_allowances(const char*, const char*, ac_engine_reply_t, void*);
+void ac_external_apps_remove(const char*, const char*, ac_engine_reply_t, void*);
 void ac_favicons_get(const char*, const char*, ac_engine_reply_t, void*);
 void ac_favicons_set(const char*, const char*, ac_engine_reply_t, void*);
-void ac_bookmarks_tree(const char*, const char*, ac_engine_reply_t, void*);
-void ac_bookmarks_apply(const char*, const char*, ac_engine_reply_t, void*);
-void ac_bookmarks_watch(const char*, const char*, ac_engine_reply_t, void*);
-void ac_omnibox_opened(const char*, const char*, ac_engine_reply_t, void*);
-void ac_task_manager_open(const char*, const char*, ac_engine_reply_t, void*);
-void ac_battery_saver(const char*, const char*, ac_engine_reply_t, void*);
+void ac_history_add(const char*, const char*, ac_engine_reply_t, void*);
+void ac_history_delete_urls(const char*, const char*, ac_engine_reply_t, void*);
+void ac_history_import(const char*, const char*, ac_engine_reply_t, void*);
+void ac_history_query(const char*, const char*, ac_engine_reply_t, void*);
+void ac_history_watch(const char*, const char*, ac_engine_reply_t, void*);
 void ac_memory_trim(const char*, const char*, ac_engine_reply_t, void*);
-void ac_cli_control(const char*, const char*, ac_engine_reply_t, void*);
-void ac_extensions_watch_actions(const char*, const char*, ac_engine_reply_t, void*);
-void ac_extensions_sync_state(const char*, const char*, ac_engine_reply_t, void*);
-void ac_extensions_sync_apply(const char*, const char*, ac_engine_reply_t, void*);
+void ac_omnibox_opened(const char*, const char*, ac_engine_reply_t, void*);
+void ac_passwords_add(const char*, const char*, ac_engine_reply_t, void*);
+void ac_passwords_allow(const char*, const char*, ac_engine_reply_t, void*);
+void ac_passwords_exceptions(const char*, const char*, ac_engine_reply_t, void*);
+void ac_passwords_list(const char*, const char*, ac_engine_reply_t, void*);
+void ac_passwords_remove(const char*, const char*, ac_engine_reply_t, void*);
+void ac_passwords_reveal(const char*, const char*, ac_engine_reply_t, void*);
+void ac_passwords_unlock(const char*, const char*, ac_engine_reply_t, void*);
+void ac_passwords_update(const char*, const char*, ac_engine_reply_t, void*);
+void ac_search_engines_list(const char*, const char*, ac_engine_reply_t, void*);
+void ac_site_data_clear(const char*, const char*, ac_engine_reply_t, void*);
+void ac_site_settings_get(const char*, const char*, ac_engine_reply_t, void*);
+void ac_site_settings_origins(const char*, const char*, ac_engine_reply_t, void*);
+void ac_site_settings_reset(const char*, const char*, ac_engine_reply_t, void*);
+void ac_site_settings_set(const char*, const char*, ac_engine_reply_t, void*);
+void ac_task_manager_open(const char*, const char*, ac_engine_reply_t, void*);
+void ac_tasks_list(const char*, const char*, ac_engine_reply_t, void*);
+void ac_zoom_list(const char*, const char*, ac_engine_reply_t, void*);
+void ac_zoom_set(const char*, const char*, ac_engine_reply_t, void*);
 }
 
 namespace astro {
 namespace {
 
 constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_t>({
+    {"ac_autofill_addresses", &ac_autofill_addresses},
+    {"ac_autofill_card_number", &ac_autofill_card_number},
+    {"ac_autofill_cards", &ac_autofill_cards},
+    {"ac_autofill_remove", &ac_autofill_remove},
+    {"ac_autofill_save_address", &ac_autofill_save_address},
+    {"ac_autofill_save_card", &ac_autofill_save_card},
     {"ac_battery_saver", &ac_battery_saver},
     {"ac_bookmarks_apply", &ac_bookmarks_apply},
     {"ac_bookmarks_tree", &ac_bookmarks_tree},
     {"ac_bookmarks_watch", &ac_bookmarks_watch},
+    {"ac_browsing_data_clear", &ac_browsing_data_clear},
     {"ac_cli_control", &ac_cli_control},
+    {"ac_components_list", &ac_components_list},
+    {"ac_downloads_cancel", &ac_downloads_cancel},
+    {"ac_downloads_list", &ac_downloads_list},
+    {"ac_downloads_pause", &ac_downloads_pause},
+    {"ac_downloads_resume", &ac_downloads_resume},
+    {"ac_extensions_configure", &ac_extensions_configure},
+    {"ac_extensions_list", &ac_extensions_list},
+    {"ac_extensions_reload", &ac_extensions_reload},
+    {"ac_extensions_set_enabled", &ac_extensions_set_enabled},
     {"ac_extensions_sync_apply", &ac_extensions_sync_apply},
     {"ac_extensions_sync_state", &ac_extensions_sync_state},
+    {"ac_extensions_uninstall", &ac_extensions_uninstall},
     {"ac_extensions_watch_actions", &ac_extensions_watch_actions},
+    {"ac_external_apps_allowances", &ac_external_apps_allowances},
+    {"ac_external_apps_remove", &ac_external_apps_remove},
     {"ac_favicons_get", &ac_favicons_get},
     {"ac_favicons_set", &ac_favicons_set},
     {"ac_history_add", &ac_history_add},
@@ -77,10 +134,33 @@ constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_
     {"ac_history_watch", &ac_history_watch},
     {"ac_memory_trim", &ac_memory_trim},
     {"ac_omnibox_opened", &ac_omnibox_opened},
+    {"ac_passwords_add", &ac_passwords_add},
+    {"ac_passwords_allow", &ac_passwords_allow},
+    {"ac_passwords_exceptions", &ac_passwords_exceptions},
+    {"ac_passwords_list", &ac_passwords_list},
+    {"ac_passwords_remove", &ac_passwords_remove},
+    {"ac_passwords_reveal", &ac_passwords_reveal},
+    {"ac_passwords_unlock", &ac_passwords_unlock},
+    {"ac_passwords_update", &ac_passwords_update},
+    {"ac_search_engines_list", &ac_search_engines_list},
+    {"ac_site_data_clear", &ac_site_data_clear},
+    {"ac_site_settings_get", &ac_site_settings_get},
+    {"ac_site_settings_origins", &ac_site_settings_origins},
+    {"ac_site_settings_reset", &ac_site_settings_reset},
+    {"ac_site_settings_set", &ac_site_settings_set},
     {"ac_task_manager_open", &ac_task_manager_open},
+    {"ac_tasks_list", &ac_tasks_list},
+    {"ac_zoom_list", &ac_zoom_list},
+    {"ac_zoom_set", &ac_zoom_set},
 });
 
 constexpr char kEventListener[] = "astro-engine-event";
+
+constexpr auto kBoolPrefs = base::MakeFixedFlatSet<std::string_view>({
+    "autofill.credit_card_enabled",
+    "autofill.profile_enabled",
+    "credentials_enable_service",
+});
 
 constexpr size_t kMaxFetchBody = 8 * 1024 * 1024;
 
@@ -137,6 +217,9 @@ class EngineWebUIHandler : public content::WebUIMessageHandler {
     web_ui()->RegisterMessageCallback(
         "astroFetch", base::BindRepeating(&EngineWebUIHandler::HandleFetch,
                                           base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroPref", base::BindRepeating(&EngineWebUIHandler::HandlePref,
+                                         base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroEngineTopics",
         base::BindRepeating(&EngineWebUIHandler::HandleTopics,
@@ -261,6 +344,22 @@ class EngineWebUIHandler : public content::WebUIMessageHandler {
             .Set("headers", std::move(headers))
             .Set("body", body ? base::Value(base::Base64Encode(*body))
                               : base::Value()));
+  }
+
+  void HandlePref(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 3 || !args[1].is_string()) {
+      return;
+    }
+    const std::string& name = args[1].GetString();
+    if (!kBoolPrefs.contains(name) || profile_->IsOffTheRecord()) {
+      return ResolveJavascriptCallback(args[0], base::Value());
+    }
+    PrefService* prefs = profile_->GetPrefs();
+    if (args[2].is_bool()) {
+      prefs->SetBoolean(name, args[2].GetBool());
+    }
+    ResolveJavascriptCallback(args[0], base::Value(prefs->GetBoolean(name)));
   }
 
   void HandleTopics(const base::ListValue& args) {

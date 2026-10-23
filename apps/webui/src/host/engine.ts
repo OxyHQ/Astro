@@ -9,24 +9,56 @@ declare const chrome: { send(method: string, args?: unknown[]): void };
 
 let cr: Promise<Cr> | null = null;
 const CR = "chrome://resources/js/cr.js";
-const loadCr = () => (cr ??= import(/* @vite-ignore */ CR) as Promise<Cr>);
+export const loadCr = () => (cr ??= import(/* @vite-ignore */ CR) as Promise<Cr>);
 
-const DEFAULT_ENGINE_PROFILE = "";
+export const DEFAULT_ENGINE_PROFILE = "";
+
+export type EngineResult = Record<string, unknown> & { error?: string };
 
 export async function engineCall(name: string, profile: string, args: string | null): Promise<string> {
   if (profile !== DEFAULT_ENGINE_PROFILE) return JSON.stringify({ error: "profile not loaded" });
   return (await loadCr()).sendWithPromise<string>("astroEngineCall", name, args);
 }
 
+export async function call(name: string, profile: string, args?: object): Promise<EngineResult> {
+  const json = await engineCall(name, profile, args ? JSON.stringify(args) : null);
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as EngineResult) : { error: "bad reply from the engine" };
+  } catch {
+    return { error: "bad reply from the engine" };
+  }
+}
+
+export async function boolPref(name: string, profile: string, value?: boolean): Promise<boolean> {
+  if (profile !== DEFAULT_ENGINE_PROFILE) return true;
+  const result = await (await loadCr()).sendWithPromise<boolean | null>("astroPref", name, value ?? null);
+  return result ?? true;
+}
+
+let uiTopics: string[] = [];
+const hostListeners = new Map<string, Set<(payload: Record<string, unknown>) => void>>();
+
+const sendTopics = () => chrome.send("astroEngineTopics", [[...new Set([...uiTopics, ...hostListeners.keys()])]]);
+
 export function forwardEngineTopics(topics: string[]) {
-  chrome.send("astroEngineTopics", [topics]);
+  uiTopics = topics;
+  sendTopics();
+}
+
+export function onHostEngineEvent(topic: string, listener: (payload: Record<string, unknown>) => void) {
+  const listeners = hostListeners.get(topic) ?? new Set();
+  listeners.add(listener);
+  hostListeners.set(topic, listeners);
+  sendTopics();
 }
 
 export function startEngineEvents() {
   void loadCr().then((loaded) =>
     loaded.addWebUiListener("astro-engine-event", (topic, json) => {
-      const payload = JSON.parse(json) as Record<string, unknown>;
-      emitNativeEvent("AstroCEF", "onEngineEvent", { topic, payload: JSON.stringify({ ...payload, profile: DEFAULT_ENGINE_PROFILE }) });
+      const payload = { ...(JSON.parse(json) as Record<string, unknown>), profile: DEFAULT_ENGINE_PROFILE };
+      for (const listener of hostListeners.get(topic) ?? []) listener(payload);
+      if (uiTopics.includes(topic)) emitNativeEvent("AstroCEF", "onEngineEvent", { topic, payload: JSON.stringify(payload) });
     }),
   );
 }
