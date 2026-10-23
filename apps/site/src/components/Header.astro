@@ -1,0 +1,305 @@
+---
+import { Image } from "astro:assets";
+import icon from "../assets/app-icon.png";
+import DownloadButton from "./DownloadButton.astro";
+import { DMG, REPO, VERSION } from "../data/release";
+
+interface Props {
+  home?: string;
+}
+const { home = "" } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<div class="bar-sentinel" aria-hidden="true" data-bar-sentinel></div>
+<header class="bar" data-bar>
+  <div class="wrap bar-inner">
+    <a class="mark" href={`${home}#top`} aria-label={home ? "Astro home" : "Astro, back to top"}>
+      <Image src={icon} alt="" width={30} height={30} densities={[1, 2]} loading="eager" decoding="sync" fetchpriority="high" />
+      <span>astro</span>
+    </a>
+    <nav class="links" aria-label="Sections">
+      <a href={`${home}#features`}>Features</a>
+      <a href={`${home}#chromium`}>Chromium</a>
+      <a href={`${home}#game`}>Game</a>
+      <a href={`${home}#faq`}>FAQ</a>
+      <a href={`${base}/release-notes`}>Notes</a>
+      <a href={REPO} rel="noopener" data-track="github_clicked" data-track-link="source" data-track-location="header"
+        >GitHub</a
+      >
+    </nav>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu" data-menu-btn>Menu</button>
+    <a
+      class="bar-cta"
+      href={DMG}
+      data-download
+      data-track="download_clicked"
+      data-track-version={VERSION}
+      data-track-location="header"
+      ><span class="not-phone">Download</span><span class="phone-only" data-send-label aria-live="polite">Send to my Mac</span></a
+    >
+  </div>
+  <nav class="menu" id="menu" aria-label="Sections" data-menu hidden>
+    <div class="wrap">
+      <a href={`${home}#features`}>Features</a>
+      <a href={`${home}#chromium`}>Chromium</a>
+      <a href={`${home}#game`}>Game</a>
+      <a href={`${home}#faq`}>FAQ</a>
+      <a href={`${base}/release-notes`}>Release notes</a>
+      <a href={REPO} rel="noopener" data-track="github_clicked" data-track-link="source" data-track-location="menu"
+        >GitHub</a
+      >
+      <div class="menu-cta">
+        <DownloadButton location="menu" />
+        <p class="label menu-fine"><span class="phone-only">Mac only · </span>Apple Silicon · macOS 14+</p>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<style>
+  .bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--paper);
+    border-bottom: 1px solid transparent;
+    transition:
+      border-color 200ms,
+      background-color 300ms var(--ease-out);
+  }
+  .bar[data-scrolled] {
+    border-bottom-color: var(--rule);
+  }
+  .bar[data-snap],
+  .bar[data-snap] :is(.mark, .links a, .menu-btn, .bar-cta) {
+    transition: none;
+  }
+  .bar-sentinel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 9px;
+    pointer-events: none;
+    visibility: hidden;
+  }
+  .bar:not([data-scrolled]):has(~ main [data-meadow]) {
+    background-color: transparent;
+  }
+  .bar:not([data-scrolled]):has(~ main [data-meadow]) .links a {
+    color: var(--ink);
+  }
+  .bar:not([data-scrolled]):has(~ main [data-meadow]) :is(.mark, .links a, .menu-btn) {
+    text-shadow:
+      0 0 1px rgb(var(--halo-rgb, 243 236 223) / var(--halo, 0)),
+      0 0 1px rgb(var(--halo-rgb, 243 236 223) / var(--halo, 0)),
+      0 0 2px rgb(var(--halo-rgb, 243 236 223) / var(--halo, 0)),
+      0 0 3px rgb(var(--halo-rgb, 243 236 223) / calc(var(--halo, 0) * 0.7));
+  }
+  .bar:not([data-scrolled]):has(~ main [data-sky="dark"]) {
+    --halo-rgb: 18 16 26;
+  }
+  .bar:not([data-scrolled]):has(~ main [data-sky="dark"]) {
+    color: var(--night-ink);
+  }
+  .bar:not([data-scrolled]):has(~ main [data-sky="dark"]) .links a,
+  .bar:not([data-scrolled]):has(~ main [data-sky="dark"]) .menu-btn {
+    color: var(--night-ink);
+  }
+  .bar:not([data-scrolled]):has(~ main [data-sky="dark"]) .bar-cta {
+    box-shadow: 0 0 0 1px rgb(239 232 220 / 0.55);
+  }
+  .bar-inner {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    height: 60px;
+  }
+  .mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    font-family: var(--poster);
+    font-weight: 880;
+    font-stretch: 120%;
+    font-size: 1.3rem;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin-right: auto;
+    min-height: 44px;
+  }
+  .mark img {
+    width: 30px;
+    height: 30px;
+  }
+  .links {
+    display: flex;
+    gap: 26px;
+  }
+  .links a {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-stretch: 87.5%;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--ink-2);
+    transition: color 150ms;
+  }
+  .links a:hover {
+    color: var(--ink);
+  }
+  .bar-cta {
+    font-family: var(--poster);
+    font-weight: 740;
+    font-stretch: 85%;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 9px 14px 8px;
+    border-radius: 3px;
+    transition: background-color 150ms;
+  }
+  .bar-cta:hover {
+    background: var(--accent);
+  }
+  .mark,
+  .links a,
+  .menu-btn,
+  .bar-cta {
+    transition:
+      color 400ms var(--ease-out),
+      background-color 400ms var(--ease-out),
+      box-shadow 600ms var(--ease-out);
+  }
+
+  .menu-btn,
+  .menu {
+    display: none;
+  }
+  @media (max-width: 820px) {
+    .bar-inner {
+      gap: 8px;
+    }
+    .links {
+      display: none;
+    }
+    .menu-btn {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 0 12px;
+      border: 0;
+      background: none;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-stretch: 87.5%;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .bar-cta {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 0 16px;
+      white-space: nowrap;
+    }
+    :global(:root[data-device="phone"]) .menu-btn {
+      padding: 0 6px;
+    }
+    :global(:root[data-device="phone"]) .bar-cta {
+      padding: 0 12px;
+    }
+    .menu:not([hidden]) {
+      display: block;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--paper);
+      border-bottom: 1px solid var(--rule-strong);
+      padding: 4px 0 20px;
+      animation: drop 220ms var(--ease-out) both;
+    }
+    .menu a {
+      display: flex;
+      align-items: center;
+      min-height: 56px;
+      border-top: 1px solid var(--rule);
+      font-family: var(--poster);
+      font-weight: 900;
+      font-stretch: 75%;
+      text-transform: uppercase;
+      font-size: 2rem;
+      line-height: 1;
+      text-decoration: none;
+    }
+    .menu a:first-child {
+      border-top: 0;
+    }
+    .menu-cta {
+      border-top: 1px solid var(--rule);
+      padding-top: 20px;
+    }
+    .menu-cta :global(.btn) {
+      width: 100%;
+      justify-content: center;
+    }
+    .menu-fine {
+      margin-top: 10px;
+      color: var(--ink-3);
+    }
+  }
+  @media (max-width: 370px) {
+    :global(:root[data-device="phone"]) .bar-cta {
+      font-size: 0.84rem;
+    }
+  }
+  @keyframes drop {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+  }
+</style>
+
+<script>
+  const bar = document.querySelector<HTMLElement>("[data-bar]")!;
+  const sentinel = document.querySelector<HTMLElement>("[data-bar-sentinel]")!;
+  const meadow = document.querySelector<HTMLElement>("[data-meadow]");
+  let scrolled = false;
+  const applyScrolled = () => {
+    if (scrolled === bar.hasAttribute("data-scrolled") || meadow?.hasAttribute("data-brushing")) return;
+    bar.setAttribute("data-snap", "");
+    bar.toggleAttribute("data-scrolled", scrolled);
+    requestAnimationFrame(() => requestAnimationFrame(() => bar.removeAttribute("data-snap")));
+  };
+  new IntersectionObserver(([entry]) => {
+    scrolled = !entry.isIntersecting;
+    applyScrolled();
+  }).observe(sentinel);
+  addEventListener("touchend", applyScrolled, { passive: true });
+  addEventListener("touchcancel", applyScrolled, { passive: true });
+
+  const btn = bar.querySelector<HTMLButtonElement>("[data-menu-btn]")!;
+  const menu = bar.querySelector<HTMLElement>("[data-menu]")!;
+  const setOpen = (open: boolean) => {
+    menu.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+    btn.textContent = open ? "Close" : "Menu";
+  };
+  btn.addEventListener("click", () => setOpen(menu.hidden));
+  menu.addEventListener("click", (e) => {
+    if ((e.target as Element).closest("a")) setOpen(false);
+  });
+  addEventListener("keydown", (e) => e.key === "Escape" && !menu.hidden && (setOpen(false), btn.focus()));
+  matchMedia("(min-width: 821px)").addEventListener("change", (e) => e.matches && setOpen(false));
+</script>

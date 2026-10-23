@@ -1,0 +1,209 @@
+---
+import { Picture, getImage } from "astro:assets";
+import hills from "../assets/paint/hills.png";
+import sun from "../assets/paint/sun.png";
+import DownloadButton from "./DownloadButton.astro";
+import MacOnlyNote from "./MacOnlyNote.astro";
+import SendToMac from "./SendToMac.astro";
+import { DMG_SIZE, MIN_MACOS, VERSION } from "../data/release";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const hillsMask = await getImage({ src: hills, width: 320, format: "webp" });
+---
+
+<section class="closing paint edge dark" aria-labelledby="closing-title" data-shot="closing">
+  <div class="wrap closing-grid">
+    <div class="closing-copy">
+      <p class="label kicker">Same engine as Chrome</p>
+      <h2 class="poster" id="closing-title" data-reveal>Better<br />view.</h2>
+      <p class="lede" data-reveal style="--i: 1">
+        Make Astro your default. It’s {DMG_SIZE} and one drag into Applications.
+      </p>
+      <SendToMac location="closing" />
+      <div class="cta" data-reveal style="--i: 2">
+        <DownloadButton label={`Download ${VERSION}`} meta="DMG" location="closing" class="not-phone sun-btn" />
+        <DownloadButton label="Nightly" meta="Wet paint" location="closing" class="not-phone" nightly />
+        <a class="link" href={`${base}/release-notes`}>What’s new in {VERSION}</a>
+      </div>
+      <MacOnlyNote location="closing" />
+      <p class="label fine not-phone">{MIN_MACOS} or later · Apple Silicon · Notarized by Apple</p>
+      <p class="nightly not-phone" data-reveal style="--i: 3">
+        Nightly gets every fix the day it’s made, smudges and all. Back to stable any time in Settings › General.
+      </p>
+    </div>
+    <div class="closing-stage" data-tilt data-sunset aria-hidden="true">
+      <div class="sunset" data-depth="14,10">
+        <Picture
+          class="sun"
+          src={sun}
+          alt=""
+          formats={["avif"]}
+          fallbackFormat="webp"
+          widths={[160, 260]}
+          sizes="(max-width: 900px) 20vw, 160px"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+      <div class="hills-shade" style={`--shade: url("${hillsMask.src}")`}>
+        <Picture
+          class="hills"
+          src={hills}
+          alt=""
+          formats={["avif"]}
+          fallbackFormat="webp"
+          widths={[420, 640, hills.width]}
+          sizes="(max-width: 900px) 72vw, 600px"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+      <p class="caption label">Sun’s setting. Tabs aren’t.</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .closing {
+    --bg: var(--twilight);
+    --bg-top: #8a5f7f;
+    --wash: linear-gradient(180deg, #8a5f7f 0%, var(--twilight) 34%, var(--evening) 100%);
+    --dab: var(--sun);
+    padding: var(--section) 0 clamp(72px, 9vw, 140px);
+  }
+  .closing-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
+    align-items: end;
+  }
+  .closing-copy {
+    grid-column: 1 / span 7;
+  }
+  h2 {
+    font-size: clamp(3.6rem, 1rem + 14vw, 15rem);
+    line-height: 0.82;
+  }
+  .lede {
+    margin-top: 32px;
+    font-size: var(--t-lede);
+    max-width: 24em;
+  }
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px 28px;
+    margin-top: 32px;
+  }
+  .cta .link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .closing :global(.send-link) {
+    color: var(--night-ink);
+  }
+  .closing :global(.send-main) {
+    --btn-bg: var(--sun);
+    --btn-fg: var(--ink);
+    --btn-wipe: var(--sun-pale);
+  }
+  .fine {
+    margin-top: 22px;
+    color: var(--ink-3);
+  }
+  .nightly {
+    margin-top: 14px;
+    max-width: 30em;
+    font-size: var(--t-small);
+    color: var(--ink-2);
+  }
+  .closing-stage {
+    grid-column: 8 / -1;
+    position: relative;
+    aspect-ratio: 931 / 702;
+  }
+  .sunset {
+    position: absolute;
+    left: 42.86%;
+    top: 0;
+    width: 26.85%;
+  }
+  .sunset :global(.sun) {
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 0 40px rgb(255 160 80 / 0.55));
+  }
+  .hills-shade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+  .hills-shade::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgb(10 14 30 / 0.4);
+    -webkit-mask: var(--shade) 0 0 / 100% 100% no-repeat;
+    mask: var(--shade) 0 0 / 100% 100% no-repeat;
+    filter: blur(15px);
+    translate: 0 22px;
+  }
+  .closing-stage :global(.hills) {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: auto;
+    filter: brightness(0.82) saturate(0.85);
+  }
+  .caption {
+    position: absolute;
+    right: 0;
+    bottom: -34px;
+    margin: 0;
+    color: var(--ink-3);
+  }
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .sunset {
+        animation: set linear both;
+        animation-timeline: view();
+        animation-range: cover 20% cover 85%;
+      }
+      .closing-stage :global(.hills) {
+        animation: dim linear both;
+        animation-timeline: view();
+        animation-range: cover 20% cover 85%;
+      }
+    }
+  }
+  @keyframes set {
+    from {
+      transform: translateY(-6%);
+    }
+    to {
+      transform: translateY(150%);
+    }
+  }
+  @keyframes dim {
+    from {
+      filter: brightness(1) saturate(1) hue-rotate(0deg);
+    }
+    to {
+      filter: brightness(0.56) saturate(0.7) hue-rotate(10deg);
+    }
+  }
+  @media (max-width: 900px) {
+    h2 {
+      font-size: min(calc((100vw - 2 * var(--gutter)) / 2.5), 15rem);
+    }
+    .closing-copy,
+    .closing-stage {
+      grid-column: 1 / -1;
+    }
+    .closing-stage {
+      margin: 56px 10% 0;
+    }
+  }
+</style>

@@ -1,0 +1,22 @@
+{
+  "name": "astro-browser",
+  "private": true,
+  "packageManager": "pnpm@11.1.3",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@astro-browser/browser",
+    "macos": "pnpm --filter @astro-browser/browser macos",
+    "pods": "pnpm --filter @astro-browser/browser pods",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "shaders:check": "turbo run shaders:check",
+    "test": "turbo run test && node --no-warnings --test extras/raycast-astro/src/scripts.test.ts"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.3",
+    "typescript": "~5.9.2"
+  },
+  "license": "Apache-2.0"
+}

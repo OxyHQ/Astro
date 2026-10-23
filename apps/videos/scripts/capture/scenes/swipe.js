@@ -1,0 +1,31 @@
+const sw = globalThis.acSwipe.sidebar(W);
+const step = (steps) => Promise.resolve(sw.devSimulate(steps, { ignorePreference: true }));
+const ease = (x) => 0.5 - 0.5 * Math.cos(Math.PI * x);
+const pos = () => { const st8 = globalThis.expo.modules.AstroSwipe.pagerState(W); return st8 ? st8.position : null; };
+const swipe = (name, dir, n) => {
+  let from;
+  then(() => { from = pos(); return step([{ phase: "began", dx: 0 }]); });
+  const total = dir * WIDTH * 2.07;
+  Array.from({ length: n }, (_, i) => i).forEach((i) => {
+    const dx = total / n;
+    then(() => step([{ phase: "changed", dx, delayMs: 8 }]).then(() => snap(name, { p: (i + 1) / n, dir, pos: pos(), from })));
+  });
+  then(() => step([{ phase: "ended", dx: 0 }]));
+  [0, 1, 2, 3, 4, 5].forEach(() => then(() => sleep(60).then(() => snap(name + ":settle", { dir, pos: pos(), from }))));
+  then(() => sleep(2200).then(() => picShown(name)).then(() => sleep(600)).then(() => picShown(name)).then(() => snap(name + ":rest", { pageKey: Object.fromEntries(shownTabs().map((id) => [id, name + ":" + id])) })));
+};
+then(() => { unsplit(); return goProfile("side"); });
+then(() => { st().activate("t21"); return sleep(3000); });
+const dismiss = (id) => { const h = ac.webviews.get(id); return Promise.resolve(h && h.executeJavaScript("[...document.querySelectorAll('button,a')].filter(e=>/no thanks/i.test(e.textContent)).forEach(e=>e.click())")); };
+["work", "travel", "side", "weekend"].forEach((pid) => then(() => goProfile(pid).then(() => sleep(2500)).then(() => dismiss(activeTab())).then(() => sleep(800)).then(() => picShown("pre-" + pid)).then(() => snap("pre:" + pid, { pageKey: Object.fromEntries(shownTabs().map((id) => [id, "pre-" + pid + ":" + id])) }))));
+then(() => goProfile("default"));
+then(() => { st().activate("t1"); return sleep(2500).then(() => picShown("start")).then(() => snap("start", { pageKey: { t1: "start:t1" } })); });
+swipe("toWork", -1, 40);
+swipe("toTravel", -1, 40);
+swipe("toSide", -1, 40);
+swipe("toWeekend", -1, 40);
+swipe("backToSide", 1, 40);
+swipe("backToTravel", 1, 40);
+swipe("backToWork", 1, 40);
+swipe("backToPersonal", 1, 40);
+return finish();

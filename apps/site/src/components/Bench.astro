@@ -1,0 +1,629 @@
+---
+import { bench, display, BENCH_METHOD, type Figure } from "../data/bench";
+
+const rows = bench ? bench.groups.flatMap((g) => g.rows.map((r) => ({ ...r, group: g.id }))) : [];
+const lead = rows[0];
+const others = bench?.rivals ?? [];
+const named =
+  others.length > 1 ? `${others.slice(0, -1).join(", ")} and ${others[others.length - 1]}` : (others[0] ?? "");
+const countAttrs = (f: Figure) => ({
+  "data-count": "",
+  "data-value": String(f.value),
+  "data-decimals": String(f.decimals),
+  "data-from": String(f.from),
+});
+const tick = "M3 13.5c2.2 1.4 4.3 3.6 6.4 6.6C13 13 17.6 7.4 25 2.6";
+---
+
+{
+  bench && lead && (
+    <section class="bench paint edge" id="speed" aria-labelledby="bench-title" data-shot="bench" data-bench>
+      <div class="wrap">
+        <header class="bench-head">
+          <p class="label kicker">Measured before every release</p>
+          <h2 class="poster" id="bench-title" data-reveal>
+            Receipts.
+          </h2>
+          <p class="lede" data-reveal style="--i: 1">
+            Astro against {named}. Same Mac, same pages, every release. Medians, so one lucky run doesn’t count.
+          </p>
+          {bench.sample && <p class="label sample">Sample numbers. Not measured. Dev only.</p>}
+        </header>
+
+        <div class="board" data-bench-board>
+          <div class="tabs" role="tablist" aria-label="Benchmark" data-bench-tabs>
+            {bench.groups.map((g, i) => (
+              <button
+                type="button"
+                role="tab"
+                class="tab label"
+                id={`bench-tab-${g.id}`}
+                aria-selected={i === 0 ? "true" : "false"}
+                aria-controls="bench-panel"
+                tabindex={i === 0 ? 0 : -1}
+                data-bench-group={g.id}
+                data-bench-first={g.rows[0].id}
+                data-track="bench_row_switched"
+                data-track-group={g.id}
+                data-track-row={g.rows[0].id}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+
+          <div class="calls stack">
+            {rows.map((r, i) => (
+              <div class:list={["call", { on: i === 0, lost: r.call.lost }]} data-call={r.id}>
+                <p class="label call-kicker">{r.call.kicker}</p>
+                {r.call.figure ? (
+                  <p class="big poster">
+                    <span {...countAttrs(r.call.figure)}>{display(r.call.figure)}</span>
+                    {r.call.figure.suffix}
+                  </p>
+                ) : (
+                  <p class="big poster">Tie</p>
+                )}
+                <p class="call-line">{r.call.line}</p>
+                {r.call.second && (
+                  <p class="call-second">
+                    <span class="poster second-fig">
+                      <span {...countAttrs(r.call.second.figure)}>{display(r.call.second.figure)}</span>
+                      {r.call.second.figure.suffix}
+                    </span>
+                    <span>{r.call.second.line}</span>
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div class="subs stack" data-bench-subs>
+            {bench.groups.map((g, gi) => (
+              <div class:list={["sub-list", { on: gi === 0 }]} data-subs={g.id}>
+                {g.rows.length > 1 && (
+                  <div role="tablist" aria-label={`${g.label}: which case`}>
+                    {g.rows.map((r, i) => (
+                      <button
+                        type="button"
+                        role="tab"
+                        class="sub label"
+                        aria-selected={i === 0 ? "true" : "false"}
+                        aria-controls="bench-panel"
+                        tabindex={i === 0 ? 0 : -1}
+                        data-bench-row={r.id}
+                        data-track="bench_row_switched"
+                        data-track-group={g.id}
+                        data-track-row={r.id}
+                      >
+                        {r.sub}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div class="charts stack" id="bench-panel" role="tabpanel" aria-labelledby={`bench-tab-${bench.groups[0].id}`} data-bench-panel>
+            {rows.map((r, i) => (
+              <div class:list={["chart", { on: i === 0 }]} data-chart={r.id}>
+                <div class="visually-hidden">
+                <table>
+                  <caption>{r.caption}</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Browser</th>
+                      <th scope="col">Median</th>
+                      <th scope="col">Range</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {r.bars.map((b) => (
+                      <tr>
+                        <th scope="row">{b.isBest ? `${b.name} (best)` : b.name}</th>
+                        <td>{display(b.value)} {b.unit}</td>
+                        <td>{b.range ?? "none"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </div>
+                <div class="bars" aria-hidden="true">
+                  {r.bars.map((b, j) => (
+                    <div class:list={["b", { us: b.isAstro, best: b.isBest }]} style={`--i: ${j}; --w: ${b.share.toFixed(4)}`}>
+                      <span class="name">{b.name}</span>
+                      <span class="track">
+                        <span class="bar" />
+                        <span class="val label">
+                          <span {...countAttrs(b.value)}>{display(b.value)}</span>
+                          {b.unit === "%" ? "%" : ` ${b.unit}`}
+                        </span>
+                        {b.isBest && (
+                          <svg class="tick" viewBox="0 0 28 24" width="22" height="19">
+                            <path pathLength="1" d={tick} />
+                          </svg>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p class="label meta">{r.meta}</p>
+              </div>
+            ))}
+          </div>
+
+          <p class="note">
+            Measured on {bench.machine}, {bench.date}. {bench.versions}.{" "}
+            <a
+              class="link"
+              href={BENCH_METHOD}
+              rel="noopener"
+              data-track="github_clicked"
+              data-track-link="bench_method"
+              data-track-location="bench">How we measure</a
+            >
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .bench {
+    --bg: var(--golden);
+    --wash: linear-gradient(180deg, #f0c983 0%, var(--golden) 45%, var(--golden-late) 100%);
+    --bg-top: #f0c983;
+    --dab: var(--forest);
+    --ink-2: #3a372f;
+    --muted: #7a5c42;
+    --room: 8.6rem;
+    padding: var(--section) 0 clamp(72px, 9vw, 140px);
+  }
+  .bench-head {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
+    align-items: end;
+    margin-bottom: clamp(36px, 5vw, 72px);
+  }
+  .bench-head .kicker {
+    grid-column: 1 / -1;
+  }
+  h2 {
+    grid-column: 1 / span 6;
+    font-size: var(--t-h2);
+  }
+  .lede {
+    grid-column: 8 / -1;
+    color: var(--ink-2);
+    max-width: 26em;
+  }
+  .sample {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-top: 20px;
+    padding: 4px 10px;
+    color: var(--stamp);
+    border: 1.5px solid currentColor;
+    border-radius: 3px;
+    transform: rotate(-1.5deg);
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-template-areas:
+      "tabs tabs tabs tabs tabs tabs tabs tabs tabs tabs tabs tabs"
+      "call call call call subs subs subs subs subs subs subs subs"
+      "call call call call chart chart chart chart chart chart chart chart"
+      "call call call call note note note note note note note note";
+    column-gap: var(--gutter);
+    border-top: 2px solid var(--ink);
+    padding-top: clamp(20px, 2.4vw, 32px);
+  }
+  .stack {
+    display: grid;
+  }
+  .stack > * {
+    grid-area: 1 / 1;
+    visibility: hidden;
+  }
+  .stack > .on {
+    visibility: visible;
+  }
+
+  .tabs {
+    grid-area: tabs;
+    margin-bottom: clamp(20px, 2.6vw, 36px);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .tab {
+    min-height: 40px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1.5px var(--rule-strong);
+    cursor: pointer;
+    white-space: nowrap;
+    touch-action: manipulation;
+    transition:
+      background-color 160ms var(--ease-out),
+      color 160ms var(--ease-out);
+  }
+  .tab[aria-selected="true"] {
+    background-color: var(--ink);
+    color: var(--paper);
+    box-shadow: none;
+  }
+  @media (hover: hover) {
+    .tab[aria-selected="false"]:hover {
+      background-color: rgb(22 19 15 / 0.08);
+    }
+  }
+  html:not(.js) .tabs,
+  html:not(.js) .subs {
+    display: none;
+  }
+
+  .subs {
+    grid-area: subs;
+    min-height: 36px;
+  }
+  .sub-list > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 18px;
+  }
+  .sub {
+    min-height: 36px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink-2);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 0.5em;
+    text-decoration-color: transparent;
+    touch-action: manipulation;
+  }
+  .sub[aria-selected="true"] {
+    color: var(--ink);
+    text-decoration-color: var(--forest);
+    text-decoration-thickness: 3px;
+  }
+
+  .calls {
+    grid-area: call;
+    align-self: center;
+    padding-right: clamp(0px, 2vw, 24px);
+  }
+  .call-kicker {
+    color: var(--ink-2);
+  }
+  .big {
+    margin-top: 10px;
+    font-size: clamp(5rem, 1.6rem + 9vw, 11rem);
+    line-height: 0.8;
+    color: var(--forest-deep);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .lost .big {
+    color: var(--ink);
+  }
+  .call-line {
+    margin-top: 14px;
+    font-size: var(--t-lede);
+    line-height: 1.2;
+  }
+  .call-second {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: clamp(20px, 2.6vw, 36px);
+    padding-top: clamp(14px, 1.6vw, 20px);
+    border-top: 1px solid var(--rule);
+    color: var(--ink-2);
+  }
+  .second-fig {
+    font-size: clamp(2.4rem, 1.4rem + 2.4vw, 3.8rem);
+    line-height: 0.9;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .charts {
+    grid-area: chart;
+    margin-top: 10px;
+  }
+  .bars {
+    display: grid;
+    row-gap: clamp(10px, 1.2vw, 14px);
+  }
+  .b {
+    display: grid;
+    grid-template-columns: 7.2rem minmax(0, 1fr);
+    align-items: center;
+    column-gap: 16px;
+  }
+  .name {
+    font-family: var(--poster);
+    font-weight: 740;
+    font-stretch: 85%;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: 1.12rem;
+    line-height: 1.1;
+  }
+  .us .name {
+    color: var(--forest-deep);
+    font-weight: 900;
+  }
+  .track {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .bar {
+    flex: none;
+    width: max(8px, calc((100% - var(--room)) * var(--w)));
+    height: clamp(24px, 2.2vw, 32px);
+    border-radius: 6px 12px 8px 14px / 10px 6px 12px 8px;
+    background-color: var(--muted);
+    background-image: var(--impasto);
+    background-size: 260px;
+    background-blend-mode: soft-light;
+  }
+  .us .bar {
+    background-color: var(--forest);
+    box-shadow: 0 8px 18px -12px rgb(17 61 46 / 0.9);
+  }
+  .val {
+    text-transform: none;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .us .val {
+    font-weight: 640;
+  }
+  .tick {
+    flex: none;
+    overflow: visible;
+    margin-left: -2px;
+  }
+  .tick path {
+    fill: none;
+    stroke: var(--forest-deep);
+    stroke-width: 3.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .meta {
+    margin-top: 16px;
+    color: var(--ink-2);
+  }
+
+  .note {
+    grid-area: note;
+    margin-top: clamp(22px, 2.6vw, 32px);
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+    font-size: var(--t-small);
+    line-height: 1.45;
+    color: var(--ink-2);
+    max-width: 44em;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.js) .bench .bar {
+      transition: width 900ms var(--ease-out);
+      transition-delay: calc(var(--i) * 90ms);
+    }
+    :global(.js) .bench .val {
+      transition: opacity 300ms var(--ease-out) calc(var(--i) * 90ms + 120ms);
+    }
+    :global(.js) .bench .tick path {
+      stroke-dasharray: 1;
+      stroke-dashoffset: 0;
+      transition:
+        stroke-dashoffset 480ms cubic-bezier(0.5, 0, 0.2, 1) calc(var(--i) * 90ms + 700ms),
+        opacity 0ms linear calc(var(--i) * 90ms + 700ms);
+    }
+    :global(.js) .bench .chart:not(.grown) .bar {
+      width: 0;
+      transition: none;
+    }
+    :global(.js) .bench .chart:not(.grown) .val {
+      opacity: 0;
+      transition: none;
+    }
+    :global(.js) .bench .chart:not(.grown) .tick path {
+      stroke-dashoffset: 1;
+      opacity: 0;
+      transition: none;
+    }
+  }
+
+  @media (max-width: 960px) {
+    h2 {
+      grid-column: 1 / -1;
+    }
+    .lede {
+      grid-column: 1 / -1;
+      margin-top: 24px;
+    }
+    .board {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "tabs" "call" "subs" "chart" "note";
+    }
+    .calls {
+      margin: clamp(28px, 5vw, 40px) 0 8px;
+      padding-right: 0;
+    }
+  }
+  @media (max-width: 600px) {
+    .bench {
+      --room: 6.4rem;
+    }
+    .tabs {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      margin-inline: calc(-1 * var(--gutter));
+      padding-inline: var(--gutter);
+      scrollbar-width: none;
+      scroll-padding-inline: var(--gutter);
+    }
+    .tabs::-webkit-scrollbar {
+      display: none;
+    }
+    .tab {
+      min-height: 44px;
+      flex: none;
+    }
+    .sub {
+      min-height: 44px;
+    }
+    .big {
+      font-size: clamp(4.6rem, 2rem + 14vw, 7rem);
+    }
+    .b {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 6px;
+    }
+    .name {
+      font-size: 0.98rem;
+    }
+    .bar {
+      height: 22px;
+    }
+    .val {
+      font-size: 0.72rem;
+    }
+  }
+</style>
+
+<script>
+  const root = document.querySelector<HTMLElement>("[data-bench]");
+  if (root) {
+    const still = matchMedia("(prefers-reduced-motion: reduce)");
+    const groupTabs = [...root.querySelectorAll<HTMLButtonElement>("[data-bench-group]")];
+    const rowTabs = [...root.querySelectorAll<HTMLButtonElement>("[data-bench-row]")];
+    const panel = root.querySelector<HTMLElement>("[data-bench-panel]")!;
+    const groupOf = new Map<string, string>();
+    for (const t of rowTabs) groupOf.set(t.dataset.benchRow!, t.closest<HTMLElement>("[data-subs]")!.dataset.subs!);
+    for (const t of groupTabs) if (!groupOf.has(t.dataset.benchFirst!)) groupOf.set(t.dataset.benchFirst!, t.dataset.benchGroup!);
+    const chosen = new Map(groupTabs.map((t) => [t.dataset.benchGroup!, t.dataset.benchFirst!]));
+    let current = groupTabs[0]?.dataset.benchFirst ?? "";
+    let seen = false;
+    const frames = new Map<Element, number>();
+
+    const format = (v: number, decimals: number) =>
+      v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    const ease = (t: number) => 1 - Math.pow(1 - t, 4);
+
+    function count(el: HTMLElement, delay: number, duration: number) {
+      const to = Number(el.dataset.value);
+      const from = Number(el.dataset.from);
+      const decimals = Number(el.dataset.decimals);
+      cancelAnimationFrame(frames.get(el) ?? 0);
+      el.textContent = format(from, decimals);
+      const start = performance.now() + delay;
+      const step = (now: number) => {
+        const t = Math.min(1, Math.max(0, (now - start) / duration));
+        el.textContent = format(t >= 1 ? to : from + (to - from) * ease(t), decimals);
+        if (t < 1) frames.set(el, requestAnimationFrame(step));
+      };
+      frames.set(el, requestAnimationFrame(step));
+    }
+
+    function grow(id: string) {
+      const chart = root!.querySelector<HTMLElement>(`[data-chart="${id}"]`);
+      const call = root!.querySelector<HTMLElement>(`[data-call="${id}"]`);
+      if (!chart || !call) return;
+      if (still.matches) {
+        chart.classList.add("grown");
+        return;
+      }
+      chart.classList.remove("grown");
+      void chart.offsetWidth;
+      chart.classList.add("grown");
+      chart.querySelectorAll<HTMLElement>(".b").forEach((b, i) => {
+        const value = b.querySelector<HTMLElement>("[data-count]");
+        if (value) count(value, i * 90, 900);
+      });
+      call.querySelectorAll<HTMLElement>("[data-count]").forEach((el, i) => count(el, 120 + i * 200, 1000));
+    }
+
+    function select(rowId: string, focus?: HTMLButtonElement) {
+      const group = groupOf.get(rowId);
+      if (!group) return;
+      current = rowId;
+      chosen.set(group, rowId);
+      for (const el of root!.querySelectorAll<HTMLElement>("[data-call], [data-chart]"))
+        el.classList.toggle("on", (el.dataset.call ?? el.dataset.chart) === rowId);
+      for (const el of root!.querySelectorAll<HTMLElement>("[data-subs]")) el.classList.toggle("on", el.dataset.subs === group);
+      for (const t of groupTabs) {
+        const on = t.dataset.benchGroup === group;
+        t.setAttribute("aria-selected", String(on));
+        t.tabIndex = on ? 0 : -1;
+        t.dataset.trackRow = chosen.get(t.dataset.benchGroup!);
+      }
+      for (const t of rowTabs) {
+        const on = t.dataset.benchRow === chosen.get(groupOf.get(t.dataset.benchRow!)!);
+        t.setAttribute("aria-selected", String(on));
+        t.tabIndex = on ? 0 : -1;
+      }
+      panel.setAttribute("aria-labelledby", `bench-tab-${group}`);
+      focus?.focus();
+      if (seen) grow(rowId);
+    }
+
+    function keyed(tabs: HTMLButtonElement[], pick: (t: HTMLButtonElement) => string) {
+      for (const t of tabs) {
+        t.addEventListener("click", () => {
+          if (pick(t) !== current) select(pick(t));
+        });
+        t.addEventListener("keydown", (e) => {
+          const list = tabs.filter((x) => x.parentElement === t.parentElement);
+          const i = list.indexOf(t);
+          const next =
+            e.key === "ArrowRight" ? list[(i + 1) % list.length]
+            : e.key === "ArrowLeft" ? list[(i - 1 + list.length) % list.length]
+            : e.key === "Home" ? list[0]
+            : e.key === "End" ? list[list.length - 1]
+            : null;
+          if (!next) return;
+          e.preventDefault();
+          select(pick(next), next);
+          next.scrollIntoView({ block: "nearest", inline: "nearest" });
+        });
+      }
+    }
+    keyed(groupTabs, (t) => chosen.get(t.dataset.benchGroup!)!);
+    keyed(rowTabs, (t) => t.dataset.benchRow!);
+
+    const board = root.querySelector<HTMLElement>("[data-bench-board]")!;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        seen = true;
+        grow(current);
+      },
+      { threshold: 0.3 },
+    );
+    io.observe(board);
+  }
+</script>

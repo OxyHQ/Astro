@@ -1,0 +1,93 @@
+{
+ "revision": 1,
+ "ceilings": {
+  "command bar open (⌘T)": {
+   "layoutPasses": 58,
+   "mountBatches": 9,
+   "uiBlocks": 245,
+   "viewUpdates": 5,
+   "commits": 7,
+   "hostUpdates": 90
+  },
+  "command bar close (Esc)": {
+   "layoutPasses": 109,
+   "mountBatches": 0,
+   "uiBlocks": 0,
+   "viewUpdates": 0,
+   "commits": 0,
+   "hostUpdates": 0
+  },
+  "command bar open (⌘L)": {
+   "layoutPasses": 35,
+   "mountBatches": 3,
+   "uiBlocks": 55,
+   "viewUpdates": 0,
+   "commits": 4,
+   "hostUpdates": 27
+  },
+  "command bar close (Esc, from ⌘L)": {
+   "layoutPasses": 46,
+   "mountBatches": 1,
+   "uiBlocks": 2,
+   "viewUpdates": 0,
+   "commits": 1,
+   "hostUpdates": 0
+  },
+  "tab switch": {
+   "layoutPasses": 29,
+   "mountBatches": 16,
+   "uiBlocks": 151,
+   "viewUpdates": 32,
+   "commits": 11,
+   "hostUpdates": 202
+  },
+  "sidebar collapse": {
+   "layoutPasses": 46,
+   "mountBatches": 11,
+   "uiBlocks": 4584,
+   "viewUpdates": 21,
+   "commits": 14,
+   "hostUpdates": 241
+  },
+  "sidebar expand": {
+   "layoutPasses": 54,
+   "mountBatches": 11,
+   "uiBlocks": 4584,
+   "viewUpdates": 21,
+   "commits": 14,
+   "hostUpdates": 241
+  },
+  "profile swipe (next profile)": {
+   "layoutPasses": 41,
+   "mountBatches": 17,
+   "uiBlocks": 731,
+   "viewUpdates": 263,
+   "commits": 16,
+   "hostUpdates": 2277
+  },
+  "profile swipe (previous profile)": {
+   "layoutPasses": 24,
+   "mountBatches": 4,
+   "uiBlocks": 366,
+   "viewUpdates": 257,
+   "commits": 4,
+   "hostUpdates": 2227
+  },
+  "sidebar scroll (200 tabs, flick down and back)": {
+   "layoutPasses": 31,
+   "mountBatches": 0,
+   "uiBlocks": 0,
+   "viewUpdates": 0,
+   "commits": 0,
+   "hostUpdates": 0
+  },
+  "sidebar hover (20 rows, 60 ms apart)": {
+   "layoutPasses": 53,
+   "mountBatches": 14,
+   "uiBlocks": 56,
+   "viewUpdates": 14,
+   "commits": 14,
+   "hostUpdates": 168
+  }
+ }
+}

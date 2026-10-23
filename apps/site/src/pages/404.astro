@@ -1,0 +1,75 @@
+---
+import { Picture } from "astro:assets";
+import Base from "../layouts/Base.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import hills from "../assets/paint/hills.png";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<Base title="Not found · Astro" description="There’s no page at this address." noindex>
+  <Header home={`${base}/`} />
+  <main class="missing">
+    <div class="wrap missing-grid">
+      <div>
+        <p class="label kicker">Error 404</p>
+        <h1 class="poster">Nothing out<br />here.</h1>
+        <p class="body">Just an empty field where a page should be. Even the sun clocked off.</p>
+        <p class="back"><a class="link" href={`${base}/`}>Back to the front page</a></p>
+      </div>
+      <Picture
+        class="field"
+        src={hills}
+        alt=""
+        formats={["avif"]}
+        fallbackFormat="webp"
+        widths={[420, 640, hills.width]}
+        sizes="(max-width: 800px) 80vw, 520px"
+        loading="eager"
+      />
+    </div>
+  </main>
+  <Footer />
+</Base>
+
+<style>
+  .missing {
+    padding: clamp(120px, 16vw, 200px) 0 var(--section);
+  }
+  .missing-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr);
+    gap: var(--gutter);
+    align-items: end;
+  }
+  h1 {
+    margin: 0 0 28px;
+    font-size: var(--t-h2);
+  }
+  .body {
+    max-width: 24em;
+    color: var(--ink-2);
+  }
+  .back {
+    margin-top: 20px;
+  }
+  .back a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .missing :global(.field) {
+    width: 100%;
+    height: auto;
+    filter: saturate(0.8) drop-shadow(0 20px 26px rgb(32 63 50 / 0.18));
+  }
+  @media (max-width: 800px) {
+    .missing-grid {
+      grid-template-columns: 1fr;
+    }
+    .missing :global(.field) {
+      width: 80%;
+      margin: 32px auto 0;
+    }
+  }
+</style>

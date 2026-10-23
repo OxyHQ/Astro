@@ -1,0 +1,18 @@
+{
+  "name": "@astro-browser/import",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Import bookmarks, history, tabs, passwords and Arc spaces from other browsers",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "swift test --scratch-path \"${TMPDIR:-/tmp}/astro-import-swiftpm\"",
+    "fixtures": "python3 fixtures/generate.py"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react-native": "*"
+  }
+}

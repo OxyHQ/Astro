@@ -1,0 +1,16 @@
+module astrocore.mojom;
+
+interface ACRendererConfig {
+  SetPageScript(string script);
+};
+
+interface ACPageHost {
+  Post(string kind, string json);
+};
+
+interface ACPage {
+  CallPage(string kind, string json);
+  Execute(string code, bool user_gesture);
+  Evaluate(string code, bool user_gesture) => (string? json);
+  SetPageColor(string color);
+};

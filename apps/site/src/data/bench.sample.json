@@ -1,0 +1,163 @@
+{
+  "date": "2000-01-01",
+  "machine": "SAMPLE DATA, NOT MEASURED",
+  "method": "Fake round numbers for laying out the section. Never shipped.",
+  "rows": [
+    {
+      "id": "launch",
+      "label": "Launch",
+      "unit": "ms",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 300, "min": 280, "max": 320, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 900, "min": 850, "max": 950, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 500, "min": 480, "max": 520, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 600, "min": 580, "max": 620, "n": 10 }
+      ]
+    },
+    {
+      "id": "new-tab",
+      "label": "New tab",
+      "unit": "ms",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 50, "min": 40, "max": 60, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 200, "min": 180, "max": 220, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 60, "min": 50, "max": 70, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 70, "min": 60, "max": 80, "n": 10 }
+      ]
+    },
+    {
+      "id": "new-window",
+      "label": "New window",
+      "unit": "ms",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 100, "min": 90, "max": 110, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 400, "min": 380, "max": 420, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 200, "min": 190, "max": 210, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 200, "min": 190, "max": 210, "n": 10 }
+      ]
+    },
+    {
+      "id": "tab-switch",
+      "label": "Tab switch",
+      "unit": "ms",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 10, "min": 9, "max": 11, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 30, "min": 28, "max": 32, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 20, "min": 18, "max": 22, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 20, "min": 18, "max": 22, "n": 10 }
+      ]
+    },
+    {
+      "id": "memory-1",
+      "label": "Memory, 1 tab",
+      "unit": "MB",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 200, "min": 190, "max": 210, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 500, "min": 480, "max": 520, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 300, "min": 290, "max": 310, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 400, "min": 390, "max": 410, "n": 10 }
+      ]
+    },
+    {
+      "id": "memory-10",
+      "label": "Memory, 10 tabs",
+      "unit": "MB",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 1000, "min": 950, "max": 1050, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 2000, "min": 1900, "max": 2100, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 1200, "min": 1150, "max": 1250, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 1500, "min": 1450, "max": 1550, "n": 10 }
+      ]
+    },
+    {
+      "id": "memory-20",
+      "label": "Memory, 20 tabs",
+      "unit": "MB",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 2000, "min": 1900, "max": 2100, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 4000, "min": 3800, "max": 4200, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 2400, "min": 2300, "max": 2500, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 3000, "min": 2900, "max": 3100, "n": 10 }
+      ]
+    },
+    {
+      "id": "memory-closed",
+      "label": "Memory after closing",
+      "unit": "MB",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 300, "min": 290, "max": 310, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 900, "min": 850, "max": 950, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 400, "min": 390, "max": 410, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 500, "min": 490, "max": 510, "n": 10 }
+      ]
+    },
+    {
+      "id": "cpu-1",
+      "label": "Idle CPU, 1 tab",
+      "unit": "%",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 0.1, "min": 0.1, "max": 0.2, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 1, "min": 0.9, "max": 1.1, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 0.2, "min": 0.1, "max": 0.3, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 0.3, "min": 0.2, "max": 0.4, "n": 10 }
+      ]
+    },
+    {
+      "id": "cpu-20",
+      "label": "Idle CPU, 20 tabs",
+      "unit": "%",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 1, "min": 0.9, "max": 1.1, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 5, "min": 4.8, "max": 5.2, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 2, "min": 1.9, "max": 2.1, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 3, "min": 2.9, "max": 3.1, "n": 10 }
+      ]
+    },
+    {
+      "id": "wakeups-1",
+      "label": "Wakeups, 1 tab",
+      "unit": "/s",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 10, "min": 9, "max": 11, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 100, "min": 90, "max": 110, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 20, "min": 18, "max": 22, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 30, "min": 28, "max": 32, "n": 10 }
+      ]
+    },
+    {
+      "id": "wakeups-20",
+      "label": "Wakeups, 20 tabs",
+      "unit": "/s",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 50, "min": 45, "max": 55, "n": 10 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 300, "min": 290, "max": 310, "n": 10 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 100, "min": 95, "max": 105, "n": 10 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 150, "min": 145, "max": 155, "n": 10 }
+      ]
+    },
+    {
+      "id": "download",
+      "label": "Download size",
+      "unit": "MB",
+      "lowerIsBetter": true,
+      "browsers": [
+        { "name": "Astro", "version": "0.0.0", "chromium": "000", "median": 200, "min": 200, "max": 200, "n": 1 },
+        { "name": "Dia", "version": "0.0.0", "chromium": "000", "median": 400, "min": 400, "max": 400, "n": 1 },
+        { "name": "Helium", "version": "0.0.0", "chromium": "000", "median": 150, "min": 150, "max": 150, "n": 1 },
+        { "name": "Chrome", "version": "0.0.0", "chromium": "000", "median": 300, "min": 300, "max": 300, "n": 1 }
+      ]
+    }
+  ]
+}

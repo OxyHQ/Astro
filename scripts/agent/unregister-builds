@@ -1,0 +1,9 @@
+#!/bin/bash
+lsr=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+"$lsr" -dump 2>/dev/null | sed -n 's/^path: *\(.*\/Astro[^/]*\.app\) (0x.*/\1/p' | grep -v '/Contents/' | sort -u |
+  while IFS= read -r app; do
+    case "$app" in
+      /Applications/Astro.app | */dist/*-rc/export/Astro.app) ;;
+      *) "$lsr" -u "$app" 2>/dev/null ;;
+    esac
+  done

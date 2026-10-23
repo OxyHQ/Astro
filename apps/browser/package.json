@@ -1,0 +1,39 @@
+{
+  "name": "@astro-browser/browser",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "dev": "react-native start",
+    "macos": "xcodebuild -workspace macos/Astro.xcworkspace -scheme Astro-macOS -derivedDataPath build -destination 'platform=macOS,arch=arm64' -quiet -configuration Debug && open -n --env ASTRO_DATA_DIR=\"${ASTRO_DATA_DIR:-$HOME/Library/Application Support/Astro Dev}\" build/Build/Products/Debug/Astro.app",
+    "pods": "cd macos && pod install",
+    "build": "xcodebuild -workspace macos/Astro.xcworkspace -scheme Astro-macOS -derivedDataPath build -destination 'platform=macOS,arch=arm64' -quiet -configuration Release",
+    "typecheck": "tsc -p .",
+    "test": "node --no-warnings --import ./src/test-loader.mjs --test \"src/**/*.test.mjs\""
+  },
+  "dependencies": {
+    "@astro-browser/core": "workspace:*",
+    "@astro-browser/shaders": "workspace:*",
+    "@astro-browser/shell": "workspace:*",
+    "@astro-browser/astrocore": "workspace:*",
+    "@astro-browser/import": "workspace:*",
+    "@astro-browser/sync": "workspace:*",
+    "expo": "~54.0.37",
+    "expo-modules-core": "~3.0.29",
+    "react": "19.1.4",
+    "react-native": "0.81.6",
+    "react-native-macos": "0.81.9",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@react-native-community/cli": "^20.0.0",
+    "@react-native-community/cli-platform-apple": "^20.0.0",
+    "@react-native-community/cli-platform-ios": "^20.0.0",
+    "@react-native/babel-preset": "0.81.6",
+    "@react-native/metro-config": "0.81.6",
+    "@types/react": "~19.1.10",
+    "babel-preset-expo": "~54.0.0",
+    "typescript": "~5.9.2"
+  }
+}

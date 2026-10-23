@@ -1,0 +1,30 @@
+{
+  "platforms": [
+    "apple"
+  ],
+  "apple": {
+    "modules": [
+      "ShellModule",
+      "SymbolModule",
+      "FadeLabelModule",
+      "ActivitySpinnerModule",
+      "ContextMenuAreaModule",
+      "OutsidePressAreaModule",
+      "SurfaceModule",
+      "VisualEffectModule",
+      "GlassEffectModule",
+      "SystemModule",
+      "FileDragModule",
+      "FileDropModule",
+      "AppModule",
+      "CalendarModule",
+      "KeychainModule",
+      "DockSelectionModule",
+      "InlineCompletionModule",
+      "TranslateModule",
+      "WindowProfileModule",
+      "CliModule",
+      "UserScriptsModule"
+    ]
+  }
+}

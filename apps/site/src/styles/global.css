@@ -1,0 +1,376 @@
+:root {
+  color-scheme: light;
+
+  --paper: #f1ece2;
+  --paper-deep: #e6dfd1;
+  --ink: #16130f;
+  --ink-2: #4d524a;
+  --ink-3: #676b60;
+  --rule: rgb(22 19 15 / 0.16);
+  --rule-strong: rgb(22 19 15 / 0.85);
+  --accent: #1e5141;
+  --accent-deep: #113d2e;
+  --stamp: #b4532a;
+  --night: #121a2e;
+  --night-2: #1b2a50;
+  --night-ink: #efe8dc;
+  --night-ink-2: #b9b6c4;
+  --night-rule: rgb(241 235 220 / 0.16);
+
+  --sun: #fbb927;
+  --sun-pale: #fbcf5b;
+  --sun-deep: #f4a401;
+  --sage: #a6b96c;
+  --sage-deep: #688543;
+  --forest: #1e5141;
+  --forest-deep: #113d2e;
+
+  --morning: #f1ece2;
+  --noon: #f3e7cf;
+  --golden: #f2d39b;
+  --golden-late: #eab47f;
+  --dusk: #d9998b;
+  --dusk-late: #b97b8a;
+  --twilight: #5d5281;
+  --evening: #2c416c;
+
+  --impasto: url("../assets/paint/impasto.webp");
+  --impasto-soft: url("../assets/paint/impasto-soft.webp");
+  --grain: url("../assets/paint/grain.webp");
+  --edge-a: url("../assets/paint/edge-a.svg");
+  --edge-b: url("../assets/paint/edge-b.svg");
+
+  --sans: "Mona Sans Variable", -apple-system, "Helvetica Neue", sans-serif;
+  --poster: "Mona Sans Variable", "Arial Narrow", sans-serif;
+  --mono: "Martian Mono Variable", ui-monospace, "SF Mono", monospace;
+
+  --t-mega: clamp(3.4rem, 1.2rem + 9.4vw, 11.5rem);
+  --t-h2: clamp(2.6rem, 1.3rem + 5.4vw, 7rem);
+  --t-h3: clamp(1.7rem, 1.25rem + 1.5vw, 2.6rem);
+  --t-lede: clamp(1.14rem, 1.02rem + 0.48vw, 1.42rem);
+  --t-body: clamp(1rem, 0.96rem + 0.16vw, 1.1rem);
+  --t-small: 0.9rem;
+  --t-label: 0.69rem;
+
+  --gutter: clamp(16px, 3.2vw, 40px);
+  --max: 1440px;
+  --section: clamp(96px, 7rem + 6vw, 220px);
+  --edge: clamp(28px, 3.4vw, 52px);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-padding-top: 72px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  margin: 0;
+  background-color: var(--paper);
+  background-image: var(--grain);
+  background-size: 256px;
+  background-blend-mode: soft-light;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--t-body);
+  font-weight: 420;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+
+img,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+img,
+video {
+  height: auto;
+}
+
+a {
+  color: inherit;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  text-wrap: balance;
+}
+
+::selection {
+  background: var(--sun);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.wrap {
+  width: 100%;
+  max-width: var(--max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.paint {
+  position: relative;
+  background-color: var(--bg, var(--paper));
+  background-image: var(--impasto-soft), var(--wash, none);
+  background-size: 640px, 100% 100%;
+  background-blend-mode: soft-light, normal;
+}
+
+.paint.edge::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% - 1px);
+  height: var(--edge);
+  background-color: var(--bg-top, var(--bg, var(--paper)));
+  background-image: var(--impasto-soft);
+  background-size: 640px;
+  background-position: 0 var(--edge);
+  background-blend-mode: soft-light;
+  -webkit-mask: var(--edge-mask, var(--edge-a)) 0 100% / 1200px 100% repeat-x;
+  mask: var(--edge-mask, var(--edge-a)) 0 100% / 1200px 100% repeat-x;
+  pointer-events: none;
+}
+
+.paint.edge-b::before {
+  --edge-mask: var(--edge-b);
+}
+
+.dark {
+  color: var(--night-ink);
+  --ink-2: var(--night-ink-2);
+  --ink-3: color-mix(in srgb, var(--night-ink-2) 80%, transparent);
+  --rule: var(--night-rule);
+  --rule-strong: rgb(241 235 220 / 0.7);
+}
+
+.dark ::selection {
+  background: var(--sun);
+  color: var(--ink);
+}
+
+.poster {
+  font-family: var(--poster);
+  font-weight: 900;
+  font-stretch: 75%;
+  text-transform: uppercase;
+  line-height: 0.86;
+  letter-spacing: -0.01em;
+  font-kerning: normal;
+}
+
+.label {
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  font-stretch: 87.5%;
+  font-weight: 460;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.5;
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-2);
+  margin-bottom: 20px;
+}
+
+.kicker::before {
+  content: "";
+  width: 18px;
+  height: 12px;
+  border-radius: 55% 45% 60% 40% / 60% 50% 50% 40%;
+  background-color: var(--dab, var(--sun));
+  background-image: var(--impasto);
+  background-size: 120px;
+  background-blend-mode: soft-light;
+  transform: rotate(-8deg);
+  flex: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+:root:not([data-device="phone"]) .phone-only,
+:root:not([data-device="other"]) .other-only,
+:root[data-device="phone"] .not-phone {
+  display: none !important;
+}
+
+.btn {
+  --h: 56px;
+  --btn-bg: var(--ink);
+  --btn-fg: var(--paper);
+  --btn-wipe: var(--forest);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  height: var(--h);
+  padding: 0 22px 0 20px;
+  border-radius: 4px;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-family: var(--poster);
+  font-weight: 740;
+  font-stretch: 85%;
+  font-size: 1.04rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color 200ms var(--ease-out),
+    transform 160ms var(--ease-out);
+  touch-action: manipulation;
+}
+
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: -2px -24px;
+  z-index: -1;
+  background-color: var(--btn-wipe);
+  background-image: var(--impasto);
+  background-size: 220px;
+  background-blend-mode: soft-light;
+  -webkit-mask: var(--edge-a) 0 0 / 600px 100% repeat-x;
+  mask: var(--edge-a) 0 0 / 600px 100% repeat-x;
+  transform: translateX(-104%) skewX(-12deg);
+  transition: transform 420ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .btn:hover::before {
+    transform: translateX(0) skewX(-12deg);
+  }
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.btn svg {
+  flex: none;
+}
+
+.btn .btn-meta {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 450;
+  font-stretch: 87.5%;
+  letter-spacing: 0.04em;
+  opacity: 0.66;
+  padding-left: 14px;
+  border-left: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn.sun-btn {
+  --btn-bg: var(--sun);
+  --btn-fg: var(--ink);
+  --btn-wipe: var(--sun-pale);
+  background-image: var(--impasto);
+  background-size: 220px;
+  background-blend-mode: soft-light;
+}
+
+.btn.nightly-btn {
+  --btn-bg: transparent;
+  --btn-fg: currentColor;
+  --btn-wipe: color-mix(in srgb, currentColor 14%, transparent);
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+@media (max-width: 400px) {
+  .btn .btn-meta {
+    display: none;
+  }
+}
+
+.link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  transition: text-decoration-color 160ms;
+}
+
+.link:hover {
+  text-decoration-color: currentColor;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .js [data-reveal] {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity 700ms var(--ease-out),
+      transform 900ms var(--ease-out);
+    transition-delay: calc(var(--i, 0) * 70ms);
+  }
+
+  .js [data-reveal].in {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .leaning [data-depth] {
+    will-change: transform;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn::before {
+    transition: none;
+  }
+}

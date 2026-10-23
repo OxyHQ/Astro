@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   version="1.1"
+   id="svg1"
+   width="512"
+   height="512"
+   viewBox="0 0 512 512"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+  <defs
+     id="defs1">
+    <linearGradient
+       id="swatch32">
+      <stop
+         style="stop-color:#b89f33;stop-opacity:1;"
+         offset="0"
+         id="stop33" />
+    </linearGradient>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath94">
+      <path
+         d="M 256,-5e-7 C 51.2,-5e-7 -5e-7,51.2 -5e-7,256 -5e-7,460.8 51.2,512 256,512 460.8,512 512,460.8 512,256 512,51.2 460.8,-5e-7 256,-5e-7 Z"
+         sketch:type="MSShapeGroup"
+         id="path94"
+         style="stroke-width:5.68889" />
+    </clipPath>
+  </defs>
+  <g
+     id="g1">
+    <g
+       id="g94"
+       clip-path="url(#clipPath94)"
+       style="fill:#1a1a1a">
+      <path
+         id="rect26"
+         clip-path="none"
+         mask="none"
+         style="fill:#1a1a1a;fill-opacity:1;stroke-width:1.73989"
+         d="M 0,0 V 459.77539 C 80.538693,320.16249 175.35745,178.81039 310.71289,81.751953 355.80311,49.419389 413.22866,22.006667 464.57812,0 Z M 512,33.009766 C 499.14557,39.966667 485.17709,51.49858 480.5625,55.527344 452.11243,80.365707 427.96133,108.86585 405.16016,138.45117 335.47815,228.86586 285.96818,335.41005 259.10742,444.13867 253.47403,466.94178 247.84115,489.2303 244.44727,512 H 512 Z" />
+    </g>
+  </g>
+</svg>

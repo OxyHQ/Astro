@@ -1,0 +1,47 @@
+<clickhouse>
+    <profiles>
+        <reader>
+            <readonly>2</readonly>
+            <max_execution_time>180</max_execution_time>
+            <max_memory_usage>2000000000</max_memory_usage>
+            <max_result_rows>1000000</max_result_rows>
+            <result_overflow_mode>break</result_overflow_mode>
+        </reader>
+    </profiles>
+
+    <users>
+        <default>
+            <password remove="1"/>
+            <password_sha256_hex remove="1"/>
+            <password from_env="CLICKHOUSE_ADMIN_PASSWORD"/>
+            <networks replace="replace">
+                <ip>::1</ip>
+                <ip>127.0.0.1</ip>
+            </networks>
+        </default>
+        <otel>
+            <password from_env="CLICKHOUSE_OTEL_PASSWORD"/>
+            <networks><ip>::/0</ip></networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <grants>
+                <query>GRANT INSERT, SELECT ON telemetry.otel_logs</query>
+            </grants>
+        </otel>
+        <reader>
+            <password from_env="CLICKHOUSE_READER_PASSWORD"/>
+            <networks><ip>::/0</ip></networks>
+            <profile>reader</profile>
+            <quota>default</quota>
+            <grants>
+                <query>GRANT SELECT ON telemetry.*</query>
+                <query>GRANT SELECT ON system.parts</query>
+                <query>GRANT SELECT ON system.merges</query>
+                <query>GRANT SELECT ON system.errors</query>
+                <query>GRANT SELECT ON system.metrics</query>
+                <query>GRANT SELECT ON system.asynchronous_metrics</query>
+                <query>GRANT SELECT ON system.processes</query>
+            </grants>
+        </reader>
+    </users>
+</clickhouse>

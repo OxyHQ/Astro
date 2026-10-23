@@ -1,0 +1,450 @@
+[
+  {
+    "state": "dawn",
+    "frame": "wider",
+    "viewport": [
+      2400,
+      1000
+    ],
+    "heroHeight": 1011,
+    "width": 2387,
+    "height": 1005,
+    "files": [
+      {
+        "file": "dawn-wider-1600.webp",
+        "width": 1600,
+        "height": 674,
+        "quality": 46,
+        "bytes": 45624
+      },
+      {
+        "file": "dawn-wider-2196.webp",
+        "width": 2196,
+        "height": 925,
+        "quality": 46,
+        "bytes": 91434
+      }
+    ],
+    "lqip": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAABwAwCdASoYAAoAPtFapEwoJSOiMAgBABoJYgCw7BKCZ8Yd+QgA9wiW2cfYV8ztyA4qmqg9E9HSLGtTDmsvMP4XBDVbqT1mm0x2FrXpAdhHVjWD5w0n6SQh/3F0gAAA",
+    "tones": {
+      "title": {
+        "tone": "light",
+        "halo": 0
+      },
+      "lede": {
+        "tone": "light",
+        "halo": 0.05
+      },
+      "cta": {
+        "tone": "dark",
+        "halo": 1
+      }
+    },
+    "sky": "light",
+    "headerHalo": 0.4
+  },
+  {
+    "state": "dawn",
+    "frame": "wide",
+    "viewport": [
+      1920,
+      1080
+    ],
+    "heroHeight": 1080,
+    "width": 1920,
+    "height": 1080,
+    "files": [
+      {
+        "file": "dawn-wide-1280.webp",
+        "width": 1280,
+        "height": 720,
+        "quality": 47,
+        "bytes": 41598
+      },
+      {
+        "file": "dawn-wide-1766.webp",
+        "width": 1766,
+        "height": 993,
+        "quality": 47,
+        "bytes": 81454
+      }
+    ],
+    "lqip": "data:image/webp;base64,UklGRngAAABXRUJQVlA4IGwAAABQBACdASoYAA4APtFWpEuoJKOhsAgBABoJZACdMoGv/gMTSvil7ND9XLLQAPel6RdC6JRyr+GUjSUs1D8Ejqiqg9J2G8m1xSQajbpvCG93pC7tQVEBIYfedxauNZSvfGkg8Ow2ynMbhOp9AAA=",
+    "tones": {
+      "title": {
+        "tone": "light",
+        "halo": 0
+      },
+      "lede": {
+        "tone": "light",
+        "halo": 0.1
+      },
+      "cta": {
+        "tone": "light",
+        "halo": 1
+      }
+    },
+    "sky": "light",
+    "headerHalo": 0.4
+  },
+  {
+    "state": "dawn",
+    "frame": "laptop",
+    "viewport": [
+      1440,
+      900
+    ],
+    "heroHeight": 940,
+    "width": 1917,
+    "height": 1252,
+    "files": [
+      {
+        "file": "dawn-laptop-1280.webp",
+        "width": 1280,
+        "height": 836,
+        "quality": 42,
+        "bytes": 33246
+      },
+      {
+        "file": "dawn-laptop-1917.webp",
+        "width": 1917,
+        "height": 1252,
+        "quality": 42,
+        "bytes": 81530
+      }
+    ],
+    "lqip": "data:image/webp;base64,UklGRngAAABXRUJQVlA4IGwAAABQBACdASoYABAAPtFUo0uoJKMhsAgBABoJYgCdMoMpADvhBpK0B1+uTU8AAPcG4kUBlKNcmp9c+5hehcKfcQhROc8jxptQ3Q9YgULClt7GzaRnHPq/s9njCLNjqeBPJSW5fkYG2cvvRv4AAAA=",
+    "tones": {
+      "title": {
+        "tone": "light",
+        "halo": 0
+      },
+      "lede": {
+        "tone": "light",
+        "halo": 0
+      },
+      "cta": {
+        "tone": "dark",
+        "halo": 1
+      }
+    },
+    "sky": "light",
+    "headerHalo": 0.4
+  },
+  {
+    "state": "dawn",
+    "frame": "mid",
+    "viewport": [
+      1196,
+      920
+    ],
+    "heroHeight": 920,
+    "width": 1766,
+    "height": 1359,
+    "files": [
+      {
+        "file": "dawn-mid-1100.webp",
+        "width": 1100,
+        "height": 846,
+        "quality": 50,
+        "bytes": 31918
+      },
+      {
+        "file": "dawn-mid-1600.webp",
+        "width": 1600,
+        "height": 1231,
+        "quality": 50,
+        "bytes": 69404
+      }
+    ],
+    "lqip": "data:image/webp;base64,UklGRoAAAABXRUJQVlA4IHQAAADQBACdASoYABIAPtFWo0uoJKMhsAgBABoJYwCsMxmv/gL6lXHqGcpgv5Po8sCIAAD3BuD1+QGOuuDodQ6qnXvZeX8fm8UYx/nfLMeHL9Bh50nO/RbyEyzEWZpuutlL+eiO+3G/YrjoWlbqaTmQJVTdgIAAAA==",
+    "tones": {
+      "title": {
+        "tone": "light",
+        "halo": 0
+      },
+      "lede": {
+        "tone": "light",
+        "halo": 0
+      },
+      "cta": {
+        "tone": "light",
+        "halo": 0.8500000000000001
+      }
+    },
+    "sky": "light",
+    "headerHalo": 0.4
+  },
+  {
+    "state": "dawn",
+    "frame": "tall",
+    "viewport": [
+      390,
+      844
+    ],
+    "heroHeight": 896,
+    "width": 692,
+    "height": 1590,
+    "files": [
+      {
+        "file": "dawn-tall-440.webp",
+        "width": 440,
+        "height": 1011,
+        "quality": 49,
+        "bytes": 14820
+      },
+      {
+        "file": "dawn-tall-692.webp",
+        "width": 692,
+        "height": 1590,
+        "quality": 49,
+        "bytes": 38724
+      }
+    ],
+    "lqip": "data:image/webp;base64,UklGRpQAAABXRUJQVlA4IIgAAADQBACdASoYADcAPtFapUu/pSuhrAsz8BoJQBgbidJH86nYvD9MEwuhOZv76FfsAAD+ubbYDS7pP0MYKAN4zMEKrCRhkEUtsn7xhGEYwBYa6rsiw+BnKgwC4odo5t+bdi42+aoTyhuZKc3zmuEFGf5ltJSUN4OeMTcwOFckiOmHqAahXUk8AAAA",
+    "tones": {
+      "title": {
+        "tone": "light",
+        "halo": 0
+      },
+      "lede": {
+        "tone": "light",
+        "halo": 0.05
+      },
+      "cta": {
+        "tone": "light",
+        "halo": 0.7000000000000001
+      },
+      "send": {
+        "tone": "light",
+        "halo": 0
+      }
+    },
+    "sky": "light",
+    "headerHalo": 0.4
+  },
+  {
+    "state": "morning",
+    "frame": "wider",
+    "viewport": [
+      2400,
+      1000
+    ],
+    "heroHeight": 1011,
+    "width": 2387,
+    "height": 1005,
+    "files": [
+      {
+        "file": "morning-wider-1600.webp",
+        "width": 1600,
+        "height": 674,
+        "quality": 45,
+        "bytes": 81026
+      },
+      {
+        "file": "morning-wider-1709.webp",
+        "width": 1709,
+        "height": 720,
+        "quality": 45,
+        "bytes": 91566
+      }
+    ],
+    "lqip": "data:image/webp;base64,UklGRnYAAABXRUJQVlA4IGoAAABwAwCdASoYAAoAPtFUpEuoJKOhsAgBABoJZgAAMBQLrRX38XAA/vAKeD5bSdqcl1uYRreGaq+KYQ0VV++GuMR/NySil7wX3mXjrU6xW9VpaIVvmPtXjst3bNQp5UiHpLJRFRcdb3L46gAA",
+    "tones": {
+      "title": {
+        "tone": "light",
+        "halo": 0
+      },
+      "lede": {
+        "tone": "light",
+        "halo": 0
+      },
+      "cta": {
+        "tone": "light",
+        "halo": 0.6000000000000001
+      }
+    },
+    "sky": "light",
+    "headerHalo": 0
+  },
+  {
+    "state": "morning",
+    "frame": "wide",
+    "viewport": [
+      1920,
+      1080
+    ],
+    "heroHeight": 1080,
+    "width": 1920,
+    "height": 1080,
+    "files": [
+      {
+        "file": "morning-wide-1280.webp",
+        "width": 1280,
+        "height": 720,
+        "quality": 47,
+        "bytes": 70132
+      },
+      {
+        "file": "morning-wide-1375.webp",
+        "width": 1375,
+        "height": 773,
+        "quality": 47,
+        "bytes": 80880
+      }
+    ],
+    "lqip": "data:image/webp;base64,UklGRngAAABXRUJQVlA4IGwAAADQAwCdASoYAA4APtFWo0uoJKMhsAgBABoJbAAAW+gJ/Vy+6DNuq2AA/u2ZAGBmJ0kUbWp/jCk3hi3w2dHRD0+Mr7Ovjion0Ua38aLzZkHIpbfMJJj6O7aGop0xUiBTXVzSa2qUFWkXpbnAAAA=",
+    "tones": {
+      "title": {
+        "tone": "light",
+        "halo": 0
+      },
+      "lede": {
+        "tone": "light",
+        "halo": 0
+      },
+      "cta": {
+        "tone": "light",
+        "halo": 0
+      }
+    },
+    "sky": "light",
+    "headerHalo": 0
+  },
+  {
+    "state": "morning",
+    "frame": "laptop",
+    "viewport": [
+      1440,
+      900
+    ],
+    "heroHeight": 940,
+    "width": 1917,
+    "height": 1252,
+    "files": [
+      {
+        "file": "morning-laptop-1280.webp",
+        "width": 1280,
+        "height": 836,
+        "quality": 44,
+        "bytes": 60980
+      },
+      {
+        "file": "morning-laptop-1493.webp",
+        "width": 1493,
+        "height": 975,
+        "quality": 44,
+        "bytes": 80398
+      }
+    ],
+    "lqip": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAADQAwCdASoYABAAPtFWpEwoJKOiMAgBABoJaAC/OCIj0JQNAiOkhwAA/u2VewpC9Os9rmrDbcbkBJrnfmMZycBJUUib4UBtl7jcGEoISNo2JIJRkzUGk+Xu1yWmfNXWhQS9xwgu7ccNrnCgrkaAAA==",
+    "tones": {
+      "title": {
+        "tone": "light",
+        "halo": 0
+      },
+      "lede": {
+        "tone": "light",
+        "halo": 0
+      },
+      "cta": {
+        "tone": "light",
+        "halo": 0.55
+      }
+    },
+    "sky": "light",
+    "headerHalo": 0
+  },
+  {
+    "state": "morning",
+    "frame": "mid",
+    "viewport": [
+      1196,
+      920
+    ],
+    "heroHeight": 920,
+    "width": 1766,
+    "height": 1359,
+    "files": [
+      {
+        "file": "morning-mid-1100.webp",
+        "width": 1100,
+        "height": 846,
+        "quality": 42,
+        "bytes": 45924
+      },
+      {
+        "file": "morning-mid-1354.webp",
+        "width": 1354,
+        "height": 1042,
+        "quality": 42,
+        "bytes": 71328
+      }
+    ],
+    "lqip": "data:image/webp;base64,UklGRoYAAABXRUJQVlA4IHoAAACQBACdASoYABIAPtFco00oJSMiMBgIAQAaCUJcB/gAn1gOq99UxrWaXfB1kqAA/u2Vfv4VDuexSE0e2Lp7s8cYk02uLJi57fob+ufveP2npWUb6vFft6dnLoAIsPcnaxjV64kHdCXqOygEKC+r3A1Mxhk4yQVjFOQAAA==",
+    "tones": {
+      "title": {
+        "tone": "light",
+        "halo": 0
+      },
+      "lede": {
+        "tone": "light",
+        "halo": 0
+      },
+      "cta": {
+        "tone": "light",
+        "halo": 0
+      }
+    },
+    "sky": "light",
+    "headerHalo": 0
+  },
+  {
+    "state": "morning",
+    "frame": "tall",
+    "viewport": [
+      390,
+      844
+    ],
+    "heroHeight": 896,
+    "width": 692,
+    "height": 1590,
+    "files": [
+      {
+        "file": "morning-tall-440.webp",
+        "width": 440,
+        "height": 1011,
+        "quality": 40,
+        "bytes": 18866
+      },
+      {
+        "file": "morning-tall-637.webp",
+        "width": 637,
+        "height": 1464,
+        "quality": 40,
+        "bytes": 38540
+      }
+    ],
+    "lqip": "data:image/webp;base64,UklGRrIAAABXRUJQVlA4IKYAAABQBQCdASoYADcAPtFcpk2oJSOiKBgNUQAaCWMAuwBSilYw9cAy8OLxqQIRfY8wlfDEHAAA/vEFJ8QDA2zctycqizMwQrnEw2ewtQCmPXCKiPVDHcURE3/vs/kGSbTZYKlYUguausvFV/sAgTOtclNqyFeGkRgqig/3r+6HS1kUntZKg7ZHuTxe6H9Yv/guPbHfjhqy0JE6yS7eAjMwtKvyKQheXwAA",
+    "tones": {
+      "title": {
+        "tone": "light",
+        "halo": 0
+      },
+      "lede": {
+        "tone": "light",
+        "halo": 0
+      },
+      "cta": {
+        "tone": "light",
+        "halo": 0
+      },
+      "send": {
+        "tone": "light",
+        "halo": 1
+      }
+    },
+    "sky": "light",
+    "headerHalo": 0
+  }
+]

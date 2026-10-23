@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": [],
+    "paths": {
+      "react-native": ["../../node_modules/react-native-macos"]
+    }
+  },
+  "include": ["src", "index.js"]
+}

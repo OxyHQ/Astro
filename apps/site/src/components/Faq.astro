@@ -1,0 +1,130 @@
+<section class="faq paint edge edge-b" id="faq" aria-labelledby="faq-title" data-shot="press">
+  <div class="wrap faq-grid">
+    <header class="faq-head">
+      <p class="label kicker">FAQ</p>
+      <h2 class="poster" id="faq-title" data-reveal>Fair questions.</h2>
+      <p class="sub" data-reveal style="--i: 1">Short answers. All of them true.</p>
+    </header>
+
+    <dl class="qa">
+      <div class="item">
+        <dt>What does it cost?</dt>
+        <dd>Nothing. It’s open source under GPL-3.0. No paid tier, no catch.</dd>
+      </div>
+      <div class="item" id="install">
+        <dt>Is it safe to open?</dt>
+        <dd>Signed and notarized by Apple, so macOS opens it without a fuss. The source is on GitHub if you’d rather check yourself.</dd>
+      </div>
+      <div class="item">
+        <dt>What does it collect?</dt>
+        <dd>Update checks are counted by version and day, and whether it’s a new copy’s first. Each launch also reads one small file, the same for everyone, so we can switch off a speed-up that misbehaves. Nothing else, unless you tick the box. Then crash reports and counts, never your sites or searches.</dd>
+      </div>
+      <div class="item">
+        <dt>And this website?</dt>
+        <dd>It counts its own visitors on its own servers, replays included, typing masked, gone after 30 days. No third party does the counting.</dd>
+      </div>
+      <div class="item">
+        <dt>Coming from Arc?</dt>
+        <dd>Same sidebar, same muscle memory. The importer brings your spaces, pinned tabs and their names along.</dd>
+      </div>
+      <div class="item">
+        <dt>Is this Dia?</dt>
+        <dd>No. It dresses like Dia, or like Arc if you ask.</dd>
+      </div>
+      <div class="item">
+        <dt>Why “Astro”?</dt>
+        <dd>Arc plus Dia.</dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
+<style>
+  .faq {
+    --bg: var(--dusk);
+    --bg-top: #d98f86;
+    --wash: linear-gradient(180deg, #d98f86 0%, var(--dusk) 40%, var(--dusk-late) 100%);
+    --dab: var(--sun);
+    --ink-2: #3f3437;
+    --ink-3: #5a4a4e;
+    --rule: rgb(22 25 26 / 0.2);
+    padding: var(--section) 0;
+  }
+  .faq-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
+    row-gap: 48px;
+  }
+  .faq-head {
+    grid-column: 1 / span 5;
+    align-self: start;
+    position: sticky;
+    top: 100px;
+  }
+  h2 {
+    font-size: clamp(2.6rem, 1.2rem + 4vw, 5.6rem);
+  }
+  .sub {
+    margin-top: 20px;
+    font-size: var(--t-lede);
+    color: var(--ink-2);
+  }
+  .qa {
+    grid-column: 7 / -1;
+    margin: 0;
+    border-top: 2px solid var(--ink);
+  }
+  .item {
+    display: grid;
+    grid-template-columns: 2.4rem minmax(0, 1fr);
+    padding: 24px 0 26px;
+    border-bottom: 1px solid var(--rule);
+  }
+  dt,
+  dd {
+    grid-column: 2;
+  }
+  dt {
+    font-weight: 620;
+    font-stretch: 104%;
+    font-size: 1.2rem;
+    line-height: 1.25;
+    letter-spacing: -0.018em;
+    position: relative;
+  }
+  dt::before,
+  dd::before {
+    position: absolute;
+    left: -2.4rem;
+    font-family: var(--mono);
+    font-size: var(--t-label);
+    font-stretch: 87.5%;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    line-height: 2.2;
+  }
+  dt::before {
+    content: "Q.";
+  }
+  dd {
+    margin: 10px 0 0;
+    color: var(--ink-2);
+    position: relative;
+  }
+  dd::before {
+    content: "A.";
+    top: 0;
+  }
+  b {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  @media (max-width: 960px) {
+    .faq-head,
+    .qa {
+      grid-column: 1 / -1;
+      position: static;
+    }
+  }
+</style>

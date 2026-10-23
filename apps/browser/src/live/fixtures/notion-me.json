@@ -1,0 +1,9 @@
+{
+ "object": "user",
+ "id": "bot1",
+ "name": "Astro",
+ "type": "bot",
+ "bot": {
+  "workspace_name": "Acme"
+ }
+}

@@ -1,0 +1,183 @@
+---
+export type Hour = "dawn" | "morning" | "noon" | "golden" | "dusk" | "night";
+interface Props {
+  hour?: Hour;
+  flip?: boolean;
+  sun?: { x: number; y: number };
+  still?: boolean;
+  class?: string;
+}
+const { hour = "morning", flip = false, sun = { x: 0.72, y: 0.2 }, still = false, class: className } = Astro.props;
+---
+
+<div class:list={["plate", hour, { flip }, className]} data-tilt style={`--sx: ${sun.x * 100}%; --sy: ${sun.y * 100}%`}>
+  <div class="clip back-clip" aria-hidden="true">
+    <div class="scenery" data-depth="-9,-5">
+      <span class="orb"></span>
+      <svg class="hill back" viewBox="0 0 1600 1000" preserveAspectRatio="none">
+        <path d="M-40 560C30 470 120 400 240 396C400 390 540 470 720 540C900 610 1120 660 1680 720V1000H-40Z"></path>
+      </svg>
+      <svg class="hill front" viewBox="0 0 1600 1000" preserveAspectRatio="none">
+        <path d="M-40 880C420 860 760 760 1060 640C1280 552 1460 500 1680 496V1000H-40Z"></path>
+      </svg>
+      <span class="oil"></span>
+    </div>
+  </div>
+  <div class="window" data-depth={still ? undefined : "6,4"}>
+    <slot />
+  </div>
+  <div class="clip front-clip" aria-hidden="true">
+    <span class="grass" data-depth="12,0"></span>
+  </div>
+</div>
+
+<style>
+  .plate {
+    --sky-top: #bccfd9;
+    --sky-mid: #e1e4dc;
+    --sky-low: #f7e5c2;
+    --orb: var(--sun);
+    --glow: rgb(255 207 124 / 0.55);
+    --hill-back: #a6b96c;
+    --hill-front: #1e5141;
+    position: relative;
+    isolation: isolate;
+    padding: clamp(18px, 5.5%, 72px) clamp(14px, 6%, 84px) clamp(16px, 4.5%, 60px);
+    border-radius: 16px 26px 14px 30px / 24px 14px 28px 16px;
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.18),
+      0 1px 2px rgb(22 25 26 / 0.12),
+      0 30px 60px -30px rgb(22 25 26 / 0.45);
+  }
+  .clip {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .back-clip {
+    z-index: -1;
+  }
+  .front-clip {
+    z-index: 3;
+  }
+  .scenery {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 38%, var(--sky-low) 64%);
+  }
+  .flip .scenery {
+    transform: scaleX(-1);
+  }
+  .orb {
+    position: absolute;
+    left: var(--sx);
+    top: var(--sy);
+    width: clamp(48px, 9%, 120px);
+    aspect-ratio: 1;
+    border-radius: 47% 53% 50% 50% / 52% 46% 54% 48%;
+    background-color: var(--orb);
+    background-image: var(--impasto);
+    background-size: 160px;
+    background-blend-mode: soft-light;
+    box-shadow: 0 0 80px 40px var(--glow);
+    translate: -50% -50%;
+  }
+  .hill {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .back path {
+    fill: var(--hill-back);
+  }
+  .front path {
+    fill: var(--hill-front);
+  }
+  .oil {
+    position: absolute;
+    inset: 0;
+    background-image: var(--impasto);
+    background-size: 380px;
+    mix-blend-mode: soft-light;
+    opacity: 0.95;
+  }
+  .window {
+    position: relative;
+  }
+  .grass {
+    position: absolute;
+    left: -3%;
+    right: -3%;
+    bottom: -2px;
+    height: clamp(34px, 9.5%, 96px);
+    background: url("../assets/paint/grass.svg") 0 100% / auto 100% repeat-x;
+    pointer-events: none;
+    filter: var(--grass-filter, none);
+  }
+
+  .dawn {
+    --sky-top: #919abb;
+    --sky-mid: #b8a7bd;
+    --sky-low: #f4b08a;
+    --glow: rgb(255 160 100 / 0.5);
+    --hill-back: #9aa66c;
+    --hill-front: #2c5f4a;
+  }
+  .noon {
+    --sky-top: #aec7d7;
+    --sky-mid: #d6e0e0;
+    --sky-low: #f4ead6;
+    --glow: rgb(255 224 160 / 0.5);
+    --hill-back: #adc070;
+    --hill-front: #22594a;
+  }
+  .golden {
+    --sky-top: #b9b0b6;
+    --sky-mid: #e2bfa4;
+    --sky-low: #f8c47c;
+    --orb: #f7a823;
+    --glow: rgb(255 179 90 / 0.6);
+    --hill-back: #b5ab5c;
+    --hill-front: #3b6243;
+    --grass-filter: sepia(0.25) saturate(1.1) brightness(0.97);
+  }
+  .dusk {
+    --sky-top: #5d5281;
+    --sky-mid: #b36871;
+    --sky-low: #ef9070;
+    --orb: #ff8a5c;
+    --glow: rgb(255 122 79 / 0.55);
+    --hill-back: #7d7563;
+    --hill-front: #2a3d3a;
+    --grass-filter: brightness(0.62) saturate(0.8);
+  }
+  .night {
+    --sky-top: #111b38;
+    --sky-mid: #1b2a50;
+    --sky-low: #2c416c;
+    --orb: #efe7cf;
+    --glow: rgb(150 170 220 / 0.35);
+    --hill-back: #3a5552;
+    --hill-front: #15292a;
+    --grass-filter: brightness(0.4) saturate(0.7) hue-rotate(-12deg);
+  }
+
+  @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .scenery {
+      scale: 1.04;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .plate {
+      padding: 14px 12px 12px;
+      border-radius: 12px 18px 10px 20px / 16px 10px 20px 12px;
+    }
+    .orb {
+      width: 44px;
+    }
+  }
+</style>

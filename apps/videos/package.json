@@ -1,0 +1,30 @@
+{
+  "name": "videos",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "render": "scripts/deliver.sh",
+    "studio": "remotion studio"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.529",
+    "@remotion/cli": "4.0.529",
+    "@remotion/media": "4.0.529",
+    "@remotion/player": "4.0.529",
+    "@remotion/renderer": "4.0.529",
+    "@remotion/studio": "4.0.529",
+    "@remotion/zod-types": "4.0.529",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.529",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource-variable/martian-mono": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.3.0",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.9.3"
+  }
+}

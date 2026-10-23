@@ -1,0 +1,134 @@
+require 'pathname'
+
+ws_dir = Pathname.new(__dir__)
+ws_dir = ws_dir.parent until
+  File.exist?("#{ws_dir}/node_modules/react-native-macos/scripts/react_native_pods.rb") ||
+  ws_dir.expand_path.to_s == '/'
+require "#{ws_dir}/node_modules/react-native-macos/scripts/react_native_pods.rb"
+require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
+
+ENV['RCT_NEW_ARCH_ENABLED'] ||= '0'
+
+prepare_react_native_project!
+
+publish_changed = '"${PODS_ROOT}/../publish-changed.sh"'
+
+ac_patch_file = lambda do |path, &edit|
+  next unless File.exist?(path)
+  old = File.read(path)
+  new = edit.call(old.dup)
+  File.write(path, new) if new != old
+end
+
+ac_parallel_post_install = lambda do |installer|
+  support = File.join(installer.sandbox.root, 'Target Support Files')
+
+  Dir.glob(File.join(support, 'Pods-*', 'Pods-*-resources.sh')).each do |script|
+    ac_patch_file.call(script) do |s|
+      s.sub('RESOURCES_TO_COPY=${PODS_ROOT}/resources-to-copy-${TARGETNAME}.txt',
+            "mkdir -p \"${DERIVED_FILE_DIR}\"\nRESOURCES_TO_COPY=${DERIVED_FILE_DIR}/resources-to-copy-${TARGETNAME}.txt")
+    end
+  end
+
+  installer.pods_project.targets.select { |t| t.name == 'ReactCodegen' }.each do |t|
+    t.shell_script_build_phases.select { |p| p.name.to_s.include?('Generate Specs') }.each do |phase|
+      script = phase.shell_script
+      next if script.include?('[Astro]')
+      script = script.sub('export RCT_SCRIPT_OUTPUT_DIR="$RCT_SCRIPT_POD_INSTALLATION_ROOT"', <<~'SH'.chomp)
+        # [Astro] Generated into this build's own folder, then published by changed file (Podfile).
+        export RCT_SCRIPT_OUTPUT_DIR="$DERIVED_FILE_DIR/ac-codegen"
+        rm -rf "$RCT_SCRIPT_OUTPUT_DIR"
+        mkdir -p "$RCT_SCRIPT_OUTPUT_DIR/build/generated/autolinking"
+        cp "$RCT_SCRIPT_POD_INSTALLATION_ROOT/build/generated/autolinking/autolinking.json" "$RCT_SCRIPT_OUTPUT_DIR/build/generated/autolinking/" 2>/dev/null || true
+      SH
+      script = script.sub(%q(/bin/sh -c '"$WITH_ENVIRONMENT" "$SCRIPT_PHASES_SCRIPT"'), %q(/bin/sh -c '"$WITH_ENVIRONMENT" "$SCRIPT_PHASES_SCRIPT"' || exit 1))
+      script += "#{publish_changed} \"$RCT_SCRIPT_OUTPUT_DIR/build/generated/ios\" \"$RCT_SCRIPT_POD_INSTALLATION_ROOT/build/generated/ios\" --exclude '*.podspec'\n"
+      phase.shell_script = script
+    end
+  end
+
+  artifacts = File.join(installer.sandbox.root, 'hermes-engine-artifacts')
+  hermes = installer.pod_targets.find { |t| t.pod_name == 'hermes-engine' }&.root_spec&.version&.to_s&.downcase
+  debug_tgz = File.join(artifacts, "hermes-ios-#{hermes}-debug.tar.gz")
+  release_tgz = File.join(artifacts, "hermes-ios-#{hermes}-release.tar.gz")
+  if hermes && File.exist?(debug_tgz) && File.exist?(release_tgz)
+    root = installer.sandbox.root.to_s
+    unpack = lambda do |tgz, dir|
+      stamp = File.join(dir, '.astro-from')
+      next if File.exist?(stamp) && File.read(stamp) == "#{File.basename(tgz)} #{File.mtime(tgz).to_i}"
+      FileUtils.rm_rf(dir)
+      FileUtils.mkdir_p(dir)
+      system('tar', '-xf', tgz, '-C', dir, exception: true)
+      File.write(stamp, "#{File.basename(tgz)} #{File.mtime(tgz).to_i}")
+    end
+    last = File.join(root, '.last_build_configuration')
+    if File.exist?(last) && File.read(last).strip != 'Debug'
+      FileUtils.rm_rf(File.join(root, 'hermes-engine', '.astro-from'))
+      unpack.call(debug_tgz, File.join(root, 'hermes-engine'))
+    end
+    File.write(last, 'Debug')
+    unpack.call(release_tgz, File.join(root, 'hermes-engine-Release'))
+
+    installer.pods_project.targets.select { |t| t.name == 'hermes-engine' }.each do |t|
+      t.shell_script_build_phases.select { |p| p.name.to_s.include?('Replace Hermes') }.each do |phase|
+        phase.shell_script = "# [Astro] Nothing to replace: Release builds embed Pods/hermes-engine-Release (Podfile).\n"
+      end
+    end
+    Dir.glob(File.join(support, 'Pods-*', 'Pods-*-frameworks.sh')).each do |script|
+      ac_patch_file.call(script) do |s|
+        s.sub(/(if \[\[ "\$CONFIGURATION" == "Release" \]\]; then\n(?:(?!^fi$).*\n)*?\s*install_framework "\$\{PODS_ROOT\}\/)hermes-engine\//) { "#{$1}hermes-engine-Release/" }
+      end
+    end
+  else
+    Pod::UI.warn("[Astro] no Hermes #{hermes} archives in #{artifacts}: Hermes still swaps per configuration, so Debug and Release builds must not overlap")
+  end
+end
+
+ac_parallel_post_integrate = lambda do |installer|
+  installer.aggregate_targets.each do |target|
+    script = File.join(target.support_files_dir, 'expo-configure-project.sh')
+    ac_patch_file.call(script) do |s|
+      next s if s.include?('[Astro]')
+      provider = s[/--target "([^"]*ExpoModulesProvider\.swift)"/, 1]
+      next s unless provider
+      s = s.sub(%(--target "#{provider}"), '--target "$AC_PROVIDER_DIR/ExpoModulesProvider.swift"')
+      s = s.sub("with_node \\\n", <<~SH + "with_node \\\n")
+        # [Astro] Generated into this build's own folder, then published only if it changed (Podfile).
+        mkdir -p "${DERIVED_FILE_DIR:-${TMPDIR:-/tmp}}"
+        AC_PROVIDER_DIR=$(mktemp -d "${DERIVED_FILE_DIR:-${TMPDIR:-/tmp}}/expo-provider.XXXXXX")
+        trap 'rm -rf "$AC_PROVIDER_DIR"' EXIT
+      SH
+      s + %(\n"$PODS_ROOT/../publish-changed.sh" "$AC_PROVIDER_DIR" "#{File.dirname(provider)}"\n)
+    end
+  end
+end
+
+target 'Astro-macOS' do
+  platform :macos, '14.0'
+
+  use_expo_modules!
+  use_native_modules!
+
+  use_react_native!(
+    :path => Pathname.new("#{ws_dir}/node_modules/react-native-macos").relative_path_from(Pathname.new(__dir__)).to_s,
+    :fabric_enabled => ENV['RCT_NEW_ARCH_ENABLED'] == '1',
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  post_install do |installer|
+    react_native_post_install(installer)
+
+    rn_path = "${PODS_ROOT}/" + Pathname.new("#{ws_dir}/node_modules/react-native-macos").relative_path_from(Pathname.new(installer.sandbox.root)).to_s
+    installer.pods_project.build_configurations.each { |c| c.build_settings['REACT_NATIVE_PATH'] = rn_path }
+
+    installer.pods_project.targets.each do |t|
+      t.build_configurations.each { |c| c.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '14.0' }
+    end
+
+    ac_parallel_post_install.call(installer)
+  end
+end
+
+post_integrate do |installer|
+  ac_parallel_post_integrate.call(installer)
+end

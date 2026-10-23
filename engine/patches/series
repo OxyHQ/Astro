@@ -1,0 +1,67 @@
+# The order Astro's changes go into the Chromium tree (docs/engine-build.md › "The patch series").
+# The tree is Chromium with Helium's series (minus 03-helium.py's skip list), its domain and name substitution and our
+# branding; CEF's own patches are gone, but for the few AstroCore relies on (chromium-cef-carryover.patch).
+#
+#   chromium <patch>  a patch to chromium/src, after Helium's series and substitutions (step 4)
+#   layer <dir>       our own files, copied in by <dir>/apply.sh (engine/<layer>/src mirrors chromium/src)
+#
+# Lines run top to bottom; a patch is made against the tree as every line above it leaves it.
+# One concern per patch, named for it; a new patch goes where it belongs, not where its name sorts.
+
+# CEF's patches to Chrome whose behaviour AstroCore relies on (each hunk's origin is in the patch's header).
+chromium chromium-helium-branding.patch
+chromium chromium-cef-carryover.patch
+chromium chromium-autofill-address-bubble-window.patch
+chromium chromium-device-chooser-hook.patch
+chromium chromium-cast-dialog-hook.patch
+chromium chromium-side-panel-hook.patch
+chromium chromium-ntp-promo-without-side-panel.patch
+chromium chromium-initial-document-access.patch
+chromium chromium-hidden-window-current-window.patch
+chromium chromium-devtools-redock-display.patch
+chromium chromium-devtools-window-title.patch
+chromium chromium-devtools-control-token.patch
+chromium chromium-extension-install-prompt-hook.patch
+chromium chromium-webstore-direct.patch
+chromium chromium-extension-updates.patch
+chromium chromium-component-updater-security-only.patch
+chromium chromium-extension-omaha-attributes.patch
+chromium chromium-extension-management-policy-hook.patch
+chromium chromium-extension-sync-installer-hook.patch
+chromium chromium-unpacked-load-path-hook.patch
+chromium chromium-extension-window-hidden.patch
+chromium chromium-component-extension-restricted-urls.patch
+chromium chromium-helium-ublock-off.patch
+chromium chromium-helium-onboarding-off.patch
+chromium chromium-helium-services-page-off.patch
+chromium chromium-helium-search-assets-off.patch
+chromium chromium-helium-bangs-off.patch
+chromium chromium-helium-rlz-for-cdm-storage-id.patch
+chromium chromium-helium-ntp-third-party.patch
+chromium chromium-helium-context-menu-cast.patch
+chromium chromium-neterror-game.patch
+chromium chromium-branding.patch
+# Load-bearing for every user's data: the Safe Storage item ("Astro Safe Storage" / "Astro") holds the key to
+# their saved passwords and cookies. It must survive any re-sync (plain Chromium for AstroCore, a version bump), unchanged.
+chromium chromium-safe-storage-name.patch
+chromium chromium-password-bubble-hook.patch
+chromium chromium-password-generation-local.patch
+chromium chromium-window-docked-devtools.patch
+chromium chromium-window-hosted.patch
+chromium chromium-extension-installed-bubble.patch
+chromium chromium-pip-overlay-window.patch
+chromium chromium-tab-sharing-capturer.patch
+chromium chromium-video-super-resolution.patch
+chromium chromium-begin-frame-warm-up.patch
+chromium chromium-main-frame-throttle-after-show.patch
+chromium chromium-main-frame-full-rate-on-input.patch
+chromium chromium-thaw-live-connections.patch
+chromium chromium-battery-saver-full-rate-on-input.patch
+chromium chromium-angle-metal-shader-cache.patch
+chromium chromium-ungoogled-disable-default-extensions.patch
+chromium chromium-ungoogled-disable-missing-key-warning.patch
+chromium chromium-ungoogled-mime-util-ymp.patch
+chromium chromium-astro-layer.patch
+
+layer engine/chromium
+layer engine/astrocore

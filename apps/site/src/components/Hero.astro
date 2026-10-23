@@ -1,0 +1,364 @@
+---
+import DownloadButton from "./DownloadButton.astro";
+import MacOnlyNote from "./MacOnlyNote.astro";
+import SendToMac from "./SendToMac.astro";
+import { REPO } from "../data/release";
+import { STARS } from "../data/github";
+import { HERO_POSTER_CSS, HERO_POSTER_FALLBACK, HERO_POSTERS } from "../data/heroPoster";
+
+const posterTones = HERO_POSTERS.map(({ media, tones, sky, headerHalo }) => ({ media, tones, sky, headerHalo }));
+---
+
+<section class="hero" id="top" data-shot="hero" data-meadow>
+  <div class="scene" aria-hidden="true" data-ac-no-capture>
+    <style is:inline set:html={HERO_POSTER_CSS}></style>
+    <picture class="hero-poster">
+      {
+        HERO_POSTERS.filter((poster) => !poster.fallback).map((poster) => (
+          <source media={poster.media} srcset={poster.srcset} sizes={poster.sizes} type="image/webp" />
+        ))
+      }
+      <img
+        src={HERO_POSTER_FALLBACK.src}
+        srcset={HERO_POSTER_FALLBACK.srcset}
+        sizes={HERO_POSTER_FALLBACK.sizes}
+        width={HERO_POSTER_FALLBACK.width}
+        height={HERO_POSTER_FALLBACK.height}
+        alt=""
+        fetchpriority="high"
+        onload="this.dataset.loaded = ''"
+      />
+    </picture>
+    <canvas class="meadow-canvas" data-meadow-canvas></canvas>
+  </div>
+  <span class="label sun-hint" data-sun-hint aria-hidden="true">Drag the sun</span>
+
+  <div class="wrap hero-grid">
+    <div class="hero-text">
+      <h1 class="poster hero-title">
+        <span class="line"><span>Touch</span></span>{" "}
+        <span class="line"><span>grass.</span></span>
+      </h1>
+      <p class="lede" data-reveal style="--i: 2">
+        Arc’s sidebar and Dia’s polish on real Chromium. Free and open source. Ads and trackers stay out.
+      </p>
+      <p class="label welcome not-phone" data-welcome hidden>Sent from your phone. Here it is.</p>
+      <div data-reveal style="--i: 3">
+        <SendToMac location="hero" main />
+      </div>
+      <div class="cta-row" data-reveal style="--i: 3">
+        <DownloadButton location="hero" class="not-phone" />
+        <DownloadButton location="hero" class="not-phone" nightly label="Nightly" meta="Wet paint" />
+        <a
+          class="link source"
+          href={REPO}
+          rel="noopener"
+          data-track="github_clicked"
+          data-track-link="read_the_source"
+          data-track-location="hero"
+          >Read the source{STARS && <span class="stars" aria-label={`${STARS} stars on GitHub`}>★ {STARS}</span>}</a
+        >
+      </div>
+      <MacOnlyNote location="hero" />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    --handoff: 400ms;
+    position: relative;
+    isolation: isolate;
+    overflow: clip;
+    margin-top: -61px;
+    min-height: clamp(640px, 100svh, 1120px);
+    padding-top: calc(61px + clamp(28px, 7vh, 96px));
+    padding-bottom: clamp(140px, 30svh, 320px);
+  }
+
+  .scene {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--paper);
+  }
+  .scene::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--edge);
+    background-color: var(--paper);
+    background-image: var(--grain);
+    background-size: 256px;
+    background-blend-mode: soft-light;
+    -webkit-mask: url("../assets/paint/edge-hero.svg") 0 100% / 1200px 100% repeat-x;
+    mask: url("../assets/paint/edge-hero.svg") 0 100% / 1200px 100% repeat-x;
+  }
+  .hero-poster,
+  .hero-poster img,
+  .meadow-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .hero-poster {
+    display: block;
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+  .hero-poster img {
+    display: block;
+    object-fit: cover;
+  }
+  :global(.js) .hero-poster img {
+    opacity: 0;
+    transition: opacity 240ms var(--ease-out);
+  }
+  :global(.js) .hero-poster img[data-loaded] {
+    opacity: 1;
+  }
+  .meadow-canvas {
+    opacity: 0;
+    transition: opacity var(--handoff) cubic-bezier(0.37, 0, 0.63, 1);
+  }
+  .hero[data-meadow="ready"] .meadow-canvas {
+    opacity: 1;
+  }
+  .hero[data-meadow="ready"] .hero-poster {
+    visibility: hidden;
+    transition: visibility 0s var(--handoff);
+  }
+
+  .hero :global([data-tone]) {
+    --halo-rgb: 243 236 223;
+    transition:
+      color 600ms var(--ease-out),
+      text-shadow 600ms var(--ease-out);
+    text-shadow:
+      0 0 1px rgb(var(--halo-rgb) / var(--halo, 0)),
+      0 0 1px rgb(var(--halo-rgb) / var(--halo, 0)),
+      0 0 2px rgb(var(--halo-rgb) / var(--halo, 0)),
+      0 0 3px rgb(var(--halo-rgb) / calc(var(--halo, 0) * 0.7));
+  }
+  .hero :global([data-tone="dark"]) {
+    --halo-rgb: 18 16 26;
+    color: var(--night-ink);
+  }
+  .hero :global([data-tone] .btn) {
+    text-shadow: none;
+    transition:
+      color 200ms var(--ease-out),
+      transform 160ms var(--ease-out),
+      box-shadow 600ms var(--ease-out);
+  }
+  .hero :global([data-tone="dark"] .btn) {
+    box-shadow: 0 0 0 1px rgb(239 232 220 / 0.55);
+  }
+  .hero :global([data-tone="dark"] .send-link) {
+    color: var(--night-ink);
+  }
+  .hero[data-sky="dark"] .sun-hint {
+    color: var(--night-ink);
+  }
+  .hero[data-cursor="brush"] {
+    cursor:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M11 17V7.5a1.75 1.75 0 0 1 3.5 0V15V5.5a1.75 1.75 0 0 1 3.5 0V15V6.5a1.75 1.75 0 0 1 3.5 0V16V9.5a1.75 1.75 0 0 1 3.5 0V19c0 5-3 9-8 9-3.5 0-5.5-1.6-7.3-4.4L6.3 18.9a1.8 1.8 0 0 1 2.9-2.1L11 19z' fill='%23fffdf8' stroke='%2316130f' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E")
+        16 16,
+      grab;
+  }
+  .hero[data-cursor="grab"] {
+    cursor: grab;
+  }
+  .hero[data-cursor="grabbing"] {
+    cursor: grabbing;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .sun-hint {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    pointer-events: none;
+    color: inherit;
+    opacity: 0;
+    white-space: nowrap;
+    transition: opacity 500ms var(--ease-out);
+  }
+  .sun-hint[data-side="right"]::before {
+    content: "← ";
+  }
+  .sun-hint[data-side="left"]::after {
+    content: " →";
+  }
+  .sun-hint:global(.is-shown) {
+    opacity: 0.72;
+  }
+  @media (max-width: 820px), (pointer: coarse) {
+    .sun-hint {
+      display: none;
+    }
+  }
+
+  .hero-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
+    align-items: start;
+  }
+  .hero-text {
+    grid-column: 1 / span 7;
+    grid-row: 1;
+  }
+  .hero-title {
+    font-size: clamp(3.2rem, min(15vw, 25vh), 14.5rem);
+    line-height: 0.85;
+    margin-left: -0.045em;
+    white-space: nowrap;
+  }
+  .line {
+    display: block;
+    overflow: clip;
+    overflow-clip-margin: 0.12em;
+  }
+  .line > span {
+    display: block;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.js) .line > span {
+      animation: rise 1000ms var(--ease-out) -180ms both;
+    }
+    :global(.js) .line:nth-child(2) > span {
+      animation-delay: -110ms;
+    }
+  }
+  @keyframes rise {
+    from {
+      transform: translateY(100%);
+    }
+  }
+
+  .lede {
+    font-size: var(--t-lede);
+    line-height: 1.36;
+    max-width: 24em;
+    margin-top: clamp(18px, 2.8vh, 30px);
+  }
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 28px;
+    margin-top: clamp(22px, 3.4vh, 34px);
+  }
+  .hero :global(.nightly-btn) {
+    --btn-bg: color-mix(in srgb, var(--paper) 80%, transparent);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+  .hero :global([data-tone="dark"] .nightly-btn) {
+    --btn-bg: color-mix(in srgb, var(--ink) 55%, transparent);
+  }
+  .source {
+    font-size: var(--t-small);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .stars {
+    margin-left: 10px;
+    font-family: var(--mono);
+    font-size: 0.78em;
+    color: inherit;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .welcome {
+    margin-top: 18px;
+    color: var(--accent);
+  }
+  .welcome[hidden] {
+    display: none;
+  }
+
+  @media (max-width: 820px) {
+    .hero {
+      --scene-strip: clamp(300px, 40svh, 380px);
+      padding-top: calc(61px + 22px);
+      padding-bottom: var(--scene-strip);
+    }
+    .hero-grid {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .hero-title {
+      font-size: min(calc((100vw - 2 * var(--gutter)) / 2.55), 11rem);
+      line-height: 0.84;
+    }
+    .lede {
+      margin-top: 14px;
+      max-width: 22em;
+    }
+    .cta-row {
+      margin-top: 24px;
+      gap: 4px 24px;
+    }
+    :global(:root[data-device="phone"]) .cta-row {
+      margin-top: 0;
+    }
+    .hero-text :global(.send) {
+      margin-top: 18px;
+    }
+    .hero-text :global(.send-more) {
+      margin-top: 0;
+    }
+  }
+  @media (max-width: 480px) {
+    .cta-row :global(.btn) {
+      flex: 1 1 100%;
+      justify-content: center;
+    }
+  }
+</style>
+
+<script is:inline define:vars={{ posterTones }}>
+  (() => {
+    const hero = document.querySelector("[data-meadow]");
+    const image = hero?.querySelector(".hero-poster img");
+    if (image?.complete && image.naturalWidth) image.dataset.loaded = "";
+    const preset = posterTones.find((poster) => matchMedia(poster.media).matches);
+    if (!preset || !hero) return;
+    const groups = {
+      title: [hero.querySelector(".hero-title")],
+      lede: [hero.querySelector(".lede"), hero.querySelector(".welcome")],
+      cta: [hero.querySelector(".cta-row")],
+      send: [hero.querySelector("[data-send-panel]")?.parentElement],
+      note: [hero.querySelector(".note")],
+    };
+    for (const [group, [tone, halo]] of Object.entries(preset.tones)) {
+      for (const element of groups[group] ?? []) {
+        if (!element) continue;
+        element.dataset.tone = tone;
+        element.style.setProperty("--halo", halo);
+      }
+    }
+    if (preset.sky === "dark") hero.dataset.sky = "dark";
+    document.querySelector("[data-bar]")?.style.setProperty("--halo", preset.headerHalo);
+  })();
+</script>
+
+<script>
+  import "../scripts/meadow/boot";
+
+  const ref = new URLSearchParams(location.search).get("ref");
+  if (ref === "mac" || ref === "share" || ref === "email") {
+    const welcome = document.querySelector<HTMLElement>("[data-welcome]");
+    if (welcome && document.documentElement.dataset.device !== "phone") welcome.hidden = false;
+  }
+</script>

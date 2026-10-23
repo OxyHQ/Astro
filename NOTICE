@@ -1,0 +1,27 @@
+Astro
+Copyright 2026 Oxy
+
+Astro as distributed (the app with its engine, Chromium Framework.framework) is licensed under the GNU General Public
+License, version 3 (see LICENSE), because its engine is built with Helium's patches, which are GPL-3.0. Astro comes
+with ABSOLUTELY NO WARRANTY; see sections 15 and 16 of LICENSE.
+
+Astro's own source files are licensed under the Apache License, Version 2.0 (see LICENSE.Apache-2.0). Apache-2.0 code
+may be combined into a GPL-3.0 work, so they keep that licence on their own.
+
+Corresponding Source: every release's notes on GitHub (https://github.com/OxyHQ/Astro/releases) link the repository
+at that release's tag, with the engine's patch series and build scripts (engine/, docs/engine-build.md), and the
+release's AstroCore-<tree>-source.tar.xz, which holds the Helium sources the engine was built from and says where
+Chromium's source is.
+
+Astro builds on and ships third-party software under its own licenses, including:
+- Chromium (BSD-3-Clause and others; see chrome://credits in the app)
+- Helium (GPL-3.0), copyright The Helium Authors, https://github.com/imputnet/helium-chromium and
+  https://github.com/imputnet/helium-macos: the engine's base patch series, applied as engine/patches/build/03-helium.py
+  describes; Astro's changes to it are the patches in engine/patches
+- ungoogled-chromium (BSD-3-Clause), part of Helium's series, and three of its patches carried in engine/patches
+- Chromium Embedded Framework (BSD-3-Clause): a few of its patches to Chromium
+- uBlock Origin (GPL-3.0), bundled as a separate extension with the small patches in packages/astrocore/scripts/ubo.sh
+- Sparkle (MIT)
+- The !bang list by Kagi Search and imput (MIT, see third_party/bangs/LICENSE), from Helium's
+  services.helium.imput.net/bangs.json: a snapshot in packages/core/src/bangList.ts
+- React Native and React Native macOS (MIT)

@@ -1,0 +1,8 @@
+<!doctype html>
+<title>count</title>
+<script>
+  const key = "loads:" + location.search;
+  window.loadNo = +(localStorage.getItem(key) || 0) + 1;
+  localStorage.setItem(key, window.loadNo);
+  document.title = "count " + window.loadNo;
+</script>

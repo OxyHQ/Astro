@@ -1,0 +1,172 @@
+---
+import { NIGHTLY, RELEASES, REPO } from "../data/release";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<footer class="foot paint edge edge-b dark" data-shot="footer">
+  <div class="fireflies" aria-hidden="true" data-fireflies>
+    {Array.from({ length: 14 }, (_, i) => <span style={`--x: ${(i * 37 + 11) % 97}%; --y: ${(i * 53 + 7) % 83}%; --d: ${6 + ((i * 7) % 9)}s; --o: ${-((i * 13) % 11)}s`} />)}
+  </div>
+  <div class="wrap">
+    <p class="poster sign-off">Just a <span>browser.</span></p>
+    <div class="cols">
+      <nav class="col" aria-label="Project">
+        <p class="label h">Project</p>
+        <a class="link" href={REPO} rel="noopener" data-track="github_clicked" data-track-link="source" data-track-location="footer"
+          >Source on GitHub</a
+        >
+        <a class="link" href={`${base}/release-notes`}>Release notes</a>
+        <a
+          class="link"
+          href={RELEASES}
+          rel="noopener"
+          data-track="github_clicked"
+          data-track-link="releases"
+          data-track-location="footer">Downloads</a
+        >
+        <a
+          class="link"
+          href={NIGHTLY}
+          data-track="download_clicked"
+          data-track-version="nightly"
+          data-track-channel="nightly"
+          data-track-location="footer">Nightly (wet paint)</a
+        >
+        <a
+          class="link"
+          href={`${REPO}/issues`}
+          rel="noopener"
+          data-track="github_clicked"
+          data-track-link="issues"
+          data-track-location="footer">Report a bug</a
+        >
+      </nav>
+      <div class="col">
+        <p class="label h">Disclaimer</p>
+        <p>
+          Not affiliated with Google or The Browser Company.
+        </p>
+        <p>
+          This website counts its own visitors, on its own servers: page views, clicks and session replays,
+          with typing masked. Replays are deleted after 30 days. No third party sees any of it. Countries come from{" "}
+          <a class="link" href="https://db-ip.com" rel="noopener">IP Geolocation by DB-IP</a>, looked up on our
+          servers, and the IP isn’t kept.
+        </p>
+      </div>
+      <div class="col">
+        <p class="label h">Built on</p>
+        <p>Chromium and uBlock Origin. Open source under GPL-3.0.</p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .foot {
+    --bg: var(--night);
+    --bg-top: #1d2b4c;
+    --wash: linear-gradient(180deg, #1d2b4c 0%, var(--night) 40%, #0d1424 100%);
+    padding: clamp(64px, 9vw, 128px) 0 clamp(40px, 5vw, 64px);
+  }
+  .fireflies {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .fireflies span {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #f4f2a6;
+    box-shadow: 0 0 10px 3px rgb(230 240 120 / 0.45);
+    opacity: 0.55;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .fireflies span {
+      animation: drift var(--d) ease-in-out var(--o) infinite alternate;
+      animation-play-state: paused;
+    }
+    .fireflies.awake span {
+      animation-play-state: running;
+    }
+  }
+  @keyframes drift {
+    0% {
+      transform: translate(0, 0);
+      opacity: 0.1;
+    }
+    40% {
+      opacity: 0.85;
+    }
+    100% {
+      transform: translate(26px, -48px);
+      opacity: 0.2;
+    }
+  }
+  .foot .wrap {
+    position: relative;
+  }
+  .sign-off {
+    font-size: clamp(3rem, 0.6rem + 10.4vw, 11.4rem);
+    line-height: 0.84;
+    margin-left: -0.04em;
+  }
+  .sign-off span {
+    white-space: nowrap;
+    color: var(--sun);
+  }
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--gutter);
+    row-gap: 36px;
+    margin-top: clamp(48px, 6vw, 88px);
+    padding-top: 24px;
+    border-top: 1px solid var(--night-rule);
+    font-size: var(--t-small);
+    color: var(--night-ink-2);
+  }
+  .col {
+    grid-column: span 4;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .col p:not(.h) {
+    max-width: 30em;
+  }
+  .h {
+    color: var(--night-ink);
+    margin-bottom: 6px;
+  }
+  .col a {
+    color: var(--night-ink);
+  }
+  @media (max-width: 800px) {
+    .sign-off {
+      font-size: calc((100vw - 2 * var(--gutter)) / 3.68);
+    }
+    .col {
+      grid-column: 1 / -1;
+    }
+    .col > a {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .col:has(> a) {
+      gap: 0;
+    }
+  }
+</style>
+
+<script>
+  const fireflies = document.querySelector<HTMLElement>("[data-fireflies]");
+  if (fireflies)
+    new IntersectionObserver(([e]) => fireflies.classList.toggle("awake", e.isIntersecting)).observe(fireflies);
+</script>

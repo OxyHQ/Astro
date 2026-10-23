@@ -1,0 +1,31 @@
+<script is:inline>
+  (function () {
+    var root = document.documentElement;
+    var nav = navigator;
+    var ua = nav.userAgent;
+    var ipad = /Macintosh/.test(ua) && nav.maxTouchPoints > 1;
+    var os = /iPhone|iPad|iPod/.test(ua) || ipad
+      ? "ios"
+      : /Android/.test(ua)
+        ? "android"
+        : /Windows/.test(ua)
+          ? "windows"
+          : /CrOS/.test(ua)
+            ? "chromeos"
+            : /Macintosh|Mac OS X/.test(ua)
+              ? "mac"
+              : /Linux|X11/.test(ua)
+                ? "linux"
+                : "other";
+    var mobileUA = /Mobi|Android|iPhone|iPad|iPod|Silk|Kindle/i.test(ua) || ipad || !!(nav.userAgentData && nav.userAgentData.mobile);
+    var touchNarrow = nav.maxTouchPoints > 0 && matchMedia("(pointer: coarse) and (max-width: 1024px)").matches;
+    var device = mobileUA || touchNarrow ? "phone" : os === "mac" ? "mac" : "other";
+    if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+      var forced = new URLSearchParams(location.search).get("nndevice");
+      if (forced === "phone" || forced === "mac" || forced === "other") device = forced;
+    }
+    root.dataset.device = device;
+    root.dataset.os = os;
+    if (/Twitter for iP(hone|ad)/.test(ua)) root.dataset.inapp = "x";
+  })();
+</script>

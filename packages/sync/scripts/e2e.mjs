@@ -1,0 +1,390 @@
+#!/usr/bin/env node
+import { execSync } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import http from "node:http";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { freePort, launch, reporter, sleep } from "../../../scripts/lib/instance.mjs";
+
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const APP = path.resolve(process.argv[2] ?? `${repo}/apps/browser/build-sync/Build/Products/Debug/Astro.app`);
+const WORK = path.resolve(process.argv[3] ?? `${process.env.TMPDIR ?? "/tmp"}/ac-sync-e2e`);
+const FOLDER = `${WORK}/folder`;
+const PORT = await freePort();
+const W = `http://127.0.0.1:${PORT}`;
+const DEV = { A: {}, B: {}, C: {} };
+for (const [name, d] of Object.entries(DEV)) d.dir = `${WORK}/${name}`;
+
+fs.rmSync(WORK, { recursive: true, force: true });
+const report = reporter(`${WORK}/e2e.log`, { name: "sync e2e" });
+const note = report.log;
+const check = (name, ok, detail = "") => report.record(name, { error: ok ? null : detail || "the assertion failed" });
+
+const apps = {};
+async function start(name) {
+  const { dir } = DEV[name];
+  const app = (apps[name] = await launch(APP, {
+    data: dir,
+    env: { ASTRO_SYNC_DEFAULT_FOLDER: FOLDER },
+    ready: { timeout: 120_000, test: "return !!globalThis.acSync && Object.keys(ac.store.getState().windows).length > 0" },
+  }));
+  note(`${name}: pid ${app.pid}, DevTools ${app.port}, log ${app.log}`);
+}
+
+const short = (x, n) => (x === undefined ? "undefined" : JSON.stringify(x).slice(0, n));
+async function ev(name, body, timeout = 90_000) {
+  const what = body.replace(/\s+/g, " ").trim().slice(0, 160);
+  try {
+    const result = await apps[name].eval(body, { timeout });
+    note(`[${name}] ${what} -> ${short(result, 1000)}`);
+    return result;
+  } catch (e) {
+    note(`[${name}] ${what} -> error ${e.message}`);
+    throw new Error(`${name}: ${e.message}`);
+  }
+}
+
+async function inHistory(name, url) {
+  const end = Date.now() + 30_000;
+  while (Date.now() < end) {
+    if (await ev(name, `return (ac.store.getState().history.default || []).some((h) => h.url === ${JSON.stringify(url)})`)) return;
+    await sleep(300);
+  }
+  throw new Error(`${name}: ${url} never reached Chrome's history`);
+}
+async function visit(name, url) {
+  const tab = await ev(name, `const s = ac.store.getState(); return s.newTab(s.windowOrder[0], { url: ${JSON.stringify(url)} });`);
+  await inHistory(name, url);
+  await ev(name, `ac.store.getState().closeTab(${JSON.stringify(tab)}); return true;`);
+}
+
+const sync = async (...names) => {
+  for (const n of names) await ev(n, "return acSync.syncNow()");
+};
+
+const EXT = "hkgfoiooedgoejojocmhlaklaeopbecg";
+const engine = (name, call, args = null) =>
+  ev(name, `return globalThis.expo.modules.AstroCEF.engineCall(${JSON.stringify(call)}, "", ${JSON.stringify(args === null ? null : JSON.stringify(args))}).then(JSON.parse)`);
+const extension = async (name) => (await engine(name, "ac_extensions_sync_state")).extensions?.find((e) => e.id === EXT) ?? null;
+async function until(what, test, names = [], timeout = 120_000) {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    const result = await test();
+    if (result) return result;
+    if (names.length) await sync(...names);
+    else await sleep(1000);
+  }
+  throw new Error(`timed out: ${what}`);
+}
+
+async function state(name) {
+  return ev(
+    name,
+    `
+    const s = ac.store.getState();
+    const b = s.bookmarks; const roots = b.roots.default;
+    const walk = (id) => { const n = b.nodes[id]; return n.kind === "url" ? n.title + " " + n.url : { [n.title]: n.children.map(walk) }; };
+    const u = acSync.useSync.getState();
+    return Promise.all([acSync.native.readPasswords(""), globalThis.expo.modules.AstroCEF.listPasswords("")]).then(([pw, list]) => ({
+      status: u.status, error: u.error, enabled: u.enabled, pending: u.pending,
+      bookmarks: [walk(roots.bar), walk(roots.other)],
+      history: (s.history.default || []).map((h) => h.url).sort(),
+      settings: { appearance: s.settings.appearance, searchEngine: s.settings.searchEngine, showFullUrl: s.settings.showFullUrl, cleanUp: s.settings.cleanUpInactiveTabsAfterHours },
+      pinned: Object.values(s.tabs).filter((t) => t.pinned).map((t) => t.pinnedUrl || t.url).sort(),
+      rows: Object.values(s.tabs).filter((t) => t.pinned && t.pinnedAsRow).map((t) => t.pinnedUrl || t.url).sort(),
+      groups: Object.values(s.groups).filter((g) => g.pinned).map((g) => g.name + ": " + g.tabIds.map((id) => s.tabs[id].url).join(", ")).sort(),
+      unloadedPins: Object.values(s.tabs).filter((t) => t.pinned && t.unloaded).length,
+      passwords: (pw || []).map((p) => p.origin + " " + p.username + "=" + p.password).sort(),
+      chromePasswords: ((list && list.passwords) || []).map((p) => p.origin + " " + p.username).sort(),
+      devices: u.devices.map((d) => d.id),
+      remoteTabs: (u.remoteTabs.default || []).map((d) => ({ id: d.deviceId, urls: d.tabs.map((t) => t.url) })),
+      menu: acSync.menu.syncedDevicesMenuItem("default"),
+      deviceId: acSync.doc().deviceId,
+    }));
+  `,
+  );
+}
+const data = (x) => ({ bookmarks: x.bookmarks, history: x.history, settings: x.settings, pinned: x.pinned, rows: x.rows, groups: x.groups, passwords: x.passwords });
+const same = (a, b) => JSON.stringify(data(a)) === JSON.stringify(data(b));
+const text = (x) => JSON.stringify(x);
+
+function bip39(entropy) {
+  const list = fs.readFileSync(`${WORK}/english.txt`, "utf8").split("\n").filter(Boolean);
+  const hash = crypto.createHash("sha256").update(entropy).digest()[0];
+  const bits = [...entropy].map((b) => b.toString(2).padStart(8, "0")).join("") + hash.toString(2).padStart(8, "0");
+  return bits.match(/.{11}/g).map((b) => list[parseInt(b, 2)]).join(" ");
+}
+
+const savePassword = (origin, user, password) =>
+  `const c = globalThis.expo.modules.AstroCEF; return c.deletePassword("", "${origin}", "${user}").then(() => c.savePassword("", "${origin}", "${user}", "${password}"));`;
+
+fs.mkdirSync(FOLDER, { recursive: true });
+const swift = fs.readFileSync(`${repo}/packages/sync/ios/Core/Wordlist.swift`, "utf8");
+fs.writeFileSync(`${WORK}/english.txt`, [...swift.matchAll(/"([a-z]+)"/g)].map((m) => m[1]).join("\n"));
+
+const server = http
+  .createServer((req, res) => {
+    const name = new URL(req.url, W).pathname.slice(1).replace(".html", "");
+    res.writeHead(200, { "content-type": "text/html" });
+    res.end(`<!doctype html><title>ACE2E ${name} page</title><h1>${name}</h1>`);
+  })
+  .listen(PORT, "127.0.0.1");
+await new Promise((r, j) => (server.once("listening", r), server.once("error", j)));
+
+try {
+  const started = await Promise.allSettled([start("A"), start("B")]);
+  const notStarted = started.find((r) => r.status === "rejected");
+  if (notStarted) throw notStarted.reason;
+
+  check("A turns on sync", text(await ev("A", `return acSync.turnOnSync(${JSON.stringify(FOLDER)})`)) === '{"ok":true}');
+  const phrase = (await ev("A", "return acSync.native.recoveryWords()")).join(" ");
+  check("the phrase is 24 words", phrase.split(" ").length === 24);
+  await ev(
+    "A",
+    `
+    const s = ac.store.getState();
+    const f = s.addBookmarkFolder({ profileId: "default", title: "ACE2E Folder" });
+    s.addBookmark({ profileId: "default", url: "${W}/alpha.html?nne2e=bm1", title: "ACE2E Bookmark Alpha", parentId: f });
+    s.addBookmark({ profileId: "default", url: "${W}/beta.html?nne2e=bm2", title: "ACE2E Bookmark Beta" });
+    s.updateSettings({ appearance: "dark", searchEngine: "duckduckgo" });
+    const w = ac.store.getState().windowOrder[0];
+    ac.store.getState().pinTabs([s.newTab(w, { url: "${W}/pinned.html?nne2e=pin1" })], true);
+    s.newTab(w, { url: "${W}/open.html?nne2e=tab1" });
+    return true;`,
+  );
+  await visit("A", `${W}/visited.html?nne2e=hist1`);
+  await ev("A", savePassword("https://nne2e-bank.example", "nne2e-alice", "ACE2E-hunter2-secret"));
+  await sync("A");
+
+  const words = phrase.split(" ");
+  const swapped = [...words];
+  [swapped[0], swapped[1]] = [swapped[1], swapped[0]];
+  const typo = [...words];
+  typo[3] = "astro";
+  const wrong = {
+    "a valid phrase of someone else": [bip39(crypto.randomBytes(32)), "mismatch"],
+    "two words swapped": [swapped[0] === swapped[1] ? [...words].reverse().join(" ") : swapped.join(" "), "checksum"],
+    "a word not on the list": [typo.join(" "), "unknownWord"],
+    "23 words": [words.slice(0, 23).join(" "), "wordCount"],
+  };
+  for (const [name, [p, error]] of Object.entries(wrong)) {
+    const r = await ev("B", `return acSync.enterRecoveryPhrase(${JSON.stringify(FOLDER)}, ${JSON.stringify(p)})`);
+    const enabled = await ev("B", "return acSync.useSync.getState().enabled");
+    check(`B rejects the wrong phrase: ${name}`, r.error === error && !enabled, text(r));
+  }
+  await ev(
+    "B",
+    `
+    const s = ac.store.getState();
+    s.addBookmark({ profileId: "default", url: "${W}/gamma.html?nne2e=bmB", title: "ACE2E Bookmark Gamma from B" });
+    s.updateSettings({ appearance: "light" });
+    s.newTab(ac.store.getState().windowOrder[0], { url: "${W}/openb.html?nne2e=tabB" });
+    return true;`,
+  );
+  await ev("B", savePassword("https://nne2e-shop.example", "nne2e-bob", "ACE2E-B-shop-pass"));
+  const typed = words.map((w, i) => `${i + 1}. ${w.toUpperCase()}`).join("\n");
+  check("B joins with the right phrase", text(await ev("B", `return acSync.enterRecoveryPhrase(${JSON.stringify(FOLDER)}, ${JSON.stringify(typed)})`)) === '{"ok":true}');
+  for (let i = 0; i < 3; i++) await sync("B", "A");
+  let [a, b] = [await state("A"), await state("B")];
+  check("A's bookmarks, history, pinned tab and password reach B", text(b).includes("ACE2E Bookmark Alpha") && b.history.some((u) => u.includes("hist1")) && b.pinned.some((u) => u.includes("pin1")) && b.passwords.some((p) => p.includes("ACE2E-hunter2-secret")), text(data(b)));
+  check("B's own bookmark and password reach A (joining merges, nothing is lost)", text(a).includes("Gamma from B") && a.passwords.some((p) => p.includes("ACE2E-B-shop-pass")));
+  check("Chrome's password manager on B lists A's login", b.chromePasswords.includes("https://nne2e-bank.example nne2e-alice"));
+  check("B took the synced settings when it joined", b.settings.appearance === "dark" && b.settings.searchEngine === "duckduckgo", text(b.settings));
+  check("synced pinned tabs arrive unloaded", b.unloadedPins === 1);
+  check("A and B converge", same(a, b), text({ a: data(a), b: data(b) }));
+  check("A sees B's open tabs (not its pinned tabs)", a.remoteTabs.length === 1 && text(a.remoteTabs).includes("tabB") && !text(a.remoteTabs).includes("pin1"), text(a.remoteTabs));
+  check("B's overflow menu: \"Your MacBook Pro Tabs\"-style item with Recent Tabs", /^Your .+ Tabs$/.test(b.menu?.title ?? "") && b.menu.children[0].title === "Recent Tabs" && text(b.menu).includes("ACE2E open page"), text(b.menu));
+
+  await ev(
+    "B",
+    `
+    const s = ac.store.getState();
+    const nodes = Object.values(s.bookmarks.nodes);
+    s.updateBookmark(nodes.find((n) => n.title === "ACE2E Bookmark Beta").id, { title: "ACE2E Beta Renamed on B" });
+    s.removeBookmark(nodes.find((n) => n.title === "ACE2E Bookmark Gamma from B").id);
+    s.addBookmark({ profileId: "default", url: "${W}/delta.html?nne2e=bmD", title: "ACE2E Bookmark Delta from B" });
+    s.removeHistory("default", ["${W}/visited.html?nne2e=hist1"]);
+    s.updateSettings({ showFullUrl: true, cleanUpInactiveTabsAfterHours: 24 });
+    return globalThis.expo.modules.AstroCEF.deletePassword("", "https://nne2e-shop.example", "nne2e-bob");`,
+  );
+  await visit("B", `${W}/visited2.html?nne2e=hist2`);
+  await ev("B", savePassword("https://nne2e-bank.example", "nne2e-alice", "ACE2E-changed-on-B"));
+  await sync("B", "A", "B", "A");
+  a = await state("A");
+  check("B's rename, delete and new bookmark reach A", text(a.bookmarks).includes("Beta Renamed on B") && !text(a.bookmarks).includes("Gamma from B") && text(a.bookmarks).includes("Delta from B"));
+  check("B's history delete and new visit reach A", !a.history.some((u) => u.includes("hist1")) && a.history.some((u) => u.includes("hist2")));
+  check("B's settings reach A", a.settings.showFullUrl === true && a.settings.cleanUp === 24);
+  check("B's password change and deletion reach A", text(a.passwords) === text(["https://nne2e-bank.example/ nne2e-alice=ACE2E-changed-on-B"]), text(a.passwords));
+
+  await ev(
+    "A",
+    `
+    const s = ac.store.getState();
+    const nodes = Object.values(s.bookmarks.nodes);
+    s.moveBookmark(nodes.find((n) => n.title === "ACE2E Bookmark Alpha").id, s.bookmarks.roots.default.bar, 0);
+    s.removeBookmark(nodes.find((n) => n.title === "ACE2E Folder").id);
+    s.addBookmark({ profileId: "default", url: "${W}/alpha.html?nne2e=bmA2", title: "ACE2E Second from A", parentId: s.bookmarks.roots.default.other });
+    s.updateSettings({ appearance: "light", cleanUpInactiveTabsAfterHours: null });
+    const w = ac.store.getState().windowOrder[0];
+    ac.store.getState().pinTabs([s.newTab(w, { url: "${W}/beta.html?nne2e=pin2" })], true);
+    ac.store.getState().pinTabs([s.newTab(w, { url: "${W}/row.html?nne2e=row1" })], true, true);
+    ac.store.getState().groupTabs([s.newTab(w, { url: "${W}/member.html?nne2e=grp1" })], { pinned: true, name: "ACE2E Pinned Group" });
+    return true;`,
+  );
+  await ev("A", savePassword("https://nne2e-mail.example", "nne2e-carol", "ACE2E-mail-from-A"));
+  await sync("A", "B", "A", "B");
+  b = await state("B");
+  check("A's move, folder delete and new bookmark reach B", text(b.bookmarks).includes("ACE2E Second from A") && !text(b.bookmarks).includes("ACE2E Folder"), text(b.bookmarks));
+  check("A's new pinned tab and settings reach B", b.pinned.some((u) => u.includes("pin2")) && b.settings.appearance === "light" && b.settings.cleanUp === null, text(b.settings));
+  check("A's new password reaches B", b.passwords.some((p) => p.includes("ACE2E-mail-from-A")));
+  check("A's new row arrives as a row and its tiles stay tiles", text(b.rows) === text([`${W}/row.html?nne2e=row1`]) && b.pinned.filter((u) => !b.rows.includes(u)).some((u) => u.includes("pin2")), text({ pinned: b.pinned, rows: b.rows }));
+  check("A's pinned group arrives with its member", text(b.groups) === text([`ACE2E Pinned Group: ${W}/member.html?nne2e=grp1`]), text(b.groups));
+
+  await ev("A", `const s = ac.store.getState(); s.pinTabs(Object.values(s.tabs).filter((t) => t.pinned && (t.pinnedUrl || t.url).includes("pin2")).map((t) => t.id), false); return true;`);
+  await sync("A", "B", "A", "B");
+  b = await state("B");
+  check("A's unpinned tab leaves B's pinned tabs", !b.pinned.some((u) => u.includes("pin2")) && b.rows.length === 1 && b.groups.length === 1, text({ pinned: b.pinned, rows: b.rows, groups: b.groups }));
+
+  await ev("A", `const s = ac.store.getState(); s.updateBookmark(Object.values(s.bookmarks.nodes).find((n) => n.title === "ACE2E Beta Renamed on B").id, { title: "ACE2E Concurrent A" }); s.updateSettings({ searchEngine: "bing" }); return true;`);
+  await ev("A", savePassword("https://nne2e-bank.example", "nne2e-alice", "ACE2E-concurrent-A"));
+  await sleep(20);
+  await ev("B", `const s = ac.store.getState(); s.updateBookmark(Object.values(s.bookmarks.nodes).find((n) => n.title === "ACE2E Beta Renamed on B").id, { title: "ACE2E Concurrent B" }); s.updateSettings({ searchEngine: "google" }); return true;`);
+  await ev("B", savePassword("https://nne2e-bank.example", "nne2e-alice", "ACE2E-concurrent-B"));
+  await sync("A", "B", "A", "B", "A", "B");
+  [a, b] = [await state("A"), await state("B")];
+  check("concurrent edits converge on both Macs", same(a, b), text({ a: data(a), b: data(b) }));
+  check("the later edit wins (bookmark, setting, password)", text(a.bookmarks).includes("ACE2E Concurrent B") && a.settings.searchEngine === "google" && a.passwords.some((p) => p.includes("ACE2E-concurrent-B")));
+
+  check("the Extensions data type is on by default", (await ev("A", "return acSync.useSync.getState().types.extensions")) === true);
+  await engine("A", "ac_extensions_sync_apply", { id: EXT, record: { on: true, inc: false, pin: false } });
+  let extA = await until("A installs the Web Store extension", () => extension("A"));
+  check("A installs a small Web Store extension through Chrome's updater, without a prompt", !!extA && extA.syncable, text(extA));
+  if (!extA.approved) {
+    await ev("A", `acExtensionsApp.setEnabled("", "${EXT}", true); return true`);
+    await until("A shows Chrome's re-enable prompt", () => ev("A", "return !!acExtensionsUi.useExtensions.getState().install?.prompt"));
+    await ev("A", "return acExtensionsUi.confirmInstall().then(() => true)");
+    extA = await until("A's permissions are approved", async () => ((await extension("A"))?.approved ? extension("A") : null));
+  }
+  check("A's approval: its permissions are granted and it's on", extA.approved && extA.enabled, text(extA));
+  let extB = await until("the extension reaches B", async () => ((await extension("B"))?.approved ? extension("B") : null), ["A", "B"]);
+  check("install on A appears on B, approved and on (same version, same permissions)", extB.enabled && extB.version === extA.version, text(extB));
+  await ev("A", `return acExtensionsApp.setEnabled("", "${EXT}", false).then(() => true)`);
+  extB = await until("B follows A's disable", async () => ((await extension("B"))?.userDisabled ? extension("B") : null), ["A", "B"]);
+  check("disable on A turns it off on B", !extB.enabled && extB.userDisabled, text(extB));
+  const EXT2 = "aapbdbdomjkkjkaonfhkkikfgjllcleb";
+  const secondExtension = async (name) => (await engine(name, "ac_extensions_sync_state")).extensions?.find((e) => e.id === EXT2) ?? null;
+  await engine("A", "ac_extensions_sync_apply", { id: EXT2, record: { on: true, inc: false, pin: false } });
+  await until("A installs a second extension", () => secondExtension("A"));
+  await sync("A", "B");
+  const pendingOnB = (await engine("B", "ac_extensions_sync_state")).pending ?? [];
+  note(`B's pending sync installs before the quit: ${text(pendingOnB)}`);
+  await apps.B.quit();
+  delete apps.B;
+  await start("B");
+  const secondB = await until("B installs the second extension after a restart mid-install", () => secondExtension("B"), ["B"]);
+  check("B quit while an install was pending installs it after relaunching", !!secondB, text({ pendingOnB, secondB }));
+  await ev("B", `return acExtensionsApp.setEnabled("", "${EXT}", true).then(() => acExtensionsApp.setPinned("", "${EXT}", true)).then(() => true)`);
+  extA = await until("A follows B's enable and pin", async () => { const e = await extension("A"); return e?.enabled && e.pinned ? e : null; }, ["B", "A"]);
+  check("enable and pin on B reach A", extA.enabled && extA.pinned, text(extA));
+  await ev("B", `return globalThis.acExtensions.uninstall("${EXT}", "").then(() => true)`);
+  const record = (name) => ev(name, `return Object.values(acSync.doc().scopes).map((s) => s.records["ext:${EXT}"]?.v).find(Boolean) ?? null`);
+  await until("A receives B's removal", async () => text(await record("A")) === '{"removed":true}', ["B", "A"]);
+  for (let i = 0; i < 3; i++) await sync("A", "B");
+  check("remove on B: the record says removed on both, as a live value older Macs and compaction keep", text(await record("A")) === '{"removed":true}' && text(await record("B")) === '{"removed":true}');
+  check("remove on B: B doesn't install it again, and A keeps its copy without publishing it back (sync never uninstalls)", !(await extension("B")) && !!(await extension("A")));
+  await ev("A", `return globalThis.acExtensions.uninstall("${EXT}", "").then(() => true)`);
+  await sync("A", "B");
+  const seqs = async () => text(await Promise.all(["A", "B"].map((n) => ev(n, "return Object.values(acSync.doc().scopes).map((s) => s.seq)"))));
+  const before = await seqs();
+  await sync("A", "B", "A", "B", "A", "B");
+  check("steady state: no files written while nothing changes", (await seqs()) === before);
+
+  const list = () => execSync(`find ${FOLDER} -name '*.nns' -type f`).toString().trim().split("\n");
+  const known = new Set(list());
+  await ev("A", `ac.store.getState().addBookmark({ profileId: "default", url: "${W}/alpha.html?nne2e=partial1", title: "ACE2E Partial One" }); return acSync.syncNow()`);
+  const first = list().find((f) => !known.has(f));
+  known.add(first);
+  await ev("A", `ac.store.getState().addBookmark({ profileId: "default", url: "${W}/beta.html?nne2e=partial2", title: "ACE2E Partial Two" }); return acSync.syncNow()`);
+  const second = list().find((f) => !known.has(f));
+  const full = fs.readFileSync(first);
+  fs.writeFileSync(first, full.subarray(0, full.length >> 1));
+  const stub = second.replace(/\/([^/]+)$/, "/.$1.icloud");
+  fs.renameSync(second, `${second}.aside`);
+  fs.writeFileSync(stub, "placeholder");
+  await sync("B");
+  b = await state("B");
+  check("a half-copied file and an undownloaded one aren't applied", !text(b.bookmarks).includes("Partial One") && !text(b.bookmarks).includes("Partial Two") && b.pending === 1, `pending ${b.pending}`);
+  fs.writeFileSync(first, full);
+  fs.unlinkSync(stub);
+  fs.renameSync(`${second}.aside`, second);
+  await sync("B");
+  b = await state("B");
+  check("once they arrive whole, both apply", text(b.bookmarks).includes("Partial One") && text(b.bookmarks).includes("Partial Two") && b.pending === 0);
+
+  const files = execSync(`find ${FOLDER} -mindepth 1`).toString().trim().split("\n");
+  const needles = ["ACE2E", "nne2e", "hunter2", "127.0.0.1", "alpha.html", "Bookmark", "duckduckgo", "appearance", "MacBook", "https", "default", "pw:", "bm:"];
+  const leaks = needles.filter((n) => files.some((f) => f.slice(FOLDER.length).includes(n) || (fs.statSync(f).isFile() && fs.readFileSync(f).includes(n))));
+  check(`no plaintext in the sync folder (${files.filter((f) => f.endsWith(".nns")).length} files; ${needles.length} strings searched)`, leaks.length === 0, leaks.join(", "));
+  check("every file is padded to 1 KiB steps", files.filter((f) => f.endsWith(".nns")).every((f) => (fs.statSync(f).size - 32) % 1024 === 0));
+  const local = ["A", "B"].flatMap((n) => ["sync.json", "sync-state.nns", "sync-journal.nns"].map((f) => `${DEV[n].dir}/${f}`)).filter((f) => fs.existsSync(f));
+  check("this Mac's own sync state holds no plaintext password", local.every((f) => !fs.readFileSync(f).includes("ACE2E-concurrent-B")));
+
+  await apps.B.quit();
+  delete apps.B;
+  await ev(
+    "A",
+    `
+    const s = ac.store.getState();
+    s.addBookmark({ profileId: "default", url: "${W}/alpha.html?nne2e=whileQuit", title: "ACE2E Made While B Was Quit" });
+    s.removeBookmark(Object.values(s.bookmarks.nodes).find((n) => n.title === "ACE2E Second from A").id);
+    s.placeTabs(Object.values(s.tabs).filter((t) => t.pinned && t.pinnedAsRow).map((t) => t.id), { pinned: true, row: false });
+    const g = Object.values(s.groups).find((x) => x.pinned && x.name === "ACE2E Pinned Group");
+    s.updateGroup(g.id, { name: "ACE2E Group Renamed", color: "green" });
+    return true;`,
+  );
+  await sync("A");
+  await sleep(5000);
+  await start("B");
+  await sync("B", "A", "B");
+  [a, b] = [await state("A"), await state("B")];
+  check("B, quit and relaunched, catches up: a new and a deleted bookmark, a row made a tile, a renamed group", text(b.bookmarks).includes("Made While B Was Quit") && !text(b.bookmarks).includes("ACE2E Second from A") && b.rows.length === 0 && b.pinned.some((u) => u.includes("row1")) && text(b.groups).includes("ACE2E Group Renamed"), text(data(b)));
+  check("A and B converge after B's relaunch", same(a, b), text({ a: data(a), b: data(b) }));
+
+  await start("C");
+  await ev("C", `ac.store.getState().newTab(ac.store.getState().windowOrder[0], { url: "${W}/openc.html?nne2e=tabC" }); return true`);
+  await inHistory("C", `${W}/openc.html?nne2e=tabC`);
+  check("C joins", text(await ev("C", `return acSync.enterRecoveryPhrase(${JSON.stringify(FOLDER)}, ${JSON.stringify(phrase)})`)) === '{"ok":true}');
+  await sync("C", "C", "A", "B", "C");
+  const c = await state("C");
+  a = await state("A");
+  check("C converges with A", same(a, c), text({ a: data(a), c: data(c) }));
+  check("A lists three devices, and two other devices' tabs roll up into \"Your Devices\"", a.devices.length === 3 && (await ev("A", "return acSync.menu.syncedDevicesMenuItem('default')")).title === "Your Devices");
+
+  b = await state("B");
+  await ev("B", "return acSync.stopSync({ deleteData: false })");
+  const off = await state("B");
+  check("turning sync off on B leaves its bookmarks, history, settings, pinned tabs and passwords", same(b, off) && text(off.chromePasswords) === text(b.chromePasswords) && !off.enabled);
+  check("B's key is gone from its data folder", !fs.readdirSync(DEV.B.dir).some((f) => f.startsWith("sync-key-")));
+  await sync("A");
+  a = await state("A");
+  check("A drops B from its devices and its tabs", !a.devices.includes(b.deviceId) && !text(a.remoteTabs).includes(b.deviceId));
+  await ev("B", `ac.store.getState().addBookmark({ profileId: "default", url: "${W}/delta.html?nne2e=off", title: "ACE2E Made While Off" }); return true`);
+  await sync("A");
+  check("what B does while off stays on B", !text((await state("A")).bookmarks).includes("Made While Off"));
+
+  a = await state("A");
+  const cBefore = await state("C");
+  await ev("A", "return acSync.stopSync({ deleteData: true })");
+  await sync("C");
+  const cAfter = await state("C");
+  check("A's Delete My Sync Data empties the folder", execSync(`find ${FOLDER} -mindepth 1 | wc -l`).toString().trim() === "0");
+  check("C shows Dia's reset message and stops", cAfter.status === "reset" && /reset from another device/.test(cAfter.error ?? "") && !cAfter.enabled, text(cAfter.status));
+  check("A and C keep all their data", same(a, await state("A")) && same(cBefore, cAfter));
+} catch (error) {
+  check("the run finished", false, error.stack);
+} finally {
+  await Promise.all(Object.values(apps).map((app) => app.quit().catch((e) => note(`quit ${app.pid}: ${e.message}`))));
+  server.close();
+  process.exitCode = report.summary() ? 0 : 1;
+}

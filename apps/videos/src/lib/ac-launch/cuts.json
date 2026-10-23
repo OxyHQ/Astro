@@ -1,0 +1,463 @@
+{
+ "bpm": 128.57142857142858,
+ "fps": 30,
+ "lufs": -11,
+ "cuts": {
+  "launch": {
+   "beats": 96,
+   "arrangement": [
+    [
+     "hook",
+     2
+    ],
+    [
+     "dropA",
+     8
+    ],
+    [
+     "break",
+     2
+    ],
+    [
+     "dropB",
+     8
+    ],
+    [
+     "end",
+     4
+    ]
+   ],
+   "sfx": [
+    {
+     "kind": "stamp",
+     "beat": 0.5,
+     "gain": 0.75
+    },
+    {
+     "kind": "stamp",
+     "beat": 1.5,
+     "gain": 0.75
+    },
+    {
+     "kind": "stamp",
+     "beat": 2.5,
+     "gain": 0.75
+    },
+    {
+     "kind": "stamp",
+     "beat": 4,
+     "gain": 0.8
+    },
+    {
+     "kind": "stamp",
+     "beat": 5,
+     "gain": 0.8
+    },
+    {
+     "kind": "stamp",
+     "beat": 6,
+     "gain": 0.8
+    },
+    {
+     "kind": "stamp",
+     "beat": 6.5,
+     "gain": 0.8
+    },
+    {
+     "kind": "pop",
+     "beat": 7.1,
+     "gain": 0.9
+    },
+    {
+     "kind": "whoosh",
+     "beat": 7.85,
+     "gain": 1.0
+    },
+    {
+     "kind": "stamp",
+     "beat": 10,
+     "gain": 1.0
+    },
+    {
+     "kind": "click",
+     "beat": 12.5,
+     "gain": 0.8
+    },
+    {
+     "kind": "click",
+     "beat": 13.5,
+     "gain": 0.8
+    },
+    {
+     "kind": "click",
+     "beat": 14.5,
+     "gain": 0.8
+    },
+    {
+     "kind": "click",
+     "beat": 15.5,
+     "gain": 0.8
+    },
+    {
+     "kind": "swipe",
+     "beat": 18.0357,
+     "gain": 2.5
+    },
+    {
+     "kind": "thud",
+     "beat": 18.75,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 18.75,
+     "gain": 0.7
+    },
+    {
+     "kind": "swipe",
+     "beat": 19.5357,
+     "gain": 2.5
+    },
+    {
+     "kind": "thud",
+     "beat": 20.25,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 20.25,
+     "gain": 0.7
+    },
+    {
+     "kind": "swipe",
+     "beat": 21.0357,
+     "gain": 2.5
+    },
+    {
+     "kind": "thud",
+     "beat": 21.75,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 21.75,
+     "gain": 0.7
+    },
+    {
+     "kind": "pop",
+     "beat": 31.0,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 36,
+     "gain": 0.8
+    },
+    {
+     "kind": "click",
+     "beat": 36.5,
+     "gain": 0.8
+    },
+    {
+     "kind": "swipe",
+     "beat": 48.8107,
+     "gain": 2.5
+    },
+    {
+     "kind": "thud",
+     "beat": 49.5,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 49.5,
+     "gain": 0.7
+    },
+    {
+     "kind": "swipe",
+     "beat": 50.3357,
+     "gain": 2.5
+    },
+    {
+     "kind": "thud",
+     "beat": 51,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 51,
+     "gain": 0.7
+    },
+    {
+     "kind": "swipe",
+     "beat": 51.8357,
+     "gain": 2.5
+    },
+    {
+     "kind": "thud",
+     "beat": 52.5,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 52.5,
+     "gain": 0.7
+    },
+    {
+     "kind": "swipe",
+     "beat": 53.3357,
+     "gain": 2.5
+    },
+    {
+     "kind": "thud",
+     "beat": 54,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 54,
+     "gain": 0.7
+    },
+    {
+     "kind": "click",
+     "beat": 60,
+     "gain": 0.8
+    },
+    {
+     "kind": "stamp",
+     "beat": 61.5,
+     "gain": 1.0
+    },
+    {
+     "kind": "key",
+     "beat": 72.6714,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 72.9429,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 73.2143,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 73.4857,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 73.7571,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 74.0286,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 74.3,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 74.5714,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 74.8429,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 75.1143,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 75.3857,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 75.6571,
+     "gain": 0.7
+    },
+    {
+     "kind": "key",
+     "beat": 75.9286,
+     "gain": 0.7
+    },
+    {
+     "kind": "click",
+     "beat": 76.2,
+     "gain": 0.8
+    },
+    {
+     "kind": "whoosh",
+     "beat": 78.3,
+     "gain": 1.0
+    }
+   ],
+   "silence": [
+    [
+     47.0,
+     48.0
+    ]
+   ],
+   "breaths": [
+    [
+     68,
+     71
+    ]
+   ]
+  },
+  "teaser": {
+   "beats": 32,
+   "arrangement": [
+    [
+     "hook",
+     2
+    ],
+    [
+     "dropB",
+     4
+    ],
+    [
+     "end",
+     2
+    ]
+   ],
+   "silence": [
+    [
+     7.0,
+     8.0
+    ]
+   ],
+   "sfx": [
+    {
+     "kind": "stamp",
+     "beat": 0.5,
+     "gain": 0.75
+    },
+    {
+     "kind": "stamp",
+     "beat": 1.5,
+     "gain": 0.75
+    },
+    {
+     "kind": "stamp",
+     "beat": 2.5,
+     "gain": 0.75
+    },
+    {
+     "kind": "stamp",
+     "beat": 4,
+     "gain": 0.8
+    },
+    {
+     "kind": "stamp",
+     "beat": 5,
+     "gain": 0.8
+    },
+    {
+     "kind": "stamp",
+     "beat": 6,
+     "gain": 0.8
+    },
+    {
+     "kind": "stamp",
+     "beat": 6.5,
+     "gain": 0.8
+    },
+    {
+     "kind": "pop",
+     "beat": 6.9,
+     "gain": 0.9
+    },
+    {
+     "kind": "whoosh",
+     "beat": 8.0,
+     "gain": 1.0
+    },
+    {
+     "kind": "swipe",
+     "beat": 10.3071,
+     "gain": 2.5
+    },
+    {
+     "kind": "swipe",
+     "beat": 11.8107,
+     "gain": 2.5
+    },
+    {
+     "kind": "thud",
+     "beat": 12.5,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 12.5,
+     "gain": 0.7
+    },
+    {
+     "kind": "swipe",
+     "beat": 13.3357,
+     "gain": 2.5
+    },
+    {
+     "kind": "thud",
+     "beat": 14,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 14,
+     "gain": 0.7
+    },
+    {
+     "kind": "swipe",
+     "beat": 14.8357,
+     "gain": 2.5
+    },
+    {
+     "kind": "thud",
+     "beat": 15.5,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 15.5,
+     "gain": 0.7
+    },
+    {
+     "kind": "swipe",
+     "beat": 16.3357,
+     "gain": 2.5
+    },
+    {
+     "kind": "thud",
+     "beat": 17,
+     "gain": 0.9
+    },
+    {
+     "kind": "click",
+     "beat": 17,
+     "gain": 0.7
+    }
+   ],
+   "breaths": [
+    [
+     20,
+     23
+    ]
+   ]
+  }
+ },
+ "truePeak": -2.2
+}

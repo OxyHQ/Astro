@@ -1,0 +1,18 @@
+packages:
+  - apps/*
+  - packages/*
+  - "!apps/site"
+  - "!apps/dashboard"
+  - "!apps/videos"
+
+nodeLinker: hoisted
+
+autoInstallPeers: false
+
+patchedDependencies:
+  expo-constants@18.0.14: patches/expo-constants@18.0.14.patch
+  expo-modules-core@3.0.30: patches/expo-modules-core@3.0.30.patch
+  react-native-macos@0.81.9: patches/react-native-macos@0.81.9.patch
+
+allowBuilds:
+  esbuild: false
