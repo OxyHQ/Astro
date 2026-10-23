@@ -11,9 +11,11 @@ import { refreshAppsForHome, useHomeCard } from "../ai/work/homeState";
 import { useAliaReady } from "../ai/alia/api";
 import { useNow } from "../live/calendar";
 import { useWindowId, useWindowProfileId } from "../store/hooks";
+import { useOnboarding } from "./onboarding/state";
 import { Omnibox } from "./Omnibox";
 
 const BAR_HEIGHT = 112;
+const BAR_BORDER = 0.5;
 const HOME_CARD_GAP = 14;
 const MARKS = {
   green: { back: require("../../assets/ntp-mark-back.png"), front: require("../../assets/ntp-mark-front.png"), sun: require("../../assets/ntp-mark-sun.png") },
@@ -53,13 +55,14 @@ export function barWidth(viewWidth: number) {
 
 export function NewTabPage({ tabId, toolbar = true }: { tabId: string; toolbar?: boolean }) {
   const theme = useTheme();
+  const windowId = useWindowId();
+  const onboarding = useOnboarding((s) => s.windowId === windowId);
   const [size, setSizeState] = useState<Size | null>(lastSize);
   const setSize = (next: Size) => {
     lastSize = next;
     setSizeState((prev) => (prev && prev.width === next.width && prev.height === next.height ? prev : next));
   };
   const [panelHeight, setPanelHeight] = useState(BAR_HEIGHT);
-  const windowId = useWindowId();
   const profileId = useWindowProfileId();
   const aliaReady = useAliaReady();
   useEffect(() => {
@@ -139,9 +142,9 @@ export function NewTabPage({ tabId, toolbar = true }: { tabId: string; toolbar?:
           fill={hex(theme.ntpBarSolid)}
           cornerRadius={20}
           borderColor={hex(theme.ntpBarBorder)}
-          borderWidth={0.5}
+          borderWidth={BAR_BORDER}
         >
-          <Omnibox variant="hero" tabId={tabId} />
+          {onboarding ? <View style={{ height: BAR_HEIGHT - 2 * BAR_BORDER }} /> : <Omnibox variant="hero" tabId={tabId} />}
         </Surface>
       </View>
       <HomeCardSlot
