@@ -42,6 +42,12 @@ would still need a native port of `engine/astrocore`.
 Risks: `components/guest_contents` says it is not for production use yet; Webium's state in Chromium 155 is
 unverified; each window becomes its own JS context, where macOS shares one runtime.
 
+## Status
+
+Steps 1 to 3 are done (2026-10-23): the Linux engine builds from the same series (`docs/engine-build.md` › "On
+Linux"), runs, and opens Webium's window with `--enable-features=Webium`; `//chrome/browser/astro` links into it. Next
+is step 4, `chrome://astro`.
+
 ## Minimum steps to browse on Linux
 
 1. **Linux engine build.** Chromium 155 with Helium's Linux series, `target_os=linux`, x64, target `chrome`. Drop the

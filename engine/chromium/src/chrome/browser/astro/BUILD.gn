@@ -1,6 +1,6 @@
 # Copyright 2026 Oxy. Apache-2.0.
 
-assert(is_mac)
+assert(is_mac || is_linux)
 
 source_set("astro") {
   sources = [
@@ -25,11 +25,9 @@ source_set("astro") {
     "ac_extensions_sync.cc",
     "ac_extensions_sync.h",
     "ac_external_apps.h",
-    "ac_external_apps.mm",
     "ac_favicons.cc",
     "ac_history.cc",
     "ac_input_frame_rate.h",
-    "ac_input_frame_rate.mm",
     "ac_memory.cc",
     "ac_omnibox.cc",
     "ac_omnibox.h",
@@ -37,7 +35,6 @@ source_set("astro") {
     "ac_passwords.h",
     "ac_process.cc",
     "ac_process.h",
-    "ac_reauth.cc",
     "ac_reauth.h",
     "ac_scripts_policy.cc",
     "ac_scripts_policy.h",
@@ -55,7 +52,6 @@ source_set("astro") {
     "pip/ac_pip_controls.cc",
     "pip/ac_pip_controls.h",
     "pip/ac_pip_mac.h",
-    "pip/ac_pip_mac.mm",
     "pip/ac_pip_window.cc",
     "pip/ac_pip_window.h",
     "public/ac_engine.h",
@@ -127,12 +123,21 @@ source_set("astro") {
     "//url",
   ]
 
-  frameworks = [ "QuartzCore.framework" ]
-
-  frameworks += [
-    "AppKit.framework",
-    "Security.framework",
-  ]
+  if (is_mac) {
+    sources += [
+      "ac_external_apps.mm",
+      "ac_input_frame_rate.mm",
+      "ac_reauth.cc",
+      "pip/ac_pip_mac.mm",
+    ]
+    frameworks = [
+      "AppKit.framework",
+      "QuartzCore.framework",
+      "Security.framework",
+    ]
+  } else {
+    sources += [ "ac_platform_linux.cc" ]
+  }
 }
 
 config("exports_config") {
@@ -141,6 +146,8 @@ config("exports_config") {
 }
 
 group("exports") {
-  all_dependent_configs = [ ":exports_config" ]
+  if (is_mac) {
+    all_dependent_configs = [ ":exports_config" ]
+  }
   public_deps = [ ":astro" ]
 }

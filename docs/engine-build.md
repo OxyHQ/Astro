@@ -399,10 +399,11 @@ Rules for editing the tree after the first build:
 The same steps build the engine on Linux (x64); `env.sh` picks the platform from `uname`. What differs:
 
 - **Helium's platform repo** is helium-linux (`HELIUM_LINUX_TAG`, `~/chromium-build/helium-linux`, pinned in
-  `helium-pins.ini`) instead of helium-macos. Three of its patches are skipped (`PLATFORM_SKIP` in `03-helium.py`):
-  branding and binary rename, which name the product Helium and keep its data in `~/.config/net.imput.helium`, and
-  the middle-click paste flag, a chrome://flags toggle whose entry collides with `chromium-helium-branding.patch`.
-  With those out, our whole series applies unchanged on Linux (`series.py check`: 53 steps, 260 paths).
+  `helium-pins.ini`) instead of helium-macos. `PLATFORM_SKIP` in `03-helium.py` leaves out, on Linux only: helium-linux's
+  branding and binary rename (they name the product Helium and keep its data in `~/.config/net.imput.helium`), its
+  middle-click paste flag (a chrome://flags toggle whose entry collides with `chromium-helium-branding.patch`), and
+  helium-chromium's `remove-experimental-webui.patch`, which unregisters Webium and drops its paks. With those out,
+  our whole series applies unchanged on Linux (`series.py check`: 53 steps, 260 paths).
   Helium's generated icons are made with Pillow instead of `sips`: run step 3 with `~/chromium-build/py/bin/python`
   (a venv with Pillow).
 - **GN args**: `target_cpu="x64"`, out dir `out/Release_GN_x64`, and Helium's Linux flags (`use_sysroot`,
@@ -412,9 +413,16 @@ The same steps build the engine on Linux (x64); `env.sh` picks the platform from
   `out/Release_GN_<cpu>_dev`: much quicker to build and link, and its backtraces have function names.
 - **The lock**: Linux has no `lockf(1)`, so `scripts/agent/lockf` stands in for it (an flock that dies with its
   holder and shows up in `ps` as `lockf`); `scripts/agent/locked` and `pathguard.py` use it when the system has none.
-- **Webium.** Stock Chromium 155 on Linux runs its all-WebUI browser window with `--enable-features=Webium`
-  (`chrome://webui-browser`, tabs as guest contents), but Helium 0.19.4.1's Linux build segfaults at startup with it.
-  Which Helium patch causes it is still open; a `dev` build's backtrace is the way to find it.
+- **Webium.** `--enable-features=Webium` runs Chromium's all-WebUI browser window (`chrome://webui-browser`, tabs as
+  guest contents), which Astro's Windows and Linux interface builds on (`docs/port-windows-linux.md`). Helium's
+  `remove-experimental-webui.patch` unregisters it, and the window then dereferences a null `WebUIBrowserUI` on the
+  first tab (`WebUIBrowserWindow::UpdateReloadStopState`); Helium's own Linux build segfaults the same way.
+- **The engine layer** (`//chrome/browser/astro`, the `ac_*` calls) links into Linux `chrome` too
+  (`chromium-astro-layer.patch`). Its macOS pieces have Linux stand-ins in `ac_platform_linux.cc`: OS reauth is
+  denied (Chromium has no device authenticator on Linux), external-app allowances list no app name or icon, and the
+  picture-in-picture bounds, fade and input frame-rate hold do nothing. AstroCore's `ChromeMain` delegate stays
+  macOS-only; Linux keeps Chromium's.
+- **Times** (32 cores, `dev`): steps 3 and 4 take 2 min; the first build, 2 h 13 min (57,000 actions).
 
 ## Helium
 

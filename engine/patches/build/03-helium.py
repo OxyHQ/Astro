@@ -70,6 +70,8 @@ PLATFORM_SKIP = {'macos': {
     'helium/linux/change-chromium-branding.patch':
         'brands the Linux build as Helium: its data dir (net.imput.helium), desktop file, package and maintainers',
     'helium/linux/rename-chrome-binary.patch': 'renames the binary and crash handler to helium',
+    'helium/core/remove-experimental-webui.patch':
+        'unregisters Webium (chrome://webui-browser) and drops its paks: Astro\'s Linux window is built on it',
     'helium/linux/add-middle-click-paste-flag.patch':
         'only a chrome://flags toggle (middle-click paste stays on); its flag entry collides with chromium-helium-branding.patch',
 }}
