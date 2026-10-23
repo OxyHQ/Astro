@@ -16,3 +16,21 @@ patchedDependencies:
 
 allowBuilds:
   esbuild: false
+
+overrides:
+  "@expo/metro-config>postcss": ^8.5.23
+  "@expo/metro>metro": 0.83.8
+  "@expo/metro>metro-babel-transformer": 0.83.8
+  "@expo/metro>metro-cache": 0.83.8
+  "@expo/metro>metro-cache-key": 0.83.8
+  "@expo/metro>metro-config": 0.83.8
+  "@expo/metro>metro-core": 0.83.8
+  "@expo/metro>metro-file-map": 0.83.8
+  "@expo/metro>metro-minify-terser": 0.83.8
+  "@expo/metro>metro-resolver": 0.83.8
+  "@expo/metro>metro-runtime": 0.83.8
+  "@expo/metro>metro-source-map": 0.83.8
+  "@expo/metro>metro-symbolicate": 0.83.8
+  "@expo/metro>metro-transform-plugins": 0.83.8
+  "@expo/metro>metro-transform-worker": 0.83.8
+  "xcode>uuid": ^11.1.1
