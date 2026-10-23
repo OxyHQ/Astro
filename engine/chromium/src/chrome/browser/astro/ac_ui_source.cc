@@ -68,7 +68,7 @@ void Serve(const base::FilePath& dir,
 
 void ServeUiFromDisk(content::WebUIDataSource* source, Profile* profile) {
   if (profile->IsOffTheRecord() ||
-      profile->GetPath().BaseName().value() != kInterfaceProfileDir) {
+      profile->GetPath().BaseName().AsUTF8Unsafe() != kInterfaceProfileDir) {
     source->SetRequestFilter(
         base::BindRepeating([](const std::string&) { return true; }),
         base::BindRepeating([](const std::string&,

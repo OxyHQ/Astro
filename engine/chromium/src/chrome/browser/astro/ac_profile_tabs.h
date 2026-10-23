@@ -12,6 +12,10 @@
 class GURL;
 class Profile;
 
+namespace content {
+class WebContents;
+}
+
 namespace base {
 class FilePath;
 }
@@ -30,6 +34,7 @@ class ProfileTabsClient {
   virtual ~ProfileTabsClient() = default;
 };
 
+base::Value ThemeColor(content::WebContents* contents);
 std::optional<base::FilePath> ProfilePathForName(const std::string& name);
 std::string ProfileNameForPath(const base::FilePath& path);
 void WithProfile(const std::string& name,

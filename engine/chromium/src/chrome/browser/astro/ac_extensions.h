@@ -6,6 +6,7 @@
 #include "chrome/browser/astro/ac_engine.h"
 
 AC_ENGINE_CALL(ac_extensions_list);
+AC_ENGINE_CALL(ac_extensions_inspect);
 AC_ENGINE_CALL(ac_extensions_install);
 AC_ENGINE_CALL(ac_extensions_install_crx);
 AC_ENGINE_CALL(ac_extensions_set_enabled);

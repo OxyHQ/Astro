@@ -14,6 +14,7 @@
 #include "base/no_destructor.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -29,6 +30,7 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
@@ -102,7 +104,8 @@ class TrackedTab : public content::WebContentsObserver,
         .Set("loading", contents->IsLoading())
         .Set("canGoBack", controller.CanGoBack())
         .Set("canGoForward", controller.CanGoForward())
-        .Set("favicon", favicon_);
+        .Set("favicon", favicon_)
+        .Set("themeColor", ThemeColor(contents));
   }
 
   void Report() { client_->OnProfileTabChanged(id_, State()); }
@@ -111,6 +114,7 @@ class TrackedTab : public content::WebContentsObserver,
   void TitleWasSet(content::NavigationEntry*) override { Report(); }
   void DidStartLoading() override { Report(); }
   void DidStopLoading() override { Report(); }
+  void DidChangeThemeColor() override { Report(); }
 
   void OnFaviconUpdated(favicon::FaviconDriver*,
                         NotificationIconType icon_type,
@@ -280,6 +284,17 @@ TrackedTab* OwnedTab(ProfileTabsClient* client, int tab_id) {
              : nullptr;
 }
 
+}
+
+base::Value ThemeColor(content::WebContents* contents) {
+  std::optional<SkColor> color =
+      contents ? contents->GetThemeColor() : std::nullopt;
+  if (!color) {
+    return base::Value();
+  }
+  return base::Value(base::StringPrintf("#%02x%02x%02x", SkColorGetR(*color),
+                                        SkColorGetG(*color),
+                                        SkColorGetB(*color)));
 }
 
 std::optional<base::FilePath> ProfilePathForName(const std::string& name) {

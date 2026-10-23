@@ -1,6 +1,6 @@
 # Copyright 2026 Oxy. Apache-2.0.
 
-assert(is_mac || is_linux)
+assert(is_mac || is_linux || is_win)
 
 source_set("astro") {
   sources = [
@@ -9,11 +9,12 @@ source_set("astro") {
     "ac_bookmarks.cc",
     "ac_browsing_data.cc",
     "ac_browsing_data.h",
-    "ac_cli_control.cc",
     "ac_cli_token_policy.cc",
     "ac_cli_token_policy.h",
     "ac_cookies.cc",
     "ac_cookies.h",
+    "ac_documents.cc",
+    "ac_documents.h",
     "ac_downloads.cc",
     "ac_downloads.h",
     "ac_engine.cc",
@@ -40,7 +41,6 @@ source_set("astro") {
     "ac_profile_tabs.cc",
     "ac_profile_tabs.h",
     "ac_reauth.h",
-    "ac_scripts_policy.cc",
     "ac_scripts_policy.h",
     "ac_search_engines.cc",
     "ac_search_engines.h",
@@ -128,6 +128,7 @@ source_set("astro") {
     "//third_party/boringssl",
     "//ui/base",
     "//ui/gfx",
+    "//ui/shell_dialogs",
     "//ui/views",
     "//url",
   ]
@@ -145,7 +146,16 @@ source_set("astro") {
       "Security.framework",
     ]
   } else {
-    sources += [ "ac_platform_linux.cc" ]
+    sources += [ "ac_platform_default.cc" ]
+  }
+
+  if (is_posix) {
+    sources += [
+      "ac_cli_control.cc",
+      "ac_scripts_policy.cc",
+    ]
+  } else {
+    sources += [ "ac_platform_win.cc" ]
   }
 }
 

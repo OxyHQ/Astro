@@ -72,7 +72,7 @@ What the build adds:
 | `chromium-ungoogled-disable-default-extensions.patch` | ungoogled's `0005-disable-default-extensions` (BSD), which Helium leaves out, without its `webstore_installer.cc` part (that part stubs out Web Store installs): no Web Store hosted app or in-app payments app among the component extensions |
 | `chromium-ungoogled-disable-missing-key-warning.patch` | ungoogled's `0013-disable-missing-key-warning` (BSD), which Helium leaves out: no "Google API keys are missing" infobar |
 | `chromium-ungoogled-mime-util-ymp.patch` | iridium's `mime_util-force-text-x-suse-ymp-to-be-downloaded` (BSD), which Helium leaves out: YaST one-click files download instead of rendering |
-| `chromium-astro-layer.patch` | The macOS `//chrome:chrome_dll` (AstroCore's framework) links `//chrome/browser/astro` and exports its `ac_*` calls; on Linux, `chrome` links it |
+| `chromium-astro-layer.patch` | The macOS `//chrome:chrome_dll` (AstroCore's framework) links `//chrome/browser/astro` and exports its `ac_*` calls; on Linux, `chrome` links it, and on Windows `chrome.dll` |
 | `chromium-astro-ui-dir.patch` | `chrome://webui-browser` (Webium's window) serves the files in `--astro-ui-dir=<dir>`, or else in `astro-ui/` beside the executable when it has an `index.html`, before its own, with Trusted Types off: the Windows and Linux interface (`astro::ServeUiFromDisk`). Only the `Default` profile gets the interface; other profiles' windows, the hidden hosts of their tabs, get an empty page so nothing there attaches a tab |
 | `chromium-astro-engine-webui.patch` | Webium's window gets `astro::CreateEngineWebUIHandler`: `chrome.send('astroEngineCall', [id, name, args, profile])` runs one of the allowlisted `ac_*` calls for that profile (never a private one), `astroPref` reads and sets three autofill booleans, `astroFetch` makes the interface's network requests without cookies, `astroEngineTopics` picks the engine events it receives as `astro-engine-event`, and `astroProfileTab*` hosts tabs of other profiles (`ac_profile_tabs.cc`: a hidden Webium browser per profile, omitted from session restore, whose tabs the window shows as guests) |
 | `chromium-astro-webium-default.patch` | On Linux and Windows, `Webium` and `AttachUnownedInnerWebContents` are on by default, so the browser window is Webium's and its tabs can leave their iframes; macOS keeps both off. Chromium marks the second a prototype not meant for production |
@@ -423,7 +423,7 @@ The same steps build the engine on Linux (x64); `env.sh` picks the platform from
   `remove-experimental-webui.patch` unregisters it, and the window then dereferences a null `WebUIBrowserUI` on the
   first tab (`WebUIBrowserWindow::UpdateReloadStopState`); Helium's own Linux build segfaults the same way.
 - **The engine layer** (`//chrome/browser/astro`, the `ac_*` calls) links into Linux `chrome` too
-  (`chromium-astro-layer.patch`). Its macOS pieces have Linux stand-ins in `ac_platform_linux.cc`: OS reauth is
+  (`chromium-astro-layer.patch`). Its macOS pieces have Linux stand-ins in `ac_platform_default.cc`: OS reauth is
   denied (Chromium has no device authenticator on Linux), external-app allowances list no app name or icon, and the
   picture-in-picture bounds, fade and input frame-rate hold do nothing. AstroCore's `ChromeMain` delegate stays
   macOS-only; Linux keeps Chromium's.
@@ -444,6 +444,14 @@ The Windows SDK comes from a Windows machine with Visual Studio 2026 Build Tools
 `DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL=<dir of the zip>` and `GYP_MSVS_HASH_<TOOLCHAIN_HASH of build/vs_toolchain.py>=<hash>`
 before `gclient sync`/`runhooks`. On a WSL machine the Windows side is the host itself (`/mnt/c`, `cmd.exe`,
 `winget`); a portable Python is enough to run the packaging script.
+
+The engine layer links into `chrome.dll`. Its POSIX-only parts, the command-line control file (`ac_cli_control.cc`)
+and the Astro Scripts folder policy (`ac_scripts_policy.cc`), are left out: `ac_platform_win.cc` turns them down, so
+Astro Scripts and `ac_cli_control` answer that they are unavailable on Windows. Paths cross the engine boundary as
+UTF-8 (`base::FilePath::FromUTF8Unsafe`), since a Windows `FilePath` is UTF-16.
+
+`/tmp` here is a RAM disk shared with other work; siso writes its logs to `TMPDIR`, so the Windows build runs with
+`TMPDIR=$AC_CHROMIUM_BUILD/tmp` (a full `/tmp` killed one build at 20%).
 
 ## Helium
 

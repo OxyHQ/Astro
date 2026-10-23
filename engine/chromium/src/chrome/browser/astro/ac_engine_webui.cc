@@ -9,26 +9,36 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "base/base64.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "chrome/browser/astro/ac_documents.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
 #include "chrome/browser/astro/public/ac_engine.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 #include "components/prefs/pref_service.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_message_handler.h"
+#include "net/base/filename_util.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
@@ -37,6 +47,8 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "ui/shell_dialogs/select_file_dialog.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 #include "url/gurl.h"
 
 extern "C" {
@@ -59,6 +71,8 @@ void ac_downloads_list(const char*, const char*, ac_engine_reply_t, void*);
 void ac_downloads_pause(const char*, const char*, ac_engine_reply_t, void*);
 void ac_downloads_resume(const char*, const char*, ac_engine_reply_t, void*);
 void ac_extensions_configure(const char*, const char*, ac_engine_reply_t, void*);
+void ac_extensions_inspect(const char*, const char*, ac_engine_reply_t, void*);
+void ac_extensions_install(const char*, const char*, ac_engine_reply_t, void*);
 void ac_extensions_list(const char*, const char*, ac_engine_reply_t, void*);
 void ac_extensions_reload(const char*, const char*, ac_engine_reply_t, void*);
 void ac_extensions_set_enabled(const char*, const char*, ac_engine_reply_t, void*);
@@ -119,6 +133,8 @@ constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_
     {"ac_downloads_pause", &ac_downloads_pause},
     {"ac_downloads_resume", &ac_downloads_resume},
     {"ac_extensions_configure", &ac_extensions_configure},
+    {"ac_extensions_inspect", &ac_extensions_inspect},
+    {"ac_extensions_install", &ac_extensions_install},
     {"ac_extensions_list", &ac_extensions_list},
     {"ac_extensions_reload", &ac_extensions_reload},
     {"ac_extensions_set_enabled", &ac_extensions_set_enabled},
@@ -159,6 +175,7 @@ constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_
 
 constexpr char kEventListener[] = "astro-engine-event";
 constexpr char kProfileTabListener[] = "astro-profile-tab";
+constexpr char kTabThemeListener[] = "astro-tab-theme";
 
 constexpr auto kBoolPrefs = base::MakeFixedFlatSet<std::string_view>({
     "autofill.credit_card_enabled",
@@ -201,8 +218,20 @@ struct PendingReply {
 void Replied(void* context, const char* json);
 void Dispatched(void* context, const char* topic, const char* json);
 
+class TabThemeWatch : public content::WebContentsObserver {
+ public:
+  TabThemeWatch(content::WebContents* contents, base::RepeatingClosure changed)
+      : content::WebContentsObserver(contents), changed_(std::move(changed)) {}
+
+  void DidChangeThemeColor() override { changed_.Run(); }
+
+ private:
+  base::RepeatingClosure changed_;
+};
+
 class EngineWebUIHandler : public content::WebUIMessageHandler,
-                           public ProfileTabsClient {
+                           public ProfileTabsClient,
+                           public ui::SelectFileDialog::Listener {
  public:
   explicit EngineWebUIHandler(Profile* profile) : profile_(profile) {
     Handlers().insert(this);
@@ -214,6 +243,9 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
   }
 
   ~EngineWebUIHandler() override {
+    if (picker_) {
+      picker_->ListenerDestroyed();
+    }
     Handlers().erase(this);
     ForgetProfileTabsClient(this);
   }
@@ -240,6 +272,27 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
         "astroProfileTabCommand",
         base::BindRepeating(&EngineWebUIHandler::HandleProfileTabCommand,
                             base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroDocuments",
+        base::BindRepeating(&EngineWebUIHandler::HandleDocuments,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroDocumentWrite",
+        base::BindRepeating(&EngineWebUIHandler::HandleDocumentWrite,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroDocumentRemove",
+        base::BindRepeating(&EngineWebUIHandler::HandleDocumentRemove,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroPickFiles", base::BindRepeating(&EngineWebUIHandler::HandlePickFiles,
+                                              base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroNewWindow", base::BindRepeating(&EngineWebUIHandler::HandleNewWindow,
+                                              base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroTabTheme", base::BindRepeating(&EngineWebUIHandler::HandleTabTheme,
+                                             base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroEngineTopics",
         base::BindRepeating(&EngineWebUIHandler::HandleTopics,
@@ -361,6 +414,137 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
                       args[2].GetString());
   }
 
+  void HandleDocuments(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 1) {
+      return;
+    }
+    ReadDocuments(
+        profile_->GetPath(),
+        base::BindOnce(
+            [](base::WeakPtr<EngineWebUIHandler> self, base::Value callback_id,
+               base::DictValue documents) {
+              if (self && self->IsJavascriptAllowed()) {
+                self->ResolveJavascriptCallback(callback_id,
+                                                std::move(documents));
+              }
+            },
+            weak_factory_.GetWeakPtr(), args[0].Clone()));
+  }
+
+  void HandleDocumentWrite(const base::ListValue& args) {
+    if (args.size() == 2 && args[0].is_string() && args[1].is_string()) {
+      WriteDocument(profile_->GetPath(), args[0].GetString(),
+                    args[1].GetString());
+    }
+  }
+
+  void HandleDocumentRemove(const base::ListValue& args) {
+    if (args.size() == 1 && args[0].is_string()) {
+      RemoveDocument(profile_->GetPath(), args[0].GetString());
+    }
+  }
+
+  void HandlePickFiles(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 2 || !args[1].is_string()) {
+      return;
+    }
+    if (picker_) {
+      return ResolveJavascriptCallback(args[0], base::ListValue());
+    }
+    picking_folder_ = args[1].GetString() == "folder";
+    picker_callback_ = args[0].Clone();
+    content::WebContents* contents = web_ui()->GetWebContents();
+    picker_ = ui::SelectFileDialog::Create(
+        this, std::make_unique<ChromeSelectFilePolicy>(contents));
+    picker_->SelectFile(picking_folder_
+                            ? ui::SelectFileDialog::SELECT_FOLDER
+                            : ui::SelectFileDialog::SELECT_OPEN_MULTI_FILE,
+                        std::u16string(), base::FilePath(), nullptr, 0,
+                        base::FilePath::StringType(),
+                        contents->GetTopLevelNativeWindow());
+  }
+
+  void FileSelected(const ui::SelectedFileInfo& file, int) override {
+    Picked({file.path()});
+  }
+
+  void MultiFilesSelected(
+      const std::vector<ui::SelectedFileInfo>& files) override {
+    std::vector<base::FilePath> paths;
+    for (const ui::SelectedFileInfo& file : files) {
+      paths.push_back(file.path());
+    }
+    Picked(std::move(paths));
+  }
+
+  void FileSelectionCanceled() override { Picked({}); }
+
+  void Picked(std::vector<base::FilePath> paths) {
+    picker_.reset();
+    base::ListValue picked;
+    for (const base::FilePath& path : paths) {
+      picked.Append(picking_folder_ ? path.AsUTF8Unsafe()
+                                    : net::FilePathToFileURL(path).spec());
+    }
+    if (IsJavascriptAllowed()) {
+      ResolveJavascriptCallback(picker_callback_, std::move(picked));
+    }
+  }
+
+  void HandleNewWindow(const base::ListValue& args) {
+    if (!args.empty()) {
+      return;
+    }
+    chrome::NewEmptyWindow(profile_, false);
+  }
+
+  void HandleTabTheme(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 2 || !args[1].is_string()) {
+      return;
+    }
+    const std::string& tab_id = args[1].GetString();
+    content::WebContents* contents = TabContents(tab_id);
+    if (contents) {
+      WatchTheme(tab_id, contents);
+    }
+    ResolveJavascriptCallback(args[0], ThemeColor(contents));
+  }
+
+  content::WebContents* TabContents(const std::string& tab_id) {
+    int raw = 0;
+    const std::string_view handle =
+        std::string_view(tab_id).substr(0, tab_id.find(':'));
+    if (!base::StringToInt(handle, &raw)) {
+      return nullptr;
+    }
+    tabs::TabInterface* tab = tabs::TabHandle(raw).Get();
+    content::WebContents* contents = tab ? tab->GetContents() : nullptr;
+    return contents && contents->GetBrowserContext() == profile_ ? contents
+                                                                 : nullptr;
+  }
+
+  void WatchTheme(const std::string& tab_id, content::WebContents* contents) {
+    std::erase_if(theme_watches_,
+                  [](const auto& entry) { return !entry.second->web_contents(); });
+    std::unique_ptr<TabThemeWatch>& watch = theme_watches_[tab_id];
+    if (watch && watch->web_contents() == contents) {
+      return;
+    }
+    watch = std::make_unique<TabThemeWatch>(
+        contents, base::BindRepeating(&EngineWebUIHandler::ThemeChanged,
+                                      base::Unretained(this), tab_id));
+  }
+
+  void ThemeChanged(const std::string& tab_id) {
+    if (IsJavascriptAllowed()) {
+      FireWebUIListener(kTabThemeListener, base::Value(tab_id),
+                        ThemeColor(TabContents(tab_id)));
+    }
+  }
+
   void HandleFetch(const base::ListValue& args) {
     AllowJavascript();
     if (args.size() != 5 || !args[1].is_string() || !args[2].is_string()) {
@@ -478,6 +662,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
   std::set<std::string> topics_;
   std::map<int, std::unique_ptr<network::SimpleURLLoader>> fetches_;
   int next_fetch_ = 0;
+  std::map<std::string, std::unique_ptr<TabThemeWatch>> theme_watches_;
+  scoped_refptr<ui::SelectFileDialog> picker_;
+  base::Value picker_callback_;
+  bool picking_folder_ = false;
   base::WeakPtrFactory<EngineWebUIHandler> weak_factory_{this};
 };
 

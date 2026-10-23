@@ -560,7 +560,7 @@ AC_ENGINE_CALL(ac_passwords_allow) {
 AC_ENGINE_CALL(ac_passwords_export) {
   AC_PASSWORDS_OPEN();
   const std::string path = call.String("path");
-  if (path.empty() || path[0] != '/') {
+  if (!base::FilePath::FromUTF8Unsafe(path).IsAbsolute()) {
     return call.TakeReply().Error("an absolute path required");
   }
   astro::WithList(
@@ -579,7 +579,7 @@ AC_ENGINE_CALL(ac_passwords_export) {
                             base::DictValue().Set("status", "reauthFailed"));
                       }
                       session.state->Export(session.delegate.get(),
-                                            base::FilePath(path),
+                                            base::FilePath::FromUTF8Unsafe(path),
                                             std::move(session.busy),
                                             std::move(reply));
                     },
