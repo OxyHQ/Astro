@@ -63,11 +63,14 @@ the page's `fetch` to http(s) goes through the engine (`astroFetch`: no cookies,
 bookmarks, favicons and search suggestions work. Ctrl+L opens the command bar, Ctrl+T opens Astro's new tab instead of
 Chromium's, and a tab Chromium activates (Ctrl+Tab) becomes the shown one.
 
-Run it: `pnpm -C apps/webui build` (or `dev`, which rebuilds on change), then
-`out/Release_GN_x64_dev/chrome --enable-features=Webium,AttachUnownedInnerWebContents --astro-ui-dir=$PWD/apps/webui/dist`.
-Both features are needed: without `AttachUnownedInnerWebContents`, removing a tab's iframe hits a CHECK. Restart the
-browser to pick up a new build; reloading `chrome://webui-browser` itself crashes Webium (it reopens the page as a
-tab, outside its window).
+Run it: `pnpm -C apps/webui build`, copy `apps/webui/dist` to `astro-ui/` beside the engine's `chrome`, and start
+`chrome`: on Linux and Windows the engine turns on `Webium` and `AttachUnownedInnerWebContents` by default
+(`chromium-astro-webium-default.patch`) and serves `astro-ui/`. While developing, `pnpm -C apps/webui dev` rebuilds on
+change and `--astro-ui-dir=$PWD/apps/webui/dist` serves the build in place. Without `AttachUnownedInnerWebContents`,
+removing a tab's iframe hits a CHECK. Restart the browser to pick up a new build; reloading `chrome://webui-browser`
+itself crashes Webium (it reopens the page as a tab, outside its window). Chromium calls
+`AttachUnownedInnerWebContents` a prototype not meant for production, and GuestContents says the same: both are the
+risk this design takes on.
 
 Still missing: the engine calls macOS reaches through other native modules (passwords, downloads, extensions,
 site settings), more than one profile, a theme colour per page, persisting documents in profile preferences rather

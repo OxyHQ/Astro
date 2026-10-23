@@ -11,6 +11,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "content/public/browser/web_ui_data_source.h"
@@ -62,11 +63,18 @@ void Serve(const base::FilePath& dir,
 }
 
 void ServeUiFromDisk(content::WebUIDataSource* source) {
-  const base::FilePath dir =
+  base::FilePath dir =
       base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
           kAstroUiDirSwitch);
   if (dir.empty()) {
-    return;
+    base::FilePath exe_dir;
+    if (!base::PathService::Get(base::DIR_EXE, &exe_dir)) {
+      return;
+    }
+    dir = exe_dir.AppendASCII(kAstroUiDirName);
+    if (!base::PathExists(dir.AppendASCII("index.html"))) {
+      return;
+    }
   }
   source->SetRequestFilter(base::BindRepeating(&ShouldServe, dir),
                            base::BindRepeating(&Serve, dir));

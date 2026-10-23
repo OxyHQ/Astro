@@ -10,6 +10,7 @@ class WebUIDataSource;
 namespace astro {
 
 inline constexpr char kAstroUiDirSwitch[] = "astro-ui-dir";
+inline constexpr char kAstroUiDirName[] = "astro-ui";
 
 void ServeUiFromDisk(content::WebUIDataSource* source);
 
