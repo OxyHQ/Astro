@@ -2,13 +2,24 @@ import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } f
 import { View } from "react-native";
 import type { NavigationState, WebViewHandle, WebViewProps } from "@astro-browser-real/astrocore";
 import { type ChromiumTab, type TabState, tabHub } from "../host/tabs";
+import { emitCommand } from "./shell";
 
 let nextBrowserId = 1;
 let opener: { current: WebViewProps } | null = null;
 
+const ENGINE_NEW_TAB = /^(chrome:\/\/(newtab|new-tab-page)\/?|about:blank)?$/;
+const command = (name: "newTab" | "focusCommandBar") => emitCommand({ command: name, arg: null, windowId: null });
+
 void tabHub().then((hub) => {
-  hub.onForeignTab = ({ id, url }) =>
+  hub.onForeignTab = ({ id, url }) => {
+    if (ENGINE_NEW_TAB.test(url)) {
+      void hub.service.closeNodes([id]);
+      command("newTab");
+      return;
+    }
     opener?.current.onOpenWindow?.({ url, disposition: "foreground", adoptId: id, userGesture: true });
+  };
+  hub.onFocusLocationBar = () => command("focusCommandBar");
 });
 
 function navigationState(state: TabState): NavigationState {
@@ -41,6 +52,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       if (closed) return opening.close();
       tab.current = opening;
       opening.onClosed = () => latest.current.onWindowClose?.();
+      opening.onActivatedByEngine = () => latest.current.onActivateRequest?.({ reason: "engine" });
       stopListening = opening.listen((state) => {
         latest.current.onNavigationChange?.(navigationState(state));
         if (state.isLoading !== lastLoading) {

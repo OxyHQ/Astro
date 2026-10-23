@@ -23,6 +23,8 @@ type TabStripService = {
   closeNodes(ids: string[]): Promise<unknown>;
   activateTab(id: string): Promise<unknown>;
 };
+type Listener = { addListener(listener: () => void): unknown };
+type PageCallbackRouter = { setFocusToLocationBar: Listener };
 type PageHandler = {
   getGuestIdForTabId(tabId: string, receiver: unknown): Promise<{ guestId: unknown }>;
   minimize(): void;
@@ -60,7 +62,9 @@ export class ChromiumTab {
   private guestId: Promise<unknown>;
   private frame: HTMLIFrameElement | null = null;
   private listeners = new Set<(state: TabState) => void>();
+  private active = false;
   onClosed: (() => void) | null = null;
+  onActivatedByEngine: (() => void) | null = null;
   state: TabState;
 
   constructor(
@@ -80,6 +84,9 @@ export class ChromiumTab {
   }
 
   async update(data: TabData) {
+    const activated = data.isActive && !this.active;
+    this.active = data.isActive;
+    if (activated && this.hub.requestedActive !== this.id) this.onActivatedByEngine?.();
     const [{ canGoBack }, { canGoForward }] = await Promise.all([this.guest.canGoBack(), this.guest.canGoForward()]);
     this.state = toState(data, canGoBack, canGoForward);
     for (const listener of this.listeners) listener(this.state);
@@ -102,6 +109,7 @@ export class ChromiumTab {
   }
 
   activate() {
+    this.hub.requestedActive = this.id;
     void this.hub.service.activateTab(this.id);
   }
 
@@ -132,7 +140,9 @@ export class TabHub {
   private spare: TabData[] = [];
   private known = new Map<string, TabData>();
   private creating = new Set<Promise<unknown>>();
+  requestedActive: string | null = null;
   onForeignTab: ((tab: ForeignTab) => void) | null = null;
+  onFocusLocationBar: (() => void) | null = null;
 
   constructor(
     readonly service: TabStripService,
@@ -142,11 +152,16 @@ export class TabHub {
 
   static async start(): Promise<TabHub> {
     const [browser, tabsApi, observation] = await Promise.all([
-      importFromPage<{ browserProxyFactory: { getInstance(): { handler: PageHandler } }; GuestHandlerRemote: new () => GuestHandler }>("/browser.mojom-webui.js"),
+      importFromPage<{
+        browserProxyFactory: { getInstance(): { handler: PageHandler; callbackRouter: PageCallbackRouter } };
+        GuestHandlerRemote: new () => GuestHandler;
+      }>("/browser.mojom-webui.js"),
       importFromPage<{ TabStripService: { getRemote(): TabStripService } }>("/tab_strip_api/tab_strip_api.mojom-webui.js"),
       importFromPage<{ TabStripObservation: new (observer: Observer) => { bind(handle: unknown): void } }>("/tab_strip_api/tab_strip_observation.js"),
     ]);
-    const hub = new TabHub(tabsApi.TabStripService.getRemote(), browser.browserProxyFactory.getInstance().handler, () => new browser.GuestHandlerRemote());
+    const proxy = browser.browserProxyFactory.getInstance();
+    const hub = new TabHub(tabsApi.TabStripService.getRemote(), proxy.handler, () => new browser.GuestHandlerRemote());
+    proxy.callbackRouter.setFocusToLocationBar.addListener(() => hub.onFocusLocationBar?.());
     const snapshot = await hub.service.getTabs();
     for (const tab of flatten(snapshot.tabStrip)) {
       hub.known.set(tab.id, tab);
@@ -196,7 +211,7 @@ export class TabHub {
     if (adopted && !this.tabs.has(adopted.id)) return this.claim(adopted, null);
     const spare = this.spare.shift();
     if (spare) return this.claim(spare, url ?? null);
-    const creating = this.service.createTabAt(null, url ?? null);
+    const creating = this.service.createTabAt(null, url || "about:blank");
     this.creating.add(creating);
     try {
       const created = await creating;

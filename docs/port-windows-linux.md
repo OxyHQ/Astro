@@ -58,12 +58,21 @@ Steps 5 and 6 have a first cut that browses, built on Webium's own window instea
   `WindowDragRegion` sets `app-region: drag`. `src/WindowControls.tsx` makes the traffic lights close, minimise and
   maximise the window.
 
-Run it: `pnpm -C apps/webui build` (or `dev`, which rebuilds on change), then
-`out/Release_GN_x64_dev/chrome --enable-features=Webium --astro-ui-dir=$PWD/apps/webui/dist`.
+Engine calls go through `chrome.send` (`ac_engine_webui.cc`: the 18 calls macOS allows, for the default profile), and
+the page's `fetch` to http(s) goes through the engine (`astroFetch`: no cookies, safe headers, 8 MB), so history,
+bookmarks, favicons and search suggestions work. Ctrl+L opens the command bar, Ctrl+T opens Astro's new tab instead of
+Chromium's, and a tab Chromium activates (Ctrl+Tab) becomes the shown one.
 
-Still missing: `ac_*` calls (step 4's Mojo interface; history, bookmarks, passwords and the rest answer nothing),
-search suggestions (the WebUI's CSP rightly blocks the page's own fetches), favicons for history, a theme colour per
-page, and one JS context per window.
+Run it: `pnpm -C apps/webui build` (or `dev`, which rebuilds on change), then
+`out/Release_GN_x64_dev/chrome --enable-features=Webium,AttachUnownedInnerWebContents --astro-ui-dir=$PWD/apps/webui/dist`.
+Both features are needed: without `AttachUnownedInnerWebContents`, removing a tab's iframe hits a CHECK. Restart the
+browser to pick up a new build; reloading `chrome://webui-browser` itself crashes Webium (it reopens the page as a
+tab, outside its window).
+
+Still missing: the engine calls macOS reaches through other native modules (passwords, downloads, extensions,
+site settings), more than one profile, a theme colour per page, persisting documents in profile preferences rather
+than `localStorage`, a packaged build (the interface in a pak instead of `--astro-ui-dir`), and one JS context per
+window.
 
 ## Minimum steps to browse on Linux
 
