@@ -74,16 +74,16 @@ hook "$src/chrome/app/chrome_main.cc" "ChromeMain's ACMainDelegate" <<'PY'
 old = """#else  // BUILDFLAG(IS_WIN)
   ChromeMainDelegate chrome_main_delegate(
       {.exe_entry_point_ticks = base::TimeTicks::Now()});"""
-new = """#else  // BUILDFLAG(IS_WIN)
-  // Astro: AstroCore's delegate (engine/astrocore), a ChromeMainDelegate.
-  astrocore::ACMainDelegate chrome_main_delegate(
-      {.exe_entry_point_ticks = base::TimeTicks::Now()});"""
+mac = "#elif BUILDFLAG(IS_MAC)\n  // Astro: AstroCore's delegate (engine/astrocore), a ChromeMainDelegate.\n"
+new = mac + """  astrocore::ACMainDelegate chrome_main_delegate(
+      {.exe_entry_point_ticks = base::TimeTicks::Now()});
+""" + old
 inc_old = '#if BUILDFLAG(IS_MAC)\n#include "chrome/app/chrome_main_mac.h"\n'
 inc = '#include "astro/core/ac_main_delegate.h"  // nogncheck\n'
 def edit(s):
     assert s.count(old) == 1 and s.count(inc_old) == 1
     return s.replace(old, new).replace(inc_old, inc_old + inc)
-hook(["  astrocore::ACMainDelegate chrome_main_delegate(\n", inc], edit)
+hook(["  astrocore::ACMainDelegate chrome_main_delegate(\n", inc, mac], edit)
 PY
 
 hook "$src/chrome/browser/ui/browser_window/internal/browser_window_features.cc" "BrowserWindowFeatures' WebContentsDelegate" <<'PY'
