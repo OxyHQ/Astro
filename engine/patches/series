@@ -44,6 +44,7 @@ chromium chromium-branding.patch
 # Load-bearing for every user's data: the Safe Storage item ("Astro Safe Storage" / "Astro") holds the key to
 # their saved passwords and cookies. It must survive any re-sync (plain Chromium for AstroCore, a version bump), unchanged.
 chromium chromium-safe-storage-name.patch
+chromium chromium-safe-storage-no-silent-reset.patch
 chromium chromium-password-bubble-hook.patch
 chromium chromium-password-generation-local.patch
 chromium chromium-window-docked-devtools.patch

@@ -53,6 +53,7 @@
 #include "astro/core/ac_context_menu.h"
 #include "astro/core/ac_navigation_hold.h"
 #include "astro/core/ac_page_channel.h"
+#include "astro/core/ac_safe_storage.h"
 #include "astro/core/ac_seams.h"
 #include "astro/core/ac_strings.h"
 #include "content/public/browser/web_contents_view_delegate.h"
@@ -365,6 +366,7 @@ std::optional<int> ACMainDelegate::BasicStartupComplete() {
   g_astro_begin_frame_bridge = EnvIs("ASTRO_BEGIN_FRAME_BRIDGE", "on");
   if (!command_line->HasSwitch(switches::kProcessType)) {
     KeepRealProfileClosed(command_line, "at startup");
+    GuardSafeStorageKey(*command_line);
     command_line->AppendSwitch(switches::kNoStartupWindow);
     command_line->AppendSwitch(switches::kNoFirstRun);
     command_line->AppendSwitch(switches::kNoDefaultBrowserCheck);
