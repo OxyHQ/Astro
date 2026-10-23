@@ -424,7 +424,7 @@ The same steps build the engine on Linux (x64); `env.sh` picks the platform from
   first tab (`WebUIBrowserWindow::UpdateReloadStopState`); Helium's own Linux build segfaults the same way.
 - **The engine layer** (`//chrome/browser/astro`, the `ac_*` calls) links into Linux `chrome` too
   (`chromium-astro-layer.patch`). Its macOS pieces have Linux stand-ins in `ac_platform_default.cc`: OS reauth is
-  denied (Chromium has no device authenticator on Linux), external-app allowances list no app name or icon, and the
+  denied on Linux (Chromium has no device authenticator there; Windows uses `ac_reauth.cc` and Windows Hello), external-app allowances list no app name or icon, and the
   picture-in-picture bounds, fade and input frame-rate hold do nothing. AstroCore's `ChromeMain` delegate stays
   macOS-only; Linux keeps Chromium's.
 - **Times** (32 cores, `dev`): steps 3 and 4 take 2 min; the first build, 2 h 13 min (57,000 actions).

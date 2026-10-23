@@ -47,7 +47,11 @@ export function startDownloads() {
 const downloadCommand = (command: string) => (id: string) =>
   void call(`ac_downloads_${command}`, downloadProfiles.get(id) ?? DEFAULT_ENGINE_PROFILE, { id });
 
+let lastInput = Date.now();
+for (const event of ["pointerdown", "keydown", "wheel"]) window.addEventListener(event, () => void (lastInput = Date.now()), true);
+
 export const cefServices = {
+  inputIdleSeconds: () => (Date.now() - lastInput) / 1000,
   listPasswords: async (profile: string) => {
     const result = await call("ac_passwords_list", profile);
     if (!Array.isArray(result.passwords)) return result;
@@ -68,7 +72,12 @@ export const cefServices = {
   deletePassword: (profile: string, origin: string, username: string) => call("ac_passwords_remove", profile, login(origin, username)),
   getNeverSavePasswordOrigins: (profile: string) => call("ac_passwords_exceptions", profile),
   allowSavingPasswords: (profile: string, origin: string) => call("ac_passwords_allow", profile, { origin: originOf(origin) }),
-  exportPasswords: async (_profile: string) => ({ status: "cancelled" }),
+  exportPasswords: async (profile: string) => {
+    const [path] = await pickFiles("save", "Astro Passwords.csv");
+    if (!path) return { status: "cancelled" };
+    const result = await call("ac_passwords_export", profile, { path });
+    return result.error ? { status: "writeFailed" } : { status: result.status ?? "writeFailed", path };
+  },
   getPasswordAutofill: (profile: string) => boolPref("credentials_enable_service", profile),
   setPasswordAutofill: (profile: string, enabled: boolean) => void boolPref("credentials_enable_service", profile, enabled),
   getAutofillSettings: async (profile: string) => ({

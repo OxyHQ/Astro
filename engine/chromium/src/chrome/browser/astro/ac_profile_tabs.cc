@@ -384,6 +384,12 @@ void OpenProfileTab(ProfileTabsClient* client,
                   off_the_record, std::move(done)));
 }
 
+content::WebContents* ContentsForProfileTab(ProfileTabsClient* client,
+                                            int tab_id) {
+  TrackedTab* tab = OwnedTab(client, tab_id);
+  return tab ? tab->web_contents() : nullptr;
+}
+
 std::optional<std::string> GuestIdForProfileTab(ProfileTabsClient* client,
                                                 int tab_id) {
   TrackedTab* tab = OwnedTab(client, tab_id);

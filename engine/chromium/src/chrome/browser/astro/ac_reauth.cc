@@ -2,14 +2,12 @@
 
 #include "chrome/browser/astro/ac_reauth.h"
 
-#include <Security/Security.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <memory>
 #include <utility>
 
-#include "base/apple/scoped_cftyperef.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -19,6 +17,13 @@
 #include "chrome/browser/astro/ac_engine.h"
 #include "components/device_reauth/device_authenticator.h"
 #include "components/os_crypt/common/os_crypt_switches.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_MAC)
+#include <Security/Security.h>
+
+#include "base/apple/scoped_cftyperef.h"
+#endif
 
 namespace astro {
 namespace {
@@ -28,6 +33,7 @@ bool HiddenTestInstance() {
   return background && !strcmp(background, "1");
 }
 
+#if BUILDFLAG(IS_MAC)
 bool SignedForDistribution() {
   base::apple::ScopedCFTypeRef<SecCodeRef> self;
   if (SecCodeCopySelf(kSecCSDefaultFlags, self.InitializeInto()) !=
@@ -46,13 +52,18 @@ bool SignedForDistribution() {
   return SecCodeCheckValidity(self.get(), kSecCSDefaultFlags,
                               distribution.get()) == errSecSuccess;
 }
+#endif
 
 bool TestGrantHonoured() {
+#if BUILDFLAG(IS_MAC)
   static const bool honoured =
       !SignedForDistribution() &&
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           os_crypt::switches::kUseMockKeychain);
   return honoured;
+#else
+  return false;
+#endif
 }
 
 bool TestGrant() {

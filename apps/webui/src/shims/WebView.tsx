@@ -1,9 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { View } from "react-native";
-import type { NavigationState, WebViewHandle, WebViewProps } from "@astro-browser-real/astrocore";
+import type { CrashInfo, FindResult, LoadError, MediaState, NavigationState, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
 import type { BrowserCommand } from "@astro-browser-real/shell";
 import { openProfileTab, onProfileTabOpened, PROFILE_TAB_PREFIX } from "../host/profileTabs";
 import { type EngineTab, type TabState, tabHub } from "../host/tabs";
+import { cefServices } from "../host/services";
+import { callTab, type TabEventListener, watchTab } from "../host/tabBridge";
 import { pageWindowId } from "../host/windows";
 import { openFromPage } from "../../../browser/src/components/layout/openFromPage";
 import { useBrowser } from "../../../browser/src/store/browser";
@@ -50,6 +52,27 @@ function openEngineTab(props: WebViewProps): Promise<EngineTab | null> {
   return tabHub().then((hub) => hub.open({ adoptId: props.adoptId, url: props.url }));
 }
 
+function tabEvents(props: { current: WebViewProps }): TabEventListener {
+  return (kind, payload) => {
+    const p = props.current;
+    if (kind === "find") p.onFindResult?.(payload as FindResult);
+    else if (kind === "media") p.onMedia?.(payload as MediaState);
+    else if (kind === "zoom") p.onZoom?.(payload as ZoomState);
+    else if (kind === "security") p.onSecurity?.(payload as SecurityInfo);
+    else if (kind === "crashed") p.onCrashed?.(payload as CrashInfo);
+    else if (kind === "loadError") p.onLoadError?.(payload as LoadError);
+    else if (kind === "fullscreen") p.onFullscreen?.(!!payload.fullscreen);
+  };
+}
+
+const originOf = (url: string) => {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
+};
+
 function navigationState(state: TabState): NavigationState {
   return {
     url: state.url,
@@ -76,10 +99,19 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
     const browserId = nextBrowserId++;
     opened.current = openEngineTab(latest.current);
     let stopListening = () => {};
+    let stopWatching = () => {};
     void opened.current.then((opening) => {
       if (!opening) return;
       if (closed) return opening.close();
       tab.current = opening;
+      void watchTab(opening.ref, tabEvents(latest)).then(({ snapshot, stop }) => {
+        if (closed) return stop();
+        stopWatching = stop;
+        if (!snapshot) return;
+        latest.current.onMedia?.(snapshot.media as MediaState);
+        latest.current.onZoom?.(snapshot.zoom as ZoomState);
+        latest.current.onSecurity?.(snapshot.security as SecurityInfo);
+      });
       opening.onClosed = () => latest.current.onWindowClose?.();
       opening.onActivatedByEngine = () => latest.current.onActivateRequest?.({ reason: "engine" });
       stopListening = opening.listen((state) => {
@@ -100,6 +132,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
     return () => {
       closed = true;
       stopListening();
+      stopWatching();
       tab.current?.close();
       tab.current = null;
     };
@@ -129,20 +162,37 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       const current = tab.current ?? (await opened.current);
       if (current) run(current);
     };
+    const call = async <T,>(method: string, args: Record<string, unknown> = {}) => {
+      const current = tab.current ?? (await opened.current);
+      return current ? callTab<T>(current.ref, method, args) : null;
+    };
+    const run = (method: string, args?: Record<string, unknown>) => void call(method, args);
     const handle: Partial<WebViewHandle> = {
       nativeTag: () => null,
       loadUrl: async (url) => withTab((current) => current.navigate(url))(),
       goBack: withTab((current) => current.back()),
       goForward: withTab((current) => current.forward()),
+      goToOffset: async (offset) => run("goToOffset", { offset }),
       reload: withTab((current) => current.reload()),
-      forceReload: withTab((current) => current.reload()),
+      forceReload: async () => run("forceReload"),
       stopLoading: withTab((current) => current.stop()),
       focus: async () => frame.current?.focus(),
-      navigationEntries: async () => {
-        const state = tab.current?.state;
-        return state ? [{ url: state.url, title: state.title, current: true }] : [];
+      setMuted: async (muted) => run("setMuted", { muted }),
+      zoomStep: async (direction) => run("zoomStep", { direction }),
+      find: async (text, forward, findNext) => run("find", { text, forward, findNext }),
+      stopFinding: async (clearSelection) => run("stopFinding", { clearSelection }),
+      print: async () => run("print"),
+      runPageCommand: async (name) => run(name === "systemPrint" ? "systemPrint" : name),
+      showDevTools: async (panel) => run("showDevTools", panel ? { panel } : {}),
+      executeJavaScript: async (code) => run("executeJavaScript", { code }),
+      evaluate: async <T,>(code: string) => (await call<T>("evaluate", { code })) ?? null,
+      navigationEntries: async () => (await call<Awaited<ReturnType<WebViewHandle["navigationEntries"]>>>("navigationEntries")) ?? [],
+      getSecurityInfo: async () => await call<SecurityInfo>("securityInfo"),
+      clearSiteData: async () => {
+        const origin = originOf(tab.current?.state.url ?? "");
+        if (!origin) return { cookies: false, storage: false };
+        return (await cefServices.clearSiteData(latest.current.profile ?? "", origin)) as Awaited<ReturnType<WebViewHandle["clearSiteData"]>>;
       },
-      evaluate: async () => null,
       discard: async () => "unsupported",
       capturePicture: async () => null,
     };

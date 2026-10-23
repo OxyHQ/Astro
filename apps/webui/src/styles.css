@@ -32,6 +32,24 @@ a,
   cursor: default;
 }
 
+.astro-app-menu {
+  position: absolute;
+  z-index: 1001;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  font: 600 16px/1 system-ui, sans-serif;
+  cursor: default;
+}
+
+.astro-app-menu:hover {
+  opacity: 1;
+  background: rgba(127, 127, 127, 0.18);
+}
+
 .astro-utility-backdrop {
   position: fixed;
   inset: 0;

@@ -1,4 +1,4 @@
-import { loadCr } from "./engine";
+import { callTab, watchTab } from "./tabBridge";
 
 type TabData = {
   id: string;
@@ -65,6 +65,7 @@ export type TabState = {
 export type ForeignTab = { id: string; url: string };
 
 export interface EngineTab {
+  readonly ref: string;
   state: TabState;
   onClosed: (() => void) | null;
   onActivatedByEngine: (() => void) | null;
@@ -88,6 +89,11 @@ export class ChromiumTab implements EngineTab {
   onClosed: (() => void) | null = null;
   onActivatedByEngine: (() => void) | null = null;
   state: TabState;
+  private stopWatching = () => {};
+
+  get ref() {
+    return this.id;
+  }
 
   constructor(
     private hub: TabHub,
@@ -96,7 +102,12 @@ export class ChromiumTab implements EngineTab {
     data: TabData,
   ) {
     this.state = toState(data, false, false, null);
-    hub.themeListeners.set(id, (themeColor) => this.setTheme(themeColor));
+    void watchTab(id, (kind, payload) => {
+      if (kind === "theme") this.setTheme((payload.color as string | null) ?? null);
+    }).then(({ snapshot, stop }) => {
+      this.stopWatching = stop;
+      if (snapshot) this.setTheme(snapshot.themeColor);
+    });
     this.guestId = hub.page.getGuestIdForTabId(id, guest.$.bindNewPipeAndPassReceiver()).then((r) => r.guestId);
   }
 
@@ -110,12 +121,8 @@ export class ChromiumTab implements EngineTab {
     const activated = data.isActive && !this.active;
     this.active = data.isActive;
     if (activated && this.hub.requestedActive !== this.id) this.onActivatedByEngine?.();
-    const [{ canGoBack }, { canGoForward }, themeColor] = await Promise.all([
-      this.guest.canGoBack(),
-      this.guest.canGoForward(),
-      loadCr().then((cr) => cr.sendWithPromise<string | null>("astroTabTheme", this.id)),
-    ]);
-    this.state = toState(data, canGoBack, canGoForward, themeColor);
+    const [{ canGoBack }, { canGoForward }] = await Promise.all([this.guest.canGoBack(), this.guest.canGoForward()]);
+    this.state = toState(data, canGoBack, canGoForward, this.state.themeColor);
     for (const listener of this.listeners) listener(this.state);
   }
 
@@ -138,7 +145,8 @@ export class ChromiumTab implements EngineTab {
   }
 
   navigate(url: string) {
-    this.guest.navigate(url);
+    if (isBlank(this.state.url)) void callTab(this.id, "navigate", { url, replace: true });
+    else this.guest.navigate(url);
   }
 
   back() {
@@ -164,7 +172,7 @@ export class ChromiumTab implements EngineTab {
 
   close() {
     this.listeners.clear();
-    this.hub.themeListeners.delete(this.id);
+    this.stopWatching();
     this.hub.close(this);
   }
 }
@@ -197,7 +205,6 @@ export class TabHub {
   private foreignHandler: ((tab: ForeignTab) => void) | null = null;
   private waitingForHandler: TabData[] = [];
   onFocusLocationBar: (() => void) | null = null;
-  readonly themeListeners = new Map<string, (themeColor: string | null) => void>();
 
   constructor(
     readonly service: TabStripService,
@@ -217,11 +224,6 @@ export class TabHub {
     const proxy = browser.browserProxyFactory.getInstance();
     const hub = new TabHub(tabsApi.TabStripService.getRemote(), proxy.handler, () => new browser.GuestHandlerRemote());
     proxy.callbackRouter.setFocusToLocationBar.addListener(() => hub.onFocusLocationBar?.());
-    const cr = await loadCr();
-    (cr.addWebUiListener as unknown as (event: string, listener: (id: string, themeColor: string | null) => void) => void)(
-      "astro-tab-theme",
-      (id, themeColor) => hub.themeListeners.get(id)?.(themeColor),
-    );
     const snapshot = await hub.service.getTabs();
     for (const tab of flatten(snapshot.tabStrip)) {
       hub.known.set(tab.id, tab);

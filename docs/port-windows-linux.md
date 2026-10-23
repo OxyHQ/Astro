@@ -103,14 +103,25 @@ waits on it: when the page goes away however it goes, its window closes in the s
 (quitting keeps the session). Tabs live in the tab strip of the page that shows them, so a
 tab moved to another window reloads there.
 
-The toolbar takes the page's theme colour (`<meta name="theme-color">`): `astroTabTheme` returns it and watches the
-tab, and `astro-tab-theme` reports changes; a profile tab's state carries it.
+Pages: each tab has a bridge in the engine (`ac_tab_bridge.cc`, the portable counterpart of AstroCore's `TabBridge`).
+`astroTabCall` runs find, zoom, mute, back/forward by offset, the history list, hard reload, print, save page, caret
+browsing, devtools, JavaScript (in an isolated world) and security info; `astroTabWatch` sends a first snapshot and
+`astro-tab-event` the changes: find results, audio, zoom, security, crashes, load errors, full screen and the theme
+colour (`<meta name="theme-color">`). Print uses the system dialog, since Chromium's preview needs a modal host that
+Webium's guest tabs don't have; devtools open in their own window rather than docked. A tab's first navigation away
+from a blank or Chromium new tab page replaces that entry, so Back never lands on Chromium's page.
+
+Menu: Linux and Windows have no menu bar, so a button beside the window controls opens the macOS menu bar's commands
+(`AppMenu.tsx`, from the same `menuState`), with Ctrl shortcuts; Exit is `astroQuit` (`chrome::AttemptUserExit`).
 
 Files: `astroPickFiles` opens the platform's file dialog, for a folder (an unpacked extension, which
 `ac_extensions_inspect` reads with Chromium's own loader before the install prompt) or for files to open.
 
-Still missing: password export (it needs the reauth decision below and a save dialog), a packaged
-build (the interface in a pak instead of `astro-ui/`), and OS reauth for passwords on Linux and Windows (denied today).
+Passwords: revealing, copying and exporting them asks the OS first. On Windows that is Windows Hello, through
+Chromium's own device authenticator (`ac_reauth.cc`, as on macOS); Chromium has none for Linux, so there it is denied.
+Export asks where to save (`astroPickFiles` in save mode) and writes Chromium's CSV.
+
+Still missing: a packaged build (the interface in a pak instead of `astro-ui/`) and a way to reauthenticate on Linux.
 
 ## Minimum steps to browse on Linux
 

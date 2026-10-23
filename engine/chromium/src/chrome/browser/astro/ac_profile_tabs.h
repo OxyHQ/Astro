@@ -44,6 +44,8 @@ void OpenProfileTab(ProfileTabsClient* client,
                     const std::string& profile_name,
                     const GURL& url,
                     base::OnceCallback<void(std::optional<int>)> done);
+content::WebContents* ContentsForProfileTab(ProfileTabsClient* client,
+                                            int tab_id);
 std::optional<std::string> GuestIdForProfileTab(ProfileTabsClient* client,
                                                 int tab_id);
 void ProfileTabCommand(ProfileTabsClient* client,

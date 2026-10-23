@@ -7,6 +7,7 @@
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/astro/ac_engine.h"
 #include "chrome/browser/astro/ac_external_apps.h"
 #include "chrome/browser/astro/ac_input_frame_rate.h"
@@ -23,6 +24,7 @@ const char* const kPairs = prefs::kProtocolHandlerPerOriginAllowedProtocols;
 
 }
 
+#if BUILDFLAG(IS_LINUX)
 void Reauth(Profile* profile,
             device_reauth::DeviceAuthSource source,
             const std::u16string& purpose,
@@ -34,6 +36,7 @@ void Reauth(Profile* profile,
        base::DictValue().Set("purpose", purpose).Set("granted", false));
   std::move(done).Run(false);
 }
+#endif
 
 void HoldFullFrameRateDuringInput() {}
 

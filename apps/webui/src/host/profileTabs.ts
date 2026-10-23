@@ -52,6 +52,10 @@ class ProfileTab implements EngineTab {
   onActivatedByEngine: (() => void) | null = null;
   state: TabState = toState({});
 
+  get ref() {
+    return `${PROFILE_TAB_PREFIX}${this.tabId}`;
+  }
+
   constructor(readonly tabId: number) {
     this.guestId = loadCr().then((cr) => cr.sendWithPromise<string | null>("astroProfileTabGuest", tabId));
     this.command("report");

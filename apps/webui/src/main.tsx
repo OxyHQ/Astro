@@ -13,6 +13,7 @@ import "../../demo/src/shims/web/motion/shortcuts";
 import { installEngineFetch } from "./host/fetch";
 import { tabHub } from "./host/tabs";
 import { startWindows, usePageWindowId } from "./host/windows";
+import { AppMenuButton } from "./AppMenu";
 import { UtilityWindows } from "./UtilityWindows";
 import { WindowControls } from "./WindowControls";
 
@@ -44,6 +45,7 @@ function PageWindow() {
       <div className="astro-window">
         <WindowRoot windowId={windowId} />
         <WindowControls />
+        <AppMenuButton />
       </div>
       <UtilityWindows />
       <MenuHost />

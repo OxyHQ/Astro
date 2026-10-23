@@ -49,6 +49,8 @@ source_set("astro") {
     "ac_site_settings.cc",
     "ac_site_settings.h",
     "ac_tab_restore.cc",
+    "ac_tab_bridge.cc",
+    "ac_tab_bridge.h",
     "ac_tabs.cc",
     "ac_tabs.h",
     "ac_ui_source.cc",
@@ -72,6 +74,7 @@ source_set("astro") {
     "//chrome/browser/browsing_data:constants",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/device_reauth",
+    "//chrome/browser/devtools",
     "//chrome/browser/download",
     "//chrome/browser/extensions",
     "//chrome/browser/extensions/api/passwords_private",
@@ -100,6 +103,7 @@ source_set("astro") {
     "//components/favicon/core",
     "//components/favicon_base",
     "//components/favicon/content",
+    "//components/find_in_page",
     "//components/guest_contents/browser",
     "//components/history/core/browser",
     "//components/keyed_service/core",
@@ -108,6 +112,7 @@ source_set("astro") {
     "//components/password_manager/core/common",
     "//components/performance_manager",
     "//components/prefs",
+    "//components/zoom",
     "//components/search_engines",
     "//components/sessions",
     "//components/strings",
@@ -147,6 +152,10 @@ source_set("astro") {
     ]
   } else {
     sources += [ "ac_platform_default.cc" ]
+  }
+
+  if (is_win) {
+    sources += [ "ac_reauth.cc" ]
   }
 
   if (is_posix) {
