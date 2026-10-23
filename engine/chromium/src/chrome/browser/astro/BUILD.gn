@@ -47,6 +47,8 @@ source_set("astro") {
     "ac_tab_restore.cc",
     "ac_tabs.cc",
     "ac_tabs.h",
+    "ac_ui_source.cc",
+    "ac_ui_source.h",
     "ac_zoom.cc",
     "ac_zoom.h",
     "pip/ac_pip_controls.cc",

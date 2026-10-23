@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/ui/webui_browser/webui_browser_ui.cc b/chrome/browser/ui/webui_browser/webui_browser_ui.cc
+--- a/chrome/browser/ui/webui_browser/webui_browser_ui.cc
++++ b/chrome/browser/ui/webui_browser/webui_browser_ui.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
+ 
++#include "chrome/browser/astro/ac_ui_source.h"  // nogncheck
++
+ #include <array>
+ 
+ #include "base/containers/to_vector.h"
+@@ -116,6 +118,8 @@ WebUIBrowserUI::WebUIBrowserUI(content::WebUI* web_ui)
+                               IDR_WEBUI_BROWSER_WEBUI_BROWSER_HTML);
+   source->AddResourcePaths(kTabStripApiResources);
+   source->AddResourcePaths(kWebuiToolbarSharedResources);
++  // Astro: --astro-ui-dir serves the interface from disk (engine/chromium).
++  astro::ServeUiFromDisk(source);
+ 
+   static constexpr webui::LocalizedString kStrings[] = {
+       // Localized strings (alphabetical order).
