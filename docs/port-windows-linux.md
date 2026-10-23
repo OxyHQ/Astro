@@ -120,6 +120,15 @@ only knows `xdg-open`) and blocked popups (opened as a tab of the same browser: 
 window). Chromium skips its external-protocol dialog when the outermost WebContents has no modal host, which in Webium
 is the window page, so a second hook asks Astro before that check, with the tab itself.
 
+Extensions (`ac_extension_views.cc`, AstroCore's extension view host ported): a popup or side panel is a `WebView` with
+`extensionHost`, which opens Chromium's `ExtensionViewHost` in the tab's browser and attaches its WebContents as a guest
+(`x:<id>` on the bridge, so evaluation, size and close work as for tabs). The bridge runs actions
+(`executeExtensionAction`), reads each action's icon, badge and title (`actionStates`) and the side panel URL;
+`g_astro_open_action_popup` and `g_astro_extension_side_panel` reach the page that shows the active tab. Web Store
+installs ask through Astro's prompt (`ac_extension_prompts.cc`); Chromium's installed bubble, which needs a views anchor,
+is not shown. Evaluation keeps AstroCore's contract: the code is the body of `function(post){…}` and answers with
+`post("result", json)`; here it runs in an isolated world and only a `post` made before it returns is answered.
+
 System (`ac_system.cc`): open a file, show it in its folder, whether a file exists, open an external URL, the default
 browser (Chromium's worker), launch at login (a `~/.config/autostart` entry, or the `Run` key on Windows) and the
 interface's own notifications (Chromium's notification service; click and close come back as `notificationResponse`).

@@ -5,6 +5,7 @@ import type { BrowserCommand } from "@astro-browser-real/shell";
 import { openProfileTab, onProfileTabOpened, PROFILE_TAB_PREFIX } from "../host/profileTabs";
 import { type EngineTab, type TabState, tabHub } from "../host/tabs";
 import { emitNativeEvent } from "../../../demo/src/shims/expo-modules-core";
+import { openExtensionView } from "../host/extensionViews";
 import { cefServices } from "../host/services";
 import { callTab, type TabEventListener, watchTab } from "../host/tabBridge";
 import { pageWindowId } from "../host/windows";
@@ -13,6 +14,14 @@ import { useBrowser } from "../../../browser/src/store/browser";
 import { emitCommand } from "./shell";
 
 let nextBrowserId = 1;
+const browsers = new Map<number, { ref: string; profile: string }>();
+
+export const refForBrowser = (browserId: number) => browsers.get(browserId)?.ref ?? null;
+
+const tabRefForProfile = (profile: string) => {
+  for (const entry of [...browsers.values()].reverse()) if (entry.profile === profile && !entry.ref.startsWith("x:")) return entry.ref;
+  return "";
+};
 let opener: { current: WebViewProps } | null = null;
 
 const ENGINE_PAGES: [RegExp, BrowserCommand][] = [
@@ -49,6 +58,7 @@ onProfileTabOpened(({ id, url }) =>
 const isProfileTab = (profile: string | undefined, adoptId: string | undefined) => adoptId?.startsWith(PROFILE_TAB_PREFIX) || !!profile;
 
 function openEngineTab(props: WebViewProps): Promise<EngineTab | null> {
+  if (props.extensionHost) return openExtensionView(props.url ?? "", props.extensionHost, tabRefForProfile(props.profile ?? ""));
   if (isProfileTab(props.profile, props.adoptId)) return openProfileTab(props.profile ?? "", props.adoptId, props.url);
   return tabHub().then((hub) => hub.open({ adoptId: props.adoptId, url: props.url }));
 }
@@ -57,6 +67,11 @@ function tabEvents(props: { current: WebViewProps }, browserId: number): TabEven
   return (kind, payload) => {
     const p = props.current;
     if (kind === "permission") return emitNativeEvent("AstroCEF", "onPermission", { ...payload, browserId });
+    if (kind === "installPrompt") return emitNativeEvent("AstroExtensions", "onInstallPrompt", { ...payload, browserId });
+    if (kind === "actionPopup") return emitNativeEvent("AstroChromeUI", "onActionPopup", { ...payload, browserId });
+    if (kind === "sidePanel") return emitNativeEvent("AstroChromeUI", "onSidePanel", { ...payload, browserId });
+    if (kind === "windowClose") return p.onWindowClose?.();
+    if (kind === "preferredSize") return p.onPreferredSize?.(payload as { width: number; height: number });
     if (kind === "find") p.onFindResult?.(payload as FindResult);
     else if (kind === "media") p.onMedia?.(payload as MediaState);
     else if (kind === "zoom") p.onZoom?.(payload as ZoomState);
@@ -109,6 +124,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       if (!opening) return;
       if (closed) return opening.close();
       tab.current = opening;
+      browsers.set(browserId, { ref: opening.ref, profile: latest.current.profile ?? "" });
       void watchTab(opening.ref, tabEvents(latest, browserId)).then(({ snapshot, stop }) => {
         if (closed) return stop();
         stopWatching = stop;
@@ -116,6 +132,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
         latest.current.onMedia?.(snapshot.media as MediaState);
         latest.current.onZoom?.(snapshot.zoom as ZoomState);
         latest.current.onSecurity?.(snapshot.security as SecurityInfo);
+        if (snapshot.preferredSize) latest.current.onPreferredSize?.(snapshot.preferredSize);
       });
       opening.onClosed = () => latest.current.onWindowClose?.();
       opening.onActivatedByEngine = () => latest.current.onActivateRequest?.({ reason: "engine" });
@@ -136,6 +153,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
     });
     return () => {
       closed = true;
+      browsers.delete(browserId);
       stopListening();
       stopWatching();
       tab.current?.close();
@@ -190,8 +208,17 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       runPageCommand: async (name) => run(name === "systemPrint" ? "systemPrint" : name),
       showDevTools: async (panel) => run("showDevTools", panel ? { panel } : {}),
       executeJavaScript: async (code) => run("executeJavaScript", { code }),
-      evaluate: async <T,>(code: string) => (await call<T>("evaluate", { code })) ?? null,
+      evaluate: async <T,>(code: string) => {
+        const json = await call<string>("evaluate", { code });
+        if (typeof json !== "string") return null;
+        try {
+          return JSON.parse(json) as T;
+        } catch {
+          return null;
+        }
+      },
       navigationEntries: async () => (await call<Awaited<ReturnType<WebViewHandle["navigationEntries"]>>>("navigationEntries")) ?? [],
+      executeExtensionAction: async (id) => (await call<"none" | "popup" | "sidePanel">("executeExtensionAction", { id })) ?? "none",
       openBlockedPopup: async (id, always) => run("openBlockedPopup", { id, always: !!always }),
       resolvePasswordPrompt: async (answer, edits) => run("resolvePasswordPrompt", { answer, ...edits }),
       getSecurityInfo: async () => await call<SecurityInfo>("securityInfo"),

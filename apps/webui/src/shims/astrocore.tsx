@@ -2,6 +2,7 @@ import { provideNativeModule } from "../../../demo/src/shims/expo-modules-core";
 import { engineCall, forwardEngineTopics, startEngineEvents } from "../host/engine";
 import { fetchFaviconImage } from "../host/favicons";
 import { cefServices, extensionServices, startDownloads } from "../host/services";
+import { chromeUIServices } from "../host/chromeUI";
 import { appServices, systemServices } from "../host/system";
 import { startTabEvents } from "../host/tabBridge";
 
@@ -14,6 +15,7 @@ provideNativeModule("AstroExtensions", extensionServices);
 provideNativeModule("AstroImport", { listBrowsers: async () => "[]" });
 provideNativeModule("AstroSystem", systemServices);
 provideNativeModule("AstroApp", appServices);
+provideNativeModule("AstroChromeUI", chromeUIServices);
 startEngineEvents();
 startTabEvents();
 startDownloads();

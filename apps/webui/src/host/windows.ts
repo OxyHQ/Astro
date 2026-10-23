@@ -102,6 +102,7 @@ function setPageWindow(id: string) {
 }
 
 export const pageWindowId = () => windowId;
+export const isLeaderPage = () => leader;
 
 export const usePageWindowId = () =>
   useSyncExternalStore(

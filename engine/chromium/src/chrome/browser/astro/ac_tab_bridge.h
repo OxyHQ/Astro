@@ -40,6 +40,9 @@ class TabBridge : public content::WebContentsObserver,
 
   void DidFinishNavigation(content::NavigationHandle* handle) override;
   void DidChangeVisibleSecurityState() override;
+  void DidStartLoading() override;
+  void DidStopLoading() override;
+  void TitleWasSet(content::NavigationEntry* entry) override;
   void PrimaryMainFrameRenderProcessGone(
       base::TerminationStatus status) override;
   void OnAudioStateChanged(bool audible) override;
@@ -60,6 +63,7 @@ class TabBridge : public content::WebContentsObserver,
 
  private:
   base::DictValue Media();
+  void EmitNavigation();
   base::DictValue Zoom();
   void ObserveHelpers();
   void CheckSecurity();

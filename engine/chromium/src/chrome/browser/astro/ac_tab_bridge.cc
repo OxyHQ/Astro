@@ -10,6 +10,7 @@
 #include "base/json/json_writer.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/astro/ac_extension_views.h"
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
@@ -18,7 +19,19 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
+#include "base/base64.h"
+#include "base/strings/stringprintf.h"
+#include "chrome/browser/extensions/extension_action_runner.h"
+#include "extensions/browser/extension_action.h"
+#include "extensions/browser/extension_action_manager.h"
+#include "extensions/browser/extension_registry.h"
+#include "chrome/browser/extensions/api/side_panel/side_panel_service.h"
+#include "ui/gfx/codec/png_codec.h"
+#include "ui/gfx/image/image.h"
+#include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image_skia_rep.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/common/pref_names.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -143,6 +156,33 @@ base::Value OriginOf(const GURL& url) {
   return base::Value(origin);
 }
 
+base::Value HexColor(SkColor color) {
+  if (!SkColorGetA(color)) {
+    return base::Value();
+  }
+  return base::Value(base::StringPrintf("#%02x%02x%02x", SkColorGetR(color),
+                                        SkColorGetG(color), SkColorGetB(color)));
+}
+
+std::string PngDataURL(const gfx::Image& image) {
+  if (image.IsEmpty()) {
+    return std::string();
+  }
+  const gfx::ImageSkiaRep& rep = image.ToImageSkia()->GetRepresentation(2.0f);
+  std::optional<std::vector<uint8_t>> png =
+      gfx::PNGCodec::EncodeBGRASkBitmap(rep.GetBitmap(), false);
+  return png ? "data:image/png;base64," + base::Base64Encode(*png)
+             : std::string();
+}
+
+const extensions::Extension* EnabledExtension(content::WebContents* contents,
+                                              const std::string* id) {
+  return id ? extensions::ExtensionRegistry::Get(contents->GetBrowserContext())
+                  ->enabled_extensions()
+                  .GetByID(*id)
+            : nullptr;
+}
+
 const char* TerminationName(base::TerminationStatus status) {
   switch (status) {
     case base::TERMINATION_STATUS_ABNORMAL_TERMINATION:
@@ -226,11 +266,26 @@ base::DictValue TabBridge::Snapshot() {
   if (!contents) {
     return base::DictValue();
   }
-  return base::DictValue()
-      .Set("media", Media())
-      .Set("zoom", Zoom())
-      .Set("security", SecurityInfo(contents))
-      .Set("themeColor", ThemeColor(contents));
+  content::NavigationController& controller = contents->GetController();
+  base::DictValue snapshot =
+      base::DictValue()
+          .Set("media", Media())
+          .Set("zoom", Zoom())
+          .Set("security", SecurityInfo(contents))
+          .Set("themeColor", ThemeColor(contents))
+          .Set("navigation",
+               base::DictValue()
+                   .Set("url", contents->GetVisibleURL().spec())
+                   .Set("title", contents->GetTitle())
+                   .Set("isLoading", contents->IsLoading())
+                   .Set("canGoBack", controller.CanGoBack())
+                   .Set("canGoForward", controller.CanGoForward()));
+  if (std::optional<std::pair<int, int>> size = ExtensionPopupSize(contents)) {
+    snapshot.Set("preferredSize", base::DictValue()
+                                      .Set("width", size->first)
+                                      .Set("height", size->second));
+  }
+  return snapshot;
 }
 
 base::DictValue TabBridge::Media() {
@@ -367,10 +422,86 @@ void TabBridge::Call(const std::string& method,
     if (!code) {
       return std::move(done).Run(base::Value());
     }
+    const std::string wrapped =
+        method == "evaluate"
+            ? "(() => { let out = null; const post = (kind, json) => { if "
+              "(kind === 'result' && out === null) out = json; }; "
+              "(function(post){'use strict';\n" +
+                  *code + "\n})(post); return out; })()"
+            : *code;
     contents->GetPrimaryMainFrame()->ExecuteJavaScriptInIsolatedWorld(
-        base::UTF8ToUTF16(*code), std::move(done),
+        base::UTF8ToUTF16(wrapped), std::move(done),
         ISOLATED_WORLD_ID_CHROME_INTERNAL);
     return;
+  } else if (method == "executeExtensionAction") {
+    const extensions::Extension* extension =
+        EnabledExtension(contents, args.FindString("id"));
+    auto* runner =
+        extensions::ExtensionActionRunner::GetForWebContents(contents);
+    const char* result = "none";
+    if (extension && runner) {
+      switch (runner->RunAction(extension, true)) {
+        case extensions::ExtensionAction::ShowAction::kShowPopup:
+          result = "popup";
+          break;
+        case extensions::ExtensionAction::ShowAction::kToggleSidePanel:
+          result = "sidePanel";
+          break;
+        case extensions::ExtensionAction::ShowAction::kNone:
+          break;
+      }
+    }
+    return std::move(done).Run(base::Value(result));
+  } else if (method == "actionStates") {
+    base::DictValue states;
+    const int tab_id = sessions::SessionTabHelper::IdForTab(contents).id();
+    if (const base::ListValue* ids = args.FindList("ids")) {
+      for (const base::Value& id : *ids) {
+        const extensions::Extension* extension =
+            id.is_string() ? EnabledExtension(contents, &id.GetString())
+                           : nullptr;
+        extensions::ExtensionAction* action =
+            extension ? extensions::ExtensionActionManager::Get(
+                            contents->GetBrowserContext())
+                            ->GetExtensionAction(*extension)
+                      : nullptr;
+        if (!action) {
+          continue;
+        }
+        gfx::Image icon = action->GetExplicitlySetIcon(tab_id);
+        if (icon.IsEmpty()) {
+          icon = action->GetDeclarativeIcon(tab_id);
+        }
+        const std::string badge = action->GetDisplayBadgeText(tab_id);
+        states.Set(id.GetString(),
+                   base::DictValue()
+                       .Set("title", action->GetTitle(tab_id))
+                       .Set("badgeText", badge.starts_with("<<") ? "" : badge)
+                       .Set("badgeColor",
+                            HexColor(action->GetBadgeBackgroundColor(tab_id)))
+                       .Set("badgeTextColor",
+                            HexColor(action->GetBadgeTextColor(tab_id)))
+                       .Set("popup", action->GetPopupUrl(tab_id).spec())
+                       .Set("enabled", action->GetIsVisible(tab_id))
+                       .Set("icon", PngDataURL(icon)));
+      }
+    }
+    return std::move(done).Run(base::Value(std::move(states)));
+  } else if (method == "sidePanelURL") {
+    const extensions::Extension* extension =
+        EnabledExtension(contents, args.FindString("id"));
+    auto* service = extension ? extensions::SidePanelService::Get(
+                                    contents->GetBrowserContext())
+                              : nullptr;
+    if (service) {
+      auto options = service->GetOptions(
+          *extension, sessions::SessionTabHelper::IdForTab(contents).id());
+      if (options.path && options.enabled.value_or(false)) {
+        return std::move(done).Run(
+            base::Value(extension->GetResourceURL(*options.path).spec()));
+      }
+    }
+    return std::move(done).Run(base::Value());
   } else if (method == "openBlockedPopup") {
     auto* popups =
         blocked_content::PopupBlockerTabHelper::FromWebContents(contents);
@@ -426,6 +557,32 @@ void TabBridge::DidFinishNavigation(content::NavigationHandle* handle) {
                                .Set("code", error)
                                .Set("text", net::ErrorToShortString(error)));
   }
+}
+
+void TabBridge::EmitNavigation() {
+  content::WebContents* contents = web_contents();
+  if (!contents) {
+    return;
+  }
+  content::NavigationController& controller = contents->GetController();
+  emit_.Run("navigation", base::DictValue()
+                              .Set("url", contents->GetVisibleURL().spec())
+                              .Set("title", contents->GetTitle())
+                              .Set("isLoading", contents->IsLoading())
+                              .Set("canGoBack", controller.CanGoBack())
+                              .Set("canGoForward", controller.CanGoForward()));
+}
+
+void TabBridge::DidStartLoading() {
+  EmitNavigation();
+}
+
+void TabBridge::DidStopLoading() {
+  EmitNavigation();
+}
+
+void TabBridge::TitleWasSet(content::NavigationEntry*) {
+  EmitNavigation();
 }
 
 void TabBridge::DidChangeVisibleSecurityState() {

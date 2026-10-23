@@ -178,6 +178,7 @@ export const extensionServices = {
     for (const key of ["pinned", "incognito", "fileAccess", "siteAccess"]) if (options[key] !== undefined) args[key] = options[key];
     return run("ac_extensions_configure", profile, args, "configured");
   },
+  resolveInstallPrompt: async (requestId: string, accepted: boolean) => chrome.send("astroExtensionInstallResolve", [requestId, accepted]),
   inspectUnpacked: (path: string) => call("ac_extensions_inspect", DEFAULT_ENGINE_PROFILE, { path }),
   install: async (path: string, profile: string) => {
     const result = await call("ac_extensions_install", profile, { path });

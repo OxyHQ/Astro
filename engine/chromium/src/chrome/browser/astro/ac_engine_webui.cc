@@ -25,6 +25,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "chrome/browser/astro/ac_documents.h"
+#include "chrome/browser/astro/ac_extension_views.h"
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
 #include "chrome/browser/astro/ac_system.h"
@@ -33,6 +34,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_window.h"
+#include "components/guest_contents/browser/guest_contents_handle.h"
 #include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
@@ -184,6 +187,7 @@ constexpr char kProfileTabListener[] = "astro-profile-tab";
 constexpr char kTabEventListener[] = "astro-tab-event";
 constexpr char kHostEventListener[] = "astro-host-event";
 constexpr char kProfileTabPrefix[] = "p:";
+constexpr char kExtensionViewPrefix[] = "x:";
 
 constexpr auto kBoolPrefs = base::MakeFixedFlatSet<std::string_view>({
     "autofill.credit_card_enabled",
@@ -238,6 +242,8 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       InstallPermissionPrompts();
       InstallPasswordPrompts();
       InstallExternalAppPrompts();
+      InstallExtensionViewHooks();
+      InstallExtensionPrompts();
       return true;
     }();
     (void)installed;
@@ -294,6 +300,18 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroNewWindow", base::BindRepeating(&EngineWebUIHandler::HandleNewWindow,
                                               base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroExtensionInstallResolve",
+        base::BindRepeating(&EngineWebUIHandler::HandleExtensionInstallResolve,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroExtensionViewOpen",
+        base::BindRepeating(&EngineWebUIHandler::HandleExtensionViewOpen,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroExtensionViewClose",
+        base::BindRepeating(&EngineWebUIHandler::HandleExtensionViewClose,
+                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroSystem", base::BindRepeating(&EngineWebUIHandler::HandleSystem,
                                            base::Unretained(this)));
@@ -558,6 +576,58 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     chrome::NewEmptyWindow(profile_, false);
   }
 
+  BrowserWindowInterface* WindowBrowser() {
+    WebUIBrowserWindow* window =
+        WebUIBrowserWindow::FromWebShellWebContents(web_ui()->GetWebContents());
+    return window ? window->browser() : nullptr;
+  }
+
+  void HandleExtensionViewOpen(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 4 || !args[1].is_string() || !args[2].is_string() ||
+        !args[3].is_string()) {
+      return;
+    }
+    BrowserWindowInterface* browser = nullptr;
+    if (content::WebContents* tab = TabContents(args[3].GetString())) {
+      if (tabs::TabInterface* tab_interface =
+              tabs::TabInterface::MaybeGetFromContents(tab)) {
+        browser = tab_interface->GetBrowserWindowInterface();
+      }
+    }
+    std::optional<int> id = OpenExtensionView(
+        browser ? browser : WindowBrowser(), GURL(args[1].GetString()),
+        args[2].GetString() != "sidePanel");
+    content::WebContents* contents = id ? ExtensionViewContents(*id) : nullptr;
+    auto* handle = contents ? guest_contents::GuestContentsHandle::FromWebContents(
+                                  contents)
+                            : nullptr;
+    if (!handle) {
+      return ResolveJavascriptCallback(args[0], base::Value());
+    }
+    ResolveJavascriptCallback(
+        args[0], base::DictValue()
+                     .Set("ref", kExtensionViewPrefix + base::NumberToString(*id))
+                     .Set("guestId", handle->id().ToString()));
+  }
+
+  void HandleExtensionInstallResolve(const base::ListValue& args) {
+    if (args.size() == 2 && args[0].is_string() && args[1].is_bool()) {
+      ResolveExtensionInstallPrompt(args[0].GetString(), args[1].GetBool());
+    }
+  }
+
+  void HandleExtensionViewClose(const base::ListValue& args) {
+    int id = 0;
+    if (args.size() == 1 && args[0].is_string() &&
+        args[0].GetString().starts_with(kExtensionViewPrefix) &&
+        base::StringToInt(std::string_view(args[0].GetString())
+                              .substr(sizeof(kExtensionViewPrefix) - 1),
+                          &id)) {
+      CloseExtensionView(id);
+    }
+  }
+
   void HandleSystem(const base::ListValue& args) {
     AllowJavascript();
     if (args.size() != 3 || !args[1].is_string() || !args[2].is_dict()) {
@@ -624,6 +694,13 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
 
   content::WebContents* TabContents(const std::string& tab_ref) {
     int raw = 0;
+    if (tab_ref.starts_with(kExtensionViewPrefix)) {
+      return base::StringToInt(std::string_view(tab_ref).substr(
+                                   sizeof(kExtensionViewPrefix) - 1),
+                               &raw)
+                 ? ExtensionViewContents(raw)
+                 : nullptr;
+    }
     if (tab_ref.starts_with(kProfileTabPrefix)) {
       return base::StringToInt(
                  std::string_view(tab_ref).substr(sizeof(kProfileTabPrefix) - 1),

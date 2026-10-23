@@ -1,9 +1,17 @@
 import { emitNativeEvent } from "../../../demo/src/shims/expo-modules-core";
 import { loadCr } from "./engine";
 import { notificationResponse } from "./system";
+import { isLeaderPage } from "./windows";
 
 export type TabEventListener = (kind: string, payload: Record<string, unknown>) => void;
-export type TabSnapshot = { media: Record<string, unknown>; zoom: Record<string, unknown>; security: Record<string, unknown>; themeColor: string | null };
+export type TabSnapshot = {
+  media: Record<string, unknown>;
+  zoom: Record<string, unknown>;
+  security: Record<string, unknown>;
+  themeColor: string | null;
+  navigation?: Record<string, unknown>;
+  preferredSize?: { width: number; height: number };
+};
 
 const listeners = new Map<string, Set<TabEventListener>>();
 let listening: Promise<void> | null = null;
@@ -19,6 +27,7 @@ const listen = () =>
       for (const listener of listeners.get(ref) ?? []) listener(kind, payload);
     });
     add("astro-host-event", (kind: string, payload: Record<string, unknown>) => {
+      if (kind === "installPrompt") return void (isLeaderPage() && emitNativeEvent("AstroExtensions", "onInstallPrompt", payload));
       if (kind === "notificationResponse") return emitNativeEvent("AstroApp", "onNotificationResponse", notificationResponse(payload));
       const target = HOST_EVENTS[kind];
       if (target) emitNativeEvent(target[0], target[1], payload);
