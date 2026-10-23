@@ -23,6 +23,7 @@ export function installEngineFetch() {
     const result = await Promise.race([fetched, aborted]);
     if ("error" in result) throw new TypeError(`Failed to fetch ${url.href}: ${result.error}`);
     const nullBody = request.method === "HEAD" || result.status === 204 || result.status === 304;
-    return new Response(nullBody ? null : result.body, { status: result.status, headers: result.headers });
+    const bytes = result.body === null ? null : Uint8Array.from(atob(result.body), (c) => c.charCodeAt(0));
+    return new Response(nullBody ? null : bytes, { status: result.status, headers: result.headers });
   };
 }

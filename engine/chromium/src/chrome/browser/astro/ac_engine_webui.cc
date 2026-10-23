@@ -10,6 +10,7 @@
 #include <string_view>
 #include <utility>
 
+#include "base/base64.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
@@ -258,7 +259,8 @@ class EngineWebUIHandler : public content::WebUIMessageHandler {
         base::DictValue()
             .Set("status", head->headers->response_code())
             .Set("headers", std::move(headers))
-            .Set("body", body ? base::Value(std::move(*body)) : base::Value()));
+            .Set("body", body ? base::Value(base::Base64Encode(*body))
+                              : base::Value()));
   }
 
   void HandleTopics(const base::ListValue& args) {
