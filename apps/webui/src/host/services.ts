@@ -1,6 +1,8 @@
 import { emitNativeEvent } from "../../../demo/src/shims/expo-modules-core";
 import { boolPref, call, DEFAULT_ENGINE_PROFILE, type EngineResult, onHostEngineEvent, pickFiles } from "./engine";
 
+declare const chrome: { send(method: string, args?: unknown[]): void };
+
 type Dict = Record<string, unknown>;
 
 const hex = (text: string) => [...new TextEncoder().encode(text)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -51,6 +53,8 @@ let lastInput = Date.now();
 for (const event of ["pointerdown", "keydown", "wheel"]) window.addEventListener(event, () => void (lastInput = Date.now()), true);
 
 export const cefServices = {
+  resolveExternalApp: async (id: string, open: boolean, remember?: boolean) => chrome.send("astroExternalAppResolve", [id, open, !!remember]),
+  resolvePermission: async (id: string, result: string, remember?: boolean) => chrome.send("astroPermissionResolve", [id, result, !!remember]),
   inputIdleSeconds: () => (Date.now() - lastInput) / 1000,
   listPasswords: async (profile: string) => {
     const result = await call("ac_passwords_list", profile);

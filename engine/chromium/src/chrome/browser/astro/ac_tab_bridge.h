@@ -9,6 +9,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/values.h"
+#include "components/blocked_content/popup_blocker_tab_helper.h"
+#include "components/blocked_content/url_list_manager.h"
 #include "components/find_in_page/find_result_observer.h"
 #include "components/find_in_page/find_tab_helper.h"
 #include "components/zoom/zoom_controller.h"
@@ -21,7 +23,8 @@ base::DictValue SecurityInfo(content::WebContents* contents);
 
 class TabBridge : public content::WebContentsObserver,
                   public zoom::ZoomObserver,
-                  public find_in_page::FindResultObserver {
+                  public find_in_page::FindResultObserver,
+                  public blocked_content::UrlListManager::Observer {
  public:
   using Emit =
       base::RepeatingCallback<void(const std::string& kind,
@@ -53,6 +56,8 @@ class TabBridge : public content::WebContentsObserver,
   void OnFindResultAvailable(content::WebContents* contents) override;
   void OnFindTabHelperDestroyed(find_in_page::FindTabHelper* helper) override;
 
+  void BlockedUrlAdded(int32_t popup_id, const GURL& url) override;
+
  private:
   base::DictValue Media();
   base::DictValue Zoom();
@@ -66,6 +71,9 @@ class TabBridge : public content::WebContentsObserver,
   base::ScopedObservation<find_in_page::FindTabHelper,
                           find_in_page::FindResultObserver>
       find_{this};
+  base::ScopedObservation<blocked_content::UrlListManager,
+                          blocked_content::UrlListManager::Observer>
+      popups_{this};
 };
 
 }

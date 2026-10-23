@@ -1,9 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { View } from "react-native";
-import type { CrashInfo, FindResult, LoadError, MediaState, NavigationState, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
+import type { BlockedPopup, CrashInfo, ExternalAppRequest, FindResult, LoadError, MediaState, NavigationState, PasswordPrompt, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
 import type { BrowserCommand } from "@astro-browser-real/shell";
 import { openProfileTab, onProfileTabOpened, PROFILE_TAB_PREFIX } from "../host/profileTabs";
 import { type EngineTab, type TabState, tabHub } from "../host/tabs";
+import { emitNativeEvent } from "../../../demo/src/shims/expo-modules-core";
 import { cefServices } from "../host/services";
 import { callTab, type TabEventListener, watchTab } from "../host/tabBridge";
 import { pageWindowId } from "../host/windows";
@@ -52,9 +53,10 @@ function openEngineTab(props: WebViewProps): Promise<EngineTab | null> {
   return tabHub().then((hub) => hub.open({ adoptId: props.adoptId, url: props.url }));
 }
 
-function tabEvents(props: { current: WebViewProps }): TabEventListener {
+function tabEvents(props: { current: WebViewProps }, browserId: number): TabEventListener {
   return (kind, payload) => {
     const p = props.current;
+    if (kind === "permission") return emitNativeEvent("AstroCEF", "onPermission", { ...payload, browserId });
     if (kind === "find") p.onFindResult?.(payload as FindResult);
     else if (kind === "media") p.onMedia?.(payload as MediaState);
     else if (kind === "zoom") p.onZoom?.(payload as ZoomState);
@@ -62,6 +64,9 @@ function tabEvents(props: { current: WebViewProps }): TabEventListener {
     else if (kind === "crashed") p.onCrashed?.(payload as CrashInfo);
     else if (kind === "loadError") p.onLoadError?.(payload as LoadError);
     else if (kind === "fullscreen") p.onFullscreen?.(!!payload.fullscreen);
+    else if (kind === "passwordPrompt") p.onPasswordPrompt?.(payload as PasswordPrompt);
+    else if (kind === "externalApp") p.onExternalApp?.(payload as ExternalAppRequest);
+    else if (kind === "popupBlocked") p.onPopupBlocked?.(payload as BlockedPopup);
   };
 }
 
@@ -104,7 +109,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       if (!opening) return;
       if (closed) return opening.close();
       tab.current = opening;
-      void watchTab(opening.ref, tabEvents(latest)).then(({ snapshot, stop }) => {
+      void watchTab(opening.ref, tabEvents(latest, browserId)).then(({ snapshot, stop }) => {
         if (closed) return stop();
         stopWatching = stop;
         if (!snapshot) return;
@@ -187,6 +192,8 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       executeJavaScript: async (code) => run("executeJavaScript", { code }),
       evaluate: async <T,>(code: string) => (await call<T>("evaluate", { code })) ?? null,
       navigationEntries: async () => (await call<Awaited<ReturnType<WebViewHandle["navigationEntries"]>>>("navigationEntries")) ?? [],
+      openBlockedPopup: async (id, always) => run("openBlockedPopup", { id, always: !!always }),
+      resolvePasswordPrompt: async (answer, edits) => run("resolvePasswordPrompt", { answer, ...edits }),
       getSecurityInfo: async () => await call<SecurityInfo>("securityInfo"),
       clearSiteData: async () => {
         const origin = originOf(tab.current?.state.url ?? "");

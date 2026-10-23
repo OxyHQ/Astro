@@ -543,6 +543,24 @@ hook(["bool (*g_astro_external_protocol_dialog)(\n",
       "      g_astro_external_protocol_dialog(url, web_contents, initiating_origin,\n"], edit, HOOKS)
 PY
 
+hook "$src/chrome/browser/external_protocol/external_protocol_handler.cc" "external protocol dialog for inner tabs" <<'PY'
+old = """    // Anchor to the outermost WebContents, for e.g. embedded <webview>s.
+    web_contents = web_contents->GetOutermostWebContents();
+"""
+new = """    // Astro: AstroCore asks for the tab itself, which may sit inside its window's page.
+    if (!delegate && g_astro_external_protocol_dialog &&
+        g_astro_external_protocol_dialog(escaped_url, web_contents,
+                                             initiating_origin,
+                                             initiator_document, program_name)) {
+      return;
+    }
+""" + old
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["    // Astro: AstroCore asks for the tab itself, which may sit inside its window's page.\n"], edit, HOOKS)
+PY
+
 hook "$src/chrome/browser/history/history_tab_helper.cc" "HistoryTabHelper" <<'PY'
 old_fn = "bool HistoryTabHelper::IsEligibleTab(\n"
 decl = ("// Astro: AstroCore (engine/astrocore) keeps its own pages out of history.\n"

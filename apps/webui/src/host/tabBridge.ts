@@ -1,4 +1,6 @@
+import { emitNativeEvent } from "../../../demo/src/shims/expo-modules-core";
 import { loadCr } from "./engine";
+import { notificationResponse } from "./system";
 
 export type TabEventListener = (kind: string, payload: Record<string, unknown>) => void;
 export type TabSnapshot = { media: Record<string, unknown>; zoom: Record<string, unknown>; security: Record<string, unknown>; themeColor: string | null };
@@ -6,15 +8,24 @@ export type TabSnapshot = { media: Record<string, unknown>; zoom: Record<string,
 const listeners = new Map<string, Set<TabEventListener>>();
 let listening: Promise<void> | null = null;
 
+const HOST_EVENTS: Record<string, [module: string, event: string]> = {
+  permissionDismissed: ["AstroCEF", "onPermissionDismissed"],
+};
+
 const listen = () =>
-  (listening ??= loadCr().then((cr) =>
-    (cr.addWebUiListener as unknown as (event: string, listener: (ref: string, kind: string, payload: Record<string, unknown>) => void) => void)(
-      "astro-tab-event",
-      (ref, kind, payload) => {
-        for (const listener of listeners.get(ref) ?? []) listener(kind, payload);
-      },
-    ),
-  ));
+  (listening ??= loadCr().then((cr) => {
+    const add = cr.addWebUiListener as unknown as (event: string, listener: (...args: never[]) => void) => void;
+    add("astro-tab-event", (ref: string, kind: string, payload: Record<string, unknown>) => {
+      for (const listener of listeners.get(ref) ?? []) listener(kind, payload);
+    });
+    add("astro-host-event", (kind: string, payload: Record<string, unknown>) => {
+      if (kind === "notificationResponse") return emitNativeEvent("AstroApp", "onNotificationResponse", notificationResponse(payload));
+      const target = HOST_EVENTS[kind];
+      if (target) emitNativeEvent(target[0], target[1], payload);
+    });
+  }));
+
+export const startTabEvents = () => void listen();
 
 export async function watchTab(ref: string, listener: TabEventListener): Promise<{ snapshot: TabSnapshot | null; stop: () => void }> {
   await listen();

@@ -25,7 +25,9 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "chrome/browser/astro/ac_documents.h"
+#include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
+#include "chrome/browser/astro/ac_system.h"
 #include "chrome/browser/astro/ac_tab_bridge.h"
 #include "chrome/browser/astro/public/ac_engine.h"
 #include "chrome/browser/profiles/profile.h"
@@ -180,6 +182,7 @@ constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_
 constexpr char kEventListener[] = "astro-engine-event";
 constexpr char kProfileTabListener[] = "astro-profile-tab";
 constexpr char kTabEventListener[] = "astro-tab-event";
+constexpr char kHostEventListener[] = "astro-host-event";
 constexpr char kProfileTabPrefix[] = "p:";
 
 constexpr auto kBoolPrefs = base::MakeFixedFlatSet<std::string_view>({
@@ -232,6 +235,9 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     Handlers().insert(this);
     static const bool installed = [] {
       ac_engine_set_event_sink(&Dispatched, nullptr);
+      InstallPermissionPrompts();
+      InstallPasswordPrompts();
+      InstallExternalAppPrompts();
       return true;
     }();
     (void)installed;
@@ -289,6 +295,17 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
         "astroNewWindow", base::BindRepeating(&EngineWebUIHandler::HandleNewWindow,
                                               base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
+        "astroSystem", base::BindRepeating(&EngineWebUIHandler::HandleSystem,
+                                           base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroExternalAppResolve",
+        base::BindRepeating(&EngineWebUIHandler::HandleExternalAppResolve,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroPermissionResolve",
+        base::BindRepeating(&EngineWebUIHandler::HandlePermissionResolve,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
         "astroTabWatch", base::BindRepeating(&EngineWebUIHandler::HandleTabWatch,
                                              base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
@@ -298,6 +315,30 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
         "astroEngineTopics",
         base::BindRepeating(&EngineWebUIHandler::HandleTopics,
                             base::Unretained(this)));
+  }
+
+  bool ShowsTab(content::WebContents* contents) const {
+    return std::ranges::any_of(bridges_, [contents](const auto& entry) {
+      return entry.second->web_contents() == contents;
+    });
+  }
+
+  void DeliverTabEvent(content::WebContents* contents,
+                       const std::string& kind,
+                       const base::DictValue& payload) {
+    for (const auto& [ref, bridge] : bridges_) {
+      if (bridge->web_contents() == contents) {
+        TabEvent(ref, kind, payload.Clone());
+      }
+    }
+  }
+
+  void DeliverHostEvent(const std::string& kind,
+                        const base::DictValue& payload) {
+    if (IsJavascriptAllowed()) {
+      FireWebUIListener(kHostEventListener, base::Value(kind),
+                        base::Value(payload.Clone()));
+    }
   }
 
   void Reply(const base::Value& callback_id, std::string json) {
@@ -515,6 +556,38 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       return;
     }
     chrome::NewEmptyWindow(profile_, false);
+  }
+
+  void HandleSystem(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 3 || !args[1].is_string() || !args[2].is_dict()) {
+      return;
+    }
+    SystemCall(profile_, args[1].GetString(), args[2].GetDict(),
+               base::BindOnce(
+                   [](base::WeakPtr<EngineWebUIHandler> self,
+                      base::Value callback_id, base::Value result) {
+                     if (self && self->IsJavascriptAllowed()) {
+                       self->ResolveJavascriptCallback(callback_id, result);
+                     }
+                   },
+                   weak_factory_.GetWeakPtr(), args[0].Clone()));
+  }
+
+  void HandlePermissionResolve(const base::ListValue& args) {
+    if (args.size() == 3 && args[0].is_string() && args[1].is_string() &&
+        args[2].is_bool()) {
+      ResolvePermission(args[0].GetString(), args[1].GetString(),
+                        args[2].GetBool());
+    }
+  }
+
+  void HandleExternalAppResolve(const base::ListValue& args) {
+    if (args.size() == 3 && args[0].is_string() && args[1].is_bool() &&
+        args[2].is_bool()) {
+      ResolveExternalApp(args[0].GetString(), args[1].GetBool(),
+                         args[2].GetBool());
+    }
   }
 
   void HandleTabWatch(const base::ListValue& args) {
@@ -757,6 +830,26 @@ void Dispatched(void* context, const char* topic, const char* json) {
                      std::move(name), std::move(payload)));
 }
 
+}
+
+bool HostShowsTab(content::WebContents* contents) {
+  return std::ranges::any_of(Handlers(), [contents](EngineWebUIHandler* handler) {
+    return handler->ShowsTab(contents);
+  });
+}
+
+void HostTabEvent(content::WebContents* contents,
+                  const std::string& kind,
+                  base::DictValue payload) {
+  for (EngineWebUIHandler* handler : Handlers()) {
+    handler->DeliverTabEvent(contents, kind, payload);
+  }
+}
+
+void HostEvent(const std::string& kind, base::DictValue payload) {
+  for (EngineWebUIHandler* handler : Handlers()) {
+    handler->DeliverHostEvent(kind, payload);
+  }
 }
 
 std::unique_ptr<content::WebUIMessageHandler> CreateEngineWebUIHandler(

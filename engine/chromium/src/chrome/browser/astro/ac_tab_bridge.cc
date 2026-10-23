@@ -10,13 +10,20 @@
 #include "base/json/json_writer.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/printing/print_view_manager_common.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "components/tabs/public/tab_interface.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/common/pref_names.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/find_in_page/find_types.h"
+#include "base/strings/string_number_conversions.h"
 #include "components/prefs/pref_service.h"
 #include "components/zoom/page_zoom.h"
 #include "content/public/browser/navigation_controller.h"
@@ -262,6 +269,12 @@ void TabBridge::ObserveHelpers() {
       find_.Observe(find);
     }
   }
+  if (!popups_.IsObserving()) {
+    if (auto* popups =
+            blocked_content::PopupBlockerTabHelper::FromWebContents(contents)) {
+      popups_.Observe(popups->manager());
+    }
+  }
 }
 
 void TabBridge::CheckSecurity() {
@@ -358,6 +371,39 @@ void TabBridge::Call(const std::string& method,
         base::UTF8ToUTF16(*code), std::move(done),
         ISOLATED_WORLD_ID_CHROME_INTERNAL);
     return;
+  } else if (method == "openBlockedPopup") {
+    auto* popups =
+        blocked_content::PopupBlockerTabHelper::FromWebContents(contents);
+    const std::string* id = args.FindString("id");
+    int number = 0;
+    if (popups && id && base::StringToInt(*id, &number) &&
+        popups->GetBlockedPopupRequests().contains(number)) {
+      if (args.FindBool("always").value_or(false)) {
+        HostContentSettingsMapFactory::GetForProfile(
+            contents->GetBrowserContext())
+            ->SetContentSettingDefaultScope(contents->GetLastCommittedURL(),
+                                            GURL(), ContentSettingsType::POPUPS,
+                                            CONTENT_SETTING_ALLOW);
+      }
+      tabs::TabInterface* tab = tabs::TabInterface::MaybeGetFromContents(contents);
+      BrowserWindowInterface* browser =
+          tab ? tab->GetBrowserWindowInterface() : nullptr;
+      if (browser) {
+        chrome::AddAndReturnTabAt(
+            browser, popups->GetBlockedPopupRequests().at(number), -1, true);
+      } else {
+        popups->ShowBlockedPopup(number,
+                                 WindowOpenDisposition::NEW_FOREGROUND_TAB);
+      }
+    }
+  } else if (method == "resolvePasswordPrompt") {
+    const std::string* answer = args.FindString("answer");
+    const std::string* username = args.FindString("username");
+    const std::string* password = args.FindString("password");
+    if (answer) {
+      ResolvePasswordPrompt(contents, *answer, username ? *username : "",
+                            password ? *password : "");
+    }
   } else if (method == "securityInfo") {
     return std::move(done).Run(base::Value(SecurityInfo(contents)));
   }
@@ -420,6 +466,7 @@ void TabBridge::DidToggleFullscreenModeForTab(bool entered_fullscreen, bool) {
 void TabBridge::WebContentsDestroyed() {
   zoom_.Reset();
   find_.Reset();
+  popups_.Reset();
 }
 
 void TabBridge::OnZoomChanged(
@@ -447,6 +494,16 @@ void TabBridge::OnFindResultAvailable(content::WebContents* contents) {
 
 void TabBridge::OnFindTabHelperDestroyed(find_in_page::FindTabHelper*) {
   find_.Reset();
+}
+
+void TabBridge::BlockedUrlAdded(int32_t popup_id, const GURL& url) {
+  base::Value origin = OriginOf(web_contents()->GetLastCommittedURL());
+  emit_.Run("popupBlocked",
+            base::DictValue()
+                .Set("id", base::NumberToString(popup_id))
+                .Set("url", url.spec())
+                .Set("origin", origin.is_string() ? origin.GetString()
+                                                  : std::string()));
 }
 
 }

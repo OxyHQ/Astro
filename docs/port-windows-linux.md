@@ -111,6 +111,20 @@ colour (`<meta name="theme-color">`). Print uses the system dialog, since Chromi
 Webium's guest tabs don't have; devtools open in their own window rather than docked. A tab's first navigation away
 from a blank or Chromium new tab page replaces that entry, so Back never lands on Chromium's page.
 
+Prompts: AstroCore's Chromium hooks are in the Linux and Windows trees too (`engine/astrocore/apply.sh` applies on every
+platform), so the layer plugs Astro's own prompts into them, delivered to the window page that shows the tab
+(`ac_host.h`: the page whose bridge holds that WebContents). Permission requests (`ac_permission_prompts.cc`, the
+portable AstroCore prompt), "save password?" (`ac_password_prompt.cc`), links to other apps
+(`ac_external_app_prompts.cc`; on Linux the app's name comes from `xdg-mime` and its `.desktop` file, since Chromium
+only knows `xdg-open`) and blocked popups (opened as a tab of the same browser: replaying the blocked navigation made a
+window). Chromium skips its external-protocol dialog when the outermost WebContents has no modal host, which in Webium
+is the window page, so a second hook asks Astro before that check, with the tab itself.
+
+System (`ac_system.cc`): open a file, show it in its folder, whether a file exists, open an external URL, the default
+browser (Chromium's worker), launch at login (a `~/.config/autostart` entry, or the `Run` key on Windows) and the
+interface's own notifications (Chromium's notification service; click and close come back as `notificationResponse`).
+Pages' notifications already go to the system through Chromium's platform bridge.
+
 Menu: Linux and Windows have no menu bar, so a button beside the window controls opens the macOS menu bar's commands
 (`AppMenu.tsx`, from the same `menuState`), with Ctrl shortcuts; Exit is `astroQuit` (`chrome::AttemptUserExit`).
 
