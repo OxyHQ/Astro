@@ -10,6 +10,7 @@ import { setStoreBatching } from "../../browser/src/store/browser";
 import { MenuHost } from "../../demo/src/shims/web/menus";
 import "../../demo/src/shims/web/motion/shortcuts";
 import { installEngineFetch } from "./host/fetch";
+import { UtilityWindows } from "./UtilityWindows";
 import { WindowControls } from "./WindowControls";
 
 installEngineFetch();
@@ -24,6 +25,7 @@ createRoot(document.getElementById("root")!, { onUncaughtError: (error) => conso
       <WindowRoot />
       <WindowControls />
     </div>
+    <UtilityWindows />
     <MenuHost />
   </>,
 );

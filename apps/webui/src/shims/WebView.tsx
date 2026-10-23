@@ -1,23 +1,37 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { View } from "react-native";
 import type { NavigationState, WebViewHandle, WebViewProps } from "@astro-browser-real/astrocore";
+import type { BrowserCommand } from "@astro-browser-real/shell";
 import { type ChromiumTab, type TabState, tabHub } from "../host/tabs";
+import { openFromPage } from "../../../browser/src/components/layout/openFromPage";
+import { useBrowser } from "../../../browser/src/store/browser";
 import { emitCommand } from "./shell";
 
 let nextBrowserId = 1;
 let opener: { current: WebViewProps } | null = null;
 
-const ENGINE_NEW_TAB = /^(chrome:\/\/(newtab|new-tab-page)\/?|about:blank)?$/;
-const command = (name: "newTab" | "focusCommandBar") => emitCommand({ command: name, arg: null, windowId: null });
+const ENGINE_PAGES: [RegExp, BrowserCommand][] = [
+  [/^chrome:\/\/(newtab|new-tab-page)\b/, "newTab"],
+  [/^chrome:\/\/settings\b/, "openSettings"],
+  [/^chrome:\/\/history\b/, "showHistory"],
+  [/^chrome:\/\/downloads\b/, "downloads"],
+];
+const command = (name: BrowserCommand) => emitCommand({ command: name, arg: null, windowId: null });
 
 void tabHub().then((hub) => {
   hub.onForeignTab = ({ id, url }) => {
-    if (ENGINE_NEW_TAB.test(url)) {
+    const page = ENGINE_PAGES.find(([pattern]) => pattern.test(url));
+    if (page) {
       void hub.service.closeNodes([id]);
-      command("newTab");
+      command(page[1]);
       return;
     }
-    opener?.current.onOpenWindow?.({ url, disposition: "foreground", adoptId: id, userGesture: true });
+    const request = { url, disposition: "foreground" as const, adoptId: id, userGesture: true };
+    if (opener?.current.onOpenWindow) return opener.current.onOpenWindow(request);
+    const s = useBrowser.getState();
+    const windowId = s.ui.focusedWindowId ?? s.windowOrder[0];
+    const w = windowId ? s.windows[windowId] : undefined;
+    if (w) openFromPage(request, { windowId: w.id, profileId: w.profileId });
   };
   hub.onFocusLocationBar = () => command("focusCommandBar");
 });

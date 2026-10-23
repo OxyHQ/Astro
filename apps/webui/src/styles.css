@@ -31,3 +31,28 @@ a,
   background: transparent;
   cursor: default;
 }
+
+.astro-utility-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.astro-utility-window {
+  position: relative;
+  display: flex;
+  width: min(860px, calc(100% - 48px));
+  height: min(640px, calc(100% - 48px));
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.35);
+}
+
+.astro-utility-window > div:first-child {
+  flex: 1;
+  display: flex;
+}

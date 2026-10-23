@@ -1,5 +1,7 @@
 import { type ComponentType, useEffect, useRef } from "react";
 import { View, type ViewProps } from "react-native";
+import type { OpenWindowOptions } from "@astro-browser-real/shell";
+import { closeUtilityWindow, openUtilityWindow, openUtilityWindows } from "../utilityWindows";
 
 export * from "../../../demo/src/shims/shell";
 
@@ -26,3 +28,8 @@ export function WindowDragRegion({ titleBarDoubleClick: _double, onRegionDoubleC
   const Region = View as unknown as ComponentType<ViewProps & { ref: typeof region; onDoubleClick?: () => void }>;
   return <Region {...props} ref={region} onDoubleClick={onRegionDoubleClick} />;
 }
+
+export const openWindow = async (id: string, _options: OpenWindowOptions = {}) => void openUtilityWindow(id);
+export const closeWindow = async (id: string) => closeUtilityWindow(id);
+export const focusWindow = async (_id: string) => {};
+export const windowIds = async () => [...openUtilityWindows()];

@@ -46,6 +46,8 @@ const importFromPage = <T>(path: string): Promise<T> => import(/* @vite-ignore *
 
 const NETWORK_WAITING = 1;
 const NETWORK_LOADING = 2;
+const FIRST_URL_WAIT_MS = 500;
+const STARTUP_URL_WAIT_MS = 3000;
 
 export type TabState = {
   url: string;
@@ -130,6 +132,8 @@ function toState(data: TabData, canGoBack: boolean, canGoForward: boolean): TabS
   };
 }
 
+const isBlank = (url: string) => !url || url === "about:blank" || /^chrome:\/\/(newtab|new-tab-page)\b/.test(url);
+
 const flatten = (container: Container): TabData[] => [
   ...(container.data?.tab ? [container.data.tab] : []),
   ...(container.children ?? []).flatMap(flatten),
@@ -141,7 +145,8 @@ export class TabHub {
   private known = new Map<string, TabData>();
   private creating = new Set<Promise<unknown>>();
   requestedActive: string | null = null;
-  onForeignTab: ((tab: ForeignTab) => void) | null = null;
+  private foreignHandler: ((tab: ForeignTab) => void) | null = null;
+  private waitingForHandler: TabData[] = [];
   onFocusLocationBar: (() => void) | null = null;
 
   constructor(
@@ -165,7 +170,7 @@ export class TabHub {
     const snapshot = await hub.service.getTabs();
     for (const tab of flatten(snapshot.tabStrip)) {
       hub.known.set(tab.id, tab);
-      hub.spare.push(tab);
+      void hub.settleStartup(tab);
     }
     new observation.TabStripObservation(hub.observer()).bind(snapshot.stream.handle);
     return hub;
@@ -199,11 +204,44 @@ export class TabHub {
     };
   }
 
+  get onForeignTab() {
+    return this.foreignHandler;
+  }
+
+  set onForeignTab(handler: ((tab: ForeignTab) => void) | null) {
+    this.foreignHandler = handler;
+    const waiting = this.waitingForHandler;
+    this.waitingForHandler = [];
+    for (const tab of waiting) void this.settleCreated(tab);
+  }
+
   private async settleCreated(tab: TabData) {
     await Promise.allSettled([...this.creating]);
     if (this.tabs.has(tab.id) || !this.known.has(tab.id)) return;
-    if (this.onForeignTab) this.onForeignTab({ id: tab.id, url: tab.url });
-    else this.spare.push(tab);
+    if (!this.onForeignTab) {
+      this.waitingForHandler.push(tab);
+      return;
+    }
+    const url = await this.firstUrl(tab.id);
+    const settled = this.known.get(tab.id);
+    if (settled && !this.tabs.has(tab.id)) this.onForeignTab?.({ id: tab.id, url });
+  }
+
+  private async settleStartup(tab: TabData) {
+    const url = await this.firstUrl(tab.id, STARTUP_URL_WAIT_MS);
+    if (this.tabs.has(tab.id) || !this.known.has(tab.id)) return;
+    if (isBlank(url)) this.spare.push(this.known.get(tab.id) ?? tab);
+    else void this.settleCreated(tab);
+  }
+
+  private async firstUrl(id: string, wait = FIRST_URL_WAIT_MS): Promise<string> {
+    const deadline = Date.now() + wait;
+    while (Date.now() < deadline) {
+      const url = this.known.get(id)?.url ?? "";
+      if (url && url !== "about:blank") return url;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    return this.known.get(id)?.url ?? "";
   }
 
   async open({ adoptId, url }: { adoptId?: string; url?: string }): Promise<ChromiumTab> {
