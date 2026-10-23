@@ -16,8 +16,8 @@ export const DEFAULT_ENGINE_PROFILE = "";
 export type EngineResult = Record<string, unknown> & { error?: string };
 
 export async function engineCall(name: string, profile: string, args: string | null): Promise<string> {
-  if (profile !== DEFAULT_ENGINE_PROFILE) return JSON.stringify({ error: "profile not loaded" });
-  return (await loadCr()).sendWithPromise<string>("astroEngineCall", name, args);
+  if (profile.includes("@")) return JSON.stringify({ error: "no engine data for a private profile" });
+  return (await loadCr()).sendWithPromise<string>("astroEngineCall", name, args, profile);
 }
 
 export async function call(name: string, profile: string, args?: object): Promise<EngineResult> {
@@ -56,7 +56,7 @@ export function onHostEngineEvent(topic: string, listener: (payload: Record<stri
 export function startEngineEvents() {
   void loadCr().then((loaded) =>
     loaded.addWebUiListener("astro-engine-event", (topic, json) => {
-      const payload = { ...(JSON.parse(json) as Record<string, unknown>), profile: DEFAULT_ENGINE_PROFILE };
+      const payload = JSON.parse(json) as Record<string, unknown>;
       for (const listener of hostListeners.get(topic) ?? []) listener(payload);
       if (uiTopics.includes(topic)) emitNativeEvent("AstroCEF", "onEngineEvent", { topic, payload: JSON.stringify(payload) });
     }),

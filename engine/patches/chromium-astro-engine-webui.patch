@@ -12,7 +12,7 @@ diff --git a/chrome/browser/ui/webui_browser/webui_browser_ui.cc b/chrome/browse
 @@ -120,6 +121,8 @@ WebUIBrowserUI::WebUIBrowserUI(content::WebUI* web_ui)
    source->AddResourcePaths(kWebuiToolbarSharedResources);
    // Astro: --astro-ui-dir serves the interface from disk (engine/chromium).
-   astro::ServeUiFromDisk(source);
+   astro::ServeUiFromDisk(source, profile);
 +  // Astro: the interface's engine calls and events (engine/chromium).
 +  web_ui->AddMessageHandler(astro::CreateEngineWebUIHandler(profile));
  

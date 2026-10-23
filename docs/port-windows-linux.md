@@ -82,8 +82,11 @@ Package it: `scripts/linux-package.sh` (`AC_ENGINE_PROFILE=dev` for the dev engi
 needs the AppArmor profile: `sudo cp /opt/astro-browser/apparmor.cfg /etc/apparmor.d/astro-browser && sudo
 apparmor_parser -r /etc/apparmor.d/astro-browser`. The dev engine's package is 116 MB.
 
-Still missing: the engine calls macOS reaches through other native modules (passwords, downloads, extensions,
-site settings), more than one profile, a theme colour per page, persisting documents in profile preferences rather
+Profiles: the `Default` Chromium profile is the window's, and each other Astro profile is a Chromium profile
+(`Profile <name>`, as on macOS) whose tabs live in a hidden Webium browser of that profile and show in the window as
+guests (GuestContents attaches across profiles); its engine calls and events carry its name.
+
+Still missing: password export and installing extensions from disk (they need a native file dialog), a theme colour per page, persisting documents in profile preferences rather
 than `localStorage`, a packaged build (the interface in a pak instead of `--astro-ui-dir`), and one JS context per
 window.
 

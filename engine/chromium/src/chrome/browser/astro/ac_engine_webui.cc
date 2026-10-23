@@ -19,6 +19,9 @@
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/values.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
+#include "chrome/browser/astro/ac_profile_tabs.h"
 #include "chrome/browser/astro/public/ac_engine.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/prefs/pref_service.h"
@@ -155,6 +158,7 @@ constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_
 });
 
 constexpr char kEventListener[] = "astro-engine-event";
+constexpr char kProfileTabListener[] = "astro-profile-tab";
 
 constexpr auto kBoolPrefs = base::MakeFixedFlatSet<std::string_view>({
     "autofill.credit_card_enabled",
@@ -197,7 +201,8 @@ struct PendingReply {
 void Replied(void* context, const char* json);
 void Dispatched(void* context, const char* topic, const char* json);
 
-class EngineWebUIHandler : public content::WebUIMessageHandler {
+class EngineWebUIHandler : public content::WebUIMessageHandler,
+                           public ProfileTabsClient {
  public:
   explicit EngineWebUIHandler(Profile* profile) : profile_(profile) {
     Handlers().insert(this);
@@ -208,7 +213,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler {
     (void)installed;
   }
 
-  ~EngineWebUIHandler() override { Handlers().erase(this); }
+  ~EngineWebUIHandler() override {
+    Handlers().erase(this);
+    ForgetProfileTabsClient(this);
+  }
 
   void RegisterMessages() override {
     web_ui()->RegisterMessageCallback(
@@ -220,6 +228,18 @@ class EngineWebUIHandler : public content::WebUIMessageHandler {
     web_ui()->RegisterMessageCallback(
         "astroPref", base::BindRepeating(&EngineWebUIHandler::HandlePref,
                                          base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroProfileTabOpen",
+        base::BindRepeating(&EngineWebUIHandler::HandleProfileTabOpen,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroProfileTabGuest",
+        base::BindRepeating(&EngineWebUIHandler::HandleProfileTabGuest,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroProfileTabCommand",
+        base::BindRepeating(&EngineWebUIHandler::HandleProfileTabCommand,
+                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroEngineTopics",
         base::BindRepeating(&EngineWebUIHandler::HandleTopics,
@@ -238,10 +258,34 @@ class EngineWebUIHandler : public content::WebUIMessageHandler {
     }
   }
 
+  void OnProfileTabChanged(int tab_id, base::DictValue state) override {
+    if (IsJavascriptAllowed()) {
+      FireWebUIListener(kProfileTabListener, base::Value("changed"),
+                        base::Value(tab_id), base::Value(std::move(state)));
+    }
+  }
+
+  void OnProfileTabOpened(int tab_id,
+                          int opener_id,
+                          base::DictValue state) override {
+    if (IsJavascriptAllowed()) {
+      state.Set("opener", opener_id);
+      FireWebUIListener(kProfileTabListener, base::Value("opened"),
+                        base::Value(tab_id), base::Value(std::move(state)));
+    }
+  }
+
+  void OnProfileTabClosed(int tab_id) override {
+    if (IsJavascriptAllowed()) {
+      FireWebUIListener(kProfileTabListener, base::Value("closed"),
+                        base::Value(tab_id), base::Value(base::DictValue()));
+    }
+  }
+
  private:
   void HandleCall(const base::ListValue& args) {
     AllowJavascript();
-    if (args.size() != 3 || !args[1].is_string()) {
+    if (args.size() < 3 || args.size() > 4 || !args[1].is_string()) {
       return;
     }
     const base::Value& callback_id = args[0];
@@ -249,16 +293,72 @@ class EngineWebUIHandler : public content::WebUIMessageHandler {
     if (call == kCalls.end()) {
       return Reply(callback_id, R"({"error":"not an engine call"})");
     }
-    if (profile_->IsOffTheRecord()) {
+    const std::string args_json =
+        args[2].is_string() ? args[2].GetString() : std::string("{}");
+    const std::string name =
+        args.size() == 4 && args[3].is_string() ? args[3].GetString() : "";
+    if (name.empty()) {
+      return Run(call->second, callback_id.Clone(), args_json, profile_);
+    }
+    WithProfile(name, base::BindOnce(&EngineWebUIHandler::Run,
+                                     weak_factory_.GetWeakPtr(), call->second,
+                                     callback_id.Clone(), args_json));
+  }
+
+  void Run(ac_engine_call_t call,
+           base::Value callback_id,
+           std::string args_json,
+           Profile* profile) {
+    if (!profile) {
+      return Reply(callback_id, R"({"error":"profile not loaded"})");
+    }
+    if (profile->IsOffTheRecord()) {
       return Reply(callback_id,
                    R"({"error":"no engine data for a private profile"})");
     }
-    const std::string args_json =
-        args[2].is_string() ? args[2].GetString() : std::string("{}");
-    auto* pending = new PendingReply{weak_factory_.GetWeakPtr(),
-                                     callback_id.Clone()};
-    call->second(profile_->GetPath().AsUTF8Unsafe().c_str(), args_json.c_str(),
-                 &Replied, pending);
+    auto* pending =
+        new PendingReply{weak_factory_.GetWeakPtr(), std::move(callback_id)};
+    call(profile->GetPath().AsUTF8Unsafe().c_str(), args_json.c_str(),
+         &Replied, pending);
+  }
+
+  void HandleProfileTabOpen(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 3 || !args[1].is_string() || !args[2].is_string()) {
+      return;
+    }
+    OpenProfileTab(
+        this, args[1].GetString(), GURL(args[2].GetString()),
+        base::BindOnce(
+            [](base::WeakPtr<EngineWebUIHandler> self, base::Value callback_id,
+               std::optional<int> tab_id) {
+              if (self && self->IsJavascriptAllowed()) {
+                self->ResolveJavascriptCallback(
+                    callback_id,
+                    tab_id ? base::Value(*tab_id) : base::Value());
+              }
+            },
+            weak_factory_.GetWeakPtr(), args[0].Clone()));
+  }
+
+  void HandleProfileTabGuest(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 2 || !args[1].is_int()) {
+      return;
+    }
+    std::optional<std::string> guest =
+        GuestIdForProfileTab(this, args[1].GetInt());
+    ResolveJavascriptCallback(args[0],
+                              guest ? base::Value(*guest) : base::Value());
+  }
+
+  void HandleProfileTabCommand(const base::ListValue& args) {
+    if (args.size() != 3 || !args[0].is_int() || !args[1].is_string() ||
+        !args[2].is_string()) {
+      return;
+    }
+    ProfileTabCommand(this, args[0].GetInt(), args[1].GetString(),
+                      args[2].GetString());
   }
 
   void HandleFetch(const base::ListValue& args) {
@@ -402,6 +502,14 @@ void Dispatched(void* context, const char* topic, const char* json) {
   }
   std::string name = topic;
   std::string payload = json ? json : "{}";
+  if (std::optional<base::DictValue> parsed =
+          base::JSONReader::ReadDict(payload, base::JSON_PARSE_RFC)) {
+    if (const std::string* path = parsed->FindString("profile")) {
+      parsed->Set("profile",
+                  ProfileNameForPath(base::FilePath::FromUTF8Unsafe(*path)));
+      payload = base::WriteJson(*parsed).value_or(payload);
+    }
+  }
   content::GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE, base::BindOnce(
                      [](std::string name, std::string payload) {

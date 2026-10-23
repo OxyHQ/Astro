@@ -14,11 +14,15 @@
 #include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
+#include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 
 namespace astro {
 namespace {
+
+constexpr char kInterfaceProfileDir[] = "Default";
+constexpr char kHostPage[] = "<!doctype html><title>Astro</title>";
 
 std::optional<base::FilePath> Resolve(const base::FilePath& dir,
                                       const std::string& path) {
@@ -62,7 +66,18 @@ void Serve(const base::FilePath& dir,
 
 }
 
-void ServeUiFromDisk(content::WebUIDataSource* source) {
+void ServeUiFromDisk(content::WebUIDataSource* source, Profile* profile) {
+  if (profile->IsOffTheRecord() ||
+      profile->GetPath().BaseName().value() != kInterfaceProfileDir) {
+    source->SetRequestFilter(
+        base::BindRepeating([](const std::string&) { return true; }),
+        base::BindRepeating([](const std::string&,
+                               content::WebUIDataSource::GotDataCallback done) {
+          std::move(done).Run(base::MakeRefCounted<base::RefCountedString>(
+              std::string(kHostPage)));
+        }));
+    return;
+  }
   base::FilePath dir =
       base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
           kAstroUiDirSwitch);

@@ -2,7 +2,8 @@ import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } f
 import { View } from "react-native";
 import type { NavigationState, WebViewHandle, WebViewProps } from "@astro-browser-real/astrocore";
 import type { BrowserCommand } from "@astro-browser-real/shell";
-import { type ChromiumTab, type TabState, tabHub } from "../host/tabs";
+import { openProfileTab, onProfileTabOpened, PROFILE_TAB_PREFIX } from "../host/profileTabs";
+import { type EngineTab, type TabState, tabHub } from "../host/tabs";
 import { openFromPage } from "../../../browser/src/components/layout/openFromPage";
 import { useBrowser } from "../../../browser/src/store/browser";
 import { emitCommand } from "./shell";
@@ -18,23 +19,37 @@ const ENGINE_PAGES: [RegExp, BrowserCommand][] = [
 ];
 const command = (name: BrowserCommand) => emitCommand({ command: name, arg: null, windowId: null });
 
+function adoptForeign(id: string, url: string, closeIt: () => void) {
+  const page = ENGINE_PAGES.find(([pattern]) => pattern.test(url));
+  if (page) {
+    closeIt();
+    command(page[1]);
+    return;
+  }
+  const request = { url, disposition: "foreground" as const, adoptId: id, userGesture: true };
+  if (opener?.current.onOpenWindow) return opener.current.onOpenWindow(request);
+  const s = useBrowser.getState();
+  const windowId = s.ui.focusedWindowId ?? s.windowOrder[0];
+  const w = windowId ? s.windows[windowId] : undefined;
+  if (w) openFromPage(request, { windowId: w.id, profileId: w.profileId });
+}
+
 void tabHub().then((hub) => {
-  hub.onForeignTab = ({ id, url }) => {
-    const page = ENGINE_PAGES.find(([pattern]) => pattern.test(url));
-    if (page) {
-      void hub.service.closeNodes([id]);
-      command(page[1]);
-      return;
-    }
-    const request = { url, disposition: "foreground" as const, adoptId: id, userGesture: true };
-    if (opener?.current.onOpenWindow) return opener.current.onOpenWindow(request);
-    const s = useBrowser.getState();
-    const windowId = s.ui.focusedWindowId ?? s.windowOrder[0];
-    const w = windowId ? s.windows[windowId] : undefined;
-    if (w) openFromPage(request, { windowId: w.id, profileId: w.profileId });
-  };
+  hub.onForeignTab = ({ id, url }) => adoptForeign(id, url, () => void hub.service.closeNodes([id]));
   hub.onFocusLocationBar = () => command("focusCommandBar");
 });
+
+onProfileTabOpened(({ id, url }) =>
+  adoptForeign(id, url, () => void openProfileTab("", id, undefined).then((tab) => tab?.close())),
+);
+
+const isProfileTab = (profile: string | undefined, adoptId: string | undefined) =>
+  adoptId?.startsWith(PROFILE_TAB_PREFIX) || (!!profile && !profile.includes("@"));
+
+function openEngineTab(props: WebViewProps): Promise<EngineTab | null> {
+  if (isProfileTab(props.profile, props.adoptId)) return openProfileTab(props.profile ?? "", props.adoptId, props.url);
+  return tabHub().then((hub) => hub.open({ adoptId: props.adoptId, url: props.url }));
+}
 
 function navigationState(state: TabState): NavigationState {
   return {
@@ -51,8 +66,8 @@ function navigationState(state: TabState): NavigationState {
 export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(props, ref) {
   const latest = useRef(props);
   latest.current = props;
-  const tab = useRef<ChromiumTab | null>(null);
-  const opened = useRef<Promise<ChromiumTab> | null>(null);
+  const tab = useRef<EngineTab | null>(null);
+  const opened = useRef<Promise<EngineTab | null> | null>(null);
   const frame = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
@@ -60,9 +75,10 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
     let lastFavicon: string | null = null;
     let lastLoading: boolean | null = null;
     const browserId = nextBrowserId++;
-    opened.current = tabHub().then((hub) => hub.open({ adoptId: latest.current.adoptId, url: latest.current.url }));
+    opened.current = openEngineTab(latest.current);
     let stopListening = () => {};
     void opened.current.then((opening) => {
+      if (!opening) return;
       if (closed) return opening.close();
       tab.current = opening;
       opening.onClosed = () => latest.current.onWindowClose?.();
@@ -110,18 +126,18 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
 
   useImperativeHandle(ref, () => {
     const done = Promise.resolve();
-    const withTab = (run: (current: ChromiumTab) => void) => async () => {
+    const withTab = (run: (current: EngineTab) => void) => async () => {
       const current = tab.current ?? (await opened.current);
       if (current) run(current);
     };
     const handle: Partial<WebViewHandle> = {
       nativeTag: () => null,
       loadUrl: async (url) => withTab((current) => current.navigate(url))(),
-      goBack: withTab((current) => current.guest.goBack()),
-      goForward: withTab((current) => current.guest.goForward()),
-      reload: withTab((current) => current.guest.reload()),
-      forceReload: withTab((current) => current.guest.reload()),
-      stopLoading: withTab((current) => current.guest.stopLoading()),
+      goBack: withTab((current) => current.back()),
+      goForward: withTab((current) => current.forward()),
+      reload: withTab((current) => current.reload()),
+      forceReload: withTab((current) => current.reload()),
+      stopLoading: withTab((current) => current.stop()),
       focus: async () => frame.current?.focus(),
       navigationEntries: async () => {
         const state = tab.current?.state;

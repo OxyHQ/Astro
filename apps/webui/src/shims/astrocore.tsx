@@ -9,5 +9,6 @@ export { WebView } from "./WebView";
 
 provideNativeModule("AstroCEF", { ...cefServices, engineCall, forwardEngineTopics, fetchFavicon: fetchFaviconImage });
 provideNativeModule("AstroExtensions", extensionServices);
+provideNativeModule("AstroImport", { listBrowsers: async () => "[]" });
 startEngineEvents();
 startDownloads();

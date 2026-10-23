@@ -60,7 +60,23 @@ export type TabState = {
 
 export type ForeignTab = { id: string; url: string };
 
-export class ChromiumTab {
+export interface EngineTab {
+  state: TabState;
+  onClosed: (() => void) | null;
+  onActivatedByEngine: (() => void) | null;
+  listen(listener: (state: TabState) => void): () => void;
+  attach(frame: HTMLIFrameElement): Promise<void>;
+  detach(frame: HTMLIFrameElement): void;
+  navigate(url: string): void;
+  back(): void;
+  forward(): void;
+  reload(): void;
+  stop(): void;
+  activate(): void;
+  close(): void;
+}
+
+export class ChromiumTab implements EngineTab {
   private guestId: Promise<unknown>;
   private frame: HTMLIFrameElement | null = null;
   private listeners = new Set<(state: TabState) => void>();
@@ -108,6 +124,22 @@ export class ChromiumTab {
 
   navigate(url: string) {
     this.guest.navigate(url);
+  }
+
+  back() {
+    this.guest.goBack();
+  }
+
+  forward() {
+    this.guest.goForward();
+  }
+
+  reload() {
+    this.guest.reload();
+  }
+
+  stop() {
+    this.guest.stopLoading();
   }
 
   activate() {

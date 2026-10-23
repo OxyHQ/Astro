@@ -15,7 +15,7 @@ diff --git a/chrome/browser/ui/webui_browser/webui_browser_ui.cc b/chrome/browse
    source->AddResourcePaths(kTabStripApiResources);
    source->AddResourcePaths(kWebuiToolbarSharedResources);
 +  // Astro: --astro-ui-dir serves the interface from disk (engine/chromium).
-+  astro::ServeUiFromDisk(source);
++  astro::ServeUiFromDisk(source, profile);
  
    static constexpr webui::LocalizedString kStrings[] = {
        // Localized strings (alphabetical order).
