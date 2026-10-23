@@ -63,7 +63,8 @@ the page's `fetch` to http(s) goes through the engine (`astroFetch`: no cookies,
 bookmarks, favicons and search suggestions work. Ctrl+L opens the command bar, Ctrl+T opens Astro's new tab instead of
 Chromium's, and a tab Chromium activates (Ctrl+Tab) becomes the shown one.
 
-Run it: `pnpm -C apps/webui build`, copy `apps/webui/dist` to `astro-ui/` beside the engine's `chrome`, and start
+Run it from the repository with `pnpm linux` (it builds `apps/webui` and starts the `dev` engine on it through
+`scripts/linux-run.sh`). For a standalone build: `pnpm -C apps/webui build`, copy `apps/webui/dist` to `astro-ui/` beside the engine's `chrome`, and start
 `chrome`: on Linux and Windows the engine turns on `Webium` and `AttachUnownedInnerWebContents` by default
 (`chromium-astro-webium-default.patch`) and serves `astro-ui/`. While developing, `pnpm -C apps/webui dev` rebuilds on
 change and `--astro-ui-dir=$PWD/apps/webui/dist` serves the build in place. Without `AttachUnownedInnerWebContents`,

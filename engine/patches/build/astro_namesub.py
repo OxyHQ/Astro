@@ -23,7 +23,7 @@ ASTRO_RULES = [
     (r'The Helium Authors', 'The Chromium Authors'),
     (r'''(href\s*=\s*["']?)helium://''', r'\1chrome://'),
     (r'helium://', 'astro://'),
-    (r'\bhelium\.desktop\b', 'astro.desktop'),
+    (r'\bhelium\.desktop\b', 'astro-browser.desktop'),
     (r'(?<![/._0-9])Helium(?![A-Z0-9_])', 'Astro'),
 ]
 
@@ -40,7 +40,7 @@ SANITY = [
     ('Vula imenyu yeHelium', 'Vula imenyu yeAstro'),
     ('Heliumin asetukset', 'Astroin asetukset'),
     ('ku-Helium', 'ku-Astro'),
-    ('no helium.desktop file was found', 'no astro.desktop file was found'),
+    ('no helium.desktop file was found', 'no astro-browser.desktop file was found'),
     ('HeliumWidget', 'HeliumWidget'),
     ('https://example.com/Helium/page', 'https://example.com/Helium/page'),
 ]
