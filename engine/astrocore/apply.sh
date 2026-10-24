@@ -1889,6 +1889,19 @@ hook(["bool (*g_astro_keeps_window_hidden)(BrowserWindowInterface* browser) = nu
       "  if (g_astro_keeps_window_hidden &&\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "closed windows stay out of the activation order" <<'PY'
+old = """void WebUIBrowserWindow::PaintAsActiveChanged() {
+"""
+new = old + """  if (browser_->IsDeleteScheduled()) {
+    return;
+  }
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new, 1)
+hook(["void WebUIBrowserWindow::PaintAsActiveChanged() {\n  if (browser_->IsDeleteScheduled()) {\n"], edit)
+PY
+
 archive="$src/chrome/tools/build/win/create_installer_archive.py"
 if grep -q "import winreg\|# Astro: cross builds" "$archive"; then
 hook "$archive" "installer archive from a Linux host" <<'PY'

@@ -192,7 +192,8 @@ existing hooks, as on macOS. Web Bluetooth is off in Chromium on Linux; `--astro
 `--astro-test-media-route-provider` test them without hardware.
 
 Window: Webium keeps the system frame except on ChromeOS; Astro removes it on Windows and Linux too, since it draws its
-own title bar and controls. The page's `app-region: drag` areas move the window and its outer 5 px resize it; both keep
+own title bar and controls. A window whose browser is already closing ignores activation, as Chrome's `BrowserView` does: Webium's
+`PaintAsActiveChanged` lacked that check, so an activation arriving while windows closed on quit hit a CHECK. The page's `app-region: drag` areas move the window and its outer 5 px resize it; both keep
 the press instead of passing it to the page. The link under the pointer reaches the page as the tab's `status` event
 (a hook in `UpdateTargetURL`).
 
