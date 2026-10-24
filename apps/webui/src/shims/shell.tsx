@@ -4,6 +4,7 @@ import type { DroppedItem, DropUpdate, FileDropAreaProps, OpenWindowOptions } fr
 import { isUtilityWindowId } from "../../../browser/src/components/settings/windows";
 import { provideNativeModule } from "../../../demo/src/shims/expo-modules-core";
 import { loadCr, pickFiles as pickEngineFiles } from "../host/engine";
+import { startDictation, systemInfo as webuiSystemInfo } from "../host/system";
 import { focusPageWindow, pageWindowId, releaseWindow, requestWindow } from "../host/windows";
 import { closeUtilityWindow, openUtilityWindow, openUtilityWindows } from "../utilityWindows";
 
@@ -14,7 +15,10 @@ export { translation } from "../host/translate";
 
 declare const chrome: { send(method: string, args?: unknown[]): void };
 
-provideNativeModule("AstroShell", { setMenuState: async () => {}, setMenuBookmarks: async () => {} });
+export const systemInfo = () => webuiSystemInfo;
+
+provideNativeModule("AstroApp", { systemInfo });
+provideNativeModule("AstroShell", { setMenuState: async () => {}, setMenuBookmarks: async () => {}, startDictation });
 
 type DocumentChange = { name: string; contents: string | null };
 

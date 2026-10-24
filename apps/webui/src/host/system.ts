@@ -1,9 +1,12 @@
+import type { SystemInfo } from "@astro-browser-real/shell";
 import { loadCr } from "./engine";
 
 const systemCall = async <T,>(method: string, args: Record<string, unknown> = {}): Promise<T | null> =>
   (await loadCr()).sendWithPromise<T | null>("astroSystem", method, args);
 
 const existing = new Map<string, boolean>();
+
+export const startDictation = () => void systemCall<boolean>("startDictation");
 
 export const systemServices = {
   fileExists: (path: string) => {
@@ -42,7 +45,29 @@ export const engineServices = {
   routeLinkTabs: async (_urls: string[]) => ({}),
 };
 
+declare const __ASTRO_VERSION__: string;
+declare const __ASTRO_BUILD__: string;
+
+const platform = /Win/.test(navigator.platform) ? "Windows" : /Linux/.test(navigator.platform) ? "Linux" : navigator.platform;
+
+export const systemInfo: SystemInfo = {
+  appName: "Astro",
+  appVersion: __ASTRO_VERSION__,
+  appBuild: __ASTRO_BUILD__,
+  bundleId: "so.oxy.astro",
+  configuration: "Release",
+  osVersion: platform,
+  osBuild: platform,
+  arch: /arm|aarch64/i.test(navigator.userAgent) ? "arm64" : "x64",
+  model: platform,
+  memoryGB: (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8,
+  locale: navigator.language,
+  updates: false,
+  inApplicationsFolder: true,
+};
+
 export const appServices = {
+  systemInfo: () => systemInfo,
   killSwitchEnvironment: (_name: string): string | null => null,
   updaterState: async () => ({ available: false }),
   appIcons: async (_size: number) => [],

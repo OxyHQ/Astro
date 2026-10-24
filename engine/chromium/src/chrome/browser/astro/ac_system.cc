@@ -2,6 +2,7 @@
 
 #include "chrome/browser/astro/ac_system.h"
 
+#include <iterator>
 #include <string>
 #include <utility>
 
@@ -37,6 +38,8 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_WIN)
+#include <windows.h>
+
 #include "base/win/registry.h"
 #endif
 
@@ -63,6 +66,24 @@ base::FilePath AutostartFile() {
       .Append("astro-browser.desktop");
 }
 #endif
+
+bool StartSystemDictation() {
+#if BUILDFLAG(IS_WIN)
+  INPUT keys[4] = {};
+  for (INPUT& key : keys) {
+    key.type = INPUT_KEYBOARD;
+  }
+  keys[0].ki.wVk = VK_LWIN;
+  keys[1].ki.wVk = 'H';
+  keys[2].ki.wVk = 'H';
+  keys[2].ki.dwFlags = KEYEVENTF_KEYUP;
+  keys[3].ki.wVk = VK_LWIN;
+  keys[3].ki.dwFlags = KEYEVENTF_KEYUP;
+  return SendInput(std::size(keys), keys, sizeof(INPUT)) == std::size(keys);
+#else
+  return false;
+#endif
+}
 
 base::Value LaunchAtLoginStatus() {
 #if BUILDFLAG(IS_WIN)
@@ -242,6 +263,8 @@ void SystemCall(Profile* profile,
         base::BindOnce(&SetLaunchAtLogin,
                        args.FindBool("enabled").value_or(false)),
         std::move(done));
+  } else if (method == "startDictation") {
+    std::move(done).Run(base::Value(StartSystemDictation()));
   } else if (method == "engineInfo") {
     std::move(done).Run(base::Value(
         base::DictValue()
