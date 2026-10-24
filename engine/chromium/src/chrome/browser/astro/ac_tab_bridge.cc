@@ -27,6 +27,7 @@
 #include "crypto/random.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/astro/ac_autofill_prompt.h"
 #include "chrome/browser/astro/ac_devtools_dock.h"
 #include "chrome/browser/astro/ac_display_media.h"
 #include "chrome/browser/astro/ac_extension_views.h"
@@ -470,6 +471,7 @@ TabBridge::TabBridge(content::WebContents* contents, Emit emit)
   capture_indicator_->AddObserver(this);
   media_access_ = MediaAccess();
   LiveBridges().insert(this);
+  EnsureAutofillPrompts(contents);
   g_astro_dnr_rule_matched = &RuleMatched;
   g_astro_renderer_unresponsive = &RendererUnresponsive;
   g_astro_renderer_responsive = &RendererResponsive;
@@ -505,6 +507,9 @@ base::DictValue TabBridge::Snapshot() {
                    .Set("canGoBack", controller.CanGoBack())
                    .Set("canGoForward", controller.CanGoForward()));
   snapshot.Set("devTools", DockedDevToolsState(contents));
+  if (std::optional<base::DictValue> prompt = PendingAutofillPrompt(contents)) {
+    snapshot.Set("autofillPrompt", std::move(*prompt));
+  }
   if (std::optional<std::pair<int, int>> size = ExtensionPopupSize(contents)) {
     snapshot.Set("preferredSize", base::DictValue()
                                       .Set("width", size->first)
@@ -910,6 +915,11 @@ void TabBridge::Call(const std::string& method,
     }
   } else if (method == "mediaCaptureSourceId") {
     return std::move(done).Run(DisplayMediaSourceId(contents));
+  } else if (method == "resolveAutofillPrompt") {
+    const std::string* answer = args.FindString("answer");
+    if (std::optional<int> id = args.FindInt("id"); id && answer) {
+      ResolveAutofillPrompt(contents, *id, *answer);
+    }
   } else if (method == "resolveUnresponsive") {
     ResolveUnresponsive(args.FindBool("terminate").value_or(false));
   } else if (method == "callPage") {

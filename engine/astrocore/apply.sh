@@ -2046,6 +2046,28 @@ hook(["bool (*g_astro_renderer_unresponsive)(content::WebContents* source,\n",
       "  if (g_astro_renderer_responsive &&\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "autofill prompts find the host's handler" <<'PY'
+old = """WebUIBrowserWindow::GetAutofillBubbleHandler() {
+  NOTIMPLEMENTED_LOG_ONCE();
+  return nullptr;
+}
+"""
+new = """WebUIBrowserWindow::GetAutofillBubbleHandler() {
+  // Astro: AstroCore registers its own handler on the browser.
+  return autofill::AutofillBubbleHandler::Get(browser_->GetUnownedUserDataHost());
+}
+"""
+include = '#include "chrome/browser/ui/autofill/autofill_bubble_handler.h"\n'
+anchor = '#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"\n'
+def edit(s):
+    assert s.count(old) == 1 and s.count(anchor) == 1
+    s = s.replace(old, new)
+    if include not in s:
+        s = s.replace(anchor, anchor + include, 1)
+    return s
+hook(["  return autofill::AutofillBubbleHandler::Get(browser_->GetUnownedUserDataHost());\n"], edit)
+PY
+
 hook "$src/content/browser/web_contents/web_contents_impl.cc" "a hung page counts DevTools, not the host's client" <<'PY'
 at = "bool WebContentsImpl::ShouldIgnoreUnresponsiveRenderer() {\n"
 decl = """// Astro: AstroCore keeps its own DevTools client on its tabs; only DevTools itself should hide a hung page.

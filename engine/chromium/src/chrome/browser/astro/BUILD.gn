@@ -10,6 +10,8 @@ source_set("astro") {
   sources = [
     "ac_autofill.cc",
     "ac_autofill.h",
+    "ac_autofill_prompt.cc",
+    "ac_autofill_prompt.h",
     "ac_bookmarks.cc",
     "ac_browsing_data.cc",
     "ac_browsing_data.h",

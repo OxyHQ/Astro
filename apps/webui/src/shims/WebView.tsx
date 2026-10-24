@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import type { BlockedPopup, ContentBlockedState, CrashInfo, DownloadNavigation, ExternalAppRequest, FindResult, LoadError, MediaAccess, MediaState, NavigationState, PasswordPrompt, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
+import type { AutofillPrompt, BlockedPopup, ContentBlockedState, CrashInfo, DownloadNavigation, ExternalAppRequest, FindResult, LoadError, MediaAccess, MediaState, NavigationState, PasswordPrompt, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
 import type { BrowserCommand } from "@astro-browser-real/shell";
 import { openProfileTab, onProfileTabOpened, PROFILE_TAB_PREFIX } from "../host/profileTabs";
 import { type EngineTab, type TabState, tabHub } from "../host/tabs";
@@ -115,6 +115,7 @@ function tabEvents(props: { current: WebViewProps }, browserId: number, onDevToo
     if (kind === "pageFocus") return p.onPageFocus?.();
     if (kind === "contentBlocked") return p.onContentBlocked?.(payload as ContentBlockedState);
     if (kind === "unresponsive") return p.onUnresponsive?.();
+    if (kind === "autofillPrompt") return showAutofillPrompt(p, payload);
     if (kind === "responsive") return p.onResponsive?.();
     if (kind === "downloadNavigation") return p.onDownloadNavigation?.(payload as DownloadNavigation);
     if (kind === "preferredSize") return p.onPreferredSize?.(payload as { width: number; height: number });
@@ -150,6 +151,12 @@ const PICTURE_IN_PICTURE =
 const EXIT_PICTURE_IN_PICTURE =
   "document.pictureInPictureElement && document.exitPictureInPicture();" +
   "window.documentPictureInPicture && documentPictureInPicture.window && documentPictureInPicture.window.close()";
+
+function showAutofillPrompt(p: WebViewProps, payload: Record<string, unknown>) {
+  const id = Number(payload.id);
+  if (!Number.isFinite(id)) return;
+  p.onAutofillPrompt?.(payload.closed === true ? null : (payload as unknown as AutofillPrompt), id);
+}
 
 const originOf = (url: string) => {
   try {
@@ -233,6 +240,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
         emitZoom(snapshot.zoom as ZoomState);
         latest.current.onSecurity?.(snapshot.security as SecurityInfo);
         if (snapshot.preferredSize) latest.current.onPreferredSize?.(snapshot.preferredSize);
+        if (snapshot.autofillPrompt) showAutofillPrompt(latest.current, snapshot.autofillPrompt);
         setDevTools(devToolsDock((snapshot as { devTools?: unknown }).devTools));
       });
       opening.onClosed = () => latest.current.onWindowClose?.();
@@ -349,6 +357,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       exitPictureInPicture: async () => run("executeJavaScript", { code: EXIT_PICTURE_IN_PICTURE }),
       notificationAction: async (id, action) => channel.current?.notificationAction(id, action),
       resolveUnresponsive: async (terminate) => run("resolveUnresponsive", { terminate }),
+      resolveAutofillPrompt: async (id, answer) => run("resolveAutofillPrompt", { id, answer }),
       capturePicture: async (scale) => {
         const picture = await call<{ data: string }>("capturePicture", { scale });
         const bounds = frame.current?.getBoundingClientRect();

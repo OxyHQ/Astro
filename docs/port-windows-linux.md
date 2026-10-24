@@ -180,7 +180,8 @@ platform), so the layer plugs Astro's own prompts into them, delivered to the wi
 (`ac_host.h`: the page whose bridge holds that WebContents). Permission requests (`ac_permission_prompts.cc`, the
 portable AstroCore prompt), "save password?" (`ac_password_prompt.cc`), links to other apps
 (`ac_external_app_prompts.cc`; on Linux the app's name comes from `xdg-mime` and its `.desktop` file, since Chromium
-only knows `xdg-open`) and blocked popups (opened as a tab of the same browser: replaying the blocked navigation made a
+only knows `xdg-open`), "save this address or card?" (`ac_autofill_prompt.cc`: AstroCore's `AutofillBubbleHandler`
+registered on each browser that holds a shown tab, and Webium's `GetAutofillBubbleHandler` returns it) and blocked popups (opened as a tab of the same browser: replaying the blocked navigation made a
 window). Chromium skips its external-protocol dialog when the outermost WebContents has no modal host, which in Webium
 is the window page, so a second hook asks Astro before that check, with the tab itself.
 
@@ -340,13 +341,14 @@ inert function that returns `null`. Each gap was then tried in a hidden instance
 | 14 | Popovers and the switcher didn't react to switching apps | `resignActive` | Fixed |
 | 15 | The tab switcher took the row under a pointer that hadn't moved | `switcherPointerMoved` | Fixed |
 | 16 | A hung page showed nothing: Chromium's dialog needs a views host, and the bridge's DevTools client hid the hang | `onUnresponsive`, `onResponsive`, `resolveUnresponsive` | Fixed |
+| 17 | Chromium never offered to save or update an address or a card: Webium has no `AutofillBubbleHandler` | `onAutofillPrompt`, `resolveAutofillPrompt` | Fixed |
 | — | The menu bar's bookmarks | `setMenuBookmarks` | Nothing to do: the app menu reads the store |
 
 Still missing, by what a user would notice:
 
-- Saving an address or a card: Webium has no `AutofillBubbleHandler`, so Chromium never offers it (`onAutofillPrompt`,
-  `resolveAutofillPrompt`); Autofill's command opens Settings instead of the page's suggestions (`showAutofillSuggestions`).
-  The port is AstroCore's `ac_autofill_prompt.mm` and `ac_autofill_trigger.mm` as a portable handler.
+- Autofill's command (and its shortcut) opens Settings instead of showing the focused field's suggestions
+  (`showAutofillSuggestions`); the port is AstroCore's `ac_autofill_trigger.mm`, which asks the frame's autofill
+  driver for suggestions and shows them in Astro's dropdown.
 - Calendar: no system calendar is read (`AstroCalendar`), so Connect Calendar does nothing; Windows (WinRT appointments)
   and Linux (Evolution Data Server) each need their own reader.
 - Dragging a tab onto another window's sidebar inserts it at the end with no pill: the insert point is computed by the

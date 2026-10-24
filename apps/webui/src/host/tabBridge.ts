@@ -12,6 +12,7 @@ export type TabSnapshot = {
   navigation?: Record<string, unknown>;
   preferredSize?: { width: number; height: number };
   mediaAccess?: Record<string, unknown>;
+  autofillPrompt?: Record<string, unknown>;
 };
 
 const listeners = new Map<string, Set<TabEventListener>>();
