@@ -1,5 +1,6 @@
 import { useBrowser } from "../../../browser/src/store/browser";
-import { keyDown, keyUp, onKeyCaptureChange, shortcutCombos, takeKeysFromEngine } from "../../../demo/src/shims/web/motion/shortcuts";
+import { handleQuitShortcut, keyDown, keyUp, onKeyCaptureChange, shortcutCombos, takeKeysFromEngine } from "../../../demo/src/shims/web/motion/shortcuts";
+import { requestQuit } from "../shims/shell";
 import { loadCr } from "./engine";
 
 declare const chrome: { send(method: string, args?: unknown[]): void };
@@ -22,6 +23,7 @@ const keyInput = ({ code, key, mods }: EngineKey) => ({
 
 export async function startEngineKeys() {
   takeKeysFromEngine();
+  handleQuitShortcut(() => void requestQuit());
   let sent = "";
   const push = () => {
     const { active, owned } = shortcutCombos();

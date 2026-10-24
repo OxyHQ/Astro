@@ -180,8 +180,10 @@ const STATIC_ENTRIES: Entry[] = [
   ]),
 ];
 
+const QUIT_ENTRY: SystemEntry = { title: isMac ? "Quit Astro" : "Exit", path: ["Astro"], key: "q", mods: isMac ? C : ["command", "shift"] };
+
 const SYSTEM_ENTRIES: SystemEntry[] = [
-  { title: isMac ? "Quit Astro" : "Exit", path: ["Astro"], key: "q", mods: isMac ? C : ["command", "shift"] },
+  QUIT_ENTRY,
   { title: "Close Window", path: ["File"], key: "w", mods: ["command", "shift"] },
   { title: "Undo", path: ["Edit"], key: "z", mods: C },
   { title: "Redo", path: ["Edit"], key: "z", mods: ["command", "shift"] },
@@ -407,6 +409,11 @@ function shortcutList(): MenuShortcut[] {
 const captureListeners = new Set<(capturing: boolean) => void>();
 const recorder = { resolve: null as ((combo: { key: string; modifiers: Mod[] } | null) => void) | null };
 const switcher = { capturing: false, holding: null as Mod | null };
+let quitHandler: (() => void) | null = null;
+
+export function handleQuitShortcut(run: () => void) {
+  quitHandler = run;
+}
 
 export const capturingKeys = () => !!recorder.resolve || switcher.capturing;
 
@@ -459,7 +466,12 @@ export function keyDown(e: KeyInput, fromPage = true): boolean {
   }
   const key = keyOfCode(e.code);
   if (!key) return false;
-  const binding = table().byCombo.get(comboId(key, modsOf(e)));
+  const combo = comboId(key, modsOf(e));
+  const binding = table().byCombo.get(combo);
+  if (!binding && quitHandler && combo === comboId(QUIT_ENTRY.key, QUIT_ENTRY.mods)) {
+    quitHandler();
+    return true;
+  }
   if (!binding) return false;
   if (fromPage && yieldsToText(binding) && inText()) return false;
   if (isDisabled(binding.entry)) return !fromPage;
@@ -483,6 +495,7 @@ export function shortcutCombos(): { active: string[]; owned: string[] } {
   for (const binding of table().byCombo.values()) {
     if (!yieldsToText(binding)) for (const combo of physicalCombos(binding.key, binding.mods)) active.add(combo);
   }
+  if (quitHandler) for (const combo of physicalCombos(QUIT_ENTRY.key, QUIT_ENTRY.mods)) active.add(combo);
   const owned = new Set(active);
   for (const entry of entries()) {
     if (entry.key) for (const mods of defaultCombos(entry)) for (const combo of physicalCombos(entry.key, mods)) owned.add(combo);

@@ -7,9 +7,7 @@ import { TRAFFIC_LIGHT_DIAMETER, TRAFFIC_LIGHT_SPACING, useTrafficLightsCenter }
 import { displayVersion } from "./host/appcast";
 import { checkForUpdatesNow, installReadyUpdate, releaseNotesFor, updateMenuState } from "./host/updater";
 import { pageWindowId } from "./host/windows";
-import { emitCommand } from "./shims/shell";
-
-declare const chrome: { send(method: string, args?: unknown[]): void };
+import { emitCommand, requestQuit } from "./shims/shell";
 
 type Mod = "command" | "shift" | "option" | "control";
 type Spec = [title: string, command: BrowserCommand, key?: string, mods?: Mod[], arg?: string];
@@ -152,7 +150,7 @@ function appMenu(state: MenuState): MenuItem[] {
 export async function openAppMenu() {
   const chosen = await showMenu(appMenu(menuState(useBrowser.getState())));
   if (!chosen) return;
-  if (chosen === QUIT) return chrome.send("astroQuit");
+  if (chosen === QUIT) return void requestQuit();
   if (chosen === CHECK_FOR_UPDATES) return void checkForUpdatesNow();
   if (chosen === INSTALL_UPDATE) return void installReadyUpdate();
   const [name, arg] = chosen.split(SEPARATOR) as [BrowserCommand, string | undefined];

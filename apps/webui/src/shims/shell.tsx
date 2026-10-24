@@ -1,11 +1,13 @@
 import { type ComponentType, forwardRef, useEffect, useRef } from "react";
 import { View, type ViewProps } from "react-native";
-import type { DroppedItem, DropUpdate, FileDropAreaProps, OpenWindowOptions } from "@astro-browser-real/shell";
+import type { DroppedItem, DropUpdate, FileDropAreaProps, MenuState, OpenWindowOptions } from "@astro-browser-real/shell";
 import { isUtilityWindowId } from "../../../browser/src/components/settings/windows";
 import { provideNativeModule } from "../../../demo/src/shims/expo-modules-core";
+import { emitAppEvent } from "../../../demo/src/shims/shell";
+import { confirm } from "../../../demo/src/shims/web/overlays";
 import { loadCr, pickFiles as pickEngineFiles } from "../host/engine";
 import { startDictation, systemInfo as webuiSystemInfo } from "../host/system";
-import { focusPageWindow, pageWindowId, releaseWindow, requestWindow } from "../host/windows";
+import { focusPageWindow, isLeaderPage, pageWindowId, releaseWindow, requestWindow } from "../host/windows";
 import { closeUtilityWindow, openUtilityWindow, openUtilityWindows } from "../utilityWindows";
 
 export * from "../../../demo/src/shims/shell";
@@ -18,7 +20,61 @@ declare const chrome: { send(method: string, args?: unknown[]): void };
 export const systemInfo = () => webuiSystemInfo;
 
 provideNativeModule("AstroApp", { systemInfo });
-provideNativeModule("AstroShell", { setMenuState: async () => {}, setMenuBookmarks: async () => {}, startDictation });
+let menu: Partial<MenuState> = {};
+
+provideNativeModule("AstroShell", {
+  setMenuState: async (state: MenuState) => {
+    menu = state;
+  },
+  setMenuBookmarks: async () => {},
+  startDictation,
+});
+
+const quitChannel = new BroadcastChannel("astro-quit");
+let askingToQuit = false;
+let terminating = false;
+
+function terminate() {
+  if (terminating) return;
+  terminating = true;
+  emitAppEvent({ type: "willQuit" });
+}
+
+quitChannel.onmessage = () => terminate();
+
+async function quitConfirmed() {
+  if (!menu.warnBeforeQuitting) return true;
+  const { confirmed, suppressed } = await confirm({
+    title: `Are you sure you want to quit ${webuiSystemInfo.appName}?`,
+    message: "Your windows and tabs will be restored the next time you open it.",
+    confirmTitle: "Quit",
+    cancelTitle: "Cancel",
+    suppression: "Don't ask again",
+    windowId: pageWindowId() ?? undefined,
+  });
+  if (suppressed) emitAppEvent({ type: "quitWarningSuppressed" });
+  return confirmed;
+}
+
+export async function requestQuit() {
+  if (askingToQuit || terminating) return;
+  askingToQuit = true;
+  const confirmed = await quitConfirmed().finally(() => {
+    askingToQuit = false;
+  });
+  if (!confirmed) return;
+  quitChannel.postMessage("willQuit");
+  terminate();
+}
+
+export const replyToTerminate = async (ok: boolean) => {
+  if (!terminating) return;
+  if (!ok) {
+    terminating = false;
+    return emitAppEvent({ type: "quitCancelled" });
+  }
+  if (isLeaderPage()) chrome.send("astroQuit");
+};
 
 type DocumentChange = { name: string; contents: string | null };
 
