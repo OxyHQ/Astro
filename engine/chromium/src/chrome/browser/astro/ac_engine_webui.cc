@@ -38,6 +38,7 @@
 #include "chrome/browser/astro/ac_sync_files.h"
 #include "chrome/browser/astro/ac_system.h"
 #include "chrome/browser/astro/ac_tab_bridge.h"
+#include "chrome/browser/astro/ac_ui_source.h"
 #include "chrome/browser/astro/ac_window_keys.h"
 #include "chrome/browser/astro/public/ac_engine.h"
 #include "chrome/browser/profiles/profile.h"
@@ -708,9 +709,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     if (command_line.HasSwitch(kUblockDirSwitch)) {
       return command_line.GetSwitchValuePath(kUblockDirSwitch);
     }
-    base::FilePath exe_dir;
-    base::PathService::Get(base::DIR_EXE, &exe_dir);
-    return exe_dir.AppendASCII("extensions").AppendASCII("ublock");
+    return BesideEngine("extensions/ublock");
   }
 
   void HandleContentBlockerLoad(const base::ListValue& args) {

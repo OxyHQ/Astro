@@ -82,12 +82,8 @@ void ServeUiFromDisk(content::WebUIDataSource* source, Profile* profile) {
       base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
           kAstroUiDirSwitch);
   if (dir.empty()) {
-    base::FilePath exe_dir;
-    if (!base::PathService::Get(base::DIR_EXE, &exe_dir)) {
-      return;
-    }
-    dir = exe_dir.AppendASCII(kAstroUiDirName);
-    if (!base::PathExists(dir.AppendASCII("index.html"))) {
+    dir = BesideEngine(kAstroUiDirName);
+    if (dir.empty() || !base::PathExists(dir.AppendASCII("index.html"))) {
       return;
     }
   }
@@ -97,6 +93,19 @@ void ServeUiFromDisk(content::WebUIDataSource* source, Profile* profile) {
       network::mojom::CSPDirectiveName::RequireTrustedTypesFor, "");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::TrustedTypes, "");
+}
+
+base::FilePath BesideEngine(std::string_view relative) {
+  for (const int key : {base::DIR_EXE, base::DIR_MODULE}) {
+    base::FilePath dir;
+    if (base::PathService::Get(key, &dir)) {
+      const base::FilePath path = dir.AppendASCII(relative);
+      if (base::PathExists(path)) {
+        return path;
+      }
+    }
+  }
+  return base::FilePath();
 }
 
 }

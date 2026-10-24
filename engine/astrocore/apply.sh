@@ -1889,6 +1889,52 @@ hook(["bool (*g_astro_keeps_window_hidden)(BrowserWindowInterface* browser) = nu
       "  if (g_astro_keeps_window_hidden &&\n"], edit)
 PY
 
+archive="$src/chrome/tools/build/win/create_installer_archive.py"
+if grep -q "import winreg\|# Astro: cross builds" "$archive"; then
+hook "$archive" "installer archive from a Linux host" <<'PY'
+old = """def GetLZMAExec(build_dir):
+    # Taken from ungoogled-chromium's _extraction.py file, modified for Python 2
+    import winreg
+"""
+new = """def GetLZMAExec(build_dir):
+    # Astro: cross builds from Linux pack with the host 7za Chromium ships.
+    if sys.platform != 'win32':
+        return os.path.join(build_dir, '..', '..', 'third_party', 'lzma_sdk',
+                            'bin', 'host_platform', '7za')
+    # Taken from ungoogled-chromium's _extraction.py file, modified for Python 2
+    import winreg
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["    # Astro: cross builds from Linux pack with the host 7za Chromium ships.\n"], edit)
+PY
+hook "$archive" "installer carries the interface" <<'PY'
+old = """    CopySectionFilesToStagingDir(
+        config, 'GENERAL', staging_dir, build_dir, verbose
+    )
+"""
+new = old + """    # Astro: the interface and the content blocker ship as folders beside chrome.dll.
+    version_dir = os.path.join(
+        staging_dir, config.get('GENERAL', 'chrome.dll').replace('\\\\', os.sep))
+    for folder, staged in (('astro-ui', 'astro-ui'), ('extensions', 'Extensions')):
+        source = os.path.join(build_dir, folder)
+        if not os.path.isdir(source):
+            continue
+        shutil.copytree(source, os.path.join(version_dir, staged),
+                        dirs_exist_ok=True)
+        for parent, _, names in os.walk(source):
+            g_archive_inputs.extend(
+                os.path.relpath(os.path.join(parent, name), build_dir)
+                for name in names)
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["    # Astro: the interface and the content blocker ship as folders beside chrome.dll.\n"], edit)
+PY
+fi
+
 if [[ $mode == check ]]; then
   exit "$drift"
 fi
