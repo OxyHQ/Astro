@@ -50,15 +50,16 @@ async function surfaces() {
 }
 
 export async function confirm(options: ConfirmOptions) {
-  const { confirm: ask } = await surfaces();
-  const confirmed = await ask({
+  const { confirm: ask, confirmWithSuppression } = await surfaces();
+  const asked = {
     title: options.title,
     description: options.message,
     confirmLabel: options.confirmTitle ?? "OK",
     cancelLabel: options.cancelTitle,
     destructive: options.destructive,
-  });
-  return { confirmed, suppressed: false };
+  };
+  if (options.suppression) return confirmWithSuppression({ ...asked, suppressionLabel: options.suppression });
+  return { confirmed: await ask(asked), suppressed: false };
 }
 
 export async function prompt(options: PromptOptions) {

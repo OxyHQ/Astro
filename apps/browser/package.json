@@ -18,7 +18,7 @@
     "@astro-browser/shaders": "workspace:*",
     "@astro-browser/shell": "workspace:*",
     "@astro-browser/sync": "workspace:*",
-    "@oxy.so/bloom": "^15.43.0",
+    "@oxy.so/bloom": "^15.46.0",
     "@oxy.so/core": "^7.1.0",
     "@oxy.so/services": "^13.0.0",
     "expo": "~54.0.37",

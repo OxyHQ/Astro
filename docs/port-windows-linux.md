@@ -175,9 +175,11 @@ the press instead of passing it to the page. The link under the pointer reaches 
 Menu: Linux and Windows have no menu bar, so a button beside the window controls opens the macOS menu bar's commands
 (`AppMenu.tsx`, from the same `menuState`), with Ctrl shortcuts; Exit is `astroQuit` (`chrome::AttemptUserExit`).
 
-Menus and dialogs are Bloom's (`@oxy.so/bloom`), where macOS uses NSMenu and NSAlert: `showMenu(items)` renders a
-`DropdownMenu` at the pointer (flyout submenus, shortcuts, checks, arrow keys, Esc), and `confirm`/`prompt` are Bloom's
-surfaces (`apps/demo/src/shims/web/overlays.tsx`, `BloomLayer.tsx`). Webium suppresses `window.confirm` and
+Menus and dialogs are Bloom's (`@oxy.so/bloom`), where macOS uses NSMenu and NSAlert: `showMenu(items)` opens a
+`ContextMenu` anchored at the pointer (`anchor`, no trigger; flyout submenus sized to their rows, shortcuts, checks,
+`alignRows` lining up icon and check rows, arrow keys, Esc, focus back where it was), and `confirm`/`prompt` are Bloom's
+surfaces (`apps/demo/src/shims/web/overlays.tsx`, `BloomLayer.tsx`); a confirmation with `suppression` is
+`confirmWithSuppression`, whose "Don't ask again" checkbox comes back as `suppressed`. Webium suppresses `window.confirm` and
 `window.prompt` in its own page (they return at once), so they can't be used. Bloom loads lazily, when the page goes
 idle or at the first menu or dialog. The window's close button sends `closeRequest`, so closing a window with several
 tabs asks first, as on macOS.
@@ -240,7 +242,7 @@ hash, since it must match that loader. A paragraph is one HTML text whose pieces
 its own part back, as Apple's attributed strings do on macOS. The interface's CSP allows `'wasm-unsafe-eval'` and
 same-origin workers for this.
 
-Still missing: the interface in a pak instead of `astro-ui/`, and the "Don't ask again" checkbox in confirmations (it needs Bloom's confirm to carry one).
+Still missing: the interface in a pak instead of `astro-ui/`.
 
 ## Minimum steps to browse on Linux
 
