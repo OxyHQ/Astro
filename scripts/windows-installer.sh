@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the Windows installer (Chromium's mini_installer carrying apps/webui and uBlock Origin) as
+# Builds the Windows installer (Chromium's mini_installer, with apps/webui in resources.pak, and uBlock Origin) as
 # Astro-<version>-windows-x64-setup.exe in $CB/release (the version is MARKETING_VERSION), with
 # Astro-<version>-windows-x64-setup.exe.commit naming the commit it was built from (scripts/release.sh
 # checks it). It installs per user into %LOCALAPPDATA%\Oxy\Astro\Application and registers Astro with Windows;
@@ -21,7 +21,6 @@ setup="$release/Astro-$version-windows-x64-setup.exe"
 npx -y pnpm@11.1.3 -C "$root/apps/webui" build >/dev/null
 PATH="$root/scripts/agent:$PATH" "$root/packages/astrocore/scripts/ubo.sh" >/dev/null
 rm -rf "$out/astro-ui" "$out/extensions/ublock" "$out/cli" "$out/chrome.7z" "$out/mini_installer.exe"
-cp -r "$root/apps/webui/dist" "$out/astro-ui"
 mkdir -p "$out/extensions"
 cp -r "$root/packages/astrocore/vendor/ubo/ext" "$out/extensions/ublock"
 cli_out="$(mktemp -d)"

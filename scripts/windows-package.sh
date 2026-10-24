@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Packages the Windows engine and apps/webui as astro-browser-<version>-windows-x64.zip in $CB/release.
+# Builds the Windows engine with apps/webui in its resources.pak and packages it as astro-browser-<version>-windows-x64.zip in $CB/release.
 # Usage: AC_TARGET_PLATFORM=windows scripts/windows-package.sh   (AC_ENGINE_PROFILE picks the engine build, release by default)
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -8,7 +8,7 @@ source "$root/engine/patches/build/env.sh"
 [[ "$AC_PLATFORM" == windows ]] || { echo "windows-package.sh: AC_PLATFORM is $AC_PLATFORM, not windows" >&2; exit 1; }
 src="$CB/chromium_git/chromium/src"
 out="$src/out/$GN_OUT_CONFIGS"
-[[ -f "$out/chrome.exe" ]] || { echo "windows-package.sh: no engine at $out/chrome.exe (AC_ENGINE_PROFILE=dev for the dev build)" >&2; exit 1; }
+[[ -d "$out" ]] || { echo "windows-package.sh: no engine build at $out (AC_ENGINE_PROFILE=dev for the dev build)" >&2; exit 1; }
 version="$(git -C "$root" describe --always --dirty)"
 name="astro-browser-$version-windows-x64"
 release="$CB/release"
@@ -17,7 +17,7 @@ rm -rf "$dir" "$release/$name.zip"
 mkdir -p "$dir"
 
 npx -y pnpm@11.1.3 -C "$root/apps/webui" build >/dev/null
-cp -r "$root/apps/webui/dist" "$dir/astro-ui"
+TARGETS=chrome "$root/scripts/agent/locked" chromium --wait 600 -- "$root/engine/patches/build/05-build.sh" --apply >/dev/null
 PATH="$root/scripts/agent:$PATH" "$root/packages/astrocore/scripts/ubo.sh" >/dev/null
 mkdir -p "$dir/extensions"
 cp -r "$root/packages/astrocore/vendor/ubo/ext" "$dir/extensions/ublock"

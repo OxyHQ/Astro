@@ -16,9 +16,8 @@ class WebUIDataSource;
 namespace astro {
 
 inline constexpr char kAstroUiDirSwitch[] = "astro-ui-dir";
-inline constexpr char kAstroUiDirName[] = "astro-ui";
 
-void ServeUiFromDisk(content::WebUIDataSource* source, Profile* profile);
+void ServeUi(content::WebUIDataSource* source, Profile* profile);
 base::FilePath BesideEngine(std::string_view relative);
 
 }

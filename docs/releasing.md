@@ -90,8 +90,8 @@ hide the Mac update or be lost. `scripts/windows-appcast.py` writes and merges i
   when Astro quits, as Sparkle installs on quit; "Restart" on the toast, or the menu's "Restart and Update", installs it
   now and reopens Astro. Either way a hidden PowerShell waits for Astro's processes to exit, runs the installer only if
   its SHA-256 is still the one verified, deletes it, and (for Restart) starts Astro again. The installer keeps the
-  engine's Chromium version, so it repairs the installed copy in place: `setup.exe` replaces the version folder,
-  `astro-ui/` included, when anything in it changed. Only installed copies update (the version folder has
+  engine's Chromium version, so it repairs the installed copy in place: `setup.exe` replaces the version folder
+  (the interface is in its `resources.pak`) when anything in it changed. Only installed copies update (the version folder has
   `Installer\setup.exe`); a copy unzipped from `windows-package.sh` or started with `--user-data-dir` doesn't, unless
   `ASTRO_UPDATE_FEED_URL` is set.
 - **Releasing.** Bump the version first, then build the installer from that commit on the Windows build host:

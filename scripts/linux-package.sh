@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Packages the Linux engine and apps/webui as astro-browser-<version>-x86_64.tar.xz in ~/chromium-build/release.
+# Builds the Linux engine with apps/webui in its resources.pak and packages it as astro-browser-<version>-x86_64.tar.xz in ~/chromium-build/release.
 # Usage: scripts/linux-package.sh   (AC_ENGINE_PROFILE picks the engine build, release by default)
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 source "$root/engine/patches/build/env.sh"
 out="$CB/chromium_git/chromium/src/out/$GN_OUT_CONFIGS"
-[[ -x "$out/chrome" ]] || { echo "linux-package.sh: no engine at $out/chrome (AC_ENGINE_PROFILE=dev for the dev build)" >&2; exit 1; }
+[[ -d "$out" ]] || { echo "linux-package.sh: no engine build at $out (AC_ENGINE_PROFILE=dev for the dev build)" >&2; exit 1; }
 version="$(git -C "$root" describe --always --dirty)"
 name="astro-browser-$version-x86_64"
 release="$CB/release"
@@ -14,7 +14,7 @@ rm -rf "$dir"
 mkdir -p "$dir/locales"
 
 npx -y pnpm@11.1.3 -C "$root/apps/webui" build >/dev/null
-cp -r "$root/apps/webui/dist" "$dir/astro-ui"
+TARGETS=chrome "$root/scripts/agent/locked" chromium --wait 600 -- "$root/engine/patches/build/05-build.sh" --apply >/dev/null
 PATH="$root/scripts/agent:$PATH" "$root/packages/astrocore/scripts/ubo.sh" >/dev/null
 mkdir -p "$dir/extensions"
 cp -r "$root/packages/astrocore/vendor/ubo/ext" "$dir/extensions/ublock"

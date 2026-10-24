@@ -1,6 +1,8 @@
 # Copyright 2026 Oxy. Apache-2.0.
 
 import("//build/config/ui.gni")
+import("//tools/grit/grit_rule.gni")
+import("//ui/webui/resources/tools/generate_grd.gni")
 
 assert(is_mac || is_linux || is_win)
 
@@ -211,6 +213,7 @@ source_set("astro") {
       "ac_platform_default.cc",
     ]
     deps += [
+      ":ui_resources",
       "//components/media_router/common/mojom:media_router",
       "//mojo/public/cpp/bindings",
     ]
@@ -235,6 +238,30 @@ source_set("astro") {
 
   if (use_aura) {
     deps += [ "//ui/aura" ]
+  }
+}
+
+if (!is_mac) {
+  _ui_dir = "//chrome/browser/resources/astro_ui"
+
+  generate_grd("build_ui_grd") {
+    grd_prefix = "astro_ui"
+    out_grd = "$target_gen_dir/astro_ui_resources.grd"
+    input_files = read_file("$_ui_dir/files.json", "json")
+    input_files_base_dir = rebase_path("$_ui_dir/dist", "//")
+  }
+
+  grit("ui_resources") {
+    enable_input_discovery_for_gn_analyze = false
+    source = "$target_gen_dir/astro_ui_resources.grd"
+    deps = [ ":build_ui_grd" ]
+    outputs = [
+      "grit/astro_ui_resources.h",
+      "grit/astro_ui_resources_map.cc",
+      "grit/astro_ui_resources_map.h",
+      "astro_ui_resources.pak",
+    ]
+    output_dir = "$root_gen_dir/chrome"
   }
 }
 

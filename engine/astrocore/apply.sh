@@ -1922,15 +1922,14 @@ def edit(s):
     return s.replace(old, new)
 hook(["    # Astro: cross builds from Linux pack with the host 7za Chromium ships.\n"], edit)
 PY
-hook "$archive" "installer carries the interface" <<'PY'
+hook "$archive" "installer carries the content blocker and the CLI" <<'PY'
 old = """    CopySectionFilesToStagingDir(
         config, 'GENERAL', staging_dir, build_dir, verbose
     )
 """
-new = old + """    # Astro: the interface and the content blocker ship as folders beside chrome.dll.
-    version_dir = os.path.join(
+copy = """    version_dir = os.path.join(
         staging_dir, config.get('GENERAL', 'chrome.dll').replace('\\\\', os.sep))
-    for folder, staged in (('astro-ui', 'astro-ui'), ('extensions', 'Extensions'), ('cli', 'cli')):
+    for folder, staged in (FOLDERS):
         source = os.path.join(build_dir, folder)
         if not os.path.isdir(source):
             continue
@@ -1941,10 +1940,16 @@ new = old + """    # Astro: the interface and the content blocker ship as folder
                 os.path.relpath(os.path.join(parent, name), build_dir)
                 for name in names)
 """
+marker = "    # Astro: the content blocker and the astro command ship as folders beside chrome.dll.\n"
+previous = (old + "    # Astro: the interface and the content blocker ship as folders beside chrome.dll.\n" +
+            copy.replace("FOLDERS", "('astro-ui', 'astro-ui'), ('extensions', 'Extensions'), ('cli', 'cli')"))
+new = old + marker + copy.replace("FOLDERS", "('extensions', 'Extensions'), ('cli', 'cli')")
 def edit(s):
+    if s.count(previous) == 1:
+        return s.replace(previous, new)
     assert s.count(old) == 1
     return s.replace(old, new)
-hook(["    # Astro: the interface and the content blocker ship as folders beside chrome.dll.\n"], edit)
+hook([marker], edit)
 PY
 fi
 

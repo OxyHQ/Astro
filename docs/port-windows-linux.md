@@ -65,18 +65,23 @@ the page's `fetch` to http(s) goes through the engine (`astroFetch`: no cookies,
 bookmarks, favicons and search suggestions work. Ctrl+L opens the command bar, Ctrl+T opens Astro's new tab instead of
 Chromium's, and a tab Chromium activates (Ctrl+Tab) becomes the shown one.
 
-Run it from the repository with `pnpm linux` (it builds `apps/webui` and starts the `dev` engine on it through
-`scripts/linux-run.sh`). For a standalone build: `pnpm -C apps/webui build`, copy `apps/webui/dist` to `astro-ui/` beside the engine's `chrome`, and start
-`chrome`: on Linux and Windows the engine turns on `Webium` and `AttachUnownedInnerWebContents` by default
-(`chromium-astro-webium-default.patch`) and serves `astro-ui/`. While developing, `pnpm -C apps/webui dev` rebuilds on
-change and `--astro-ui-dir=$PWD/apps/webui/dist` serves the build in place. Without `AttachUnownedInnerWebContents`,
+The interface ships inside the engine, as Chromium's own WebUIs do: `pnpm -C apps/webui build`, then the engine build
+(step 5, `05-build.sh`) stages `apps/webui/dist` into the tree (`ui-resource.sh`), `//chrome/browser/astro:ui_resources`
+packs it (a grd generated from the staged file list, then grit) and `chromium-astro-ui.patch` repacks that pak into
+`resources.pak`. On Linux and Windows the engine turns on `Webium` and `AttachUnownedInnerWebContents` by default
+(`chromium-astro-webium-default.patch`) and serves the interface from `resources.pak` at `chrome://webui-browser/`, so
+`chrome` alone is the browser. Rebuild the engine to ship a new interface. Run it from the repository with `pnpm linux`
+(it builds `apps/webui` and starts the `dev` engine on it through `scripts/linux-run.sh`), which passes
+`--astro-ui-dir=$PWD/apps/webui/dist`: with that switch the engine serves the folder instead of its pak, so while
+developing `pnpm -C apps/webui dev` rebuilds on change and a restart picks it up without an engine build. Without `AttachUnownedInnerWebContents`,
 removing a tab's iframe hits a CHECK. Restart the browser to pick up a new build; reloading `chrome://webui-browser`
 itself crashes Webium (it reopens the page as a tab, outside its window). Chromium calls
 `AttachUnownedInnerWebContents` a prototype not meant for production, and GuestContents says the same: both are the
 risk this design takes on.
 
 Package it: `scripts/linux-package.sh` (`AC_ENGINE_PROFILE=dev` for the dev engine) builds `apps/webui` and writes
-`~/chromium-build/release/astro-browser-<version>-x86_64.tar.xz`: the engine stripped, `astro-ui/`, the `astro-browser`
+`~/chromium-build/release/astro-browser-<version>-x86_64.tar.xz`: the engine (rebuilt with the interface in
+`resources.pak`) stripped, the `astro-browser`
 launcher, `astro-browser.desktop`, its icon and an AppArmor profile (`engine/linux/`). Install it with `sudo tar -xJf
 astro-browser-*.tar.xz -C /opt && sudo mv /opt/astro-browser-*-x86_64 /opt/astro-browser`, link
 `/opt/astro-browser/astro-browser` into your PATH, and copy the desktop file and icon to `~/.local/share/applications/`
@@ -86,20 +91,20 @@ AppArmor profile: `sudo cp /opt/astro-browser/apparmor.cfg /etc/apparmor.d/astro
 /etc/apparmor.d/astro-browser`. The dev engine's package is 116 MB.
 
 The Windows installer is Chromium's `mini_installer`: `AC_TARGET_PLATFORM=windows scripts/windows-installer.sh` (with
-the Windows build's environment from `docs/engine-build.md`) builds `chrome` and `mini_installer` with `astro-ui/` and
-uBlock Origin staged beside `chrome.dll`, and writes `release/Astro-<version>-windows-x64-setup.exe`. It
+the Windows build's environment from `docs/engine-build.md`) builds `chrome` (the interface in `resources.pak`) and
+`mini_installer` with uBlock Origin and the CLI staged beside `chrome.dll`, and writes `release/Astro-<version>-windows-x64-setup.exe`. It
 installs per user into `%LOCALAPPDATA%\Oxy\Astro\Application`, keeps the profile in `%LOCALAPPDATA%\Oxy\Astro\User
 Data`, creates the shortcuts and registers Astro with Windows, so it can be the default browser. Helium's Windows
 patches find 7-Zip through the registry; `engine/astrocore/apply.sh` points a Linux host at Chromium's own `7za`. The
-engine looks for `astro-ui/` and `extensions/ublock` beside `chrome.exe` (the zip) or beside `chrome.dll` (installed).
+engine looks for `extensions/ublock` beside `chrome.exe` (the zip) or beside `chrome.dll` (installed).
 An installed copy updates itself from `appcast-windows.xml` (`host/updater.ts`, `ac_updater.cc`; `docs/releasing.md` ›
 Windows): it downloads and verifies the newer installer and runs it when Astro quits, or at once from the toast's
 Restart.
 
 On Windows, `AC_TARGET_PLATFORM=windows scripts/windows-package.sh` (`AC_CHROMIUM_BUILD` for the Windows tree,
-`AC_ENGINE_PROFILE=dev` for the dev engine) writes `release/astro-browser-<version>-windows-x64.zip`: the files
-Chromium's `FILES.cfg` lists for the build (plus `snapshot_blob.bin` when the build has no context snapshot),
-`astro-ui/` and `extensions/ublock`. Unzip it anywhere and run `chrome.exe`. The dev engine's zip is 188 MB.
+`AC_ENGINE_PROFILE=dev` for the dev engine) rebuilds `chrome` with the interface and writes
+`release/astro-browser-<version>-windows-x64.zip`: the files Chromium's `FILES.cfg` lists for the build (plus
+`snapshot_blob.bin` when the build has no context snapshot) and `extensions/ublock`. Unzip it anywhere and run `chrome.exe`. The dev engine's zip is 188 MB.
 
 Private windows: their tabs are profile tabs of the original profile's primary off-the-record profile
 (`incognito:<session>@<profile>`), hosted by a hidden browser of that profile, which closes when its last tab does and
@@ -266,8 +271,6 @@ loader Firefox ships (`public/bergamot/`); a pair without a model goes through E
 hash, since it must match that loader. A paragraph is one HTML text whose pieces are `<span>`s, so each text node gets
 its own part back, as Apple's attributed strings do on macOS. The interface's CSP allows `'wasm-unsafe-eval'` and
 same-origin workers for this.
-
-Still missing: the interface in a pak instead of `astro-ui/`.
 
 ## Minimum steps to browse on Linux
 
