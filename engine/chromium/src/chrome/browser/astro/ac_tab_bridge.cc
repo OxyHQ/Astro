@@ -56,13 +56,28 @@
 #include "net/ssl/ssl_connection_status_flags.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "ui/base/page_transition_types.h"
+#include "components/input/native_web_keyboard_event.h"
+#include "third_party/blink/public/common/input/web_input_event.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "url/gurl.h"
 
 extern bool (*g_astro_target_url)(content::WebContents* source,
                                   const GURL& url);
+extern void (*g_astro_unhandled_key)(content::WebContents* source,
+                                     const input::NativeWebKeyboardEvent& event);
 
 namespace astro {
 namespace {
+
+void UnhandledKey(content::WebContents* source,
+                  const input::NativeWebKeyboardEvent& event) {
+  if (event.GetType() == blink::WebInputEvent::Type::kRawKeyDown &&
+      event.windows_key_code == ui::VKEY_ESCAPE &&
+      !(event.GetModifiers() & blink::WebInputEvent::kKeyModifiers) &&
+      HostShowsTab(source)) {
+    HostTabEvent(source, "unhandledEscape", base::DictValue());
+  }
+}
 
 bool ShowTargetUrl(content::WebContents* source, const GURL& url) {
   if (!HostShowsTab(source)) {
@@ -786,6 +801,7 @@ void TabBridge::BlockedUrlAdded(int32_t popup_id, const GURL& url) {
 
 void InstallTargetUrl() {
   g_astro_target_url = &ShowTargetUrl;
+  g_astro_unhandled_key = &UnhandledKey;
 }
 
 }

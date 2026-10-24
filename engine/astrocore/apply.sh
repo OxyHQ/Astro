@@ -1935,6 +1935,54 @@ hook(["    # Astro: the interface and the content blocker ship as folders beside
 PY
 fi
 
+hook "$src/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc" "keys the page left" <<'PY'
+at = "bool BrowserWebContentsDelegate::HandleKeyboardEvent(\n"
+decl = """// Astro: AstroCore hears about keys a hosted tab didn't use, as Esc that closes a popover or Little Astro.
+void (*g_astro_unhandled_key)(content::WebContents* source,
+                              const input::NativeWebKeyboardEvent& event) =
+    nullptr;
+
+"""
+old = """    const input::NativeWebKeyboardEvent& event) {
+  DevToolsWindow* devtools_window =
+      DevToolsWindow::GetInstanceForInspectedWebContents(source);"""
+new = """    const input::NativeWebKeyboardEvent& event) {
+  if (g_astro_unhandled_key) {
+    g_astro_unhandled_key(source, event);
+  }
+  DevToolsWindow* devtools_window =
+      DevToolsWindow::GetInstanceForInspectedWebContents(source);"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1
+    i = s.index(at)
+    return s[:i] + decl + s[i:].replace(old, new, 1)
+hook(["void (*g_astro_unhandled_key)(content::WebContents* source,\n",
+      "  if (g_astro_unhandled_key) {\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "keys pages leave" <<'PY'
+old = """bool WebUIBrowserWindow::HandleKeyboardEvent(
+    const input::NativeWebKeyboardEvent& event) {
+  return false;
+}
+"""
+new = """// Astro: browser shortcuts a page didn't use run here, as in Chrome's BrowserView.
+bool (*g_astro_window_unhandled_key)(
+    BrowserWindowInterface* browser,
+    const input::NativeWebKeyboardEvent& event) = nullptr;
+
+bool WebUIBrowserWindow::HandleKeyboardEvent(
+    const input::NativeWebKeyboardEvent& event) {
+  return g_astro_window_unhandled_key &&
+         g_astro_window_unhandled_key(browser_.get(), event);
+}
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["bool (*g_astro_window_unhandled_key)(\n"], edit)
+PY
+
 if [[ $mode == check ]]; then
   exit "$drift"
 fi

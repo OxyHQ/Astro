@@ -65,9 +65,18 @@ function openEngineTab(props: WebViewProps): Promise<EngineTab | null> {
   return tabHub().then((hub) => hub.open({ adoptId: props.adoptId, url: props.url }));
 }
 
-function tabEvents(props: { current: WebViewProps }, browserId: number, onDevTools: (dock: DevToolsDock | null) => void): TabEventListener {
+const ESCAPE_KEPT_BY_PAGE =
+  'post("result", JSON.stringify(!!document.fullscreenElement || !!(document.activeElement && (document.activeElement.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)))));';
+
+async function escapeIfUnused(ref: string, p: WebViewProps) {
+  const kept = await callTab<string>(ref, "evaluate", { code: ESCAPE_KEPT_BY_PAGE }).catch(() => null);
+  if (kept === "false") p.onCommand?.({ command: "escape", text: "" });
+}
+
+function tabEvents(props: { current: WebViewProps }, browserId: number, onDevTools: (dock: DevToolsDock | null) => void, ref: string): TabEventListener {
   return (kind, payload) => {
     const p = props.current;
+    if (kind === "unhandledEscape") return void escapeIfUnused(ref, p);
     if (kind === "devTools") return onDevTools(devToolsDock(payload));
     if (kind === "permission") return emitNativeEvent("AstroCEF", "onPermission", { ...payload, browserId });
     if (kind === "installPrompt") return emitNativeEvent("AstroExtensions", "onInstallPrompt", { ...payload, browserId });
@@ -135,7 +144,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       if (closed) return opening.close();
       tab.current = opening;
       browsers.set(browserId, { ref: opening.ref, profile: latest.current.profile ?? "" });
-      void watchTab(opening.ref, tabEvents(latest, browserId, setDevTools)).then(({ snapshot, stop }) => {
+      void watchTab(opening.ref, tabEvents(latest, browserId, setDevTools, opening.ref)).then(({ snapshot, stop }) => {
         if (closed) return stop();
         stopWatching = stop;
         if (!snapshot) return;

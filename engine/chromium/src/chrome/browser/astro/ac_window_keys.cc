@@ -11,6 +11,10 @@
 #include "base/no_destructor.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
+#include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/ui/accelerator_table.h"
+#include "chrome/browser/ui/browser_commands.h"
+#include "ui/content_accelerators/accelerator_util.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
@@ -31,6 +35,9 @@ extern std::optional<content::KeyboardEventProcessingResult> (
     *g_astro_window_key)(BrowserWindowInterface* browser,
                          const input::NativeWebKeyboardEvent& event,
                          int command_id);
+extern bool (*g_astro_window_unhandled_key)(
+    BrowserWindowInterface* browser,
+    const input::NativeWebKeyboardEvent& event);
 
 namespace astro {
 
@@ -73,6 +80,24 @@ base::DictValue Describe(const input::NativeWebKeyboardEvent& event,
       .Set("mods", modifiers);
 }
 
+bool IsReservedCommand(int command_id) {
+  switch (command_id) {
+    case IDC_CLOSE_TAB:
+    case IDC_CLOSE_WINDOW:
+    case IDC_NEW_INCOGNITO_WINDOW:
+    case IDC_NEW_TAB:
+    case IDC_NEW_WINDOW:
+    case IDC_RESTORE_TAB:
+    case IDC_SELECT_NEXT_TAB:
+    case IDC_SELECT_PREVIOUS_TAB:
+    case IDC_EXIT:
+    case IDC_FULLSCREEN:
+      return true;
+    default:
+      return false;
+  }
+}
+
 std::optional<content::KeyboardEventProcessingResult> WindowKey(
     BrowserWindowInterface* browser,
     const input::NativeWebKeyboardEvent& event,
@@ -95,7 +120,34 @@ std::optional<content::KeyboardEventProcessingResult> WindowKey(
   if (command_id != -1 && state.owned.contains(combo)) {
     return content::KeyboardEventProcessingResult::NOT_HANDLED;
   }
+  if (command_id != -1 && !IsReservedCommand(command_id)) {
+    return content::KeyboardEventProcessingResult::NOT_HANDLED_IS_SHORTCUT;
+  }
   return std::nullopt;
+}
+
+bool RunUnhandledAccelerator(BrowserWindowInterface* browser,
+                             const input::NativeWebKeyboardEvent& event) {
+  if (!browser ||
+      event.GetType() != blink::WebInputEvent::Type::kRawKeyDown ||
+      event.skip_if_unhandled) {
+    return false;
+  }
+  const std::string code = ui::KeycodeConverter::DomCodeToCodeString(
+      static_cast<ui::DomCode>(event.dom_code));
+  if (State().owned.contains(code + "|" +
+                             base::NumberToString(Modifiers(event)))) {
+    return false;
+  }
+  const ui::Accelerator accelerator =
+      ui::GetAcceleratorFromNativeWebKeyboardEvent(event);
+  for (const AcceleratorMapping& entry : GetAcceleratorList()) {
+    if (entry.keycode == accelerator.key_code() &&
+        entry.modifiers == accelerator.modifiers()) {
+      return chrome::ExecuteCommand(browser, entry.command_id);
+    }
+  }
+  return false;
 }
 
 #if defined(USE_AURA)
@@ -157,6 +209,7 @@ std::unique_ptr<KeyCapture>& Capture() {
 
 void InstallWindowKeys() {
   g_astro_window_key = &WindowKey;
+  g_astro_window_unhandled_key = &RunUnhandledAccelerator;
 }
 
 void SetWindowShortcuts(std::vector<std::string> active,
