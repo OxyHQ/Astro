@@ -1,5 +1,6 @@
 import type { SystemCalendar } from "@astro-browser/shell";
 import { Linking, Text, View } from "react-native";
+import { ON_MAC } from "../../../lib/device";
 import { useTheme } from "../../../lib/theme";
 import { connectCalendar, setCalendarHidden, useCalendar } from "../../../live/calendar";
 import { ALERT_LEADS } from "../../../live/meetings";
@@ -27,16 +28,18 @@ export function CalendarPane() {
         <Row
           anchor="calendar.access"
           description={
-            access === "fixture"
-              ? "Development build: using calendar-fixture.json"
-              : connected
-                ? `Connected · ${calendars.length === 1 ? "1 calendar" : `${calendars.length} calendars`}`
-                : denied
-                  ? "Astro isn't allowed to read your calendars. Allow it in System Settings › Privacy & Security › Calendars."
-                  : "Not connected"
+            !ON_MAC
+              ? "Your calendar will come from your Oxy account."
+              : access === "fixture"
+                ? "Development build: using calendar-fixture.json"
+                : connected
+                  ? `Connected · ${calendars.length === 1 ? "1 calendar" : `${calendars.length} calendars`}`
+                  : denied
+                    ? "Astro isn't allowed to read your calendars. Allow it in System Settings › Privacy & Security › Calendars."
+                    : "Not connected"
           }
         >
-          {denied ? (
+          {!ON_MAC ? null : denied ? (
             <Button title="Open System Settings" onPress={() => void Linking.openURL("x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")} />
           ) : !connected ? (
             <Button title="Connect Calendar…" kind="primary" onPress={() => void connectCalendar()} />
