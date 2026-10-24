@@ -7,6 +7,7 @@
 #include <optional>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -24,6 +25,7 @@
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "url/gurl.h"
 
 #if BUILDFLAG(IS_WIN)
 namespace webshare {
@@ -73,6 +75,13 @@ class TabBridge : public content::WebContentsObserver,
   void WebContentsDestroyed() override;
   void WasDiscarded() override;
   void DidGetUserInteraction(const blink::WebInputEvent& event) override;
+  void ResourceLoadComplete(
+      content::RenderFrameHost* render_frame_host,
+      const content::GlobalRequestID& request_id,
+      const GURL& original_url,
+      const blink::mojom::ResourceLoadInfo& resource_load_info) override;
+
+  void NoteRuleMatched(bool block, const GURL& url);
   void AboutToBeDiscarded(content::WebContents* new_contents) override;
   void DispatchProtocolMessage(content::DevToolsAgentHost* agent_host,
                                base::span<const uint8_t> message) override;
@@ -116,6 +125,10 @@ class TabBridge : public content::WebContentsObserver,
   void SendProtocol(const std::string& method, base::DictValue params);
   void PageScriptMessage(const base::DictValue& params);
   void BindPageScript();
+  void NoteBlockedByClient(const GURL& blocked_url, const GURL& url);
+  void NoteBlocked(const GURL& url);
+  void ReportBlocked();
+  void ResetBlocked();
   void CallPage(const std::string& kind,
                 const std::string& json,
                 std::optional<int> context);
@@ -140,6 +153,10 @@ class TabBridge : public content::WebContentsObserver,
   int last_message_id_ = 0;
   bool page_script_installed_ = false;
   std::string page_binding_;
+  int blocked_count_ = 0;
+  int blocked_pending_ = 0;
+  GURL blocked_last_url_;
+  std::vector<GURL> rule_blocked_urls_;
   std::map<int, base::OnceCallback<void(base::Value)>> evaluations_;
   base::WeakPtrFactory<TabBridge> weak_factory_{this};
 };

@@ -40,6 +40,8 @@ source_set("astro") {
     "ac_extension_actions.cc",
     "ac_extension_actions.h",
     "ac_extension_prompts.cc",
+    "ac_extension_shortcuts.cc",
+    "ac_extension_shortcuts.h",
     "ac_extension_views.cc",
     "ac_extension_views.h",
     "ac_extensions.cc",

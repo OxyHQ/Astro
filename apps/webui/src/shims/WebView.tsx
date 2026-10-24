@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import type { BlockedPopup, CrashInfo, DownloadNavigation, ExternalAppRequest, FindResult, LoadError, MediaAccess, MediaState, NavigationState, PasswordPrompt, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
+import type { BlockedPopup, ContentBlockedState, CrashInfo, DownloadNavigation, ExternalAppRequest, FindResult, LoadError, MediaAccess, MediaState, NavigationState, PasswordPrompt, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
 import type { BrowserCommand } from "@astro-browser-real/shell";
 import { openProfileTab, onProfileTabOpened, PROFILE_TAB_PREFIX } from "../host/profileTabs";
 import { type EngineTab, type TabState, tabHub } from "../host/tabs";
@@ -107,11 +107,13 @@ function tabEvents(props: { current: WebViewProps }, browserId: number, onDevToo
     if (kind === "permission") return emitNativeEvent("AstroCEF", "onPermission", { ...payload, browserId });
     if (kind === "installPrompt") return emitNativeEvent("AstroExtensions", "onInstallPrompt", { ...payload, browserId });
     if (kind === "actionPopup") return emitNativeEvent("AstroChromeUI", "onActionPopup", { ...payload, browserId });
+    if (kind === "actionShortcut") return emitNativeEvent("AstroChromeUI", "onActionShortcut", { ...payload, browserId });
     if (kind === "sidePanel") return emitNativeEvent("AstroChromeUI", "onSidePanel", { ...payload, browserId });
     if (kind === "deviceChooser") return emitNativeEvent("AstroChromeUI", "onDeviceChooser", { ...payload, browserId });
     if (kind === "castDialog") return emitNativeEvent("AstroChromeUI", "onCastDialog", { ...payload, browserId });
     if (kind === "windowClose") return p.onWindowClose?.();
     if (kind === "pageFocus") return p.onPageFocus?.();
+    if (kind === "contentBlocked") return p.onContentBlocked?.(payload as ContentBlockedState);
     if (kind === "downloadNavigation") return p.onDownloadNavigation?.(payload as DownloadNavigation);
     if (kind === "preferredSize") return p.onPreferredSize?.(payload as { width: number; height: number });
     if (kind === "find") p.onFindResult?.(payload as FindResult);

@@ -7,14 +7,17 @@
 #include <set>
 #include <utility>
 
+#include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/astro/ac_extension_shortcuts.h"
 #include "chrome/browser/ui/accelerator_table.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "ui/content_accelerators/accelerator_util.h"
+#include "ui/base/accelerators/accelerator.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
@@ -22,6 +25,7 @@
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
+#include "ui/events/keycodes/keyboard_code_conversion.h"
 
 #if defined(USE_AURA)
 #include "ui/aura/window.h"
@@ -207,9 +211,30 @@ std::unique_ptr<KeyCapture>& Capture() {
 
 }
 
+namespace {
+
+bool ReservedByPage(const ui::Accelerator& accelerator) {
+  const Shortcuts& state = State();
+  if (!state.received) {
+    return false;
+  }
+  const int modifiers = (accelerator.IsShiftDown() ? kShift : 0) |
+                        (accelerator.IsCtrlDown() ? kControl : 0) |
+                        (accelerator.IsAltDown() ? kAlt : 0) |
+                        (accelerator.IsCmdDown() ? kMeta : 0);
+  return state.active.contains(
+      ui::KeycodeConverter::DomCodeToCodeString(
+          ui::UsLayoutKeyboardCodeToDomCode(accelerator.key_code())) +
+      "|" +
+      base::NumberToString(modifiers));
+}
+
+}
+
 void InstallWindowKeys() {
   g_astro_window_key = &WindowKey;
   g_astro_window_unhandled_key = &RunUnhandledAccelerator;
+  InstallExtensionShortcuts(base::BindRepeating(&ReservedByPage));
 }
 
 void SetWindowShortcuts(std::vector<std::string> active,

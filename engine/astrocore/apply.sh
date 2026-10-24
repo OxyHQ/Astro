@@ -2001,6 +2001,27 @@ def edit(s):
 hook(["bool (*g_astro_window_unhandled_key)(\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/extensions/extension_action_view_model.cc" "action shortcuts reach the host" <<'PY'
+old = "void ExtensionActionViewModel::ExecuteUserAction(InvocationSource source) {\n"
+decl = """// Astro: a window whose interface AstroCore draws opens an action's popup there when its shortcut is pressed.
+bool (*g_astro_extension_action_command)(BrowserWindowInterface* browser,
+                                         const extensions::ExtensionId& extension_id) =
+    nullptr;
+
+"""
+new = decl + old + """  if (source == InvocationSource::kCommand && g_astro_extension_action_command &&
+      ExtensionIsValid() &&
+      g_astro_extension_action_command(browser_, extension_->id())) {
+    return;
+  }
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["bool (*g_astro_extension_action_command)(BrowserWindowInterface* browser,\n",
+      "  if (source == InvocationSource::kCommand && g_astro_extension_action_command &&\n"], edit)
+PY
+
 hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "downloads never hold a close" <<'PY'
 old = """    base::OnceCallback<void(bool)> callback) {
   NOTIMPLEMENTED_LOG_ONCE();

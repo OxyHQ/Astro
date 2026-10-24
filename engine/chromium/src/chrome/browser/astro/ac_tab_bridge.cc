@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -16,6 +17,13 @@
 #include "base/time/time.h"
 #include "base/json/json_reader.h"
 #include "base/no_destructor.h"
+#include "astro/core/ac_content_hooks.h"  // nogncheck
+#include "extensions/browser/api/declarative_net_request/request_action.h"
+#include "extensions/browser/api/web_request/web_request_info.h"
+#include "extensions/browser/extensions_browser_client.h"
+#include "extensions/common/constants.h"
+#include "third_party/blink/public/common/loader/resource_type_util.h"
+#include "third_party/blink/public/mojom/loader/resource_load_info.mojom.h"
 #include "crypto/random.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
@@ -93,6 +101,45 @@ constexpr int kSmallPictureQuality = 55;
 constexpr int kPictureQuality = 75;
 constexpr base::TimeDelta kPictureTimeout = base::Seconds(1);
 constexpr size_t kPageScriptBindingBytes = 16;
+constexpr size_t kMaxRuleBlockedUrls = 4096;
+constexpr base::TimeDelta kBlockedReportDelay = base::Milliseconds(150);
+
+std::set<TabBridge*>& LiveBridges() {
+  static base::NoDestructor<std::set<TabBridge*>> bridges;
+  return *bridges;
+}
+
+bool InPrimaryPage(content::RenderFrameHost* frame) {
+  return frame && frame->GetOutermostMainFrame()->IsInPrimaryMainFrame();
+}
+
+void RuleMatched(content::BrowserContext* context,
+                 int tab_id,
+                 const extensions::declarative_net_request::RequestAction& action,
+                 const extensions::WebRequestInfo& request) {
+  using Type = extensions::declarative_net_request::RequestAction::Type;
+  const bool block = action.type == Type::BLOCK || action.type == Type::COLLAPSE;
+  if ((!block && action.type != Type::REDIRECT) ||
+      tab_id == extension_misc::kUnknownTabId) {
+    return;
+  }
+  if (content::RenderFrameHost* frame =
+          content::RenderFrameHost::FromID(request.global_id);
+      frame && !InPrimaryPage(frame)) {
+    return;
+  }
+  content::WebContents* contents = nullptr;
+  if (!extensions::ExtensionsBrowserClient::Get()->IsValidTabId(
+          context, tab_id, true, &contents) ||
+      !contents) {
+    return;
+  }
+  for (TabBridge* bridge : LiveBridges()) {
+    if (bridge->web_contents() == contents) {
+      bridge->NoteRuleMatched(block, request.url);
+    }
+  }
+}
 constexpr size_t kMaxQueuedPageMessages = 256;
 constexpr char kPageScriptReceiver[] = "astro.page";
 constexpr size_t kMaxPageMessage = 2 * 1024 * 1024;
@@ -382,9 +429,12 @@ TabBridge::TabBridge(content::WebContents* contents, Emit emit)
       MediaCaptureDevicesDispatcher::GetInstance()->GetMediaStreamCaptureIndicator();
   capture_indicator_->AddObserver(this);
   media_access_ = MediaAccess();
+  LiveBridges().insert(this);
+  g_astro_dnr_rule_matched = &RuleMatched;
 }
 
 TabBridge::~TabBridge() {
+  LiveBridges().erase(this);
   capture_indicator_->RemoveObserver(this);
   if (agent_) {
     agent_->DetachClient(this);
@@ -1056,7 +1106,73 @@ void TabBridge::EmitNavigation() {
 }
 
 void TabBridge::DidStartLoading() {
+  ResetBlocked();
   EmitNavigation();
+}
+
+void TabBridge::ResourceLoadComplete(
+    content::RenderFrameHost* render_frame_host,
+    const content::GlobalRequestID&,
+    const GURL& original_url,
+    const blink::mojom::ResourceLoadInfo& resource_load_info) {
+  if (resource_load_info.net_error != net::ERR_BLOCKED_BY_CLIENT ||
+      blink::IsRequestDestinationFrame(resource_load_info.request_destination) ||
+      !InPrimaryPage(render_frame_host)) {
+    return;
+  }
+  NoteBlockedByClient(resource_load_info.final_url, original_url);
+}
+
+void TabBridge::NoteRuleMatched(bool block, const GURL& url) {
+  if (block) {
+    if (rule_blocked_urls_.size() >= kMaxRuleBlockedUrls) {
+      rule_blocked_urls_.erase(rule_blocked_urls_.begin());
+    }
+    rule_blocked_urls_.push_back(url);
+  }
+  NoteBlocked(url);
+}
+
+void TabBridge::NoteBlockedByClient(const GURL& blocked_url, const GURL& url) {
+  auto it = std::ranges::find(rule_blocked_urls_, blocked_url);
+  if (it != rule_blocked_urls_.end()) {
+    rule_blocked_urls_.erase(it);
+    return;
+  }
+  NoteBlocked(url);
+}
+
+void TabBridge::NoteBlocked(const GURL& url) {
+  blocked_last_url_ = url;
+  if (blocked_pending_++ == 0) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&TabBridge::ReportBlocked, weak_factory_.GetWeakPtr()),
+        kBlockedReportDelay);
+  }
+}
+
+void TabBridge::ReportBlocked() {
+  if (blocked_pending_ <= 0) {
+    return;
+  }
+  blocked_count_ += blocked_pending_;
+  blocked_pending_ = 0;
+  emit_.Run("contentBlocked", base::DictValue()
+                                  .Set("count", blocked_count_)
+                                  .Set("url", blocked_last_url_.spec()));
+}
+
+void TabBridge::ResetBlocked() {
+  const bool had = blocked_count_ > 0 || blocked_pending_ > 0;
+  blocked_count_ = 0;
+  blocked_pending_ = 0;
+  blocked_last_url_ = GURL();
+  rule_blocked_urls_.clear();
+  if (had) {
+    emit_.Run("contentBlocked",
+              base::DictValue().Set("count", 0).Set("url", std::string()));
+  }
 }
 
 void TabBridge::DidStopLoading() {
