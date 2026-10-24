@@ -3,6 +3,6 @@
 @import "nativewind/theme";
 @import "@oxy.so/bloom/design-tokens/theme.css";
 
-@source "../../../../../node_modules/@oxy.so/bloom/lib/module/{floating,dropdown-menu,context-menu,menubar,appearance,surface,surfaces,overlay,layout,scroll,styles,theme,typography,icons}/**/*.js";
+@source "../../../../../node_modules/@oxy.so/bloom/lib/module/**/*.js";
 
 @custom-variant dark (&:where(.dark, .dark *));
