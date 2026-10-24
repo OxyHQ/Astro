@@ -108,12 +108,28 @@ function bloomWorklets(): Plugin {
   };
 }
 
+const BLOOM_CLASS_SENTINEL = ".rounded-radius-16";
+
+function bloomStylesPresent(): Plugin {
+  return {
+    name: "astro-demo:bloom-styles",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      const css = Object.values(bundle).filter((asset) => asset.type === "asset" && asset.fileName.endsWith(".css"));
+      if (!css.length) return;
+      const found = css.some((asset) => asset.type === "asset" && String(asset.source).includes(BLOOM_CLASS_SENTINEL));
+      if (!found) this.error("Bloom's Tailwind classes are missing from the CSS: the @source in shims/web/bloom.css did not reach node_modules/@oxy.so/bloom, so its menus and dialogs would render unstyled.");
+    },
+  };
+}
+
 const analyze = !!process.env.ASTRO_DEMO_ANALYZE;
 
 export default defineConfig({
   plugins: [
     bloomWorklets(),
     tailwindcss(),
+    bloomStylesPresent(),
     commonJsRequires(),
     lazyComponents(),
     react(),
