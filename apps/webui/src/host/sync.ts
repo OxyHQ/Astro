@@ -1,5 +1,5 @@
 import { provideNativeModule } from "../../../demo/src/shims/expo-modules-core";
-import { loadCr, pickFiles } from "./engine";
+import { call, loadCr, pickFiles } from "./engine";
 import { systemServices } from "./system";
 import {
   deriveKeys,
@@ -40,12 +40,27 @@ type Listing = {
 
 type EngineFile = { id: string; data?: string; mtime?: number };
 
+type SavedLogin = { origin: string; url: string; username: string; password: string; created: number };
+
 const LOCKED = "Sync isn't set up on this computer.";
 const KIT_NAME = "Astro Recovery Kit.txt";
 const KIT_INTRO = "If you don’t have access to the computer on which you first turned on sync, you can still get your synced data on another computer:";
 const KIT_STEPS = ["Open Astro › Settings › Sync, and choose the same sync folder.", "Click Enter Recovery Phrase.", "Paste the 24 words below."];
 const KIT_WARNING =
   "Keep this kit somewhere safe, like a password manager or a printed copy. Anyone with these words and your sync folder can read your synced data. Astro can’t recover the words for you: there’s no server and no other copy.";
+
+const isSavedLogin = (value: unknown): value is SavedLogin => {
+  const login = value as SavedLogin | null;
+  return (
+    !!login &&
+    typeof login === "object" &&
+    typeof login.origin === "string" &&
+    typeof login.url === "string" &&
+    typeof login.username === "string" &&
+    typeof login.password === "string" &&
+    typeof login.created === "number"
+  );
+};
 
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
@@ -255,7 +270,10 @@ export const syncServices = {
 
   revealFolder: async (path: string): Promise<void> => void (await systemServices.revealFile(path)),
 
-  readPasswords: async (_engineProfile: string) => null,
+  readPasswords: async (engineProfile: string): Promise<SavedLogin[] | null> => {
+    const reply = await call("ac_passwords_sync_read", engineProfile).catch(() => null);
+    return reply && Array.isArray(reply.logins) && reply.logins.every(isSavedLogin) ? reply.logins : null;
+  },
 };
 
 provideNativeModule("AstroSync", syncServices);

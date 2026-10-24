@@ -124,6 +124,7 @@ void ac_passwords_export(const char*, const char*, ac_engine_reply_t, void*);
 void ac_passwords_list(const char*, const char*, ac_engine_reply_t, void*);
 void ac_passwords_remove(const char*, const char*, ac_engine_reply_t, void*);
 void ac_passwords_reveal(const char*, const char*, ac_engine_reply_t, void*);
+void ac_passwords_sync_read(const char*, const char*, ac_engine_reply_t, void*);
 void ac_passwords_unlock(const char*, const char*, ac_engine_reply_t, void*);
 void ac_passwords_update(const char*, const char*, ac_engine_reply_t, void*);
 void ac_search_engines_list(const char*, const char*, ac_engine_reply_t, void*);
@@ -189,6 +190,7 @@ constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_
     {"ac_passwords_list", &ac_passwords_list},
     {"ac_passwords_remove", &ac_passwords_remove},
     {"ac_passwords_reveal", &ac_passwords_reveal},
+    {"ac_passwords_sync_read", &ac_passwords_sync_read},
     {"ac_passwords_unlock", &ac_passwords_unlock},
     {"ac_passwords_update", &ac_passwords_update},
     {"ac_search_engines_list", &ac_search_engines_list},

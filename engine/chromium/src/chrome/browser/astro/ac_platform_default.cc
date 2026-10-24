@@ -11,7 +11,6 @@
 #include "chrome/browser/astro/ac_engine.h"
 #include "chrome/browser/astro/ac_external_apps.h"
 #include "chrome/browser/astro/ac_input_frame_rate.h"
-#include "chrome/browser/astro/ac_reauth.h"
 #include "chrome/browser/astro/pip/ac_pip_mac.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -23,20 +22,6 @@ namespace {
 const char* const kPairs = prefs::kProtocolHandlerPerOriginAllowedProtocols;
 
 }
-
-#if BUILDFLAG(IS_LINUX)
-void Reauth(Profile* profile,
-            device_reauth::DeviceAuthSource source,
-            const std::u16string& purpose,
-            base::TimeDelta validity,
-            base::OnceCallback<void(bool)> done) {
-  LOG(WARNING) << "[astro] OS reauth (" << purpose
-               << ") has no authenticator on Linux: denied";
-  Emit("reauth.requested", profile,
-       base::DictValue().Set("purpose", purpose).Set("granted", false));
-  std::move(done).Run(false);
-}
-#endif
 
 void HoldFullFrameRateDuringInput() {}
 

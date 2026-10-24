@@ -53,6 +53,7 @@ source_set("astro") {
     "ac_passwords.cc",
     "ac_password_prompt.cc",
     "ac_passwords.h",
+    "ac_passwords_sync.cc",
     "ac_import.cc",
     "ac_import.h",
     "ac_open_urls.cc",
@@ -209,6 +210,18 @@ source_set("astro") {
 
   if (is_win) {
     sources += [ "ac_reauth.cc" ]
+  }
+
+  if (is_linux) {
+    sources += [
+      "ac_polkit_authenticator.cc",
+      "ac_polkit_authenticator.h",
+      "ac_reauth.cc",
+    ]
+    deps += [
+      "//components/dbus",
+      "//dbus",
+    ]
   }
 
   if (use_aura) {

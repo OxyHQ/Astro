@@ -76,13 +76,14 @@ itself crashes Webium (it reopens the page as a tab, outside its window). Chromi
 risk this design takes on.
 
 Package it: `scripts/linux-package.sh` (`AC_ENGINE_PROFILE=dev` for the dev engine) builds `apps/webui` and writes
-`~/chromium-build/release/astro-browser-<version>-x86_64.tar.xz`: the engine stripped, `astro-ui/`, the
-`astro-browser` launcher, `astro-browser.desktop`, its icon and an AppArmor profile (`engine/linux/`). Install it with
-`sudo tar -xJf astro-browser-*.tar.xz -C /opt && sudo mv /opt/astro-browser-*-x86_64 /opt/astro-browser`, link
-`/opt/astro-browser/astro-browser` into your PATH, and copy the desktop file and icon to
-`~/.local/share/applications/` and `~/.local/share/icons/hicolor/256x256/apps/`. On Ubuntu 24.04 and later the sandbox
-needs the AppArmor profile: `sudo cp /opt/astro-browser/apparmor.cfg /etc/apparmor.d/astro-browser && sudo
-apparmor_parser -r /etc/apparmor.d/astro-browser`. The dev engine's package is 116 MB.
+`~/chromium-build/release/astro-browser-<version>-x86_64.tar.xz`: the engine stripped, `astro-ui/`, the `astro-browser`
+launcher, `astro-browser.desktop`, its icon and an AppArmor profile (`engine/linux/`). Install it with `sudo tar -xJf
+astro-browser-*.tar.xz -C /opt && sudo mv /opt/astro-browser-*-x86_64 /opt/astro-browser`, link
+`/opt/astro-browser/astro-browser` into your PATH, and copy the desktop file and icon to `~/.local/share/applications/`
+and `~/.local/share/icons/hicolor/256x256/apps/`. Revealing saved passwords needs the polkit action: `sudo cp
+/opt/astro-browser/so.oxy.astro.policy /usr/share/polkit-1/actions/`. On Ubuntu 24.04 and later the sandbox needs the
+AppArmor profile: `sudo cp /opt/astro-browser/apparmor.cfg /etc/apparmor.d/astro-browser && sudo apparmor_parser -r
+/etc/apparmor.d/astro-browser`. The dev engine's package is 116 MB.
 
 The Windows installer is Chromium's `mini_installer`: `AC_TARGET_PLATFORM=windows scripts/windows-installer.sh` (with
 the Windows build's environment from `docs/engine-build.md`) builds `chrome` and `mini_installer` with `astro-ui/` and
@@ -188,10 +189,15 @@ be decrypted and is reported as such); bookmarks and history from Firefox; exten
 files. Cookies, autofill, Firefox passwords and Arc are not ported.
 
 Sync (`host/sync.ts`, `ac_sync_files.cc`): the same encrypted folder format as macOS, byte for byte, so one folder in
-Dropbox, OneDrive or Syncthing serves a Mac and a PC. The crypto runs in the page (WebCrypto); the engine only reads
-and writes the folder and keeps the recovery key encrypted with the profile's OS key (`Astro Sync Key/`). The default
-folder is `%OneDrive%\Astro Sync` (or `Documents\Astro Sync`) on Windows and `~/Astro Sync` on Linux. The recovery kit
-is a text file; passwords don't sync yet.
+Dropbox, OneDrive or Syncthing serves a Mac and a PC. The crypto runs in the page (WebCrypto); the engine only reads and
+writes the folder and keeps the recovery key encrypted with the profile's OS key (`Astro Sync Key/`). The default folder
+is `%OneDrive%\Astro Sync` (or `Documents\Astro Sync`) on Windows and `~/Astro Sync` on Linux. The recovery kit is a
+text file. Passwords sync as on macOS: `readPasswords` is `ac_passwords_sync_read` (`ac_passwords_sync.cc`), which reads
+every saved login from the profile's and the account's password stores and hands them, in plaintext, only to the
+internal page, in the macOS reader's shape (`origin` is the signon realm, `created` in Unix milliseconds); a store that
+can't be read or decrypted answers null, so nothing is synced as deleted. Windows is the exception: Chromium's
+`SkipUndecryptablePasswords` is on there, so a login that stops decrypting (DPAPI's key lost) is left out silently.
+Incoming logins are written with `ac_passwords_add` and `ac_passwords_remove`, as on macOS.
 
 The `astro` command and userscripts (`docs/cli.md` › Linux and Windows): Settings › Advanced › "Let the astro
 command control Astro" starts the same token-guarded DevTools server (`ac_cli_control.cc`, now on every platform) and
@@ -204,7 +210,11 @@ Files: `astroPickFiles` opens the platform's file dialog, for a folder (an unpac
 `ac_extensions_inspect` reads with Chromium's own loader before the install prompt) or for files to open.
 
 Passwords: revealing, copying and exporting them asks the OS first. On Windows that is Windows Hello, through
-Chromium's own device authenticator (`ac_reauth.cc`, as on macOS); Chromium has none for Linux, so there it is denied.
+Chromium's own device authenticator (`ac_reauth.cc`, as on macOS). Chromium has none for Linux, so there Astro asks
+polkit (`ac_polkit_authenticator.cc`): `CheckAuthorization` for this process and the action `so.oxy.astro.unlock`
+(`auth_self`, from `engine/linux/so.oxy.astro.policy`), whose dialog the desktop's polkit agent shows. Without the
+policy file, polkit or an agent it is denied, with the reason logged and sent as `reauth.unavailable`; it never asks
+for the login password itself.
 Export asks where to save (`astroPickFiles` in save mode) and writes Chromium's CSV.
 
 Translation (`host/translate.ts`, `ac_translate.cc`): the same button, menu and toasts as macOS, on Mozilla's

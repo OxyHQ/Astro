@@ -36,7 +36,7 @@ tar -xzf "$cli_out/astro-cli-$cli_version-linux-x64.tar.gz" -C "$dir/cli" --stri
 rm -rf "$cli_out"
 
 install -m 755 "$root/engine/linux/astro-browser-wrapper.sh" "$dir/astro-browser"
-cp "$root/engine/linux/astro-browser.desktop" "$root/engine/linux/apparmor.cfg" "$dir/"
+cp "$root/engine/linux/astro-browser.desktop" "$root/engine/linux/apparmor.cfg" "$root/engine/linux/so.oxy.astro.policy" "$dir/"
 cp "$root/engine/chromium/src/chrome/app/theme/chromium/product_logo_256.png" "$dir/astro-browser.png"
 
 tar -C "$release" -cJf "$release/$name.tar.xz" "$name"
