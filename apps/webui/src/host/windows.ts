@@ -98,15 +98,19 @@ function applyPatch(patch: Patch) {
 type Frame = [number, number, number, number];
 
 const FRAME_POLL_MS = 1000;
-const currentFrame = (): Frame => [window.screenX, window.screenY, window.outerWidth, window.outerHeight];
+const flipped = ([x, y, width, height]: Frame): Frame => [x, -y - height, width, height];
+const currentFrame = (): Frame => flipped([window.screenX, window.screenY, window.outerWidth, window.outerHeight]);
 const sameFrame = (a: Frame | null | undefined, b: Frame) => !!a && a.every((v, i) => Math.abs(v - b[i]!) < 2);
 
 function restoreFrame(id: string) {
   const s = useBrowser.getState();
   const w = s.windows[id];
   const [width, height] = s.settings.littleAstroSize;
-  const frame: Frame | null =
-    w?.frame ?? (w?.kind === "small" ? [Math.max(0, (screen.availWidth - width) / 2), Math.max(0, (screen.availHeight - height) / 2), width, height] : null);
+  const frame: Frame | null = w?.frame
+    ? flipped(w.frame)
+    : w?.kind === "small"
+      ? [Math.max(0, (screen.availWidth - width) / 2), Math.max(0, (screen.availHeight - height) / 2), width, height]
+      : null;
   if (frame) chrome.send("astroWindowBounds", frame);
 }
 
