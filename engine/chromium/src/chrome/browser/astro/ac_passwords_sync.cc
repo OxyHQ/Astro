@@ -6,15 +6,20 @@
 #include <utility>
 #include <vector>
 
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/astro/ac_engine.h"
 #include "chrome/browser/astro/ac_passwords.h"
 #include "chrome/browser/astro/ac_sensitive_args.h"
@@ -25,6 +30,8 @@
 #include "components/password_manager/core/browser/password_store/password_store_consumer.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/browser/password_store/stored_credential.h"
+#include "sql/database.h"
+#include "sql/statement.h"
 
 namespace astro {
 namespace {
@@ -84,12 +91,43 @@ base::ListValue SyncedLogins(Credentials& profile_logins,
   return logins;
 }
 
+#if BUILDFLAG(IS_WIN)
+int StoredLoginRows(const base::FilePath& profile_dir) {
+  int rows = 0;
+  for (const char* name : {"Login Data", "Login Data For Account"}) {
+    const base::FilePath file = profile_dir.AppendASCII(name);
+    if (!base::PathExists(file)) {
+      continue;
+    }
+    base::ScopedTempDir temp;
+    const base::FilePath copy = temp.CreateUniqueTempDir()
+                                    ? temp.GetPath().AppendASCII("logins")
+                                    : base::FilePath();
+    if (copy.empty() || !base::CopyFile(file, copy)) {
+      return -1;
+    }
+    sql::Database db(sql::Database::Tag("Passwords"));
+    if (!db.Open(copy)) {
+      return -1;
+    }
+    sql::Statement count(db.GetUniqueStatement("SELECT COUNT(*) FROM logins"));
+    if (!count.Step()) {
+      return -1;
+    }
+    rows += count.ColumnInt(0);
+  }
+  return rows;
+}
+#endif
+
 class SyncLoginsReader : public password_manager::PasswordStoreConsumer {
  public:
   using Finished = base::OnceCallback<void(SyncLoginsReader*)>;
 
-  SyncLoginsReader(Reply reply, Finished finished)
-      : reply_(std::move(reply)), finished_(std::move(finished)) {}
+  SyncLoginsReader(Reply reply, base::FilePath profile_dir, Finished finished)
+      : reply_(std::move(reply)),
+        profile_dir_(std::move(profile_dir)),
+        finished_(std::move(finished)) {}
   SyncLoginsReader(const SyncLoginsReader&) = delete;
   SyncLoginsReader& operator=(const SyncLoginsReader&) = delete;
   ~SyncLoginsReader() override {
@@ -122,9 +160,28 @@ class SyncLoginsReader : public password_manager::PasswordStoreConsumer {
       return;
     }
     if (failed_) {
+      return Answer(-1);
+    }
+#if BUILDFLAG(IS_WIN)
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+        base::BindOnce(&StoredLoginRows, profile_dir_),
+        base::BindOnce(&SyncLoginsReader::Answer,
+                       weak_factory_.GetWeakPtr()));
+#else
+    Answer(static_cast<int>(profile_logins_.size() + account_logins_.size()));
+#endif
+  }
+
+ private:
+  void Answer(int stored_rows) {
+    const size_t read = profile_logins_.size() + account_logins_.size();
+    if (failed_ || stored_rows < 0 || static_cast<size_t>(stored_rows) > read) {
       Forget(profile_logins_);
       Forget(account_logins_);
-      reply_.Error("saved passwords couldn't be read");
+      reply_.Error(failed_ || stored_rows < 0
+                       ? "saved passwords couldn't be read"
+                       : "some saved passwords couldn't be decrypted");
     } else {
       reply_.Send(base::DictValue().Set(
           "logins", SyncedLogins(profile_logins_, account_logins_)));
@@ -133,8 +190,8 @@ class SyncLoginsReader : public password_manager::PasswordStoreConsumer {
         FROM_HERE, base::BindOnce(std::move(finished_), this));
   }
 
- private:
   Reply reply_;
+  base::FilePath profile_dir_;
   Finished finished_;
   scoped_refptr<PasswordStoreInterface> profile_store_;
   scoped_refptr<PasswordStoreInterface> account_store_;
@@ -160,7 +217,8 @@ class SyncLoginsState : public ProfileState {
         AccountPasswordStoreFactory::GetForProfile(
             profile(), ServiceAccessType::EXPLICIT_ACCESS);
     auto reader = std::make_unique<SyncLoginsReader>(
-        std::move(reply), base::BindOnce(&SyncLoginsState::Finished,
+        std::move(reply), profile()->GetPath(),
+        base::BindOnce(&SyncLoginsState::Finished,
                                          weak_factory_.GetWeakPtr()));
     SyncLoginsReader* started = reader.get();
     readers_.push_back(std::move(reader));
