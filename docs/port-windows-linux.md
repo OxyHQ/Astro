@@ -175,6 +175,13 @@ the press instead of passing it to the page. The link under the pointer reaches 
 Menu: Linux and Windows have no menu bar, so a button beside the window controls opens the macOS menu bar's commands
 (`AppMenu.tsx`, from the same `menuState`), with Ctrl shortcuts; Exit is `astroQuit` (`chrome::AttemptUserExit`).
 
+Menus and dialogs are Bloom's (`@oxy.so/bloom`), where macOS uses NSMenu and NSAlert: `showMenu(items)` renders a
+`DropdownMenu` at the pointer (flyout submenus, shortcuts, checks, arrow keys, Esc), and `confirm`/`prompt` are Bloom's
+surfaces (`apps/demo/src/shims/web/overlays.tsx`, `BloomLayer.tsx`). Webium suppresses `window.confirm` and
+`window.prompt` in its own page (they return at once), so they can't be used. Bloom loads lazily, when the page goes
+idle or at the first menu or dialog. The window's close button sends `closeRequest`, so closing a window with several
+tabs asks first, as on macOS.
+
 Shortcuts: the web shim (`apps/demo/src/shims/web/motion/shortcuts.ts`) holds the macOS menu bar's table, the same
 titles, menus, keys and hidden aliases, so Settings › Keyboard Shortcuts lists, records and remaps them as on macOS (⌘ is
 Ctrl, ⌃ is Super/Win, ⌥ is Alt; Ctrl+Tab and Ctrl+PageUp/PageDown also work with Ctrl). Webium runs the browser's
@@ -189,7 +196,7 @@ Import (`ac_import.cc`, `host/import.ts`, the macOS importer ported): Chrome (an
 Vivaldi, Opera, Opera GX, Helium and Firefox. Bookmarks, history, open tabs and passwords from the Chromium family
 (passwords: v10/v11 on Linux, the v11 key read with `secret-tool`; DPAPI and AES-GCM on Windows; app-bound v20 can't
 be decrypted and is reported as such); bookmarks and history from Firefox; extensions; bookmark HTML and password CSV
-files. Cookies, autofill, Firefox passwords and Arc are not ported.
+files; cookies, addresses and cards from the Chromium family and Firefox, Firefox passwords, and Arc's spaces, pinned tabs and favorites on Windows.
 
 Sync (`host/sync.ts`, `ac_sync_files.cc`): the same encrypted folder format as macOS, byte for byte, so one folder in
 Dropbox, OneDrive or Syncthing serves a Mac and a PC. The crypto runs in the page (WebCrypto); the engine only reads and
@@ -233,7 +240,7 @@ hash, since it must match that loader. A paragraph is one HTML text whose pieces
 its own part back, as Apple's attributed strings do on macOS. The interface's CSP allows `'wasm-unsafe-eval'` and
 same-origin workers for this.
 
-Still missing: a packaged build (the interface in a pak instead of `astro-ui/`) and a way to reauthenticate on Linux.
+Still missing: the interface in a pak instead of `astro-ui/`, and the "Don't ask again" checkbox in confirmations (it needs Bloom's confirm to carry one).
 
 ## Minimum steps to browse on Linux
 

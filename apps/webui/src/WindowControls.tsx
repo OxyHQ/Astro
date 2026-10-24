@@ -1,10 +1,19 @@
 import { TRAFFIC_LIGHT_DIAMETER, TRAFFIC_LIGHT_SPACING, TrafficLights, useTrafficLightsCenter } from "../../demo/src/shims/web/windowChrome";
 import { tabHub } from "./host/tabs";
+import { pageWindowId } from "./host/windows";
+import { emitWindowEvent } from "./shims/shell";
 
 let maximized = false;
 
 const ACTIONS = [
-  { name: "close", run: () => void tabHub().then((hub) => hub.page.close()) },
+  {
+    name: "close",
+    run: () => {
+      const id = pageWindowId();
+      if (id) emitWindowEvent({ type: "closeRequest", id });
+      else void tabHub().then((hub) => hub.page.close());
+    },
+  },
   { name: "minimize", run: () => void tabHub().then((hub) => hub.page.minimize()) },
   {
     name: "zoom",

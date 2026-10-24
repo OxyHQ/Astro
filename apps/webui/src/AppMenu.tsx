@@ -2,7 +2,7 @@ import type { BrowserCommand, MenuBookmark, MenuItem, MenuState } from "@astro-b
 import { openUrls } from "../../browser/src/lib/actions";
 import { menuState } from "../../browser/src/lib/native";
 import { useBrowser } from "../../browser/src/store/browser";
-import { showMenu } from "../../demo/src/shims/web/menus";
+import { showMenu } from "../../demo/src/shims/web/overlays";
 import { TRAFFIC_LIGHT_DIAMETER, TRAFFIC_LIGHT_SPACING, useTrafficLightsCenter } from "../../demo/src/shims/web/windowChrome";
 import { displayVersion } from "./host/appcast";
 import { checkForUpdatesNow, installReadyUpdate, releaseNotesFor, updateMenuState } from "./host/updater";

@@ -1,4 +1,5 @@
 import "./bloom.css";
+import { SurfaceHost } from "@oxy.so/bloom/surfaces";
 import { BloomThemeProvider } from "@oxy.so/bloom/theme";
 import {
   DropdownMenu,
@@ -15,7 +16,7 @@ import {
 import { Fragment, useEffect } from "react";
 import { View } from "react-native";
 import type { MenuItem } from "@astro-browser-real/shell";
-import { closeMenu, type OpenMenu } from "./menus";
+import { closeMenu, type OpenMenu } from "./overlays";
 import { useBrowser } from "../../../../browser/src/store/browser";
 import { Symbol } from "./Symbol";
 
@@ -96,19 +97,28 @@ function useMenuFocus() {
   }, []);
 }
 
-export default function BloomMenu({ menu }: { menu: OpenMenu }) {
-  const dark = useBrowser((s) => s.ui.appDark);
+export * as surfaces from "@oxy.so/bloom/surfaces";
+
+function Menu({ menu, dark }: { menu: OpenMenu; dark: boolean }) {
   useMenuFocus();
   return (
+    <DropdownMenu open onOpenChange={(next) => next || closeMenu(null)}>
+      <DropdownMenuTrigger asChild label="Menu" style={{ position: "fixed" as "absolute", left: menu.x, top: menu.y, width: 0, height: 0 }}>
+        <View pointerEvents="none" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent sideOffset={0} testID={PANEL_ID}>
+        <MenuRows items={menu.items} dark={dark} />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export default function BloomLayer({ menu }: { menu: OpenMenu | null }) {
+  const dark = useBrowser((s) => s.ui.appDark);
+  return (
     <BloomThemeProvider mode={dark ? "dark" : "light"}>
-      <DropdownMenu open onOpenChange={(next) => next || closeMenu(null)}>
-        <DropdownMenuTrigger asChild label="Menu" style={{ position: "fixed" as "absolute", left: menu.x, top: menu.y, width: 0, height: 0 }}>
-          <View pointerEvents="none" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent sideOffset={0} testID={PANEL_ID}>
-          <MenuRows items={menu.items} dark={dark} />
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <SurfaceHost />
+      {menu ? <Menu menu={menu} dark={dark} /> : null}
     </BloomThemeProvider>
   );
 }

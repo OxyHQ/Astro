@@ -13,7 +13,7 @@ import { pageTitle } from "./pages";
 import { installLocalSuggestions } from "./localSuggest";
 import { demoSession } from "./seed";
 import { warmFrame } from "./shims/web/framePool";
-import { MenuHost } from "./shims/web/menus";
+import { OverlayHost } from "./shims/web/overlays";
 import "./shims/web/motion/shortcuts";
 import { TrafficLights } from "./shims/web/windowChrome";
 
@@ -49,7 +49,7 @@ function DemoWindow() {
         <TrafficLights />
       </div>
       {bare ? null : <Controls />}
-      <MenuHost />
+      <OverlayHost />
     </div>
   );
 }

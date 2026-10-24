@@ -12,7 +12,7 @@ import { startTabPages } from "../../browser/src/lib/tabPages";
 import { startUserScripts } from "../../browser/src/lib/userScripts";
 import { setStoreBatching, useBrowser } from "../../browser/src/store/browser";
 import { emitCommand, loadDocuments } from "./shims/shell";
-import { MenuHost } from "../../demo/src/shims/web/menus";
+import { OverlayHost } from "../../demo/src/shims/web/overlays";
 import "../../demo/src/shims/web/motion/shortcuts";
 import { installEngineFetch } from "./host/fetch";
 import { startEngineKeys } from "./host/keys";
@@ -61,7 +61,7 @@ function PageWindow() {
         <AppMenuButton />
       </div>
       <UtilityWindows />
-      <MenuHost />
+      <OverlayHost />
     </>
   );
 }

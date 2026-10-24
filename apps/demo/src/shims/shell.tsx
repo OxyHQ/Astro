@@ -1,4 +1,4 @@
-import type { AppEvent, CommandEvent, ConfirmOptions, InlineWrite, PromptOptions, SystemInfo, WindowEvent } from "@astro-browser-real/shell";
+import type { AppEvent, CommandEvent, InlineWrite, SystemInfo, WindowEvent } from "@astro-browser-real/shell";
 import { unstable_batchedUpdates } from "react-dom";
 import { emitNativeEvent, provideNativeModule } from "./expo-modules-core";
 import { NATIVE_CHANGE } from "./react-native";
@@ -17,7 +17,7 @@ export {
 } from "./web/chrome";
 export { FadeLabel } from "./web/FadeLabel";
 export { MouseArea } from "./web/MouseArea";
-export { showMenu } from "./web/menus";
+export { confirm, prompt, showMenu } from "./web/overlays";
 export { setTrafficLightsCenter } from "./web/windowChrome";
 
 const SYSTEM_INFO: SystemInfo = {
@@ -48,14 +48,6 @@ export const removeDocument = (name: string) => void documents.delete(name);
 export function copyText(text: string) {
   void navigator.clipboard?.writeText(text).catch(() => {});
 }
-
-export const confirm = async (options: ConfirmOptions) => ({
-  confirmed: window.confirm([options.title, options.message].filter(Boolean).join("\n\n")),
-  suppressed: false,
-});
-
-export const prompt = async (options: PromptOptions) =>
-  window.prompt(options.message ? `${options.title}\n\n${options.message}` : options.title, options.value ?? "");
 
 const darkQuery = typeof window === "undefined" ? null : window.matchMedia("(prefers-color-scheme: dark)");
 export const isDarkAppearance = async () => !!darkQuery?.matches;
