@@ -5,6 +5,7 @@ const ON_WINDOWS = !ON_MAC && typeof navigator !== "undefined" && /Win/.test(nav
 const byPlatform = <T>(mac: T, windows: T, linux: T): T => (ON_MAC ? mac : ON_WINDOWS ? windows : linux);
 
 export const OS_NAME = byPlatform("macOS", "Windows", "Linux");
+export const OS_TYPE = byPlatform("darwin", "windows", "linux");
 export const DEVICE = ON_MAC ? "Mac" : "computer";
 export const DEVICES = ON_MAC ? "Macs" : "computers";
 export const THIS_DEVICE_TITLE = ON_MAC ? "This Mac" : "This Computer";

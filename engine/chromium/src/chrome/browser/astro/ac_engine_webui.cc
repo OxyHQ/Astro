@@ -25,6 +25,7 @@
 #include "base/command_line.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -75,6 +76,7 @@
 #include "net/base/filename_util.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -1266,8 +1268,12 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     if (args[4].is_string() && method == "POST") {
       std::string content_type;
       if (args[3].is_dict()) {
-        if (const std::string* type = args[3].GetDict().FindString("Content-Type")) {
-          content_type = *type;
+        for (const auto [name, value] : args[3].GetDict()) {
+          if (value.is_string() &&
+              base::EqualsCaseInsensitiveASCII(
+                  name, net::HttpRequestHeaders::kContentType)) {
+            content_type = value.GetString();
+          }
         }
       }
       loader->AttachStringForUpload(

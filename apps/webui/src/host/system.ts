@@ -56,6 +56,8 @@ export const engineServices = {
 
 declare const __ASTRO_VERSION__: string;
 declare const __ASTRO_BUILD__: string;
+declare const __ASTRO_FEEDBACK_URL__: string;
+declare const __ASTRO_FEEDBACK_EMAIL__: string;
 
 const platform = /Win/.test(navigator.platform) ? "Windows" : /Linux/.test(navigator.platform) ? "Linux" : navigator.platform;
 
@@ -65,15 +67,32 @@ export const systemInfo: SystemInfo = {
   appBuild: __ASTRO_BUILD__,
   bundleId: "so.oxy.astro",
   configuration: "Release",
-  osVersion: platform,
+  osVersion: "",
   osBuild: platform,
   arch: /arm|aarch64/i.test(navigator.userAgent) ? "arm64" : "x64",
   model: platform,
   memoryGB: (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8,
   locale: navigator.language,
   updates: false,
+  feedbackURL: __ASTRO_FEEDBACK_URL__ || null,
+  feedbackEmail: __ASTRO_FEEDBACK_EMAIL__ || null,
   inApplicationsFolder: true,
 };
+
+type TelemetrySetup = { isolated?: boolean; osVersion?: string; arch?: string; url?: string };
+
+let telemetrySetup: Promise<void> | null = null;
+
+export const loadTelemetrySetup = () =>
+  (telemetrySetup ??= systemCall<TelemetrySetup>("telemetrySetup")
+    .then((setup) => {
+      if (!setup) return;
+      systemInfo.isolatedInstance = setup.isolated === true;
+      if (setup.osVersion) systemInfo.osVersion = setup.osVersion;
+      if (setup.arch) systemInfo.arch = setup.arch;
+      systemInfo.telemetryURL = setup.url ?? null;
+    })
+    .catch(() => {}));
 
 export const appServices = {
   systemInfo: () => systemInfo,

@@ -18,11 +18,13 @@ import { startAppActivity } from "./host/appActive";
 import { startDragPreview } from "./host/dragPreview";
 import { installEngineFetch } from "./host/fetch";
 import { startEngineKeys } from "./host/keys";
+import { startFeedbackCommands } from "./host/feedback";
 import { leadLifecycle, startLifecycle } from "./host/lifecycle";
 import { offerOnboarding, startOnboardingCommand } from "./host/onboarding";
 import { startPerformanceRecordingCommand } from "./host/performanceRecording";
 import { startTabDragShare } from "./host/tabDragShare";
 import { tabHub } from "./host/tabs";
+import { endTelemetry, leadTelemetry, reportUncaught, startPageTelemetry } from "./host/telemetry";
 import { startUpdater } from "./host/updater";
 import { startWindows, usePageWindowId } from "./host/windows";
 import { AppMenuButton } from "./AppMenu";
@@ -44,20 +46,26 @@ const startPage = () =>
     {
       lead: (hydrate) => {
         if (hydrate) offerOnboarding();
+        leadTelemetry(hydrate);
         leadLifecycle(hydrate);
         void startPersistence({ hydrate });
         afterFirstWindow(startUserScripts);
         afterFirstWindow(startUpdater);
       },
       begin: () => {
+        startPageTelemetry();
         startTabPages();
         startNativeSync();
         startLifecycle();
         startCliControl();
         startOnboardingCommand();
         startPerformanceRecordingCommand();
+        startFeedbackCommands();
       },
-      end: () => flushPersistence({ final: true }),
+      end: () => {
+        endTelemetry();
+        flushPersistence({ final: true });
+      },
     },
     () => void tabHub().then((hub) => hub.closePage()),
   );
@@ -80,4 +88,9 @@ function PageWindow() {
   );
 }
 
-createRoot(document.getElementById("root")!, { onUncaughtError: (error) => console.error("[astro] crashed", error) }).render(<PageWindow />);
+createRoot(document.getElementById("root")!, {
+  onUncaughtError: (error) => {
+    reportUncaught(error);
+    console.error("[astro] crashed", error);
+  },
+}).render(<PageWindow />);

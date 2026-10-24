@@ -8,6 +8,7 @@
 
 #include "base/base_paths.h"
 #include "base/command_line.h"
+#include "base/environment.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -19,7 +20,9 @@
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "base/base64.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/system/sys_info.h"
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_system_state.h"
 #include "chrome/browser/astro/ac_trash.h"
@@ -44,7 +47,10 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/version_info/version_info.h"
 #include "chrome/browser/shell_integration.h"
+#include "chrome/common/chrome_switches.h"
+#include "net/base/url_util.h"
 #include "url/gurl.h"
+#include "url/url_constants.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
@@ -250,6 +256,32 @@ void DefaultBrowserState(bool set, Done done) {
   }
 }
 
+base::Value TelemetrySetup() {
+  std::unique_ptr<base::Environment> env = base::Environment::Create();
+  const bool isolated =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kUserDataDir) ||
+      env->HasVar("ASTRO_DATA_DIR") ||
+      env->GetVar("ASTRO_BACKGROUND").value_or("") == "1";
+  int32_t major = 0;
+  int32_t minor = 0;
+  int32_t bugfix = 0;
+  base::SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
+  const std::string arch = base::SysInfo::OperatingSystemArchitecture();
+  base::DictValue setup;
+  setup.Set("isolated", isolated);
+  setup.Set("osVersion", base::StringPrintf("%d.%d.%d", major, minor, bugfix));
+  setup.Set("arch", arch == "aarch64" ? std::string("arm64") : arch);
+  if (isolated) {
+    const GURL url(env->GetVar("ASTRO_TELEMETRY_URL").value_or(""));
+    if (url.is_valid() && url.SchemeIs(url::kHttpScheme) &&
+        net::IsLocalhost(url)) {
+      setup.Set("url", url.spec());
+    }
+  }
+  return base::Value(std::move(setup));
+}
+
 }
 
 void SystemCall(Profile* profile,
@@ -333,6 +365,8 @@ void SystemCall(Profile* profile,
     std::move(done).Run(base::Value(first_run::IsChromeFirstRun()));
   } else if (method == "startDictation") {
     std::move(done).Run(base::Value(StartSystemDictation()));
+  } else if (method == "telemetrySetup") {
+    std::move(done).Run(TelemetrySetup());
   } else if (method == "engineInfo") {
     std::move(done).Run(base::Value(
         base::DictValue()

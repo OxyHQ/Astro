@@ -3,7 +3,7 @@ import { onAppEvent } from "@astro-browser/shell";
 import { useTranslate } from "../components/site/translate";
 import { useBrowser } from "../store/browser";
 import { useSync } from "../sync/engine";
-import { capture, endSession, flush, isSharing, startClient } from "./client";
+import { capture, endSession, flush, isSharing, resumeClient, startClient } from "./client";
 import { reportNativeCrashes } from "./errors";
 import { emitJourneys, journeysEnding, startJourneys } from "./journeys";
 import { takeOmniboxLatency } from "./track";
@@ -133,6 +133,23 @@ export function startUsage() {
     setTimeout(() => void reportNativeCrashes(), 5000);
   }
   startJourneys(session);
+  watchUsage();
+}
+
+export function resumeUsage() {
+  resumeClient();
+  watchUsage();
+}
+
+export function startPageUsage() {
+  startJourneys(null);
+  setInterval(() => {
+    emitOmniboxLatency();
+    emitJourneys();
+  }, HOUR_MS);
+}
+
+function watchUsage() {
   watchStore();
   watchSync();
   watchTranslate();

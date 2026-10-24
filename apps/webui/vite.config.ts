@@ -30,6 +30,8 @@ export default defineConfig({
     __ASTRO_UPDATE_KEY__: JSON.stringify(updateKey),
     __ASTRO_UPDATE_FEED__: JSON.stringify(updateFeed),
     __ASTRO_UPDATE_INTERVAL__: JSON.stringify(updateInterval),
+    __ASTRO_FEEDBACK_URL__: JSON.stringify(plistValue("ACFeedbackURL")),
+    __ASTRO_FEEDBACK_EMAIL__: JSON.stringify(plistValue("ACFeedbackEmail")),
   },
   base: "./",
   resolve: {

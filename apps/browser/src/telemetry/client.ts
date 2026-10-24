@@ -1,7 +1,7 @@
 import { engineInfo } from "@astro-browser/astrocore";
 import { launchEnvironment, readDocument, systemInfo, writeDocument, type SystemInfo } from "@astro-browser/shell";
 import { create } from "zustand";
-import { OS_NAME } from "../lib/device";
+import { OS_NAME, OS_TYPE } from "../lib/device";
 import { DEV_SEND_ENV, LOGS_URL, MAX_BODY_BYTES } from "./config";
 import { EVENTS_SCOPE, eventRecord, LOGS_SCOPE, logRecord, logsRequest, outcome, type OtlpLogRecord, type QueuedEvent } from "./otlp";
 import { cleanProperties } from "./sanitize";
@@ -52,14 +52,20 @@ function readJson<T>(name: string): T | null {
 }
 
 let saved: Saved = { ...DEFAULT };
+let choiceShared: ((json: string) => void) | null = null;
 
 function save(patch: Partial<Saved>) {
   saved = { ...saved, ...patch };
+  const json = JSON.stringify(saved);
   try {
-    writeDocument(STATE_DOC, JSON.stringify(saved));
+    writeDocument(STATE_DOC, json);
   } catch {}
-  useTelemetry.setState({ sharing: saved.sharing, decided: saved.decidedAt !== null, askDone: saved.askDoneAt !== null });
+  choiceShared?.(json);
+  publishChoice();
 }
+
+const publishChoice = () =>
+  useTelemetry.setState({ sharing: saved.sharing, decided: saved.decidedAt !== null, askDone: saved.askDoneAt !== null });
 
 export const useTelemetry = create<{ sharing: boolean; decided: boolean; askDone: boolean }>(() => ({
   sharing: false,
@@ -124,6 +130,26 @@ function clearQueue() {
 
 let droppedWhileOff = 0;
 
+export type Queued = { event: QueuedEvent } | { log: OtlpLogRecord };
+
+let relay: ((item: Queued) => boolean) | null = null;
+
+export const relayQueued = (to: (item: Queued) => boolean) => void (relay = to);
+
+export function acceptQueued(item: Queued) {
+  if (!saved.sharing) return;
+  if ("event" in item) {
+    if (item.event.distinct_id !== saved.installId) return;
+    queue.events.push(item.event);
+    if (queue.events.length > MAX_EVENTS) queue.events.splice(0, queue.events.length - MAX_EVENTS);
+  } else {
+    queue.logs.push(item.log);
+    if (queue.logs.length > MAX_LOGS) queue.logs.splice(0, queue.logs.length - MAX_LOGS);
+  }
+  persistQueue();
+  scheduleFlush(FLUSH_DELAY_MS);
+}
+
 export type CaptureOptions = {
   raw?: Record<string, unknown>;
   urgent?: boolean;
@@ -136,13 +162,15 @@ export function capture(event: string, props: Record<string, unknown> = {}, opti
     return;
   }
   try {
-    queue.events.push({
+    const queued: QueuedEvent = {
       uuid: uuidv7(),
       event,
       distinct_id: saved.installId,
       timestamp: new Date().toISOString(),
       properties: { ...context(), ...cleanProperties(props), ...options.raw },
-    });
+    };
+    if (relay?.({ event: queued })) return;
+    queue.events.push(queued);
     if (queue.events.length > MAX_EVENTS) queue.events.splice(0, queue.events.length - MAX_EVENTS);
     persistQueue(options.persist);
     scheduleFlush(options.urgent ? URGENT_FLUSH_DELAY_MS : FLUSH_DELAY_MS);
@@ -152,7 +180,9 @@ export function capture(event: string, props: Record<string, unknown> = {}, opti
 export function queueLog(level: "warn" | "error", message: string, attributes: Record<string, string | number | boolean>) {
   if (!saved.sharing) return;
   try {
-    queue.logs.push(logRecord(level, message, attributes));
+    const log = logRecord(level, message, attributes);
+    if (relay?.({ log })) return;
+    queue.logs.push(log);
     if (queue.logs.length > MAX_LOGS) queue.logs.splice(0, queue.logs.length - MAX_LOGS);
     persistQueue();
     scheduleFlush(FLUSH_DELAY_MS);
@@ -228,7 +258,7 @@ function resource(): Record<string, unknown> {
     "service.name": "astro-app",
     "service.version": info.appVersion,
     "deployment.environment": environment() === "production" ? "production" : "development",
-    "os.type": "darwin",
+    "os.type": OS_TYPE,
     "os.version": info.osVersion,
     "host.arch": info.arch,
     "engine.version": engineVersion,
@@ -260,7 +290,7 @@ async function drain<T>(
       size = Math.ceil(batch.length / 2);
       continue;
     }
-    const status = await post(kind, LOGS_URL, body, batch.length);
+    const status = await post(kind, appInfo().telemetryURL ?? LOGS_URL, body, batch.length);
     if (gen !== generation) return "stale";
     const result = outcome(status, batch.length);
     if (result === "retry") return "failed";
@@ -324,6 +354,36 @@ export function setSharing(on: boolean, source: SharingSource) {
 
 export const dismissAsk = () => save({ askDoneAt: Date.now() });
 
+export const shareChoice = (to: (json: string) => void) => void (choiceShared = to);
+
+export function adoptChoice(json: string) {
+  if (!loaded) return;
+  let incoming: Saved;
+  try {
+    incoming = { ...DEFAULT, ...(JSON.parse(json) as Partial<Saved>) };
+  } catch {
+    return;
+  }
+  const stale = (incoming.decidedAt ?? 0) < (saved.decidedAt ?? 0);
+  const next: Saved = stale ? { ...incoming, sharing: saved.sharing, installId: saved.installId, decidedAt: saved.decidedAt } : { ...incoming };
+  next.askDoneAt = incoming.askDoneAt ?? saved.askDoneAt;
+  next.crashCursor = Math.max(incoming.crashCursor, saved.crashCursor);
+  const changed = next.sharing !== saved.sharing || next.installId !== saved.installId;
+  if (changed) {
+    generation++;
+    failures = 0;
+    retryAt = 0;
+    for (const abort of inflight) abort.abort();
+    inflight.clear();
+    queue = { version: 1, events: [], logs: [] };
+    clearTimeout(flushTimer);
+    flushTimer = undefined;
+  }
+  saved = next;
+  if (stale || next.askDoneAt !== incoming.askDoneAt || next.crashCursor !== incoming.crashCursor) save({});
+  else publishChoice();
+}
+
 type PreviousSession = "clean" | "unclean" | "none";
 
 let loaded = false;
@@ -332,7 +392,7 @@ export function loadChoice() {
   if (loaded) return;
   loaded = true;
   saved = { ...DEFAULT, ...readJson<Partial<Saved>>(STATE_DOC) };
-  useTelemetry.setState({ sharing: saved.sharing, decided: saved.decidedAt !== null, askDone: saved.askDoneAt !== null });
+  publishChoice();
 }
 
 type ClientSession = {
@@ -365,6 +425,16 @@ export function startClient(): ClientSession | null {
   scheduleFlush(10_000);
   return { previous, updatedFrom, ...last };
 }
+
+export function resumeClient() {
+  loadChoice();
+  if (!saved.sharing) return;
+  const stored = readJson<Queue>(QUEUE_DOC);
+  if (stored?.version === 1) queue = { version: 1, events: [...(stored.events ?? []), ...queue.events], logs: [...(stored.logs ?? []), ...queue.logs] };
+  scheduleFlush(10_000);
+}
+
+export const persistNow = () => saved.sharing && persistQueue(true);
 
 export function endSession() {
   if (!saved.sharing) return;
