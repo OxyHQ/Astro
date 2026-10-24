@@ -2602,6 +2602,11 @@ base::DictValue RunImport(const std::string& job_id,
   };
 
   std::optional<BrowserKey> key = ImportState::Get().KeyFor(browser_id);
+#if BUILDFLAG(IS_WIN)
+  if (!key && ImportState::Get().Unlock(browser_id, nullptr)) {
+    key = ImportState::Get().KeyFor(browser_id);
+  }
+#endif
 
   for (const char* ordered : kKindOrder) {
     std::string kind = ordered;
