@@ -13,5 +13,6 @@ export const chromeUIServices = {
     return ref ? onTab(target, "shareThisTabInstead", { capturer: ref }, false) : false;
   },
   actionStates: (browserId: number, ids: string[]) => onTab(browserId, "actionStates", { ids }, {}),
+  showAutofillSuggestions: (browserId: number, passwords: boolean) => onTab(browserId, "showAutofillSuggestions", { passwords }, false),
   sidePanelURL: (browserId: number, extensionId: string) => onTab<string | null>(browserId, "sidePanelURL", { id: extensionId }, null),
 };

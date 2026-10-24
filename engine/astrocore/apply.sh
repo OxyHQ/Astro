@@ -2170,6 +2170,23 @@ hook(["bool (*g_astro_window_close_requested)(BrowserWindowInterface* browser) =
       "  if (g_astro_window_close_requested &&\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "the window's title is its page's" <<'PY'
+old = """std::u16string WebUIBrowserWindow::WidgetDelegate::GetWindowTitle() const {
+"""
+new = old + """#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  // Astro: the window's title is the one AstroCore's page gives it, as on macOS.
+  if (content::WebContents* page = web_contents_delegate_->web_contents();
+      page && !page->GetTitle().empty()) {
+    return page->GetTitle();
+  }
+#endif
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["  // Astro: the window's title is the one AstroCore's page gives it, as on macOS.\n"], edit)
+PY
+
 if [[ $mode == check ]]; then
   exit "$drift"
 fi

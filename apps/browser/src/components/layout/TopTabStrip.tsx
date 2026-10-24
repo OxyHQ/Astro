@@ -1,4 +1,4 @@
-import { ContextMenuArea, FadeLabel, raiseView, setTrafficLightsCenter, Surface, Symbol, WindowDragRegion } from "@astro-browser/shell";
+import { APP_MENU_BUTTON_ROOM, ContextMenuArea, FadeLabel, raiseView, setTrafficLightsCenter, Surface, Symbol, WindowDragRegion } from "@astro-browser/shell";
 import { createContext, Fragment, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, findNodeHandle, PanResponder, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { closeTab, toggleMute } from "../../lib/actions";
@@ -84,7 +84,7 @@ export function TopTabStrip({ width, floating = false, hidden = false, swipe = t
   const { pages } = usePagerPages(windowId);
   const profileChip = useProfileIndicatorWidth(PROFILE_ROOM);
   const controls = (profileChip ? profileChip + CONTROLS_GAP : 0) + DOWNLOADS_BOX;
-  const left = floating ? 8 : layout.trafficLightsWidth + LIGHTS_GAP;
+  const left = floating ? 8 : layout.trafficLightsWidth + APP_MENU_BUTTON_ROOM + LIGHTS_GAP;
   const right = Math.max(84, controls + 8 + 6);
   const pageWidth = Math.max(0, width - left - right);
   const flare = floating ? 0 : FLARE;

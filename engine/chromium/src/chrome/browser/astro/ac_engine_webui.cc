@@ -48,6 +48,7 @@
 #include "chrome/browser/astro/ac_updater.h"
 #include "chrome/browser/astro/ac_ui_source.h"
 #include "chrome/browser/astro/ac_window_keys.h"
+#include "chrome/browser/astro/ac_window_title.h"
 #include "chrome/browser/astro/public/ac_engine.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
@@ -345,6 +346,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
   }
 
   void RegisterMessages() override {
+    FollowPageTitle(web_ui()->GetWebContents());
     web_ui()->RegisterMessageCallback(
         "astroEngineCall", base::BindRepeating(&EngineWebUIHandler::HandleCall,
                                                base::Unretained(this)));

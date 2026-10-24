@@ -28,6 +28,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/astro/ac_autofill_prompt.h"
+#include "chrome/browser/astro/ac_autofill_trigger.h"
 #include "chrome/browser/astro/ac_devtools_dock.h"
 #include "chrome/browser/astro/ac_display_media.h"
 #include "chrome/browser/astro/ac_extension_views.h"
@@ -472,6 +473,7 @@ TabBridge::TabBridge(content::WebContents* contents, Emit emit)
   media_access_ = MediaAccess();
   LiveBridges().insert(this);
   EnsureAutofillPrompts(contents);
+  TrackAutofillFocus(contents);
   g_astro_dnr_rule_matched = &RuleMatched;
   g_astro_renderer_unresponsive = &RendererUnresponsive;
   g_astro_renderer_responsive = &RendererResponsive;
@@ -920,6 +922,9 @@ void TabBridge::Call(const std::string& method,
     if (std::optional<int> id = args.FindInt("id"); id && answer) {
       ResolveAutofillPrompt(contents, *id, *answer);
     }
+  } else if (method == "showAutofillSuggestions") {
+    return std::move(done).Run(base::Value(ShowAutofillSuggestions(
+        contents, args.FindBool("passwords").value_or(false))));
   } else if (method == "resolveUnresponsive") {
     ResolveUnresponsive(args.FindBool("terminate").value_or(false));
   } else if (method == "callPage") {

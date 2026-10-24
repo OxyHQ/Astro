@@ -343,13 +343,13 @@ inert function that returns `null`. Each gap was then tried in a hidden instance
 | 16 | A hung page showed nothing: Chromium's dialog needs a views host, and the bridge's DevTools client hid the hang | `onUnresponsive`, `onResponsive`, `resolveUnresponsive` | Fixed |
 | 17 | Chromium never offered to save or update an address or a card: Webium has no `AutofillBubbleHandler` | `onAutofillPrompt`, `resolveAutofillPrompt` | Fixed |
 | 18 | Chromium's autofill dropdown opened a tab's offset away from its field: the field's bounds were added to the tab's own container bounds, which already sit inside the interface page | Chromium's `ChromeAutofillClient` | Fixed: the outermost page's bounds are used |
+| 19 | Autofill's command and its shortcut opened Settings instead of the focused field's suggestions | `showAutofillSuggestions` | Fixed: `ac_autofill_trigger.cc` (AstroCore's `ac_autofill_trigger.mm` ported) remembers each tab's last focused field and asks its frame's autofill driver for suggestions; Settings opens only when no field of the tab has focus |
+| 20 | With tabs on top, the "⋯" app menu button sat over the first tab | `APP_MENU_BUTTON_ROOM` (shell) | Fixed: the strip starts after the button, the gap macOS leaves after the zoom light |
+| 21 | The native window title (X11's `_NET_WM_NAME`) showed the Webium browser's active tab, which a tab switch doesn't change, so it went stale | Webium's `GetWindowTitle` | Fixed: the window takes its page's title (`setWindowTitle`, macOS's "Profile — Tab & N Tabs"), from the window's first frame, and updates when it changes |
 | — | The menu bar's bookmarks | `setMenuBookmarks` | Nothing to do: the app menu reads the store |
 
 Still missing, by what a user would notice:
 
-- Autofill's command (and its shortcut) opens Settings instead of showing the focused field's suggestions
-  (`showAutofillSuggestions`); the port is AstroCore's `ac_autofill_trigger.mm`, which asks the frame's autofill
-  driver for suggestions and shows them in Astro's dropdown.
 - Calendar: no system calendar is read (`AstroCalendar`), so Connect Calendar does nothing; Windows (WinRT appointments)
   and Linux (Evolution Data Server) each need their own reader.
 - Dragging a tab onto another window's sidebar inserts it at the end with no pill: the insert point is computed by the

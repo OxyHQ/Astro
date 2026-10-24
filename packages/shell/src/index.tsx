@@ -294,6 +294,7 @@ export const focusWindow = (id: string) => Shell.focusWindow(id);
 export const setWindowTitle = (id: string, title: string) => Shell.setWindowTitle(id, title);
 export const setTrafficLightsCenter = (id: string, center: [number, number] | null) =>
   Shell.setTrafficLightsCenter(id, center);
+export const APP_MENU_BUTTON_ROOM = 0;
 export const watchLeftEdge = (id: string, on: boolean, hold = 0) => void Shell.watchLeftEdge?.(id, on, hold);
 type Rect4 = [number, number, number, number];
 export type DragPreviewShape = "hidden" | "pill" | "card";

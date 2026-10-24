@@ -7,7 +7,7 @@ import { TRAFFIC_LIGHT_DIAMETER, TRAFFIC_LIGHT_SPACING, useTrafficLightsCenter }
 import { displayVersion } from "./host/appcast";
 import { checkForUpdatesNow, installReadyUpdate, releaseNotesFor, updateMenuState } from "./host/updater";
 import { pageWindowId } from "./host/windows";
-import { emitCommand, requestQuit } from "./shims/shell";
+import { APP_MENU_BUTTON_GAP, APP_MENU_BUTTON_SIZE, emitCommand, requestQuit } from "./shims/shell";
 
 type Mod = "command" | "shift" | "option" | "control";
 type Spec = [title: string, command: BrowserCommand, key?: string, mods?: Mod[], arg?: string];
@@ -17,8 +17,6 @@ const QUIT = "astro:quit";
 const CHECK_FOR_UPDATES = "astro:checkForUpdates";
 const INSTALL_UPDATE = "astro:installUpdate";
 const UPDATE_NOTES = "astro:updateNotes";
-const BUTTON_SIZE = 22;
-const BUTTON_GAP = 14;
 
 const separator: MenuItem = { separator: true };
 
@@ -169,10 +167,10 @@ export function AppMenuButton() {
       className="astro-app-menu"
       onClick={() => void openAppMenu()}
       style={{
-        left: at[0] + 2 * TRAFFIC_LIGHT_SPACING + TRAFFIC_LIGHT_DIAMETER / 2 + BUTTON_GAP,
-        top: at[1] - BUTTON_SIZE / 2,
-        width: BUTTON_SIZE,
-        height: BUTTON_SIZE,
+        left: at[0] + 2 * TRAFFIC_LIGHT_SPACING + TRAFFIC_LIGHT_DIAMETER / 2 + APP_MENU_BUTTON_GAP,
+        top: at[1] - APP_MENU_BUTTON_SIZE / 2,
+        width: APP_MENU_BUTTON_SIZE,
+        height: APP_MENU_BUTTON_SIZE,
       }}
     >
       ⋯

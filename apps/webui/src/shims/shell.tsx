@@ -19,6 +19,9 @@ export { translation } from "../host/translate";
 declare const chrome: { send(method: string, args?: unknown[]): void };
 
 export const systemInfo = () => webuiSystemInfo;
+export const APP_MENU_BUTTON_SIZE = 22;
+export const APP_MENU_BUTTON_GAP = 14;
+export const APP_MENU_BUTTON_ROOM = APP_MENU_BUTTON_GAP + APP_MENU_BUTTON_SIZE;
 
 provideNativeModule("AstroApp", { systemInfo });
 let menu: Partial<MenuState> = {};
@@ -195,7 +198,8 @@ export const FileDropArea = forwardRef<View, FileDropAreaProps>(function FileDro
   );
 });
 
-export const openWindow = async (id: string, _options: OpenWindowOptions = {}) => {
+export const openWindow = async (id: string, options: OpenWindowOptions = {}) => {
+  if (options.title !== undefined) void setWindowTitle(id, options.title);
   if (!openUtilityWindow(id)) requestWindow(id);
 };
 export const closeWindow = async (id: string) => {
