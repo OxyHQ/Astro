@@ -107,7 +107,11 @@ takes the private session with it.
 
 Profiles: the `Default` Chromium profile is the window's, and each other Astro profile is a Chromium profile
 (`Profile <name>`, as on macOS) whose tabs live in a hidden Webium browser of that profile and show in the window as
-guests (GuestContents attaches across profiles); its engine calls and events carry its name.
+guests (GuestContents attaches across profiles); its engine calls and events carry its name. Deleting an Astro profile
+deletes its Chromium profile through `DeleteProfileHelper` (`ac_profiles.cc`, `astroProfile`), which closes its hidden
+browser and removes `Profile <name>` from disk and from Local State; a directory Chromium never registered is removed
+directly. Releasing a private profile closes its unused hidden browser and destroys the off-the-record profile when no
+browser uses it, as AstroCore does on macOS.
 
 Windows: every Webium window runs its own copy of the interface, and the copies share one store
 (`apps/webui/src/host/windows.ts`). One page holds the `astro-window-leader` Web Lock: it hydrates and saves the
@@ -154,9 +158,11 @@ and patched by `packages/astrocore/scripts/ubo.sh`, ships as `extensions/ublock`
 (`astroContentBlockerLoad`). Its settings are read and written by the same scripts as on macOS, run in a hidden
 `blank.html` extension view.
 
-System (`ac_system.cc`): open a file, show it in its folder, whether a file exists, open an external URL, the default
-browser (Chromium's worker), launch at login (a `~/.config/autostart` entry, or the `Run` key on Windows) and the
-interface's own notifications (Chromium's notification service; click and close come back as `notificationResponse`).
+System (`ac_system.cc`): open a file, show it in its folder, whether a file exists, move it to the Recycle Bin or the
+Trash (`ac_trash.cc`: `IFileOperation` with a sink that refuses any delete that wouldn't recycle, or GIO's `g_file_trash`,
+which follows the freedesktop.org spec), its icon (Chromium's `IconManager`, a 2x PNG data URL as on macOS), open an
+external URL, the default browser (Chromium's worker), launch at login (a `~/.config/autostart` entry, or the `Run` key
+on Windows) and the interface's own notifications (Chromium's notification service; click and close come back as `notificationResponse`).
 Pages' notifications already go to the system through Chromium's platform bridge.
 
 Screen sharing (`ac_display_media.cc`): Chromium's views picker can't show for a guest tab, so `getDisplayMedia` hung.

@@ -11,6 +11,7 @@ export const THIS_DEVICE_TITLE = ON_MAC ? "This Mac" : "This Computer";
 export const SYNC_FOLDER_EXAMPLE = ON_MAC ? "iCloud Drive" : "OneDrive or Dropbox";
 export const SYSTEM_UNLOCK = byPlatform("Touch ID or your login password", "Windows Hello", "your account password");
 export const FILE_MANAGER = byPlatform("Finder", "File Explorer", "Files");
+export const TRASH = byPlatform("Trash", "Recycle Bin", "Trash");
 export const NATIVE_APPS = ON_MAC ? "Mac apps" : "desktop apps";
 export const MENU_BAR = ON_MAC ? "menu bar" : "app menu";
 export const KEYCHAIN = byPlatform("your Keychain", "Windows' data protection", "your system keyring");

@@ -469,4 +469,11 @@ bool IsProfileTabHost(const BrowserWindowInterface* browser) {
          });
 }
 
+void CloseUnusedProfileTabHost(Profile* profile) {
+  auto found = Hosts().find(KeyFor(profile));
+  if (found != Hosts().end()) {
+    found->second->CloseIfUnused();
+  }
+}
+
 }

@@ -2,7 +2,7 @@ import { cancelDownload, pauseDownload, resumeDownload, type Download } from "@a
 import { ContextMenuArea, copyText, fileExists, fileIcon, MouseArea, moveToTrash, openFile, revealFile, showMenu, Surface, Symbol, VisualEffect, type MenuItem } from "@astro-browser/shell";
 import { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { FILE_MANAGER, ON_MAC } from "../lib/device";
+import { FILE_MANAGER, TRASH } from "../lib/device";
 import { hex, layout, useTheme } from "../lib/theme";
 import { useShallow } from "zustand/react/shallow";
 import { useBrowser } from "../store/browser";
@@ -77,7 +77,7 @@ export async function downloadMenu(d: Download, windowId: string) {
     { id: "copy", title: "Copy Download Link" },
     { id: "page", title: "Show All Downloads" },
     { separator: true },
-    ...(ON_MAC && exists ? [{ id: "trash", title: "Move to Trash" }] : []),
+    ...(exists ? [{ id: "trash", title: `Move to ${TRASH}` }] : []),
     { id: "remove", title: "Remove from List", enabled: d.state !== "downloading" },
   );
   const choice = await showMenu(items);

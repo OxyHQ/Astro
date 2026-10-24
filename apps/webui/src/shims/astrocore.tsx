@@ -8,6 +8,7 @@ import { devicesCastServices, startCastRoutes } from "../host/devicesCast";
 import { displayMediaServices } from "../host/displayMedia";
 import { importServices, startImportEvents } from "../host/import";
 import { keychainServices } from "../host/keychain";
+import { profileServices } from "../host/profileTabs";
 import { appServices, engineServices, systemServices } from "../host/system";
 import { startTabEvents } from "../host/tabBridge";
 
@@ -16,7 +17,7 @@ export { faviconsFor, fetchFavicon } from "@astro-browser-real/astrocore";
 export { WebView } from "./WebView";
 export { setCliActiveTab } from "../host/cli";
 
-provideNativeModule("AstroCEF", { ...cefServices, ...contentBlockerServices, ...engineServices, ...displayMediaServices, engineCall, forwardEngineTopics, fetchFavicon: fetchFaviconImage });
+provideNativeModule("AstroCEF", { ...cefServices, ...contentBlockerServices, ...engineServices, ...displayMediaServices, ...profileServices, engineCall, forwardEngineTopics, fetchFavicon: fetchFaviconImage });
 provideNativeModule("AstroExtensions", extensionServices);
 provideNativeModule("AstroImport", importServices);
 provideNativeModule("AstroKeychain", keychainServices);

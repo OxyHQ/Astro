@@ -62,6 +62,8 @@ source_set("astro") {
     "ac_process.h",
     "ac_profile_tabs.cc",
     "ac_profile_tabs.h",
+    "ac_profiles.cc",
+    "ac_profiles.h",
     "ac_reauth.h",
     "ac_scripts_policy.cc",
     "ac_scripts_policy.h",
@@ -80,6 +82,8 @@ source_set("astro") {
     "ac_tab_bridge.h",
     "ac_tabs.cc",
     "ac_tabs.h",
+    "ac_trash.cc",
+    "ac_trash.h",
     "ac_translate.cc",
     "ac_translate.h",
     "ac_ui_source.cc",
@@ -224,6 +228,7 @@ source_set("astro") {
       "//components/dbus",
       "//dbus",
     ]
+    configs += [ "//build/linux:gio_config" ]
   }
 
   if (use_aura) {

@@ -18,6 +18,12 @@ export const systemServices = {
   },
   openFile: async (path: string) => (await systemCall<boolean>("openFile", { path })) ?? false,
   revealFile: async (path: string) => (await systemCall<boolean>("revealFile", { path })) ?? false,
+  moveToTrash: async (path: string) => {
+    const moved = (await systemCall<boolean>("moveToTrash", { path })) ?? false;
+    if (moved) existing.set(path, false);
+    return moved;
+  },
+  fileIcon: async (path: string, size: number) => await systemCall<string>("fileIcon", { path, size }),
   isDefaultBrowser: async () => (await systemCall<boolean>("isDefaultBrowser")) ?? false,
   setAsDefaultBrowser: async () => (await systemCall<boolean>("setAsDefaultBrowser")) ?? false,
   launchAtLoginStatus: async () => (await systemCall<string>("launchAtLoginStatus")) ?? "notFound",

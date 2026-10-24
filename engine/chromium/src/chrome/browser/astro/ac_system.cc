@@ -13,20 +13,27 @@
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/path_service.h"
+#include "base/no_destructor.h"
 #include "base/process/process_handle.h"
+#include "base/task/cancelable_task_tracker.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "base/base64.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/astro/ac_host.h"
+#include "chrome/browser/astro/ac_trash.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/icon_manager.h"
 #include "chrome/browser/notifications/notification_display_service.h"
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/notifications/notification_handler.h"
 #include "chrome/browser/platform_util.h"
 #include "ui/base/models/image_model.h"
+#include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/image/image.h"
+#include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image_skia_rep.h"
 #include "ui/message_center/public/cpp/notification.h"
 #include "ui/message_center/public/cpp/notification_delegate.h"
 #include "ui/message_center/public/cpp/notifier_id.h"
@@ -183,6 +190,44 @@ base::Value Notify(Profile* profile, const base::DictValue& args) {
   return base::Value(*id);
 }
 
+constexpr float kFileIconScale = 2.0f;
+
+IconLoader::IconSize FileIconSize(double points) {
+  return points <= 16   ? IconLoader::SMALL
+         : points <= 32 ? IconLoader::NORMAL
+                        : IconLoader::LARGE;
+}
+
+base::CancelableTaskTracker& FileIconRequests() {
+  static base::NoDestructor<base::CancelableTaskTracker> tracker;
+  return *tracker;
+}
+
+base::Value FileIconDataUrl(gfx::Image image) {
+  if (image.IsEmpty()) {
+    return base::Value();
+  }
+  const gfx::ImageSkiaRep& rep =
+      image.ToImageSkia()->GetRepresentation(kFileIconScale);
+  if (rep.is_null()) {
+    return base::Value();
+  }
+  std::optional<std::vector<uint8_t>> png =
+      gfx::PNGCodec::EncodeBGRASkBitmap(rep.GetBitmap(), false);
+  return png ? base::Value("data:image/png;base64," + base::Base64Encode(*png))
+             : base::Value();
+}
+
+void FileIcon(const base::FilePath& path, double points, Done done) {
+  IconManager* icons = g_browser_process->icon_manager();
+  if (!icons || path.empty()) {
+    return std::move(done).Run(base::Value());
+  }
+  icons->LoadIcon(path, FileIconSize(points), kFileIconScale,
+                  base::BindOnce(&FileIconDataUrl).Then(std::move(done)),
+                  &FileIconRequests());
+}
+
 void DefaultBrowserState(bool set, Done done) {
   auto worker = base::MakeRefCounted<shell_integration::DefaultBrowserWorker>();
   auto reply = base::BindOnce(
@@ -207,7 +252,8 @@ void SystemCall(Profile* profile,
   const std::string* text = args.FindString("path");
   const base::FilePath path =
       base::FilePath::FromUTF8Unsafe(text ? *text : std::string());
-  if (method == "openFile" || method == "revealFile" || method == "fileExists") {
+  if (method == "openFile" || method == "revealFile" ||
+      method == "fileExists" || method == "moveToTrash") {
     if (!path.IsAbsolute()) {
       return std::move(done).Run(base::Value(false));
     }
@@ -230,6 +276,12 @@ void SystemCall(Profile* profile,
         base::BindOnce([](base::FilePath path) { return base::Value(base::PathExists(path)); },
                        path),
         std::move(done));
+  } else if (method == "moveToTrash") {
+    MoveToTrash(path, base::BindOnce([](bool moved) {
+                        return base::Value(moved);
+                      }).Then(std::move(done)));
+  } else if (method == "fileIcon") {
+    FileIcon(path, args.FindDouble("size").value_or(32), std::move(done));
   } else if (method == "openExternal") {
     const std::string* url = args.FindString("url");
     const GURL target(url ? *url : std::string());

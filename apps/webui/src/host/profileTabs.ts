@@ -10,6 +10,13 @@ type Wire = { url?: string; title?: string; loading?: boolean; canGoBack?: boole
 
 export const PROFILE_TAB_PREFIX = "p:";
 
+const profileCall = async <T,>(method: string, profile: string) => (await loadCr()).sendWithPromise<T | null>("astroProfile", method, profile);
+
+export const profileServices = {
+  releaseProfile: async (profile: string) => void (await profileCall("release", profile)),
+  deleteProfileData: async (profile: string) => ({ remaining: (await profileCall<string[]>("deleteData", profile)) ?? ["data"] }),
+};
+
 const toState = (wire: Wire): TabState => ({
   url: wire.url ?? "",
   title: wire.title ?? "",

@@ -55,6 +55,7 @@ void ProfileTabCommand(ProfileTabsClient* client,
                        const std::string& arg);
 void ForgetProfileTabsClient(ProfileTabsClient* client);
 bool IsProfileTabHost(const BrowserWindowInterface* browser);
+void CloseUnusedProfileTabHost(Profile* profile);
 
 }
 

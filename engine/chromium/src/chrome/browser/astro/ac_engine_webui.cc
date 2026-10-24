@@ -34,6 +34,7 @@
 #include "chrome/browser/astro/ac_extension_views.h"
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
+#include "chrome/browser/astro/ac_profiles.h"
 #include "chrome/browser/astro/ac_import.h"
 #include "chrome/browser/astro/ac_sync_files.h"
 #include "chrome/browser/astro/ac_system.h"
@@ -358,6 +359,9 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroSystem", base::BindRepeating(&EngineWebUIHandler::HandleSystem,
                                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroProfile", base::BindRepeating(&EngineWebUIHandler::HandleProfile,
+                                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroUpdater", base::BindRepeating(&EngineWebUIHandler::HandleUpdater,
                                             base::Unretained(this)));
@@ -799,6 +803,22 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     }
     SystemCall(profile_, args[1].GetString(), args[2].GetDict(),
                ResolveLater(args[0].Clone()));
+  }
+
+  void HandleProfile(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 3 || !args[1].is_string() || !args[2].is_string()) {
+      return;
+    }
+    const std::string& method = args[1].GetString();
+    if (method == "release") {
+      ReleaseProfile(args[2].GetString());
+      ResolveJavascriptCallback(args[0], base::Value());
+    } else if (method == "deleteData") {
+      DeleteProfileData(args[2].GetString(), ResolveLater(args[0].Clone()));
+    } else {
+      ResolveJavascriptCallback(args[0], base::Value());
+    }
   }
 
   void HandleUpdater(const base::ListValue& args) {
