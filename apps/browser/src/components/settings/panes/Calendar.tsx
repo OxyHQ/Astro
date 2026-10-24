@@ -1,6 +1,7 @@
 import type { SystemCalendar } from "@astro-browser/shell";
-import { Linking, Text, View } from "react-native";
-import { ON_MAC } from "../../../lib/device";
+import { openExternalURL } from "@astro-browser/shell";
+import { Text, View } from "react-native";
+import { CALENDAR_ACCOUNTS, CALENDAR_ADD_ACCOUNTS, CALENDAR_PRIVACY, CALENDAR_PRIVACY_URL, ON_MAC } from "../../../lib/device";
 import { useTheme } from "../../../lib/theme";
 import { connectCalendar, setCalendarHidden, useCalendar } from "../../../live/calendar";
 import { ALERT_LEADS } from "../../../live/meetings";
@@ -22,28 +23,28 @@ export function CalendarPane() {
     <View>
       <SectionHeader
         title="Live Calendar"
-        description="Pin Google Calendar, Outlook, iCloud or Notion Calendar to see your day when you hover it, a countdown to your next meeting, and alerts with a Join button before meetings start. Events come from the Calendar app's accounts."
+        description={`Pin Google Calendar, Outlook, iCloud or Notion Calendar to see your day when you hover it, a countdown to your next meeting, and alerts with a Join button before meetings start. Events come from ${CALENDAR_ACCOUNTS}.`}
       />
       <Group>
         <Row
           anchor="calendar.access"
           description={
-            !ON_MAC
-              ? "Your calendar will come from your Oxy account."
-              : access === "fixture"
-                ? "Development build: using calendar-fixture.json"
-                : connected
-                  ? `Connected · ${calendars.length === 1 ? "1 calendar" : `${calendars.length} calendars`}`
+            access === "fixture"
+              ? "Development build: using calendar-fixture.json"
+              : connected
+                ? `Connected · ${calendars.length === 1 ? "1 calendar" : `${calendars.length} calendars`}`
+                : access === "restricted" && !CALENDAR_PRIVACY
+                  ? "No calendar service found. Astro reads the calendars Evolution Data Server keeps, which GNOME Calendar and Evolution use."
                   : denied
-                    ? "Astro isn't allowed to read your calendars. Allow it in System Settings › Privacy & Security › Calendars."
+                    ? `Astro isn't allowed to read your calendars. Allow it in ${CALENDAR_PRIVACY}.`
                     : "Not connected"
           }
         >
-          {!ON_MAC ? null : denied ? (
-            <Button title="Open System Settings" onPress={() => void Linking.openURL("x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")} />
-          ) : !connected ? (
-            <Button title="Connect Calendar…" kind="primary" onPress={() => void connectCalendar()} />
-          ) : null}
+          {connected ? null : denied && CALENDAR_PRIVACY_URL ? (
+            <Button title={ON_MAC ? "Open System Settings" : "Open Settings"} onPress={() => void openExternalURL(CALENDAR_PRIVACY_URL)} />
+          ) : (
+            <Button title={denied ? "Try Again" : "Connect Calendar…"} kind="primary" onPress={() => void connectCalendar()} />
+          )}
         </Row>
       </Group>
 
@@ -92,7 +93,7 @@ export function CalendarPane() {
           </Group>
         </>
       ) : connected ? (
-        <Text style={{ marginTop: 12, fontSize: 12, color: theme.textSecondary }}>No calendars found. Add accounts in the Calendar app.</Text>
+        <Text style={{ marginTop: 12, fontSize: 12, color: theme.textSecondary }}>No calendars found. {CALENDAR_ADD_ACCOUNTS}</Text>
       ) : null}
     </View>
   );

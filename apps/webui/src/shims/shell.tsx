@@ -5,6 +5,7 @@ import { isUtilityWindowId } from "../../../browser/src/components/settings/wind
 import { provideNativeModule } from "../../../demo/src/shims/expo-modules-core";
 import { emitAppEvent } from "../../../demo/src/shims/shell";
 import { confirm } from "../../../demo/src/shims/web/overlays";
+import { calendarServices } from "../host/calendar";
 import { loadCr, pickFiles as pickEngineFiles } from "../host/engine";
 import { confirmDownloadsCancelled, setQuitConfirmed } from "../host/quit";
 import { startDictation, systemInfo as webuiSystemInfo } from "../host/system";
@@ -24,6 +25,7 @@ export const APP_MENU_BUTTON_GAP = 14;
 export const APP_MENU_BUTTON_ROOM = APP_MENU_BUTTON_GAP + APP_MENU_BUTTON_SIZE;
 
 provideNativeModule("AstroApp", { systemInfo });
+provideNativeModule("AstroCalendar", calendarServices);
 let menu: Partial<MenuState> = {};
 
 provideNativeModule("AstroShell", {

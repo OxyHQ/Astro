@@ -1,6 +1,7 @@
 import { FadeLabel } from "@astro-browser/shell";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
+import { CALENDAR_PRIVACY } from "../../lib/device";
 import { useTheme } from "../../lib/theme";
 import { joinEvent } from "../../live/alerts";
 import { connectCalendar, refreshCalendar, useCalendar, useNow } from "../../live/calendar";
@@ -95,7 +96,7 @@ function SignIn({ denied }: { denied: boolean }) {
   if (denied) {
     return (
       <Text style={{ fontSize: 12.5, lineHeight: 17, color: theme.textSecondary, paddingVertical: 4 }}>
-        Allow Astro in System Settings › Privacy & Security › Calendars to see your meetings here.
+        {CALENDAR_PRIVACY ? `Allow Astro in ${CALENDAR_PRIVACY} to see your meetings here.` : "No calendar service found: Astro reads the calendars GNOME Calendar and Evolution keep."}
       </Text>
     );
   }

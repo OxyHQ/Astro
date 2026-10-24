@@ -138,7 +138,7 @@ function appMenu(state: MenuState): MenuItem[] {
     ]),
     separator,
     c(["Settings", "openSettings", ","]),
-    submenu("Help", [c(["Keyboard Shortcuts", "keyboardShortcuts"]), c(["Show Onboarding", "showOnboarding"]), ...updates.help]),
+    submenu("Help", [c(["Keyboard Shortcuts", "keyboardShortcuts"]), c(["Show Onboarding", "showOnboarding"]), c(["Record Performance Issue…", "recordPerformanceIssue"]), ...updates.help]),
     separator,
     ...(updates.ready.length ? [...updates.ready, separator] : []),
     { id: QUIT, title: "Exit", key: "q", modifiers: ["command", "shift"] },

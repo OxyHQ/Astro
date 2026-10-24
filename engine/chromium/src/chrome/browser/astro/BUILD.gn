@@ -233,13 +233,31 @@ source_set("astro") {
     ]
   }
 
+  if (is_linux || is_win) {
+    sources += [
+      "ac_calendar.h",
+      "ac_diagnostics.cc",
+      "ac_diagnostics.h",
+    ]
+    deps += [
+      "//components/crash/core/app",
+      "//third_party/crashpad/crashpad/client",
+      "//third_party/crashpad/crashpad/snapshot",
+      "//third_party/crashpad/crashpad/util",
+    ]
+  }
+
   if (is_win) {
-    sources += [ "ac_reauth.cc" ]
+    sources += [
+      "ac_calendar_win.cc",
+      "ac_reauth.cc",
+    ]
     deps += [ "//chrome/browser/webshare" ]
   }
 
   if (is_linux) {
     sources += [
+      "ac_calendar_linux.cc",
       "ac_polkit_authenticator.cc",
       "ac_polkit_authenticator.h",
       "ac_reauth.cc",

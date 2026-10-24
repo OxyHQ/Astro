@@ -1,6 +1,5 @@
-import { beginTracing, endTracing, engineInfo, isTracing, openTaskManager } from "@astro-browser/astrocore";
+import { engineInfo, openTaskManager } from "@astro-browser/astrocore";
 import {
-  confirm,
   copyText,
   isDefaultBrowser,
   onCommand,
@@ -9,7 +8,6 @@ import {
   openExternalURL,
   readDocument,
   replyToScript,
-  revealFile,
   saveDocument,
   setAsDefaultBrowser,
   setScriptState,
@@ -28,6 +26,7 @@ import { activeTabId, resolveWindowId, viewTabIds, windowTitle } from "../store/
 import { focus, openUrls, openWindow, switchProfile, switchToTab } from "./actions";
 import { afterFirstWindow } from "./afterFirstWindow";
 import { ON_MAC } from "./device";
+import { recordPerformanceIssue } from "./performanceRecording";
 import { offerDefaultBrowserAgain } from "./defaultBrowserOffer";
 import { openReleaseNotesAfterUpdate, openReleaseNotesPage } from "./releaseNotesPage";
 import { JAVASCRIPT_FROM_APPLE_EVENTS_REFUSED, runsJavaScript } from "./scriptUrls";
@@ -109,19 +108,6 @@ export async function diagnostics(): Promise<string> {
         ? "Updates: not set up for this build"
         : `Updates: automatic checks ${updates.automaticChecks ? "on" : "off"}, feed ${updates.feedURL ?? "none"}`,
   ].join("\n");
-}
-
-async function recordPerformanceIssue() {
-  if (await isTracing()) return;
-  const start = await confirm({
-    title: "Record a performance issue?",
-    message: "Astro records what the engine does while you reproduce the problem. The recording is saved to your Downloads folder.",
-    confirmTitle: "Start Recording",
-  });
-  if (!start.confirmed || !(await beginTracing())) return;
-  const stop = await confirm({ title: "Recording…", message: "Reproduce the problem now, then click Stop.", confirmTitle: "Stop", cancelTitle: "Discard" });
-  const path = await endTracing(stop.confirmed);
-  if (path) void revealFile(path);
 }
 
 function startHandoff() {

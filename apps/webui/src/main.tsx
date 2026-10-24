@@ -19,6 +19,7 @@ import { startDragPreview } from "./host/dragPreview";
 import { installEngineFetch } from "./host/fetch";
 import { startEngineKeys } from "./host/keys";
 import { offerOnboarding, startOnboardingCommand } from "./host/onboarding";
+import { startPerformanceRecordingCommand } from "./host/performanceRecording";
 import { startTabDragShare } from "./host/tabDragShare";
 import { tabHub } from "./host/tabs";
 import { startUpdater } from "./host/updater";
@@ -51,6 +52,7 @@ const startPage = () =>
         startNativeSync();
         startCliControl();
         startOnboardingCommand();
+        startPerformanceRecordingCommand();
       },
       end: () => flushPersistence({ final: true }),
     },

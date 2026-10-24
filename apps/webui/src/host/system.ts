@@ -1,4 +1,4 @@
-import type { SystemInfo } from "@astro-browser-real/shell";
+import type { CrashReport, SystemInfo } from "@astro-browser-real/shell";
 import { loadCr } from "./engine";
 
 const systemCall = async <T,>(method: string, args: Record<string, unknown> = {}): Promise<T | null> =>
@@ -49,6 +49,9 @@ export const engineServices = {
   setSearchEngineName: async (_name: string) => {},
   claimLaunchTab: (_key: string, _url: string, _profile: string) => {},
   routeLinkTabs: async (_urls: string[]) => ({}),
+  beginTracing: async () => (await systemCall<boolean>("beginTracing")) ?? false,
+  endTracing: async (keep: boolean) => await systemCall<string>("endTracing", { keep }),
+  isTracing: async () => (await systemCall<boolean>("isTracing")) ?? false,
 };
 
 declare const __ASTRO_VERSION__: string;
@@ -77,6 +80,7 @@ export const appServices = {
   killSwitchEnvironment: (_name: string): string | null => null,
   appIcons: async (_size: number) => [],
   appIcon: async () => "default",
+  crashReports: async (since: number) => (await systemCall<CrashReport[]>("crashReports", { since })) ?? [],
   openExternalURL: async (url: string) => (await systemCall<boolean>("openExternal", { url })) ?? false,
   notificationPermission: async () => "granted",
   requestNotificationPermission: async () => true,
