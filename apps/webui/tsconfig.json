@@ -9,7 +9,7 @@
       "@astro-browser/shell": ["./src/shims/shell.tsx"],
       "@astro-browser/astrocore": ["./src/shims/astrocore.tsx"],
       "@astro-browser/shaders": ["../demo/src/shims/shaders.tsx"],
-      "@astro-browser/sync": ["../demo/src/shims/sync.tsx"],
+      "@astro-browser/sync": ["./src/shims/sync.tsx"],
       "@astro-browser/import": ["../demo/src/shims/import.tsx"],
       "@astro-browser-real/shell": ["../../packages/shell/src/index.tsx"],
       "@astro-browser-real/astrocore": ["../../packages/astrocore/src/index.ts"],

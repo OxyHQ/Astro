@@ -82,6 +82,7 @@ function tabEvents(props: { current: WebViewProps }, browserId: number): TabEven
     else if (kind === "passwordPrompt") p.onPasswordPrompt?.(payload as PasswordPrompt);
     else if (kind === "externalApp") p.onExternalApp?.(payload as ExternalAppRequest);
     else if (kind === "popupBlocked") p.onPopupBlocked?.(payload as BlockedPopup);
+    else if (kind === "discarded") p.onDiscarded?.(String(payload.url ?? ""));
   };
 }
 
@@ -227,7 +228,8 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
         if (!origin) return { cookies: false, storage: false };
         return (await cefServices.clearSiteData(latest.current.profile ?? "", origin)) as Awaited<ReturnType<WebViewHandle["clearSiteData"]>>;
       },
-      discard: async () => "unsupported",
+      discard: async () => (await call<Awaited<ReturnType<WebViewHandle["discard"]>>>("discard")) ?? "unsupported",
+      setFrozen: async (frozen) => run("setFrozen", { frozen }),
       capturePicture: async () => null,
     };
     return new Proxy(handle, { get: (target, key) => (key in target ? target[key as keyof WebViewHandle] : () => done) }) as WebViewHandle;

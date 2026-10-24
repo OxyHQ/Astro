@@ -145,6 +145,28 @@ Pages' notifications already go to the system through Chromium's platform bridge
 Menu: Linux and Windows have no menu bar, so a button beside the window controls opens the macOS menu bar's commands
 (`AppMenu.tsx`, from the same `menuState`), with Ctrl shortcuts; Exit is `astroQuit` (`chrome::AttemptUserExit`).
 
+Shortcuts: the web shim (`apps/demo/src/shims/web/motion/shortcuts.ts`) holds the macOS menu bar's table, the same
+titles, menus, keys and hidden aliases, so Settings › Keyboard Shortcuts lists, records and remaps them as on macOS (⌘ is
+Ctrl, ⌃ is Super/Win, ⌥ is Alt; Ctrl+Tab and Ctrl+PageUp/PageDown also work with Ctrl). Webium runs the browser's
+accelerators before any page sees the key, so the page sends the engine its table (`astroShortcuts`: the active
+combos, and every combo Astro owns by default): `ac_window_keys.cc`, through a hook in
+`WebUIBrowserWindow::PreHandleKeyboardEvent`, takes an active combo from any tab and hands it to that window's page
+(`astro-window-key`), gives a Chromium accelerator on a combo Astro owns back to the page, and leaves Chromium's others
+(F5, Ctrl+F4, F11…) alone. While recording a shortcut or holding the tab switcher, every key goes to the page
+(`astroKeyCapture`).
+
+Import (`ac_import.cc`, `host/import.ts`, the macOS importer ported): Chrome (and its channels), Chromium, Edge, Brave,
+Vivaldi, Opera, Opera GX, Helium and Firefox. Bookmarks, history, open tabs and passwords from the Chromium family
+(passwords: v10/v11 on Linux, the v11 key read with `secret-tool`; DPAPI and AES-GCM on Windows; app-bound v20 can't
+be decrypted and is reported as such); bookmarks and history from Firefox; extensions; bookmark HTML and password CSV
+files. Cookies, autofill, Firefox passwords and Arc are not ported.
+
+Sync (`host/sync.ts`, `ac_sync_files.cc`): the same encrypted folder format as macOS, byte for byte, so one folder in
+Dropbox, OneDrive or Syncthing serves a Mac and a PC. The crypto runs in the page (WebCrypto); the engine only reads
+and writes the folder and keeps the recovery key encrypted with the profile's OS key (`Astro Sync Key/`). The default
+folder is `%OneDrive%\Astro Sync` (or `Documents\Astro Sync`) on Windows and `~/Astro Sync` on Linux. The recovery kit
+is a text file; passwords don't sync yet.
+
 Files: `astroPickFiles` opens the platform's file dialog, for a folder (an unpacked extension, which
 `ac_extensions_inspect` reads with Chromium's own loader before the install prompt) or for files to open.
 

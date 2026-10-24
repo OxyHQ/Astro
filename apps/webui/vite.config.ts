@@ -10,7 +10,7 @@ export default defineConfig({
   base: "./",
   resolve: {
     ...demo.resolve,
-    alias: [{ find: /^@astro-browser\/(shell|astrocore)$/, replacement: `${shims}$1.tsx` }, ...(demo.resolve?.alias as Alias[])],
+    alias: [{ find: /^@astro-browser\/(shell|astrocore|sync)$/, replacement: `${shims}$1.tsx` }, ...(demo.resolve?.alias as Alias[])],
   },
   build: {
     ...demo.build,

@@ -56,6 +56,8 @@ class TabBridge : public content::WebContentsObserver,
   void DidToggleFullscreenModeForTab(bool entered_fullscreen,
                                      bool will_cause_resize) override;
   void WebContentsDestroyed() override;
+  void WasDiscarded() override;
+  void AboutToBeDiscarded(content::WebContents* new_contents) override;
   void DispatchProtocolMessage(content::DevToolsAgentHost* agent_host,
                                base::span<const uint8_t> message) override;
   void AgentHostClosed(content::DevToolsAgentHost* agent_host) override;

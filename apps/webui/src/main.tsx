@@ -11,6 +11,7 @@ import { emitCommand, loadDocuments } from "./shims/shell";
 import { MenuHost } from "../../demo/src/shims/web/menus";
 import "../../demo/src/shims/web/motion/shortcuts";
 import { installEngineFetch } from "./host/fetch";
+import { startEngineKeys } from "./host/keys";
 import { tabHub } from "./host/tabs";
 import { startWindows, usePageWindowId } from "./host/windows";
 import { AppMenuButton } from "./AppMenu";
@@ -18,6 +19,7 @@ import { UtilityWindows } from "./UtilityWindows";
 import { WindowControls } from "./WindowControls";
 
 installEngineFetch();
+void startEngineKeys();
 setStoreBatching(unstable_batchedUpdates);
 
 Object.assign(globalThis, { astro: { store: useBrowser, emitCommand } });

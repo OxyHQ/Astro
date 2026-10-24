@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { syncFolder } from "../paneData";
 import { useResource } from "../resources";
 import { Linking, Text, View } from "react-native";
+import { DEVICE, DEVICES, ON_MAC, SYNC_FOLDER_EXAMPLE, THIS_DEVICE_TITLE } from "../../../lib/device";
 import { useTheme } from "../../../lib/theme";
 import { useBrowser } from "../../../store/browser";
 import { useProfiles } from "../../../store/hooks";
@@ -40,8 +41,8 @@ export function SyncPane() {
   return (
     <View>
       <Text style={{ marginTop: 20, fontSize: 12.5, lineHeight: 17, color: theme.textSecondary }}>
-        Sync your profiles, bookmarks, history, open tabs, pinned tabs, groups, passwords, extensions and settings across your Macs. It all goes through a folder
-        you choose, like one in iCloud Drive, and it’s end-to-end encrypted: only your devices can read it.
+        Sync your profiles, bookmarks, history, open tabs, pinned tabs, groups, passwords, extensions and settings across your {DEVICES}. It all goes through a
+        folder you choose, like one in {SYNC_FOLDER_EXAMPLE}, and it’s end-to-end encrypted: only your devices can read it.
       </Text>
       {enabled ? <SyncOn info={info} /> : <SyncOff info={info} />}
     </View>
@@ -65,7 +66,7 @@ function SyncOff({ info }: { info: FolderInfo | null }) {
   const error = useSync((s) => s.error);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-  const noICloud = !!info && info.path === info.defaultPath && !info.iCloudAvailable;
+  const noICloud = ON_MAC && !!info && info.path === info.defaultPath && !info.iCloudAvailable;
   const hasData = !!info?.hasSyncData;
 
   const turnOn = async () => {
@@ -128,7 +129,7 @@ function SyncOff({ info }: { info: FolderInfo | null }) {
       </Group>
       {failure ? <Text style={{ marginTop: 8, fontSize: 12, color: colors.destructive }}>{failure}</Text> : null}
       <Text style={{ marginTop: 12, fontSize: 11.5, lineHeight: 15, color: theme.textTertiary }}>
-        No server and no account: your Macs meet in the sync folder. Your recovery phrase never leaves your devices, and without it the folder is
+        No server and no account: your {DEVICES} meet in the sync folder. Your recovery phrase never leaves your devices, and without it the folder is
         unreadable, file names included.
       </Text>
     </>
@@ -212,7 +213,7 @@ function SyncOn({ info }: { info: FolderInfo | null }) {
         </View>
       ) : null}
 
-      <SectionHeader title="Profiles" description="Choose which profiles sync on this Mac. Each syncs on its own." />
+      <SectionHeader title="Profiles" description={`Choose which profiles sync on this ${DEVICE}. Each syncs on its own.`} />
       <Group>
         {profiles.map((p) => {
           const link = links[p.id];
@@ -230,7 +231,7 @@ function SyncOn({ info }: { info: FolderInfo | null }) {
         })}
         {remoteProfiles.map((p) => (
           <Row key={p.syncId} icon={<ProfileBadge profile={{ name: p.name, color: p.color, icon: p.icon }} size={24} />} title={p.name} description={remoteProfileDescription(p)}>
-            <Button title="Add to This Mac" disabled={!!p.waiting} onPress={() => addRemoteProfile(p.syncId)} />
+            <Button title={`Add to ${THIS_DEVICE_TITLE}`} disabled={!!p.waiting} onPress={() => addRemoteProfile(p.syncId)} />
           </Row>
         ))}
       </Group>
@@ -251,12 +252,12 @@ function SyncOn({ info }: { info: FolderInfo | null }) {
             <Row
               key={d.id}
               icon={<Symbol name="laptopcomputer" size={15} color={theme.icon} style={{ width: 24, height: 20 }} />}
-              title={d.current ? `${d.name} (This Mac)` : d.name}
+              title={d.current ? `${d.name} (${THIS_DEVICE_TITLE})` : d.name}
               description={d.current ? statusLine(status, lastSyncedAt, 0) : d.lastSeen ? `last synced ${ago(d.lastSeen)}` : "hasn’t synced yet"}
             />
           ))
         ) : (
-          <Row title="Just this Mac so far" description="Other devices show here once they sync." />
+          <Row title={`Just this ${DEVICE} so far`} description="Other devices show here once they sync." />
         )}
       </Group>
     </>

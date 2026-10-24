@@ -31,8 +31,11 @@
 #include "chrome/browser/astro/ac_extension_views.h"
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
+#include "chrome/browser/astro/ac_import.h"
+#include "chrome/browser/astro/ac_sync_files.h"
 #include "chrome/browser/astro/ac_system.h"
 #include "chrome/browser/astro/ac_tab_bridge.h"
+#include "chrome/browser/astro/ac_window_keys.h"
 #include "chrome/browser/astro/public/ac_engine.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
@@ -60,6 +63,8 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "ui/base/base_window.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 #include "ui/shell_dialogs/selected_file_info.h"
 #include "url/gurl.h"
@@ -192,6 +197,8 @@ constexpr char kEventListener[] = "astro-engine-event";
 constexpr char kProfileTabListener[] = "astro-profile-tab";
 constexpr char kTabEventListener[] = "astro-tab-event";
 constexpr char kHostEventListener[] = "astro-host-event";
+constexpr char kWindowKeyListener[] = "astro-window-key";
+constexpr char kImportEventListener[] = "astro-import-event";
 constexpr char kProfileTabPrefix[] = "p:";
 constexpr char kExtensionViewPrefix[] = "x:";
 constexpr char kUblockDirSwitch[] = "astro-ublock-dir";
@@ -251,6 +258,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       InstallExternalAppPrompts();
       InstallExtensionViewHooks();
       InstallExtensionPrompts();
+      InstallWindowKeys();
       return true;
     }();
     (void)installed;
@@ -302,6 +310,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
         "astroPickFiles", base::BindRepeating(&EngineWebUIHandler::HandlePickFiles,
                                               base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
+        "astroWindowBounds",
+        base::BindRepeating(&EngineWebUIHandler::HandleWindowBounds,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
         "astroQuit", base::BindRepeating(&EngineWebUIHandler::HandleQuit,
                                          base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
@@ -326,6 +338,20 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroSystem", base::BindRepeating(&EngineWebUIHandler::HandleSystem,
                                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroShortcuts",
+        base::BindRepeating(&EngineWebUIHandler::HandleShortcuts,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroKeyCapture",
+        base::BindRepeating(&EngineWebUIHandler::HandleKeyCapture,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroImport", base::BindRepeating(&EngineWebUIHandler::HandleImport,
+                                           base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroSync", base::BindRepeating(&EngineWebUIHandler::HandleSync,
+                                         base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroExternalAppResolve",
         base::BindRepeating(&EngineWebUIHandler::HandleExternalAppResolve,
@@ -359,6 +385,15 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       if (bridge->web_contents() == contents) {
         TabEvent(ref, kind, payload.Clone());
       }
+    }
+  }
+
+  void DeliverWindowKey(BrowserWindowInterface* browser,
+                        const std::string& kind,
+                        const base::DictValue& payload) {
+    if (IsJavascriptAllowed() && WindowBrowser() == browser) {
+      FireWebUIListener(kWindowKeyListener, base::Value(kind),
+                        base::Value(payload.Clone()));
     }
   }
 
@@ -574,6 +609,23 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     }
   }
 
+  void HandleWindowBounds(const base::ListValue& args) {
+    if (args.size() != 4 || !std::ranges::all_of(args, [](const base::Value& v) {
+          return v.is_int() || v.is_double();
+        })) {
+      return;
+    }
+    BrowserWindowInterface* browser = WindowBrowser();
+    const gfx::Rect bounds(static_cast<int>(args[0].GetDouble()),
+                           static_cast<int>(args[1].GetDouble()),
+                           static_cast<int>(args[2].GetDouble()),
+                           static_cast<int>(args[3].GetDouble()));
+    if (browser && browser->GetWindow() && bounds.width() >= 200 &&
+        bounds.height() >= 150) {
+      browser->GetWindow()->SetBounds(bounds);
+    }
+  }
+
   void HandleQuit(const base::ListValue& args) {
     if (args.empty()) {
       chrome::AttemptUserExit();
@@ -687,20 +739,83 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     }
   }
 
+  base::OnceCallback<void(base::Value)> ResolveLater(base::Value callback_id) {
+    return base::BindOnce(
+        [](base::WeakPtr<EngineWebUIHandler> self, base::Value callback_id,
+           base::Value result) {
+          if (self && self->IsJavascriptAllowed()) {
+            self->ResolveJavascriptCallback(callback_id, result);
+          }
+        },
+        weak_factory_.GetWeakPtr(), std::move(callback_id));
+  }
+
   void HandleSystem(const base::ListValue& args) {
     AllowJavascript();
     if (args.size() != 3 || !args[1].is_string() || !args[2].is_dict()) {
       return;
     }
     SystemCall(profile_, args[1].GetString(), args[2].GetDict(),
-               base::BindOnce(
-                   [](base::WeakPtr<EngineWebUIHandler> self,
-                      base::Value callback_id, base::Value result) {
-                     if (self && self->IsJavascriptAllowed()) {
-                       self->ResolveJavascriptCallback(callback_id, result);
-                     }
-                   },
-                   weak_factory_.GetWeakPtr(), args[0].Clone()));
+               ResolveLater(args[0].Clone()));
+  }
+
+  static std::vector<std::string> Strings(const base::Value& list) {
+    std::vector<std::string> strings;
+    if (list.is_list()) {
+      for (const base::Value& item : list.GetList()) {
+        if (item.is_string()) {
+          strings.push_back(item.GetString());
+        }
+      }
+    }
+    return strings;
+  }
+
+  void HandleShortcuts(const base::ListValue& args) {
+    if (args.size() != 2 || !args[0].is_list() || !args[1].is_list()) {
+      return;
+    }
+    SetWindowShortcuts(Strings(args[0]), Strings(args[1]));
+  }
+
+  void HandleKeyCapture(const base::ListValue& args) {
+    if (args.size() != 1 || !args[0].is_bool()) {
+      return;
+    }
+    SetWindowKeyCapture(WindowBrowser(), args[0].GetBool());
+  }
+
+  void HandleImport(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 3 || !args[1].is_string() || !args[2].is_dict()) {
+      return;
+    }
+    ImportCall(
+        args[1].GetString(), args[2].GetDict().Clone(),
+        base::BindRepeating(
+            [](base::WeakPtr<EngineWebUIHandler> self,
+               base::DictValue payload) {
+              if (self && self->IsJavascriptAllowed()) {
+                self->FireWebUIListener(kImportEventListener,
+                                        base::Value(std::move(payload)));
+              }
+            },
+            weak_factory_.GetWeakPtr()),
+        base::BindOnce(
+            [](base::OnceCallback<void(base::Value)> resolve,
+               base::DictValue reply) {
+              std::move(resolve).Run(base::Value(std::move(reply)));
+            },
+            ResolveLater(args[0].Clone())));
+  }
+
+  void HandleSync(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 3 || !args[1].is_string() || !args[2].is_dict()) {
+      return;
+    }
+    SyncFilesCall(profile_, args[1].GetString(), args[2].GetDict(),
+                  ResolveLater(args[0].Clone()));
   }
 
   void HandlePermissionResolve(const base::ListValue& args) {
@@ -979,6 +1094,14 @@ void HostTabEvent(content::WebContents* contents,
                   base::DictValue payload) {
   for (EngineWebUIHandler* handler : Handlers()) {
     handler->DeliverTabEvent(contents, kind, payload);
+  }
+}
+
+void HostWindowKey(BrowserWindowInterface* browser,
+                   const std::string& kind,
+                   base::DictValue payload) {
+  for (EngineWebUIHandler* handler : Handlers()) {
+    handler->DeliverWindowKey(browser, kind, payload);
   }
 }
 

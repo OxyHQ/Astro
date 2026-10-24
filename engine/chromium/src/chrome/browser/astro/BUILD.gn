@@ -1,5 +1,7 @@
 # Copyright 2026 Oxy. Apache-2.0.
 
+import("//build/config/ui.gni")
+
 assert(is_mac || is_linux || is_win)
 
 source_set("astro") {
@@ -42,6 +44,8 @@ source_set("astro") {
     "ac_passwords.cc",
     "ac_password_prompt.cc",
     "ac_passwords.h",
+    "ac_import.cc",
+    "ac_import.h",
     "ac_permission_prompts.cc",
     "ac_process.cc",
     "ac_process.h",
@@ -55,6 +59,8 @@ source_set("astro") {
     "ac_sensitive_args.h",
     "ac_site_settings.cc",
     "ac_site_settings.h",
+    "ac_sync_files.cc",
+    "ac_sync_files.h",
     "ac_tab_restore.cc",
     "ac_system.cc",
     "ac_system.h",
@@ -64,6 +70,8 @@ source_set("astro") {
     "ac_tabs.h",
     "ac_ui_source.cc",
     "ac_ui_source.h",
+    "ac_window_keys.cc",
+    "ac_window_keys.h",
     "ac_zoom.cc",
     "ac_zoom.h",
     "pip/ac_pip_controls.cc",
@@ -115,8 +123,11 @@ source_set("astro") {
     "//components/favicon/content",
     "//components/find_in_page",
     "//components/guest_contents/browser",
+    "//components/input",
     "//components/history/core/browser",
     "//components/keyed_service/core",
+    "//components/os_crypt/async/browser",
+    "//components/os_crypt/async/common",
     "//components/os_crypt/common:switches",
     "//components/password_manager/core/browser",
     "//components/password_manager/core/common",
@@ -140,9 +151,11 @@ source_set("astro") {
     "//services/network/public/cpp",
     "//services/network/public/mojom",
     "//skia",
+    "//sql",
     "//third_party/blink/public/common",
     "//third_party/boringssl",
     "//ui/base",
+    "//ui/events:dom_keycode_converter",
     "//ui/gfx",
     "//ui/shell_dialogs",
     "//ui/views",
@@ -167,6 +180,10 @@ source_set("astro") {
 
   if (is_win) {
     sources += [ "ac_reauth.cc" ]
+  }
+
+  if (use_aura) {
+    deps += [ "//ui/aura" ]
   }
 
   if (is_posix) {

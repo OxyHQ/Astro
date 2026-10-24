@@ -20,6 +20,7 @@
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/printing/print_view_manager_common.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -394,6 +395,28 @@ void TabBridge::Call(const std::string& method,
     }
   } else if (method == "forceReload") {
     controller.Reload(content::ReloadType::BYPASSING_CACHE, true);
+  } else if (method == "discard") {
+    if (contents->WasDiscarded()) {
+      return std::move(done).Run(base::Value("already"));
+    }
+    auto* unit =
+        resource_coordinator::TabLifecycleUnitExternal::FromWebContents(
+            contents);
+    if (!unit) {
+      return std::move(done).Run(base::Value("unsupported"));
+    }
+    base::WeakPtr<content::WebContents> alive = contents->GetWeakPtr();
+    const bool asked =
+        unit->DiscardTab(::mojom::LifecycleUnitDiscardReason::EXTERNAL);
+    const bool discarded = asked && (!alive || alive->WasDiscarded());
+    return std::move(done).Run(
+        base::Value(discarded ? "discarded" : "refused"));
+  } else if (method == "setFrozen") {
+    const bool frozen = args.FindBool("frozen").value_or(false);
+    if (!frozen ||
+        contents->GetVisibility() != content::Visibility::VISIBLE) {
+      contents->SetPageFrozen(frozen);
+    }
   } else if (method == "navigationEntries") {
     base::ListValue entries;
     const int current = controller.GetCurrentEntryIndex();
@@ -688,6 +711,15 @@ void TabBridge::DidChangeThemeColor() {
 void TabBridge::DidToggleFullscreenModeForTab(bool entered_fullscreen, bool) {
   emit_.Run("fullscreen",
             base::DictValue().Set("fullscreen", entered_fullscreen));
+}
+
+void TabBridge::WasDiscarded() {
+  emit_.Run("discarded", base::DictValue().Set(
+                             "url", web_contents()->GetVisibleURL().spec()));
+}
+
+void TabBridge::AboutToBeDiscarded(content::WebContents* new_contents) {
+  WasDiscarded();
 }
 
 void TabBridge::WebContentsDestroyed() {

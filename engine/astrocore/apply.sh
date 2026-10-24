@@ -1648,6 +1648,47 @@ hook(["bool g_astro_scripts_wait_at_response = false;\n",
       "  ThrottleCheckResult WillProcessResponse() override {\n    if (should_defer_ && g_astro_scripts_wait_at_response) {\n"], edit, CONTENT_HOOKS)
 PY
 
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "window keys" <<'PY'
+at = "WebUIBrowserWindow::WebUIBrowserWindow(BrowserWindowInterface* browser)"
+decl = """// Astro: AstroCore takes its own shortcuts before the browser's and gives the browser's back to the page.
+std::optional<content::KeyboardEventProcessingResult> (*g_astro_window_key)(
+    BrowserWindowInterface* browser,
+    const input::NativeWebKeyboardEvent& event,
+    int command_id) = nullptr;
+
+"""
+old = """  int command_id;
+  if (!FindCommandIdForAccelerator(accelerator, &command_id)) {
+    return content::KeyboardEventProcessingResult::NOT_HANDLED;
+  }
+"""
+new = """  int command_id = -1;
+  const bool is_browser_command =
+      FindCommandIdForAccelerator(accelerator, &command_id);
+  if (g_astro_window_key) {
+    if (std::optional<content::KeyboardEventProcessingResult> result =
+            g_astro_window_key(browser_.get(), event,
+                               is_browser_command ? command_id : -1)) {
+      return *result;
+    }
+  }
+  if (!is_browser_command) {
+    return content::KeyboardEventProcessingResult::NOT_HANDLED;
+  }
+"""
+include = "#include <optional>\n"
+first = '#include "chrome/browser/ui/webui_browser/webui_browser_window.h"\n'
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1 and s.count(first) == 1
+    i = s.index(at)
+    s = s[:i] + decl + s[i:].replace(old, new)
+    if include not in s:
+        s = s.replace(first, first + "\n" + include, 1)
+    return s
+hook(["std::optional<content::KeyboardEventProcessingResult> (*g_astro_window_key)(\n",
+      "  if (g_astro_window_key) {\n"], edit)
+PY
+
 if [[ $mode == check ]]; then
   exit "$drift"
 fi

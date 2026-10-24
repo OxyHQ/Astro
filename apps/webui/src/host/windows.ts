@@ -95,7 +95,34 @@ function applyPatch(patch: Patch) {
   applyRemote(update);
 }
 
+type Frame = [number, number, number, number];
+
+const FRAME_POLL_MS = 1000;
+const currentFrame = (): Frame => [window.screenX, window.screenY, window.outerWidth, window.outerHeight];
+const sameFrame = (a: Frame | null | undefined, b: Frame) => !!a && a.every((v, i) => Math.abs(v - b[i]!) < 2);
+
+function restoreFrame(id: string) {
+  const s = useBrowser.getState();
+  const w = s.windows[id];
+  const [width, height] = s.settings.littleAstroSize;
+  const frame: Frame | null =
+    w?.frame ?? (w?.kind === "small" ? [Math.max(0, (screen.availWidth - width) / 2), Math.max(0, (screen.availHeight - height) / 2), width, height] : null);
+  if (frame) chrome.send("astroWindowBounds", frame);
+}
+
+function trackFrame() {
+  const note = () => {
+    if (!windowId) return;
+    const s = useBrowser.getState();
+    const frame = currentFrame();
+    if (s.windows[windowId] && !sameFrame(s.windows[windowId]!.frame, frame)) s.setWindowFrame(windowId, frame);
+  };
+  window.addEventListener("resize", note);
+  setInterval(note, FRAME_POLL_MS);
+}
+
 function setPageWindow(id: string) {
+  restoreFrame(id);
   windowId = id;
   document.documentElement.dataset.windowId = id;
   for (const listener of pageListeners) listener();
@@ -192,6 +219,7 @@ function shareChanges() {
 }
 
 function trackFocus() {
+  trackFrame();
   const focus = () => {
     const s = useBrowser.getState();
     if (windowId && s.ui.focusedWindowId !== windowId && s.windows[windowId]) s.setFocusedWindow(windowId);
