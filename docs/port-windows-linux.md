@@ -84,6 +84,11 @@ Package it: `scripts/linux-package.sh` (`AC_ENGINE_PROFILE=dev` for the dev engi
 needs the AppArmor profile: `sudo cp /opt/astro-browser/apparmor.cfg /etc/apparmor.d/astro-browser && sudo
 apparmor_parser -r /etc/apparmor.d/astro-browser`. The dev engine's package is 116 MB.
 
+On Windows, `AC_TARGET_PLATFORM=windows scripts/windows-package.sh` (`AC_CHROMIUM_BUILD` for the Windows tree,
+`AC_ENGINE_PROFILE=dev` for the dev engine) writes `release/astro-browser-<version>-windows-x64.zip`: the files
+Chromium's `FILES.cfg` lists for the build (plus `snapshot_blob.bin` when the build has no context snapshot),
+`astro-ui/` and `extensions/ublock`. Unzip it anywhere and run `chrome.exe`. The dev engine's zip is 188 MB.
+
 Private windows: their tabs are profile tabs of the original profile's primary off-the-record profile
 (`incognito:<session>@<profile>`), hosted by a hidden browser of that profile, which closes when its last tab does and
 takes the private session with it.
