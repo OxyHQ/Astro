@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <functional>
 #include <map>
 #include <memory>
@@ -36,6 +37,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversion_utils.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
@@ -675,7 +677,562 @@ struct DiscoveredProfile {
   std::optional<std::string> color;
   bool is_default = false;
   std::vector<std::string> available;
+  std::optional<base::ListValue> spaces;
 };
+
+constexpr double kAppleReferenceSeconds = 978307200;
+constexpr size_t kMaxThemeBytes = 64 * 1024;
+constexpr int kMaxThemeDepth = 12;
+constexpr size_t kMaxThemeArray = 4;
+constexpr size_t kMaxThemeKeys = 32;
+constexpr size_t kMaxThemeString = 256;
+constexpr int kMaxThemeNodes = 2048;
+
+struct ThemeBudget {
+  int nodes = kMaxThemeNodes;
+  int64_t bytes = kMaxThemeBytes;
+  bool Spend(int n, int64_t b) {
+    nodes -= n;
+    bytes -= b;
+    return nodes >= 0 && bytes >= 0;
+  }
+};
+
+std::optional<base::Value> BoundedTheme(const base::Value* value,
+                                        int depth,
+                                        ThemeBudget* budget) {
+  if (!value || depth >= kMaxThemeDepth || !budget->Spend(1, 8)) {
+    return std::nullopt;
+  }
+  if (const base::DictValue* dict = value->GetIfDict()) {
+    if (dict->size() > kMaxThemeKeys) {
+      return std::nullopt;
+    }
+    base::DictValue out;
+    for (const auto [key, child] : *dict) {
+      if (key.size() > kMaxThemeString || !budget->Spend(0, key.size())) {
+        return std::nullopt;
+      }
+      if (std::optional<base::Value> v = BoundedTheme(&child, depth + 1, budget)) {
+        out.Set(key, std::move(*v));
+      }
+      if (budget->nodes < 0 || budget->bytes < 0) {
+        return std::nullopt;
+      }
+    }
+    return base::Value(std::move(out));
+  }
+  if (const base::ListValue* list = value->GetIfList()) {
+    base::ListValue out;
+    for (size_t i = 0; i < list->size() && i < kMaxThemeArray; ++i) {
+      if (std::optional<base::Value> v =
+              BoundedTheme(&(*list)[i], depth + 1, budget)) {
+        out.Append(std::move(*v));
+      }
+      if (budget->nodes < 0 || budget->bytes < 0) {
+        return std::nullopt;
+      }
+    }
+    return base::Value(std::move(out));
+  }
+  if (value->is_string()) {
+    std::string cut = value->GetString().substr(0, kMaxThemeString);
+    while (!cut.empty() && !base::IsStringUTF8(cut)) {
+      cut.pop_back();
+    }
+    if (!budget->Spend(0, cut.size())) {
+      return std::nullopt;
+    }
+    return base::Value(cut);
+  }
+  if (value->is_int() || value->is_double() || value->is_bool()) {
+    return value->Clone();
+  }
+  return std::nullopt;
+}
+
+std::optional<base::Value> Bounded(const base::Value* value) {
+  ThemeBudget budget;
+  std::optional<base::Value> out = BoundedTheme(value, 0, &budget);
+  if (budget.nodes < 0 || budget.bytes < 0) {
+    return std::nullopt;
+  }
+  return out;
+}
+
+std::optional<double> NumberOf(const base::Value* value) {
+  if (!value) {
+    return std::nullopt;
+  }
+  if (value->is_double()) {
+    return value->GetDouble();
+  }
+  if (value->is_int()) {
+    return value->GetInt();
+  }
+  return std::nullopt;
+}
+
+std::optional<std::string> HexColor(const base::Value* value) {
+  const base::DictValue* c = value ? value->GetIfDict() : nullptr;
+  if (!c) {
+    return std::nullopt;
+  }
+  std::optional<double> r = NumberOf(c->Find("red"));
+  std::optional<double> g = NumberOf(c->Find("green"));
+  std::optional<double> b = NumberOf(c->Find("blue"));
+  if (!r || !g || !b) {
+    return std::nullopt;
+  }
+  auto byte = [](double v) {
+    return static_cast<int>(std::round(std::clamp(v, 0.0, 1.0) * 255));
+  };
+  return base::StringPrintf("#%02X%02X%02X", byte(*r), byte(*g), byte(*b));
+}
+
+std::optional<std::string> FirstColor(const base::Value* value, int depth) {
+  if (!value || depth >= 12) {
+    return std::nullopt;
+  }
+  if (std::optional<std::string> c = HexColor(value)) {
+    return c;
+  }
+  if (const base::DictValue* dict = value->GetIfDict()) {
+    std::vector<std::string> keys;
+    for (const auto [key, child] : *dict) {
+      keys.push_back(key);
+    }
+    std::ranges::sort(keys);
+    for (const std::string& key : keys) {
+      if (std::optional<std::string> c = FirstColor(dict->Find(key), depth + 1)) {
+        return c;
+      }
+    }
+  } else if (const base::ListValue* list = value->GetIfList()) {
+    for (const base::Value& child : *list) {
+      if (std::optional<std::string> c = FirstColor(&child, depth + 1)) {
+        return c;
+      }
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<std::string> MidTone(const base::Value* theme) {
+  const base::DictValue* dict = theme ? theme->GetIfDict() : nullptr;
+  const base::DictValue* palette =
+      dict ? dict->FindDict("primaryColorPalette") : nullptr;
+  if (palette) {
+    if (std::optional<std::string> c = HexColor(palette->Find("midTone"))) {
+      return c;
+    }
+  }
+  return FirstColor(theme, 0);
+}
+
+const base::ListValue* FindBaseColors(const base::Value* value, int depth) {
+  if (!value || depth >= 12) {
+    return nullptr;
+  }
+  if (const base::DictValue* dict = value->GetIfDict()) {
+    if (const base::ListValue* base = dict->FindList("baseColors")) {
+      return base;
+    }
+    std::vector<std::string> keys;
+    for (const auto [key, child] : *dict) {
+      keys.push_back(key);
+    }
+    std::ranges::sort(keys);
+    for (const std::string& key : keys) {
+      if (const base::ListValue* found = FindBaseColors(dict->Find(key), depth + 1)) {
+        return found;
+      }
+    }
+  } else if (const base::ListValue* list = value->GetIfList()) {
+    for (const base::Value& child : *list) {
+      if (const base::ListValue* found = FindBaseColors(&child, depth + 1)) {
+        return found;
+      }
+    }
+  }
+  return nullptr;
+}
+
+std::optional<base::ListValue> Gradient(const base::Value* theme) {
+  const base::ListValue* base = FindBaseColors(theme, 0);
+  base::ListValue colors;
+  if (base) {
+    for (const base::Value& entry : *base) {
+      std::optional<std::string> c = HexColor(&entry);
+      if (!c) {
+        c = FirstColor(&entry, 0);
+      }
+      if (c) {
+        colors.Append(*c);
+      }
+    }
+  }
+  if (colors.empty()) {
+    return std::nullopt;
+  }
+  return colors;
+}
+
+std::optional<std::string> ArcProfileDirectory(const base::Value* value) {
+  const base::DictValue* dict = value ? value->GetIfDict() : nullptr;
+  if (!dict) {
+    return std::nullopt;
+  }
+  if (dict->Find("default")) {
+    return "Default";
+  }
+  const base::DictValue* custom = dict->FindDict("custom");
+  const base::DictValue* inner = custom ? custom->FindDict("_0") : nullptr;
+  const std::string* dir = inner ? inner->FindString("directoryBasename") : nullptr;
+  if (!dir || dir->empty()) {
+    return std::nullopt;
+  }
+  return *dir;
+}
+
+std::vector<std::pair<const base::Value*, const base::Value*>> Pairs(
+    const base::Value* value) {
+  std::vector<std::pair<const base::Value*, const base::Value*>> out;
+  const base::ListValue* list = value ? value->GetIfList() : nullptr;
+  if (!list) {
+    return out;
+  }
+  for (size_t i = 0; i + 1 < list->size(); i += 2) {
+    out.emplace_back(&(*list)[i], &(*list)[i + 1]);
+  }
+  return out;
+}
+
+using ArcItems = std::map<std::string, const base::DictValue*>;
+
+std::optional<std::string> ArcCustomTitle(const base::DictValue& item) {
+  const std::string* title = item.FindString("title");
+  if (!title || title->empty()) {
+    return std::nullopt;
+  }
+  return *title;
+}
+
+std::optional<base::DictValue> ArcTab(const base::DictValue& item, bool pinned) {
+  const base::DictValue* data = item.FindDict("data");
+  const base::DictValue* tab = data ? data->FindDict("tab") : nullptr;
+  const std::string* url = tab ? tab->FindString("savedURL") : nullptr;
+  if (!url || url->empty()) {
+    return std::nullopt;
+  }
+  base::DictValue out;
+  out.Set("url", *url);
+  const std::string* title = tab->FindString("savedTitle");
+  out.Set("title", title ? *title : std::string());
+  out.Set("pinned", pinned);
+  if (std::optional<std::string> custom = ArcCustomTitle(item)) {
+    out.Set("customTitle", *custom);
+  }
+  out.Set("windowIndex", 0);
+  out.Set("active", false);
+  if (std::optional<double> last = NumberOf(tab->Find("timeLastActiveAt"))) {
+    out.Set("lastActive", (*last + kAppleReferenceSeconds) * 1000);
+  }
+  return out;
+}
+
+base::ListValue ArcTree(const std::string& container_id,
+                        const ArcItems& items,
+                        std::set<std::string>* seen,
+                        int depth) {
+  base::ListValue out;
+  auto container = items.find(container_id);
+  if (depth >= 64 || container == items.end() ||
+      !seen->insert(container_id).second) {
+    return out;
+  }
+  const base::ListValue* children = container->second->FindList("childrenIds");
+  if (!children) {
+    return out;
+  }
+  for (const base::Value& child : *children) {
+    if (!child.is_string()) {
+      continue;
+    }
+    const std::string& id = child.GetString();
+    auto found = items.find(id);
+    if (found == items.end()) {
+      continue;
+    }
+    const base::DictValue& item = *found->second;
+    const base::DictValue* data = item.FindDict("data");
+    if (std::optional<base::DictValue> tab = ArcTab(item, true)) {
+      if (!seen->insert(id).second) {
+        continue;
+      }
+      const std::string* custom = tab->FindString("customTitle");
+      const std::string* title = tab->FindString("title");
+      base::DictValue link;
+      link.Set("type", "url");
+      link.Set("title", custom ? *custom : (title ? *title : std::string()));
+      link.Set("url", *tab->FindString("url"));
+      if (custom && title) {
+        link.Set("pageTitle", *title);
+      }
+      out.Append(std::move(link));
+    } else if (data && data->Find("list")) {
+      base::DictValue folder;
+      folder.Set("type", "folder");
+      folder.Set("title", ArcCustomTitle(item).value_or("Folder"));
+      folder.Set("children", ArcTree(id, items, seen, depth + 1));
+      out.Append(std::move(folder));
+    } else if (data && data->Find("splitView")) {
+      for (base::Value& nested : ArcTree(id, items, seen, depth + 1)) {
+        out.Append(std::move(nested));
+      }
+    }
+  }
+  return out;
+}
+
+void ArcFlatTabs(const std::string& container_id,
+                 const ArcItems& items,
+                 std::set<std::string>* seen,
+                 bool pinned,
+                 int depth,
+                 base::ListValue* out) {
+  auto container = items.find(container_id);
+  if (depth >= 64 || container == items.end() ||
+      !seen->insert(container_id).second) {
+    return;
+  }
+  const base::ListValue* children = container->second->FindList("childrenIds");
+  if (!children) {
+    return;
+  }
+  for (const base::Value& child : *children) {
+    if (!child.is_string()) {
+      continue;
+    }
+    const std::string& id = child.GetString();
+    auto found = items.find(id);
+    if (found == items.end()) {
+      continue;
+    }
+    if (std::optional<base::DictValue> tab = ArcTab(*found->second, pinned)) {
+      if (seen->insert(id).second) {
+        out->Append(std::move(*tab));
+      }
+    } else {
+      ArcFlatTabs(id, items, seen, pinned, depth + 1, out);
+    }
+  }
+}
+
+int LinkCount(const base::Value& node) {
+  const base::DictValue* dict = node.GetIfDict();
+  if (!dict) {
+    return 0;
+  }
+  const std::string* type = dict->FindString("type");
+  if (type && *type == "url") {
+    return 1;
+  }
+  int count = 0;
+  if (const base::ListValue* children = dict->FindList("children")) {
+    for (const base::Value& child : *children) {
+      count += LinkCount(child);
+    }
+  }
+  return count;
+}
+
+struct ArcSidebarData {
+  std::vector<base::DictValue> spaces;
+  std::map<std::string, base::ListValue> favorites;
+};
+
+std::optional<ArcSidebarData> LoadArcSidebar(ImportError* error) {
+  const base::FilePath user_data = ArcUserData();
+  const base::FilePath file =
+      user_data.empty() ? base::FilePath()
+                        : user_data.DirName().AppendASCII("StorableSidebar.json");
+  std::string json;
+  if (file.empty() || !base::ReadFileToString(file, &json)) {
+    if (error) {
+      error->code = "empty";
+      error->message = "No Arc sidebar data";
+    }
+    return std::nullopt;
+  }
+  std::optional<base::Value> parsed = base::JSONReader::Read(json, 0);
+  const base::DictValue* top = parsed ? parsed->GetIfDict() : nullptr;
+  const base::DictValue* sidebar = top ? top->FindDict("sidebar") : nullptr;
+  const base::ListValue* containers =
+      sidebar ? sidebar->FindList("containers") : nullptr;
+  if (!containers) {
+    if (error) {
+      error->code = "unreadable";
+      error->message = "StorableSidebar.json is not an Arc sidebar";
+    }
+    return std::nullopt;
+  }
+  ArcSidebarData out;
+  const base::DictValue* box = nullptr;
+  for (const base::Value& container : *containers) {
+    const base::DictValue* dict = container.GetIfDict();
+    if (dict && (dict->Find("spaces") || dict->Find("items"))) {
+      box = dict;
+      break;
+    }
+  }
+  if (!box) {
+    return out;
+  }
+  ArcItems items;
+  if (const base::ListValue* list = box->FindList("items")) {
+    for (const base::Value& item : *list) {
+      const base::DictValue* dict = item.GetIfDict();
+      const std::string* id = dict ? dict->FindString("id") : nullptr;
+      if (id) {
+        items[*id] = dict;
+      }
+    }
+  }
+  int untitled = 0;
+  if (const base::ListValue* spaces = box->FindList("spaces")) {
+    for (const base::Value& value : *spaces) {
+      const base::DictValue* space = value.GetIfDict();
+      const std::string* id = space ? space->FindString("id") : nullptr;
+      if (!id) {
+        continue;
+      }
+      std::map<std::string, std::string> roots;
+      for (const auto& [label, container] : Pairs(space->Find("newContainerIDs"))) {
+        const base::DictValue* dict = label->GetIfDict();
+        if (container->is_string() && dict && !dict->empty()) {
+          roots.try_emplace(dict->begin()->first, container->GetString());
+        }
+      }
+      for (const auto& [label, container] : Pairs(space->Find("containerIDs"))) {
+        if (label->is_string() && container->is_string()) {
+          roots.try_emplace(label->GetString(), container->GetString());
+        }
+      }
+      std::set<std::string> seen;
+      base::ListValue pinned = roots.contains("pinned")
+                                   ? ArcTree(roots["pinned"], items, &seen, 0)
+                                   : base::ListValue();
+      base::ListValue today;
+      if (roots.contains("unpinned")) {
+        ArcFlatTabs(roots["unpinned"], items, &seen, false, 0, &today);
+      }
+      const base::DictValue* info = space->FindDict("customInfo");
+      const base::DictValue* icon = info ? info->FindDict("iconType") : nullptr;
+      const std::string* title = space->FindString("title");
+      std::string name = title && !title->empty()
+                             ? *title
+                             : "Space " + base::NumberToString(++untitled);
+      std::optional<base::Value> theme =
+          Bounded(info ? info->Find("windowTheme") : nullptr);
+      base::DictValue suggestion;
+      suggestion.Set("id", *id);
+      suggestion.Set("name", name);
+      if (std::optional<std::string> color = MidTone(theme ? &*theme : nullptr)) {
+        suggestion.Set("color", *color);
+      }
+      if (std::optional<base::ListValue> colors =
+              Gradient(theme ? &*theme : nullptr)) {
+        suggestion.Set("colors", std::move(*colors));
+      }
+      if (icon) {
+        const std::string* emoji = icon->FindString("emoji_v2");
+        if (!emoji || emoji->empty()) {
+          emoji = icon->FindString("emoji");
+        }
+        if (emoji && !emoji->empty()) {
+          suggestion.Set("emoji", *emoji);
+        } else if (std::optional<int> code = icon->FindInt("emoji");
+                   code && *code > 0 && *code <= 0x10FFFF) {
+          std::string utf8;
+          base::WriteUnicodeCharacter(static_cast<base_icu::UChar32>(*code),
+                                      &utf8);
+          suggestion.Set("emoji", utf8);
+        }
+        if (const std::string* symbol = icon->FindString("icon")) {
+          suggestion.Set("icon", *symbol);
+        }
+      }
+      suggestion.Set("profileId", ArcProfileDirectory(space->Find("profile"))
+                                      .value_or("Default"));
+      suggestion.Set("pinned", std::move(pinned));
+      suggestion.Set("tabs", std::move(today));
+      if (theme) {
+        std::optional<std::string> text = base::WriteJson(*theme);
+        if (text && text->size() <= kMaxThemeBytes) {
+          suggestion.Set("theme", *text);
+        }
+      }
+      out.spaces.push_back(std::move(suggestion));
+    }
+  }
+  for (const auto& [descriptor, container] : Pairs(box->Find("topAppsContainerIDs"))) {
+    std::optional<std::string> profile = ArcProfileDirectory(descriptor);
+    if (!profile || !container->is_string()) {
+      continue;
+    }
+    std::set<std::string> seen;
+    base::ListValue tabs;
+    ArcFlatTabs(container->GetString(), items, &seen, true, 0, &tabs);
+    base::ListValue& favorites = out.favorites[*profile];
+    for (base::Value& tab : tabs) {
+      favorites.Append(std::move(tab));
+    }
+  }
+  return out;
+}
+
+void AttachArcSpaces(std::vector<DiscoveredProfile>* profiles) {
+  std::optional<ArcSidebarData> sidebar = LoadArcSidebar(nullptr);
+  if (!sidebar) {
+    return;
+  }
+  for (DiscoveredProfile& profile : *profiles) {
+    base::ListValue summaries;
+    for (const base::DictValue& space : sidebar->spaces) {
+      const std::string* owner = space.FindString("profileId");
+      if (!owner || *owner != profile.id) {
+        continue;
+      }
+      base::DictValue summary;
+      for (const char* key : {"id", "name", "color", "emoji", "icon", "theme"}) {
+        if (const base::Value* value = space.Find(key)) {
+          summary.Set(key, value->Clone());
+        }
+      }
+      int pinned_count = 0;
+      if (const base::ListValue* pinned = space.FindList("pinned")) {
+        for (const base::Value& node : *pinned) {
+          pinned_count += LinkCount(node);
+        }
+      }
+      const base::ListValue* tabs = space.FindList("tabs");
+      summary.Set("pinnedCount", pinned_count);
+      summary.Set("tabCount", tabs ? static_cast<int>(tabs->size()) : 0);
+      summaries.Append(std::move(summary));
+    }
+    if (!summaries.empty()) {
+      profile.available.push_back("spaces");
+      profile.available.push_back("pinnedTabs");
+      profile.available.push_back("tabs");
+      profile.spaces = std::move(summaries);
+    }
+    auto favorites = sidebar->favorites.find(profile.id);
+    if (favorites != sidebar->favorites.end() && !favorites->second.empty()) {
+      profile.available.push_back("favorites");
+    }
+  }
+}
 
 std::vector<DiscoveredProfile> ChromiumProfiles(const Def& def) {
   std::vector<DiscoveredProfile> out;
@@ -1309,6 +1866,7 @@ int BookmarkLinkCount(const base::DictValue& node) {
 }
 
 struct HistoryOptions {
+  std::optional<std::set<std::string>> space_ids;
   std::optional<int> limit;
   std::optional<double> since_ms;
   bool stream = false;
@@ -3620,6 +4178,9 @@ base::DictValue BuildSource(const Def& def,
       dict.Set("color", *profile.color);
     }
     dict.Set("isDefault", profile.is_default);
+    if (profile.spaces) {
+      dict.Set("spaces", profile.spaces->Clone());
+    }
     base::ListValue available;
     for (const std::string& kind : profile.available) {
       available.Append(kind);
@@ -3646,9 +4207,6 @@ base::ListValue ListBrowsers() {
   base::ListValue out;
   static const base::NoDestructor<std::vector<Def>> defs(Definitions());
   for (const Def& def : *defs) {
-    if (def.family == Family::kArc) {
-      continue;
-    }
 #if BUILDFLAG(IS_LINUX)
     if (def.win_only) {
       continue;
@@ -3663,6 +4221,9 @@ base::ListValue ListBrowsers() {
         continue;
       }
       profiles = ChromiumProfiles(def);
+      if (def.family == Family::kArc) {
+        AttachArcSpaces(&profiles);
+      }
     }
     if (profiles.empty()) {
       continue;
@@ -3934,6 +4495,7 @@ base::DictValue RunImport(const std::string& job_id,
   base::ListValue history;
   base::ListValue tabs;
   base::ListValue tab_groups;
+  std::optional<ArcSidebarData> arc_sidebar;
   base::ListValue credentials;
   base::ListValue cookies;
   base::ListValue addresses;
@@ -4020,7 +4582,70 @@ base::DictValue RunImport(const std::string& job_id,
         count = outcome.count;
         succeeded = true;
       }
+    } else if (def->family == Family::kArc &&
+               (kind == "spaces" || kind == "pinnedTabs" || kind == "tabs" ||
+                kind == "favorites")) {
+      if (!arc_sidebar) {
+        arc_sidebar = LoadArcSidebar(&error);
+      }
+      if (arc_sidebar && kind == "favorites") {
+        auto found = arc_sidebar->favorites.find(profile_id);
+        if (found != arc_sidebar->favorites.end()) {
+          for (const base::Value& tab : found->second) {
+            favorites.Append(tab.Clone());
+          }
+        }
+        count = static_cast<int>(favorites.size());
+        succeeded = true;
+      } else if (arc_sidebar) {
+        const bool with_pinned =
+            std::ranges::find(kinds, "pinnedTabs") != kinds.end();
+        const bool with_tabs = std::ranges::find(kinds, "tabs") != kinds.end();
+        int pinned_links = 0;
+        int space_count = 0;
+        base::ListValue selected;
+        base::ListValue space_tabs;
+        for (const base::DictValue& space : arc_sidebar->spaces) {
+          const std::string* owner = space.FindString("profileId");
+          const std::string* id = space.FindString("id");
+          if (!owner || *owner != profile_id || !id ||
+              (history_options.space_ids &&
+               !history_options.space_ids->contains(*id))) {
+            continue;
+          }
+          ++space_count;
+          base::DictValue copy = space.Clone();
+          if (const base::ListValue* pinned = space.FindList("pinned")) {
+            for (const base::Value& node : *pinned) {
+              pinned_links += LinkCount(node);
+            }
+          }
+          if (const base::ListValue* tabs_list = space.FindList("tabs")) {
+            for (const base::Value& tab : *tabs_list) {
+              space_tabs.Append(tab.Clone());
+            }
+          }
+          if (!with_pinned) {
+            copy.Set("pinned", base::ListValue());
+          }
+          if (!with_tabs) {
+            copy.Set("tabs", base::ListValue());
+          }
+          selected.Append(std::move(copy));
+        }
+        spaces = std::move(selected);
+        if (kind == "tabs") {
+          count = static_cast<int>(space_tabs.size());
+          tabs = std::move(space_tabs);
+        } else if (kind == "pinnedTabs") {
+          count = pinned_links;
+        } else {
+          count = space_count;
+        }
+        succeeded = true;
+      }
     } else if (kind == "tabs" && def->family == Family::kChromium) {
+
       if (ReadSession(dir, key, &tabs, &tab_groups, &error)) {
         count = static_cast<int>(tabs.size());
         succeeded = true;
@@ -4255,6 +4880,14 @@ HistoryOptions ParseHistoryOptions(const base::DictValue& args) {
     options.since_ms = *since;
   }
   options.stream = args.FindBool("streamHistory").value_or(false);
+  if (const base::ListValue* ids = args.FindList("spaceIds")) {
+    options.space_ids.emplace();
+    for (const base::Value& id : *ids) {
+      if (id.is_string()) {
+        options.space_ids->insert(id.GetString());
+      }
+    }
+  }
   if (std::optional<int> chunk = args.FindInt("chunkSize")) {
     options.chunk_size = std::max(1, *chunk);
   }
