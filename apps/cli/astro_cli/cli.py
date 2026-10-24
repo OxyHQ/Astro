@@ -17,7 +17,7 @@ In scope:
   await history(days=1, limit=200, profile=None, domains=False)
                  recent history per URL, newest first: url, title, visits (in the window), total_visits,
                  last_visit (ISO, local time), profile; domains=True rolls it up per domain.
-                 profile is a profile name or its folder under Chromium/ (default: all). Only http(s) pages.
+                 profile is a profile name or its Chromium profile folder (default: all). Only http(s) pages.
                  Both read Astro's data dir (the token path's, or --data-dir/$ASTRO_DATA_DIR) and need control on.
   By, Key, asyncio and pydoll's exports (Tab, WebElement, PageEvent, NetworkEvent, ...)
 
@@ -35,7 +35,8 @@ Examples:
 """
 EXEC_EPILOG = """\
 Endpoint: --ws, else --port (plain DevTools servers only), else $ASTRO_CDP_URL, else
-<data dir>/Chromium/AstroControl.json with --data-dir or $ASTRO_DATA_DIR, else the installed Astro's.
+AstroControl.json in the data dir (--data-dir or $ASTRO_DATA_DIR, else the installed Astro's): under
+Chromium/ on macOS, at the top on Linux and Windows.
 """
 SKILLS_DESCRIPTION = """\
 Install the astro agent skill (SKILL.md and a pydoll reference) so coding agents know how to drive Astro.

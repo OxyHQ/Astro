@@ -1,6 +1,5 @@
 import ctypes
 import errno
-import fcntl
 import json
 import os
 import secrets
@@ -9,7 +8,14 @@ import stat
 import time
 from pathlib import Path
 
+from astro_cli import places
+from astro_cli.places import WINDOWS, is_link
 from astro_cli.userscript import Build, Meta, ScriptError, check_glob, check_match, manifest_entries
+
+if WINDOWS:
+    import msvcrt
+else:
+    import fcntl
 
 LOCK_TIMEOUT = 30
 STATUS_TIMEOUT = 10
@@ -36,7 +42,60 @@ class StoreError(Exception):
     pass
 
 
-def open_dir(parent_fd: int | None, name: str, create: bool) -> int:
+Folder = int | str
+
+
+def _path(folder: Folder, name: str) -> str:
+    return os.path.join(folder, name)
+
+
+def lstat_in(folder: Folder, name: str) -> os.stat_result:
+    if WINDOWS:
+        return os.lstat(_path(folder, name))
+    return os.stat(name, dir_fd=folder, follow_symlinks=False)
+
+
+def rename_in(folder: Folder, source: str, target: str) -> None:
+    if WINDOWS:
+        os.replace(_path(folder, source), _path(folder, target))
+    else:
+        os.rename(source, target, src_dir_fd=folder, dst_dir_fd=folder)
+
+
+def unlink_in(folder: Folder, name: str) -> None:
+    if WINDOWS:
+        os.unlink(_path(folder, name))
+    else:
+        os.unlink(name, dir_fd=folder)
+
+
+def make_dir(folder: Folder, name: str, mode: int) -> None:
+    if WINDOWS:
+        os.mkdir(_path(folder, name), mode)
+    else:
+        os.mkdir(name, mode, dir_fd=folder)
+
+
+def list_dir(folder: Folder) -> list[str]:
+    return os.listdir(folder)
+
+
+def close_dir(folder: Folder | None) -> None:
+    if folder is not None and not WINDOWS:
+        os.close(folder)
+
+
+def open_root(path: Path) -> Folder:
+    if WINDOWS:
+        if not path.is_dir():
+            raise FileNotFoundError(errno.ENOENT, "no such folder", str(path))
+        return str(path)
+    return os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+
+
+def open_dir(parent_fd: Folder | None, name: str, create: bool) -> Folder:
+    if WINDOWS:
+        return _open_dir_by_path(name if parent_fd is None else _path(parent_fd, name), name, create)
     if create:
         try:
             os.mkdir(name, 0o700, dir_fd=parent_fd)
@@ -55,9 +114,24 @@ def open_dir(parent_fd: int | None, name: str, create: bool) -> int:
     return fd
 
 
-def read_file(dir_fd: int, name: str) -> bytes | None:
+def _open_dir_by_path(path: str, name: str, create: bool) -> str:
+    if create:
+        try:
+            os.mkdir(path, 0o700)
+        except FileExistsError:
+            pass
+    info = os.lstat(path)
+    if is_link(info) or not stat.S_ISDIR(info.st_mode):
+        raise StoreError(f"{name} is a symbolic link or not a folder; the astro command only uses real folders")
+    return path
+
+
+def read_file(dir_fd: Folder, name: str) -> bytes | None:
     try:
-        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=dir_fd)
+        if WINDOWS:
+            fd = places.open_no_follow(_path(dir_fd, name), os.O_RDONLY)
+        else:
+            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=dir_fd)
     except FileNotFoundError:
         return None
     except OSError as error:
@@ -79,8 +153,11 @@ def read_file(dir_fd: int, name: str) -> bytes | None:
         os.close(fd)
 
 
-def write_file(dir_fd: int, name: str, data: bytes, mode: int = 0o644) -> None:
-    fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode, dir_fd=dir_fd)
+def write_file(dir_fd: Folder, name: str, data: bytes, mode: int = 0o644) -> None:
+    if WINDOWS:
+        fd = os.open(_path(dir_fd, name), os.O_WRONLY | os.O_CREAT | os.O_EXCL | places.BINARY, mode)
+    else:
+        fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode, dir_fd=dir_fd)
     try:
         view = memoryview(data)
         while view:
@@ -90,31 +167,41 @@ def write_file(dir_fd: int, name: str, data: bytes, mode: int = 0o644) -> None:
         os.close(fd)
 
 
-def write_atomic(dir_fd: int, name: str, data: bytes) -> None:
+def write_atomic(dir_fd: Folder, name: str, data: bytes) -> None:
     temp = f".{name}-{secrets.token_hex(6)}"
     try:
         write_file(dir_fd, temp, data)
-        os.rename(temp, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+        rename_in(dir_fd, temp, name)
     except BaseException:
         try:
-            os.unlink(temp, dir_fd=dir_fd)
+            unlink_in(dir_fd, temp)
         except OSError:
             pass
         raise
 
 
-def exists(dir_fd: int, name: str) -> bool:
+def exists(dir_fd: Folder, name: str) -> bool:
     try:
-        os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+        lstat_in(dir_fd, name)
     except FileNotFoundError:
         return False
     return True
 
 
-def remove_tree(dir_fd: int, name: str) -> None:
+def remove_tree(dir_fd: Folder, name: str) -> None:
     try:
-        info = os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+        info = lstat_in(dir_fd, name)
     except FileNotFoundError:
+        return
+    if WINDOWS:
+        path = _path(dir_fd, name)
+        if stat.S_ISDIR(info.st_mode) and not is_link(info):
+            shutil.rmtree(path, ignore_errors=True)
+            return
+        try:
+            os.rmdir(path) if stat.S_ISDIR(info.st_mode) else os.unlink(path)
+        except OSError:
+            pass
         return
     if stat.S_ISDIR(info.st_mode):
         shutil.rmtree(name, dir_fd=dir_fd, ignore_errors=True)
@@ -128,24 +215,63 @@ def remove_tree(dir_fd: int, name: str) -> None:
 _libc = None
 
 
-def swap(dir_fd: int, first: str, second: str) -> None:
+def _exchange(dir_fd: int, first: str, second: str) -> bool:
     global _libc
     if _libc is None:
         _libc = ctypes.CDLL(None, use_errno=True)
-        _libc.renameatx_np.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
-        _libc.renameatx_np.restype = ctypes.c_int
-    if _libc.renameatx_np(dir_fd, os.fsencode(first), dir_fd, os.fsencode(second), RENAME_SWAP) != 0:
-        code = ctypes.get_errno()
-        raise OSError(code, os.strerror(code), second)
+    call = getattr(_libc, "renameatx_np" if places.MACOS else "renameat2", None)
+    if call is None:
+        return False
+    call.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    call.restype = ctypes.c_int
+    if call(dir_fd, os.fsencode(first), dir_fd, os.fsencode(second), RENAME_SWAP) == 0:
+        return True
+    code = ctypes.get_errno()
+    if not places.MACOS and code in (errno.EINVAL, errno.ENOSYS, errno.EOPNOTSUPP):
+        return False
+    raise OSError(code, os.strerror(code), second)
 
 
-def staging_dir(parent_fd: int, prefix: str) -> tuple[str, int]:
+def swap(dir_fd: Folder, first: str, second: str) -> None:
+    if not WINDOWS and _exchange(dir_fd, first, second):
+        return
+    parked = f".swap-{secrets.token_hex(6)}"
+    rename_in(dir_fd, second, parked)
+    try:
+        rename_in(dir_fd, first, second)
+    except BaseException:
+        rename_in(dir_fd, parked, second)
+        raise
+    rename_in(dir_fd, parked, first)
+
+
+def staging_dir(parent_fd: Folder, prefix: str) -> tuple[str, Folder]:
     name = f".{prefix}-{secrets.token_hex(6)}"
-    os.mkdir(name, 0o755, dir_fd=parent_fd)
+    make_dir(parent_fd, name, 0o755)
     return name, open_dir(parent_fd, name, False)
 
 
-def read_int(dir_fd: int | None, name: str) -> int:
+def take_lock(fd: int) -> None:
+    if not WINDOWS:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return
+    try:
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+    except OSError as error:
+        raise BlockingIOError(error.errno, error.strerror) from None
+
+
+def release_lock(fd: int) -> None:
+    if not WINDOWS:
+        return
+    try:
+        os.lseek(fd, 0, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+    except OSError:
+        pass
+
+
+def read_int(dir_fd: Folder | None, name: str) -> int:
     if dir_fd is None:
         return 0
     try:
@@ -160,13 +286,13 @@ class Store:
     def __init__(self, data_root: Path):
         self.data_root = data_root
         self.path = data_root / "Scripts"
-        self.root_fd: int | None = None
-        self.records_fd: int | None = None
+        self.root_fd: Folder | None = None
+        self.records_fd: Folder | None = None
         self.lock_fd: int | None = None
 
     def open(self, create: bool) -> bool:
         try:
-            base = os.open(self.data_root, os.O_RDONLY | os.O_DIRECTORY)
+            base = open_root(self.data_root)
         except FileNotFoundError:
             if not create:
                 return False
@@ -178,7 +304,7 @@ class Store:
                 return False
             self.root_fd = open_dir(base, "Scripts", create)
         finally:
-            os.close(base)
+            close_dir(base)
         if create or exists(self.root_fd, "scripts"):
             self.records_fd = open_dir(self.root_fd, "scripts", create)
         return True
@@ -189,11 +315,14 @@ class Store:
         return self
 
     def lock(self):
-        fd = os.open(".lock", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=self.root_fd)
+        if WINDOWS:
+            fd = places.open_no_follow(_path(self.root_fd, ".lock"), os.O_RDWR | os.O_CREAT, 0o600)
+        else:
+            fd = os.open(".lock", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=self.root_fd)
         deadline = time.monotonic() + LOCK_TIMEOUT
         while True:
             try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                take_lock(fd)
                 break
             except BlockingIOError:
                 if time.monotonic() >= deadline:
@@ -207,6 +336,7 @@ class Store:
 
     def unlock(self):
         if self.lock_fd is not None:
+            release_lock(self.lock_fd)
             os.close(self.lock_fd)
             self.lock_fd = None
 
@@ -215,7 +345,7 @@ class Store:
         for name in ("records_fd", "root_fd"):
             fd = getattr(self, name)
             if fd is not None:
-                os.close(fd)
+                close_dir(fd)
                 setattr(self, name, None)
 
     def read_record(self, name: str) -> dict | None:
@@ -225,18 +355,18 @@ class Store:
         except ValueError:
             return None
         finally:
-            os.close(fd)
+            close_dir(fd)
         return meta if isinstance(meta, dict) and meta.get("id") == name else None
 
     def installed(self) -> list[dict]:
         if self.records_fd is None:
             return []
         found = []
-        for name in sorted(os.listdir(self.records_fd)):
+        for name in sorted(list_dir(self.records_fd)):
             if name.startswith("."):
                 continue
-            info = os.stat(name, dir_fd=self.records_fd, follow_symlinks=False)
-            if stat.S_ISLNK(info.st_mode):
+            info = lstat_in(self.records_fd, name)
+            if is_link(info):
                 raise StoreError(f"{self.path / 'scripts' / name} is a symbolic link; remove it")
             if not stat.S_ISDIR(info.st_mode):
                 continue
@@ -271,7 +401,7 @@ class Store:
         try:
             return read_int(fd, GENERATION)
         finally:
-            os.close(fd)
+            close_dir(fd)
 
     def extension_present(self) -> bool:
         return self.root_fd is not None and exists(self.root_fd, EXTENSION)
@@ -300,16 +430,16 @@ class Store:
             write_file(fd, "script.js", build.js.encode("utf-8"))
             write_file(fd, "meta.json", (json.dumps(record, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
         except BaseException:
-            os.close(fd)
+            close_dir(fd)
             remove_tree(self.records_fd, name)
             raise
-        os.close(fd)
+        close_dir(fd)
         return name, record
 
     def build_extension(self, records: list[tuple[dict, str]], generation: int) -> str:
         name, fd = staging_dir(self.root_fd, "extension")
         try:
-            os.mkdir("js", 0o755, dir_fd=fd)
+            make_dir(fd, "js", 0o755)
             js_fd = open_dir(fd, "js", False)
             entries = []
             try:
@@ -318,13 +448,13 @@ class Store:
                     try:
                         script = read_file(record_fd, "script.js")
                     finally:
-                        os.close(record_fd)
+                        close_dir(record_fd)
                     if script is None:
                         raise StoreError(f"{meta['id']} has no script.js; reinstall it")
                     write_file(js_fd, f"{meta['id']}.js", script)
                     entries.extend(manifest_entries(meta_from_record(meta), f"js/{meta['id']}.js"))
             finally:
-                os.close(js_fd)
+                close_dir(js_fd)
             manifest = {
                 "manifest_version": 3,
                 "name": EXTENSION_NAME,
@@ -339,35 +469,35 @@ class Store:
             write_file(fd, "manifest.json", text)
             write_file(fd, GENERATION, f"{generation}\n".encode())
         except BaseException:
-            os.close(fd)
+            close_dir(fd)
             remove_tree(self.root_fd, name)
             raise
-        os.close(fd)
+        close_dir(fd)
         return name
 
     def publish_extension(self, staged: str | None) -> str | None:
         present = exists(self.root_fd, EXTENSION)
         if present:
-            info = os.stat(EXTENSION, dir_fd=self.root_fd, follow_symlinks=False)
-            if not stat.S_ISDIR(info.st_mode):
+            info = lstat_in(self.root_fd, EXTENSION)
+            if is_link(info) or not stat.S_ISDIR(info.st_mode):
                 raise StoreError(f"{self.path / EXTENSION} isn't a folder the astro command made; move it away first")
         if staged is None:
             if not present:
                 return None
             old = f".extension-old-{secrets.token_hex(6)}"
-            os.rename(EXTENSION, old, src_dir_fd=self.root_fd, dst_dir_fd=self.root_fd)
+            rename_in(self.root_fd, EXTENSION, old)
             return old
         if present:
             swap(self.root_fd, staged, EXTENSION)
             return staged
-        os.rename(staged, EXTENSION, src_dir_fd=self.root_fd, dst_dir_fd=self.root_fd)
+        rename_in(self.root_fd, staged, EXTENSION)
         return None
 
     def restore_extension(self, staged: str | None, old: str | None) -> None:
         if old is not None and staged is not None and old == staged:
             swap(self.root_fd, staged, EXTENSION)
         elif old is not None:
-            os.rename(old, EXTENSION, src_dir_fd=self.root_fd, dst_dir_fd=self.root_fd)
+            rename_in(self.root_fd, old, EXTENSION)
         elif staged is not None and exists(self.root_fd, EXTENSION):
             remove_tree(self.root_fd, EXTENSION)
 
@@ -417,17 +547,17 @@ class Store:
     def commit_record(self, staged: str | None, record_id: str, removing: bool) -> None:
         if removing:
             trash = f".old-{record_id}-{secrets.token_hex(6)}"
-            os.rename(record_id, trash, src_dir_fd=self.records_fd, dst_dir_fd=self.records_fd)
+            rename_in(self.records_fd, record_id, trash)
             remove_tree(self.records_fd, trash)
             return
         if exists(self.records_fd, record_id):
-            info = os.stat(record_id, dir_fd=self.records_fd, follow_symlinks=False)
-            if not stat.S_ISDIR(info.st_mode):
+            info = lstat_in(self.records_fd, record_id)
+            if is_link(info) or not stat.S_ISDIR(info.st_mode):
                 raise StoreError(f"{self.path / 'scripts' / record_id} isn't a folder the astro command made")
             swap(self.records_fd, staged, record_id)
             remove_tree(self.records_fd, staged)
         else:
-            os.rename(staged, record_id, src_dir_fd=self.records_fd, dst_dir_fd=self.records_fd)
+            rename_in(self.records_fd, staged, record_id)
 
     def expected_manifest(self, records: list[dict], generation: int) -> list:
         entries = []
@@ -447,7 +577,7 @@ class Store:
                 return False
             js_fd = open_dir(fd, "js", False)
             try:
-                if sorted(os.listdir(js_fd)) != sorted(f"{meta['id']}.js" for meta in records):
+                if sorted(list_dir(js_fd)) != sorted(f"{meta['id']}.js" for meta in records):
                     return False
                 for meta in records:
                     record_fd = open_dir(self.records_fd, meta["id"], False)
@@ -455,13 +585,13 @@ class Store:
                         if read_file(record_fd, "script.js") != read_file(js_fd, f"{meta['id']}.js"):
                             return False
                     finally:
-                        os.close(record_fd)
+                        close_dir(record_fd)
             finally:
-                os.close(js_fd)
+                close_dir(js_fd)
         except (ValueError, OSError, StoreError):
             return False
         finally:
-            os.close(fd)
+            close_dir(fd)
         return True
 
     def repair(self) -> str | None:

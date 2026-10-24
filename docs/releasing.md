@@ -14,6 +14,9 @@ Each has three assets, four when the engine changed:
   `https://github.com/OxyHQ/Astro/releases/latest/download/appcast.xml`, the URL 0.2.13 and
   earlier poll directly. The count can't block an update: see `infra/site/nginx.conf` and `docs/growth.md`
   › Installs.
+- `Astro-<version>-windows-x64-setup.exe` and `appcast-windows.xml`, when the release ships Windows (`--windows`;
+  "Windows" below). A release without a Windows build still republishes `appcast-windows.xml` as it was, so the latest
+  release always carries the Windows feed.
 - `AstroCore-<engine tree>.tar.xz`, only when `engine/` changed since the last one: the release's engine (Chrome's
   framework, stripped), so the app builds without a Chromium tree. `packages/astrocore/prebuilt-engines.tsv` maps
   `engine/`'s git tree to the release and the archive's SHA-256; `packages/astrocore/scripts/fetch-engine.sh` downloads
@@ -64,6 +67,41 @@ every copy on Stable sees only stable items. A copy on Nightly allows `nightly` 
   nightly in the feed it takes the stable; on nightly it takes the nightly, a newer stable, and the newest of both. It
   also checks the build-number order with Sparkle's comparator. `update-test.sh` does the stable-ignores-it half for
   every nightly's own item.
+
+## Windows
+
+Windows copies update themselves the way Sparkle updates the Mac app, from their own feed:
+`https://github.com/OxyHQ/Astro/releases/latest/download/appcast-windows.xml` (the latest stable release's asset, like
+`appcast.xml`; `ASTRO_WINDOWS_UPDATE_FEED` at `apps/webui` build time or `ASTRO_UPDATE_FEED_URL` at run time
+overrides it). It's Sparkle's format: one item per release, `sparkle:version` the build number,
+`sparkle:shortVersionString` the version, `<sparkle:channel>nightly</sparkle:channel>` on a nightly, and one enclosure
+with `sparkle:os="windows"`, the installer's `length` and its `sparkle:edSignature`, made by Sparkle's `sign_update`
+with the same EdDSA key as the Mac zip. It's a separate file because Sparkle reads one enclosure per item (the first,
+when none has `xml:lang`, logging an error) and drops the whole item when that enclosure's `sparkle:os` isn't
+`macos`, and because `generate_appcast` rewrites the items of `appcast.xml`: a Windows enclosure there would either
+hide the Mac update or be lost. `scripts/windows-appcast.py` writes and merges it (3 items per channel).
+
+- **The app** (`apps/webui/src/host/updater.ts`, `ac_updater.cc`): the leader page checks every
+  `SUScheduledCheckInterval` (Info.plist) while Settings › General › "Check for updates automatically" is on, keeps the
+  newest item for its channel (a stable copy only takes items without a channel, a nightly copy both; versions compare
+  as semver, so `0.2.37-nightly.1` < `0.2.37-nightly.2` < `0.2.37`) and, with automatic downloads on, downloads it into
+  `<User Data>\Astro Updates`. The engine checks the length and the EdDSA signature against `SUPublicEDKey` (read from
+  Info.plist when `apps/webui` builds; empty means "Updates aren't set up for this build"). A verified installer runs
+  when Astro quits, as Sparkle installs on quit; "Restart" on the toast, or the menu's "Restart and Update", installs it
+  now and reopens Astro. Either way a hidden PowerShell waits for Astro's processes to exit, runs the installer only if
+  its SHA-256 is still the one verified, deletes it, and (for Restart) starts Astro again. The installer keeps the
+  engine's Chromium version, so it repairs the installed copy in place: `setup.exe` replaces the version folder
+  (the interface is in its `resources.pak`) when anything in it changed. Only installed copies update (the version folder has
+  `Installer\setup.exe`); a copy unzipped from `windows-package.sh` or started with `--user-data-dir` doesn't, unless
+  `ASTRO_UPDATE_FEED_URL` is set.
+- **Releasing.** Bump the version first, then build the installer from that commit on the Windows build host:
+  `AC_TARGET_PLATFORM=windows scripts/windows-installer.sh` writes `Astro-<version>-windows-x64-setup.exe` and a
+  `.commit` file. Copy both to the Mac and pass the installer to `scripts/release.sh <version> --windows <setup.exe>`
+  (or `WINDOWS_INSTALLER`). release.sh refuses an installer of another version or commit (an `--rc` takes any commit),
+  signs it with `sign_update`, writes `appcast-windows.item.xml` and merges it onto the published Windows feed into
+  `appcast-windows.xml` (a 404 starts a new feed). `appcast-merge.sh` merges it again onto the feed as published at
+  publish time, as it does for `appcast.xml`, and `publish-nightly.sh` uploads the installer with the nightly and
+  `appcast-windows.xml` onto the latest stable release.
 
 ## Source and licenses
 
@@ -171,7 +209,7 @@ stays up. That's GPL-3.0 §6(d) for the GPL parts (uBlock Origin today), and it'
    gh release create v<version> -R OxyHQ/Astro --title "Astro <version>" \
      --notes-file dist/<version>/release-notes.md \
      dist/<version>/Astro-<version>.dmg dist/<version>/Astro-<version>.zip dist/<version>/appcast.xml \
-     $(ls dist/<version>/AstroCore-*.tar.xz 2>/dev/null)
+     $(ls dist/<version>/AstroCore-*.tar.xz dist/<version>/Astro-*-windows-x64-setup.exe dist/<version>/appcast-windows.xml 2>/dev/null)
    ```
    With a new engine, then append `dist/<version>/prebuilt-engine.tsv` to `packages/astrocore/prebuilt-engines.tsv` and
    commit it.

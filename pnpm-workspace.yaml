@@ -16,3 +16,10 @@ patchedDependencies:
 
 allowBuilds:
   esbuild: false
+
+minimumReleaseAgeExclude:
+  - '@oxy.so/bloom@15.49.0'
+  - '@oxy.so/contracts@6.0.0'
+  - '@oxy.so/core@7.1.0 || 7.2.0'
+  - '@oxy.so/protocol@1.5.1'
+  - '@oxy.so/services@13.0.0 || 13.4.0'

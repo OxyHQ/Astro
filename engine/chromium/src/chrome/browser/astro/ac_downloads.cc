@@ -76,7 +76,7 @@ void UseTestDownloadsDir(Profile* profile) {
   }
   profile->GetPrefs()->SetDefaultPrefValue(
       prefs::kDownloadDefaultDirectory,
-      base::FilePathToValue(base::FilePath(dir)));
+      base::FilePathToValue(base::FilePath::FromUTF8Unsafe(dir)));
 }
 
 base::DictValue Describe(DownloadItem* item) {
@@ -92,8 +92,8 @@ base::DictValue Describe(DownloadItem* item) {
   return base::DictValue()
       .Set("id", item->GetGuid())
       .Set("url", item->GetOriginalUrl().spec())
-      .Set("filename", name.value())
-      .Set("path", path.value())
+      .Set("filename", name.AsUTF8Unsafe())
+      .Set("path", path.AsUTF8Unsafe())
       .Set("state", StateName(*item))
       .Set("paused", item->IsPaused())
       .Set("received", static_cast<double>(item->GetReceivedBytes()))

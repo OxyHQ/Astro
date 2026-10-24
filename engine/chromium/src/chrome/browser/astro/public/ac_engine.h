@@ -7,7 +7,11 @@
 extern "C" {
 #endif
 
+#if defined(_WIN32)
+#define AC_ENGINE_EXPORT
+#else
 #define AC_ENGINE_EXPORT __attribute__((visibility("default")))
+#endif
 
 #define AC_ENGINE_ABI_VERSION 2
 

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Oxy</vendor>
+  <vendor_url>https://astro.oxy.so</vendor_url>
+  <icon_name>astro-browser</icon_name>
+  <action id="so.oxy.astro.unlock">
+    <description>Show saved passwords and cards in Astro</description>
+    <message>Astro wants to confirm it's you before showing, copying, editing or exporting your saved passwords or cards.</message>
+    <defaults>
+      <allow_any>auth_self</allow_any>
+      <allow_inactive>auth_self</allow_inactive>
+      <allow_active>auth_self</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

@@ -35,6 +35,7 @@ work="$(mktemp -d "${TMPDIR:-/tmp}/ac-publish-nightly.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 if [ "$dry" = 1 ]; then
   mkdir -p "$work/dist" && cp "$dist/appcast.xml" "$work/dist/" && cp "$dist/appcast.built.xml" "$work/dist/" 2>/dev/null || true
+  cp "$dist/appcast-windows.item.xml" "$work/dist/" 2>/dev/null || true
   RELEASE_DIST="$work/dist" "$here/appcast-merge.sh" "$version" "$feed_url"
 else
   "$here/appcast-merge.sh" "$version" "$feed_url"
@@ -42,8 +43,14 @@ fi
 
 engine=()
 for archive in "$dist"/AstroCore-*.tar.xz; do [ -f "$archive" ] && engine+=("$archive"); done
+windows=()
+windows_setup="$dist/Astro-$version-windows-x64-setup.exe"
+if [ -f "$dist/appcast-windows.item.xml" ]; then
+  [ -f "$windows_setup" ] && [ -f "$dist/appcast-windows.xml" ] || die "no $windows_setup or appcast-windows.xml beside the Windows appcast item"
+  windows=("$windows_setup")
+fi
 run gh release create "v$version" -R "$repo" --prerelease --latest=false --verify-tag --title "Astro $version" \
-  --notes-file "$dist/release-notes.md" "$dmg" "$zip" "$dist/appcast.xml" "$cli" "$cli.sha256" ${engine[@]+"${engine[@]}"}
+  --notes-file "$dist/release-notes.md" "$dmg" "$zip" "$dist/appcast.xml" "$cli" "$cli.sha256" ${engine[@]+"${engine[@]}"} ${windows[@]+"${windows[@]}"}
 nightly_notes="The newest nightly, always as Astro-Nightly.dmg (https://astro.oxy.so/nightly). Now $version: its notes and source are at https://github.com/$repo/releases/tag/v$version. Every nightly's notes: https://astro.oxy.so/release-notes"
 if ! gh release view nightly -R "$repo" >/dev/null 2>&1; then
   run gh release create nightly -R "$repo" --prerelease --latest=false --title "Astro Nightly" --notes "$nightly_notes"
@@ -52,6 +59,7 @@ cp -c "$dmg" "$work/Astro-Nightly.dmg"
 run gh release upload nightly -R "$repo" --clobber "$work/Astro-Nightly.dmg"
 run gh release edit nightly -R "$repo" --notes "$nightly_notes"
 run gh release upload "$stable_tag" -R "$repo" --clobber "$dist/appcast.xml"
+[ ${#windows[@]} -eq 0 ] || run gh release upload "$stable_tag" -R "$repo" --clobber "$dist/appcast-windows.xml"
 
 [ "$dry" = 1 ] && { echo "dry run: nothing published"; exit 0; }
 status=0

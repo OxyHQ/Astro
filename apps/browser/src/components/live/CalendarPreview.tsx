@@ -28,7 +28,7 @@ export function CalendarPreview({ tabId, windowId, anchor }: { tabId: string; wi
   const theme = useTheme();
   const now = useNow(15_000);
   const { access, events, loading, error, lastFetch } = useCalendar();
-  const connected = access === "fullAccess" || access === "fixture";
+  const connected = access === "connected" || access === "fixture";
   const endOfDay = new Date(now);
   endOfDay.setHours(23, 59, 59, 999);
   const today = events.filter((e) => !e.cancelled && !e.declined && e.start <= endOfDay.getTime() && e.end > new Date(now).setHours(0, 0, 0, 0));
@@ -38,7 +38,8 @@ export function CalendarPreview({ tabId, windowId, anchor }: { tabId: string; wi
   const date = new Date(now).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 
   let body: React.ReactNode;
-  if (!connected) body = <SignIn denied={access === "denied" || access === "restricted"} />;
+  if (access === "pending") body = <Empty text="Checking your Oxy account" />;
+  else if (!connected) body = <SignIn available={access !== "unavailable"} />;
   else if (!lastFetch && loading) body = <Empty text="Loading events" />;
   else if (error && !lastFetch) body = <Empty text="Couldn't load events" />;
   else if (!today.length) body = <Empty text="No events today" />;
@@ -89,13 +90,13 @@ function Empty({ text }: { text: string }) {
   return <Text style={{ fontSize: 12.5, color: theme.textSecondary, paddingVertical: 6 }}>{text}</Text>;
 }
 
-function SignIn({ denied }: { denied: boolean }) {
+function SignIn({ available }: { available: boolean }) {
   const theme = useTheme();
   const { hovered, hoverProps } = useHover();
-  if (denied) {
+  if (!available) {
     return (
       <Text style={{ fontSize: 12.5, lineHeight: 17, color: theme.textSecondary, paddingVertical: 4 }}>
-        Allow Astro in System Settings › Privacy & Security › Calendars to see your meetings here.
+        Your meetings come from your Nilo calendar. Sign in with Oxy isn't available in this build yet.
       </Text>
     );
   }
@@ -105,7 +106,7 @@ function SignIn({ denied }: { denied: boolean }) {
         <Text onPress={() => void connectCalendar()} style={{ color: theme.accent, textDecorationLine: hovered ? "underline" : "none" }}>
           Connect your calendar
         </Text>{" "}
-        to see your meetings here and get alerts before they start.
+        with your Oxy account to see your Nilo meetings here and get alerts before they start.
       </Text>
     </View>
   );

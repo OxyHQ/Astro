@@ -12,12 +12,15 @@
     "test": "node --no-warnings --import ./src/test-loader.mjs --test \"src/**/*.test.mjs\""
   },
   "dependencies": {
+    "@astro-browser/astrocore": "workspace:*",
     "@astro-browser/core": "workspace:*",
+    "@astro-browser/import": "workspace:*",
     "@astro-browser/shaders": "workspace:*",
     "@astro-browser/shell": "workspace:*",
-    "@astro-browser/astrocore": "workspace:*",
-    "@astro-browser/import": "workspace:*",
     "@astro-browser/sync": "workspace:*",
+    "@oxy.so/bloom": "^15.49.0",
+    "@oxy.so/core": "^7.2.0",
+    "@oxy.so/services": "^13.4.0",
     "expo": "~54.0.37",
     "expo-modules-core": "~3.0.29",
     "react": "19.1.4",
@@ -35,5 +38,12 @@
     "@types/react": "~19.1.10",
     "babel-preset-expo": "~54.0.0",
     "typescript": "~5.9.2"
+  },
+  "expo": {
+    "autolinking": {
+      "exclude": [
+        "@oxy.so/services"
+      ]
+    }
   }
 }

@@ -91,18 +91,21 @@ kernel=$root/ac-$lock.lockf
 legacy=$root/ac-$lock.lock
 holder=$root/ac-$lock.holder
 now() { date +%s; }
+lockf_cmd=$(command -v lockf || echo "$(cd "$(dirname "$0")" && pwd)/lockf")
+clock() { date -r "$1" "$2" 2>/dev/null || date -d "@$1" "$2"; }
+mtime() { if [[ "$(uname -s)" == Darwin ]]; then stat -f %Sm "$1"; else stat -c %y "$1"; fi; }
 
 field() { awk -v n="$1" '{print $n; exit}' "$holder" 2>/dev/null; }
 taken_by() { [[ "$(field 1)" == take && "$(field 3)" == "$1" ]]; }
-renew() { sed -i '' "1s/^take [0-9]*/take $(($(now) + ttl * 60))/" "$holder"; }
+renew() { perl -pi -e "s/^take [0-9]*/take $(($(now) + ttl * 60))/ if \$. == 1" "$holder"; }
 
 describe() {
   if [[ "$(field 1)" == take ]]; then
-    echo "taken by $(cut -d' ' -f3- "$holder"), until $(date -r "$(field 2)" '+%H:%M:%S') (if that take is yours, pass --as $(field 3), or export AC_LOCKED_AS=$(field 3) so nested calls use it)"
+    echo "taken by $(cut -d' ' -f3- "$holder"), until $(clock "$(field 2)" '+%H:%M:%S') (if that take is yours, pass --as $(field 3), or export AC_LOCKED_AS=$(field 3) so nested calls use it)"
   elif [[ -s "$holder" ]]; then
     echo "held by pid $(cut -d' ' -f2- "$holder")"
   elif [[ -d "$legacy" ]]; then
-    echo "held since $(stat -f %Sm "$legacy") by an agent using the old mkdir lock; if nothing is building, the owner can rmdir $legacy"
+    echo "held since $(mtime "$legacy") by an agent using the old mkdir lock; if nothing is building, the owner can rmdir $legacy"
   fi
 }
 
@@ -178,7 +181,7 @@ if [[ -z "${AC_LOCKED_INNER:-}" ]]; then
   while :; do
     left=$((deadline - $(now)))
     ((left < 1)) && left=1
-    AC_LOCKED_INNER=1 AC_LOCKED_DEADLINE=$deadline lockf -s -k -t "$left" "$kernel" "$0" "$name" "${opts[@]}" -- "$@"
+    AC_LOCKED_INNER=1 AC_LOCKED_DEADLINE=$deadline "$lockf_cmd" -s -k -t "$left" "$kernel" "$0" "$name" "${opts[@]}" -- "$@"
     status=$?
     if [[ $status -eq 77 && $(now) -lt $deadline ]]; then
       sleep 3

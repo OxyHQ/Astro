@@ -1,6 +1,30 @@
-import type { CalendarParticipant, SystemCalendarEvent } from "@astro-browser/shell";
+export type CalendarInfo = {
+  id: string;
+  title: string;
+  color: string;
+  account: string;
+  owned: boolean;
+};
 
-export type CalendarEvent = SystemCalendarEvent;
+export type CalendarParticipant = { name: string; email: string; status: "accepted" | "declined" | "tentative" | "pending"; me: boolean };
+
+export type CalendarEvent = {
+  id: string;
+  occurrence: string;
+  calendarId: string;
+  color: string;
+  title: string;
+  start: number;
+  end: number;
+  allDay: boolean;
+  location: string;
+  notes: string;
+  url: string;
+  cancelled: boolean;
+  declined: boolean;
+  organizer: CalendarParticipant | null;
+  attendees: CalendarParticipant[];
+};
 export type MeetingProvider = "meet" | "zoom" | "teams" | "webex" | "other";
 
 const host = (url: string) => {

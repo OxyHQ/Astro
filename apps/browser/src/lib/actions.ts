@@ -6,6 +6,7 @@ import { useBrowser, type CreateWindowOptions } from "../store/browser";
 import { closesWindow, engineProfile, isIncognitoProfile, resolveWindowId } from "../store/model";
 import { leavesEmptyWindow } from "../store/newTabBar";
 import { engineIdOf, sharingProfiles } from "../store/profiles";
+import { DEVICE } from "./device";
 import { applyHeldReports } from "./nativeEvents";
 import { webviews } from "./webviews";
 import { closeWindowDialog } from "./windowClose";
@@ -78,7 +79,7 @@ async function keptExtensionsNote(): Promise<string> {
     () => null,
   );
   if (names && !names.length) return "";
-  return names ? ` Its extensions (${profileNames(names)}) stay installed on this Mac, turned off.` : " Its extensions stay installed on this Mac, turned off.";
+  return names ? ` Its extensions (${profileNames(names)}) stay installed on this ${DEVICE}, turned off.` : ` Its extensions stay installed on this ${DEVICE}, turned off.`;
 }
 
 export async function moveTabToProfile(tabId: string, target: string) {

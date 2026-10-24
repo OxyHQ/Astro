@@ -1,9 +1,10 @@
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, type Plugin, transformWithEsbuild } from "vite";
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const repo = here("../../");
@@ -81,10 +82,75 @@ function lazyComponents(): Plugin {
   };
 }
 
+const IN_NODE_MODULES = /[/\\]node_modules[/\\]/;
+
+const EXPO_MODULES_CORE = "\0astro-expo-modules-core";
+const expoModulesCore = dirname(createRequire(import.meta.url).resolve("expo-modules-core/package.json"));
+
+function nativeModuleShim(): Plugin {
+  return {
+    name: "astro-demo:native-modules",
+    enforce: "pre",
+    resolveId(source, importer) {
+      if (source !== "expo-modules-core") return null;
+      return importer && IN_NODE_MODULES.test(importer) ? EXPO_MODULES_CORE : `${shims}expo-modules-core.ts`;
+    },
+    load(id) {
+      if (id !== EXPO_MODULES_CORE) return null;
+      return [`import "${expoModulesCore}/src/polyfill/index.web.ts";`, `export * from "${expoModulesCore}/src/index.ts";`].join("\n");
+    },
+  };
+}
+
+const BLOOM = /[/\\]node_modules[/\\]@oxy\.so[/\\](bloom|services)[/\\].*\.[cm]?jsx?$/;
+const JSX_IN_JS = /[/\\]node_modules[/\\](react-native-reanimated|react-native-gesture-handler|react-native-css|nativewind|react-native-qrcode-svg|@expo[\/\\]vector-icons)[/\\].*\.js$/;
+
+function bloomWorklets(): Plugin {
+  const require = createRequire(import.meta.url);
+  return {
+    name: "astro-demo:bloom-worklets",
+    enforce: "pre",
+    async transform(code, id) {
+      const file = id.split("?", 1)[0]!;
+      if (JSX_IN_JS.test(file)) return { code: (await transformWithEsbuild(code, file, { loader: "jsx", jsx: "automatic" })).code, map: null };
+      if (!BLOOM.test(file)) return null;
+      const babel = require("@babel/core") as typeof import("@babel/core");
+      const result = babel.transformSync(code, {
+        filename: file,
+        babelrc: false,
+        configFile: false,
+        sourceMaps: false,
+        parserOpts: { plugins: ["jsx"] },
+        plugins: [[require("react-native-reanimated/plugin"), { substituteWebPlatformChecks: true }]],
+      });
+      return result?.code ? { code: result.code, map: null } : null;
+    },
+  };
+}
+
+const BLOOM_CLASS_SENTINEL = ".rounded-radius-16";
+
+function bloomStylesPresent(): Plugin {
+  return {
+    name: "astro-demo:bloom-styles",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      const css = Object.values(bundle).filter((asset) => asset.type === "asset" && asset.fileName.endsWith(".css"));
+      if (!css.length) return;
+      const found = css.some((asset) => asset.type === "asset" && String(asset.source).includes(BLOOM_CLASS_SENTINEL));
+      if (!found) this.error("Bloom's Tailwind classes are missing from the CSS: the @source in shims/web/bloom.css did not reach node_modules/@oxy.so/bloom, so its menus and dialogs would render unstyled.");
+    },
+  };
+}
+
 const analyze = !!process.env.ASTRO_DEMO_ANALYZE;
 
 export default defineConfig({
   plugins: [
+    nativeModuleShim(),
+    bloomWorklets(),
+    tailwindcss(),
+    bloomStylesPresent(),
     commonJsRequires(),
     lazyComponents(),
     react(),
@@ -101,8 +167,8 @@ export default defineConfig({
     alias: [
       { find: /^react-native\/Libraries\/Animated\/useAnimatedProps$/, replacement: `${reactNativeWeb}/dist/vendor/react-native/Animated/useAnimatedProps.js` },
       { find: /^react-native(-macos)?$/, replacement: `${shims}react-native.tsx` },
-      { find: /^expo-modules-core$/, replacement: `${shims}expo-modules-core.ts` },
-      { find: /^@astro\/(shell|astrocore|shaders|sync|import)$/, replacement: `${shims}$1.tsx` },
+      { find: /^expo-blur$/, replacement: `${shims}expo-blur.tsx` },
+      { find: /^@astro-browser\/(shell|astrocore|shaders|sync|import)$/, replacement: `${shims}$1.tsx` },
       ...Object.entries(realPackages).map(([name, path]) => ({ find: new RegExp(`^@astro-browser-real/${name}$`), replacement: path })),
     ],
   },

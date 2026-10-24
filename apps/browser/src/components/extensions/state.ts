@@ -17,6 +17,7 @@ import {
 } from "@astro-browser/astrocore";
 import { confirm, showMenu } from "@astro-browser/shell";
 import { openWindow } from "../../lib/actions";
+import { DEVICE } from "../../lib/device";
 import { webviews } from "../../lib/webviews";
 import { useBrowser, type BrowserState } from "../../store/browser";
 import { activeTabId, engineProfile } from "../../store/model";
@@ -144,7 +145,7 @@ export function cancelInstall() {
 export async function removeExtension(profile: string, ext: InstalledExtension, windowId?: string) {
   const { confirmed } = await confirm({
     title: `Remove “${ext.name}”?`,
-    message: ext.fromWebStore ? "Its data and settings will be removed too." : "The extension's folder stays on your Mac.",
+    message: ext.fromWebStore ? "Its data and settings will be removed too." : `The extension's folder stays on your ${DEVICE}.`,
     confirmTitle: "Remove",
     destructive: true,
     windowId,

@@ -4,11 +4,10 @@ import builtins
 import inspect
 import json
 import linecache
-import signal
 import sys
 import traceback
 
-from astro_cli import guard
+from astro_cli import guard, places
 from astro_cli.endpoint import NOT_REACHABLE, Endpoint, EndpointError
 from astro_cli.redact import redact
 
@@ -286,8 +285,7 @@ async def run_code(source: str, filename: str, endpoint: Endpoint, timeout: floa
     body, tail, names = compile_code(source, filename)
     loop = asyncio.get_running_loop()
     main = asyncio.current_task()
-    for signum in (signal.SIGTERM, signal.SIGHUP):
-        loop.add_signal_handler(signum, main.cancel)
+    places.cancel_on_signals(loop, main)
     session = Session(endpoint)
     try:
         await session.connect()

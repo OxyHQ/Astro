@@ -1,8 +1,8 @@
-import type { SystemCalendar } from "@astro-browser/shell";
-import { Linking, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useTheme } from "../../../lib/theme";
-import { connectCalendar, setCalendarHidden, useCalendar } from "../../../live/calendar";
-import { ALERT_LEADS } from "../../../live/meetings";
+import { connectCalendar, setCalendarHidden, useCalendar, type CalendarAccess } from "../../../live/calendar";
+import { ALERT_LEADS, type CalendarInfo } from "../../../live/meetings";
+import { signOutOfOxy, useOxySession, type OxyAccount } from "../../../oxy/session";
 import { updateCalendarSettings, useLive } from "../../../live/store";
 import { useBrowser } from "../../../store/browser";
 import { Button, Checkbox, Group, PopUp, Row, SectionHeader, Toggle } from "../controls";
@@ -12,8 +12,8 @@ export function CalendarPane() {
   const settings = useLive((s) => s.calendar);
   const { access, calendars } = useCalendar();
   const autoGroup = useBrowser((s) => s.settings.autoGroupMeetingTabs);
-  const connected = access === "fullAccess" || access === "fixture";
-  const denied = access === "denied" || access === "restricted";
+  const account = useOxySession((s) => s.account);
+  const connected = access === "connected" || access === "fixture";
   const owned = calendars.filter((c) => c.owned);
   const others = calendars.filter((c) => !c.owned);
 
@@ -21,24 +21,13 @@ export function CalendarPane() {
     <View>
       <SectionHeader
         title="Live Calendar"
-        description="Pin Google Calendar, Outlook, iCloud or Notion Calendar to see your day when you hover it, a countdown to your next meeting, and alerts with a Join button before meetings start. Events come from the Calendar app's accounts."
+        description="Pin Google Calendar, Outlook, iCloud or Notion Calendar to see your day when you hover it, a countdown to your next meeting, and alerts with a Join button before meetings start. Events come from your Nilo calendar: sign in with your Oxy account to connect it."
       />
       <Group>
-        <Row
-          anchor="calendar.access"
-          description={
-            access === "fixture"
-              ? "Development build: using calendar-fixture.json"
-              : connected
-                ? `Connected · ${calendars.length === 1 ? "1 calendar" : `${calendars.length} calendars`}`
-                : denied
-                  ? "Astro isn't allowed to read your calendars. Allow it in System Settings › Privacy & Security › Calendars."
-                  : "Not connected"
-          }
-        >
-          {denied ? (
-            <Button title="Open System Settings" onPress={() => void Linking.openURL("x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")} />
-          ) : !connected ? (
+        <Row anchor="calendar.access" description={accessDescription(access, account, calendars.length)}>
+          {access === "connected" ? (
+            <Button title="Sign Out" onPress={() => void signOutOfOxy()} />
+          ) : access === "signedOut" ? (
             <Button title="Connect Calendar…" kind="primary" onPress={() => void connectCalendar()} />
           ) : null}
         </Row>
@@ -89,13 +78,29 @@ export function CalendarPane() {
           </Group>
         </>
       ) : connected ? (
-        <Text style={{ marginTop: 12, fontSize: 12, color: theme.textSecondary }}>No calendars found. Add accounts in the Calendar app.</Text>
+        <Text style={{ marginTop: 12, fontSize: 12, color: theme.textSecondary }}>No calendars found. In Nilo, a database with a Calendar view is a calendar.</Text>
       ) : null}
     </View>
   );
 }
 
-function CalendarList({ title, calendars, hidden }: { title: string; calendars: SystemCalendar[]; hidden: string[] }) {
+function accessDescription(access: CalendarAccess, account: OxyAccount | null, count: number): string {
+  const calendarCount = count === 1 ? "1 calendar" : `${count} calendars`;
+  switch (access) {
+    case "fixture":
+      return "Development build: using calendar-fixture.json";
+    case "connected":
+      return account ? `Signed in as ${account.name}${account.handle && account.handle !== account.name ? ` (@${account.handle})` : ""} · ${calendarCount}` : calendarCount;
+    case "pending":
+      return "Checking your Oxy account…";
+    case "signedOut":
+      return "Not connected. Connecting signs you in with your Oxy account.";
+    case "unavailable":
+      return "Sign in with Oxy isn't available in this build yet.";
+  }
+}
+
+function CalendarList({ title, calendars, hidden }: { title: string; calendars: CalendarInfo[]; hidden: string[] }) {
   const theme = useTheme();
   return (
     <View style={{ paddingVertical: 6 }}>

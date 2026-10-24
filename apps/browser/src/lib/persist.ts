@@ -189,8 +189,8 @@ export function resumePersistence() {
   resume();
 }
 
-export function startPersistence() {
-  useBrowser.getState().hydrate(loadSession() ?? {});
+export function startPersistence({ hydrate = true } = {}) {
+  if (hydrate) useBrowser.getState().hydrate(loadSession() ?? {});
 
   const lastSources = new Map<string, unknown[]>();
   const lastJson = new Map<string, string>();

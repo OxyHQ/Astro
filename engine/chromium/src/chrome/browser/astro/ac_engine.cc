@@ -11,6 +11,7 @@
 #include "base/files/file_path.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -140,20 +141,33 @@ Profile* ProfileAt(std::string_view dir) {
   if (!manager || dir.empty()) {
     return nullptr;
   }
-  if (Profile* profile = manager->GetProfileByPath(base::FilePath(dir))) {
+  const base::FilePath path = base::FilePath::FromUTF8Unsafe(dir);
+  if (Profile* profile = manager->GetProfileByPath(path)) {
     return profile;
   }
+#if BUILDFLAG(IS_POSIX)
   auto real = [](const base::FilePath& path) {
     char resolved[PATH_MAX];
     return realpath(path.value().c_str(), resolved) ? std::string(resolved)
                                                     : path.value();
   };
-  const std::string wanted = real(base::FilePath(dir));
+  const std::string wanted = real(path);
   for (Profile* profile : manager->GetLoadedProfiles()) {
     if (real(profile->GetPath()) == wanted) {
       return profile;
     }
   }
+#else
+  const base::FilePath wanted =
+      path.NormalizePathSeparators().StripTrailingSeparators();
+  for (Profile* profile : manager->GetLoadedProfiles()) {
+    if (base::FilePath::CompareEqualIgnoreCase(
+            profile->GetPath().NormalizePathSeparators().value(),
+            wanted.value())) {
+      return profile;
+    }
+  }
+#endif
   return nullptr;
 }
 
@@ -163,7 +177,8 @@ void Emit(std::string_view topic, Profile* profile, base::DictValue payload) {
     return;
   }
   if (profile) {
-    payload.Set("profile", profile->GetOriginalProfile()->GetPath().value());
+    payload.Set("profile",
+                profile->GetOriginalProfile()->GetPath().AsUTF8Unsafe());
     if (profile->IsOffTheRecord()) {
       payload.Set("offTheRecord", true);
     }

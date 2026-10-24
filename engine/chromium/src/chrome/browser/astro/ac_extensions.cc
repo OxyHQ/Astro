@@ -8,13 +8,16 @@
 #include <string>
 #include <utility>
 
+#include "base/base64.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "chrome/browser/astro/ac_scripts_policy.h"
 #include "chrome/browser/extensions/api/developer_private/extension_info_generator.h"
 #include "chrome/browser/extensions/extension_install_prompt.h"
@@ -42,7 +45,14 @@
 #include "extensions/browser/uninstall_reason.h"
 #include "extensions/browser/unpacked_installer.h"
 #include "extensions/browser/disable_reason.h"
+#include "extensions/common/api/extension_action/action_info.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/file_util.h"
+#include "extensions/common/manifest.h"
+#include "extensions/common/manifest_handlers/icons_handler.h"
+#include "extensions/common/manifest_handlers/options_page_info.h"
+#include "extensions/common/manifest_handlers/permissions_parser.h"
+#include "extensions/common/permissions/permission_set.h"
 
 namespace astro {
 namespace {
@@ -321,7 +331,7 @@ AC_ENGINE_CALL(ac_extensions_list) {
 AC_ENGINE_CALL(ac_extensions_install) {
   AC_EXTENSIONS_CALL();
   const std::string path = call.String("path");
-  if (path.empty() || path[0] != '/') {
+  if (!base::FilePath::FromUTF8Unsafe(path).IsAbsolute()) {
     return call.TakeReply().Error("an absolute path required");
   }
   Profile* profile = call.profile();
@@ -330,7 +340,7 @@ AC_ENGINE_CALL(ac_extensions_install) {
     return call.TakeReply().Error(
         "Extension installation is blocked by policy.");
   }
-  base::FilePath load_path(path);
+  base::FilePath load_path = base::FilePath::FromUTF8Unsafe(path);
   const bool scripts = astro::NamesScriptsFolder(load_path);
   base::ScopedClosureRunner scripts_install;
   if (scripts) {
@@ -378,10 +388,113 @@ AC_ENGINE_CALL(ac_extensions_install) {
   installer->Load(load_path);
 }
 
+namespace astro {
+namespace {
+
+std::string PackagePath(const GURL& url) {
+  return url.is_valid() && url.path().size() > 1
+             ? std::string(url.path().substr(1))
+             : std::string();
+}
+
+base::Value IconDataUrl(const Extension& extension) {
+  const base::FilePath icon =
+      extensions::IconsInfo::GetIconResource(&extension, 128,
+                                             ExtensionIconSet::Match::kBigger)
+          .GetFilePath();
+  std::string bytes;
+  if (icon.empty() || !base::ReadFileToString(icon, &bytes)) {
+    return base::Value();
+  }
+  const bool svg = icon.MatchesExtension(FILE_PATH_LITERAL(".svg"));
+  return base::Value(std::string(svg ? "data:image/svg+xml;base64,"
+                                     : "data:image/png;base64,") +
+                     base::Base64Encode(bytes));
+}
+
+base::DictValue InspectUnpacked(const base::FilePath& path) {
+  std::u16string error;
+  scoped_refptr<const Extension> extension = extensions::file_util::LoadExtension(
+      path, extensions::mojom::ManifestLocation::kUnpacked,
+      Extension::FOLLOW_SYMLINKS_ANYWHERE, &error);
+  if (!extension) {
+    return base::DictValue().Set(
+        "error", error.empty() ? std::string("Could not read the extension")
+                               : base::UTF16ToUTF8(error));
+  }
+  const extensions::PermissionSet& required =
+      extensions::PermissionsParser::GetRequiredPermissions(extension.get());
+  const extensions::PermissionSet& optional =
+      extensions::PermissionsParser::GetOptionalPermissions(extension.get());
+  base::ListValue permissions;
+  for (const extensions::APIPermission* permission : required.apis()) {
+    permissions.Append(permission->name());
+  }
+  for (const extensions::ManifestPermission* permission :
+       required.manifest_permissions()) {
+    permissions.Append(permission->name());
+  }
+  base::ListValue optional_permissions;
+  for (const extensions::APIPermission* permission : optional.apis()) {
+    optional_permissions.Append(permission->name());
+  }
+  base::ListValue hosts;
+  std::set<std::string> seen;
+  for (const extensions::URLPatternSet* set :
+       {&required.explicit_hosts(), &required.scriptable_hosts()}) {
+    for (std::string& pattern : set->ToStringVector()) {
+      if (seen.insert(pattern).second) {
+        hosts.Append(std::move(pattern));
+      }
+    }
+  }
+  const extensions::ActionInfo* action =
+      extensions::ActionInfo::GetExtensionActionInfo(extension.get());
+  const std::string popup = action ? PackagePath(action->default_popup_url)
+                                   : std::string();
+  const std::string options = PackagePath(
+      extensions::OptionsPageInfo::GetOptionsPage(extension.get()));
+  const std::string* description =
+      extension->manifest()->FindStringPath("description");
+  return base::DictValue()
+      .Set("id", extension->id())
+      .Set("name", extension->name())
+      .Set("shortName", extension->short_name())
+      .Set("version", extension->VersionString())
+      .Set("description", description ? *description : std::string())
+      .Set("manifestVersion", extension->manifest_version())
+      .Set("icon", IconDataUrl(*extension))
+      .Set("permissions", std::move(permissions))
+      .Set("optionalPermissions", std::move(optional_permissions))
+      .Set("hostPermissions", std::move(hosts))
+      .Set("hasAction", action != nullptr)
+      .Set("popup", popup.empty() ? base::Value() : base::Value(popup))
+      .Set("optionsPage", options.empty() ? base::Value() : base::Value(options))
+      .Set("sidePanel", base::Value())
+      .Set("path", path.AsUTF8Unsafe());
+}
+
+}
+}
+
+AC_ENGINE_CALL(ac_extensions_inspect) {
+  AC_EXTENSIONS_CALL();
+  const base::FilePath path = base::FilePath::FromUTF8Unsafe(call.String("path"));
+  if (!path.IsAbsolute()) {
+    return call.TakeReply().Error("an absolute path required");
+  }
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&astro::InspectUnpacked, path),
+      base::BindOnce([](Reply reply,
+                        base::DictValue info) { reply.Send(std::move(info)); },
+                     call.TakeReply()));
+}
+
 AC_ENGINE_CALL(ac_extensions_install_crx) {
   AC_EXTENSIONS_CALL();
   const std::string path = call.String("path");
-  if (path.empty() || path[0] != '/') {
+  if (!base::FilePath::FromUTF8Unsafe(path).IsAbsolute()) {
     return call.TakeReply().Error("an absolute path required");
   }
   Profile* profile = call.profile();
@@ -409,7 +522,7 @@ AC_ENGINE_CALL(ac_extensions_install_crx) {
                                          : installer->expected_id()));
       },
       call.TakeReply(), installer));
-  installer->InstallCrx(base::FilePath(path));
+  installer->InstallCrx(base::FilePath::FromUTF8Unsafe(path));
 }
 
 AC_ENGINE_CALL(ac_extensions_set_enabled) {

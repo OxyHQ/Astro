@@ -2,6 +2,7 @@ import { cancelDownload, pauseDownload, resumeDownload, type Download } from "@a
 import { ContextMenuArea, copyText, fileExists, fileIcon, MouseArea, moveToTrash, openFile, revealFile, showMenu, Surface, Symbol, VisualEffect, type MenuItem } from "@astro-browser/shell";
 import { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FILE_MANAGER, TRASH } from "../lib/device";
 import { hex, layout, useTheme } from "../lib/theme";
 import { useShallow } from "zustand/react/shallow";
 import { useBrowser } from "../store/browser";
@@ -69,14 +70,14 @@ export async function downloadMenu(d: Download, windowId: string) {
         ]
       : [
           { id: "open", title: "Open", enabled: exists },
-          { id: "reveal", title: "Show in Finder", enabled: exists },
+          { id: "reveal", title: `Show in ${FILE_MANAGER}`, enabled: exists },
         ];
   items.push(
     { separator: true },
     { id: "copy", title: "Copy Download Link" },
     { id: "page", title: "Show All Downloads" },
     { separator: true },
-    ...(exists ? [{ id: "trash", title: "Move to Trash" }] : []),
+    ...(exists ? [{ id: "trash", title: `Move to ${TRASH}` }] : []),
     { id: "remove", title: "Remove from List", enabled: d.state !== "downloading" },
   );
   const choice = await showMenu(items);
@@ -361,7 +362,7 @@ function DownloadRow({ d, windowId }: { d: Download; windowId: string }) {
                     hovered={hovered}
                     width={ROW_BUTTON}
                     style={{ marginRight: -ROW_BUTTON_BEARING }}
-                    hover={<RowButton icon="magnifyingglass.circle.fill" onPress={() => void revealFile(d.path)} tooltip="Show in Finder" />}
+                    hover={<RowButton icon="magnifyingglass.circle.fill" onPress={() => void revealFile(d.path)} tooltip={`Show in ${FILE_MANAGER}`} />}
                   />
                 ) : null}
               </View>

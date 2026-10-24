@@ -17,7 +17,6 @@
       "FileDragModule",
       "FileDropModule",
       "AppModule",
-      "CalendarModule",
       "KeychainModule",
       "DockSelectionModule",
       "InlineCompletionModule",

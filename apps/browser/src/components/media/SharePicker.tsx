@@ -185,7 +185,7 @@ export function SharePicker({ tabId, paneWidth }: { tabId: string; paneWidth: nu
             <>
               <SectionTitle title="Windows" />
               {windows.map((s) => (
-                <WindowRow key={s.id} source={s} icon={s.pid !== undefined ? icons[s.pid] : null} selected={s.id === selected} onSelect={() => setSelected(s.id)} onShare={() => share(s.id)} />
+                <WindowRow key={s.id} source={s} icon={s.icon ?? (s.pid !== undefined ? icons[s.pid] : null)} selected={s.id === selected} onSelect={() => setSelected(s.id)} onShare={() => share(s.id)} />
               ))}
             </>
           ) : null}

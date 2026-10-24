@@ -225,6 +225,47 @@ two parts with an explicit flush between them gets through; that gap is accepted
 app update it runs `install.sh --version <app version> --sha256 <pinned digest>` in the background. The CLI never
 updates itself.
 
+## Linux and Windows
+
+The same `astro_cli` runs there; only the places differ (`astro_cli/places.py`). The data dir is Chromium's user data
+dir: `~/.config/astro-browser` (or `$XDG_CONFIG_HOME/astro-browser`) on Linux, `%LOCALAPPDATA%\Oxy\Astro\User Data`
+on Windows, or the `--user-data-dir` the engine was started with, passed as `--data-dir` or `$ASTRO_DATA_DIR`. In it:
+`AstroControl.json` at the top (not under `Chromium/`), `Scripts/` (the engine's `ac_scripts_policy.cc` puts it beside
+the profiles instead of one level up), the profiles' `History`, and the session in `Default/Astro Documents/session.json`.
+
+- The engine writes `AstroControl.json` the same way (`ac_cli_control.cc`): a temp file and a rename, mode 0600 on
+  Linux; on Windows the file keeps the user data dir's ACL, and the CLI skips the owner and mode checks. Whether
+  `pid` is alive is `kill(pid, 0)` on Linux and `OpenProcess` plus `GetExitCodeProcess` on Windows (never
+  `os.kill`, which terminates there).
+- The scripts store uses folder descriptors on Linux as on macOS; the swap is `renameat2(RENAME_EXCHANGE)`, falling
+  back to three renames where the file system refuses it. Windows has no folder descriptors: the store works by path,
+  refuses reparse points (symbolic links and junctions) by their attributes, swaps with three renames and locks
+  `Scripts/.lock` with `msvcrt.locking`, which conflicts with the engine's `LockFileEx` shared lock.
+- The app side of userscripts is `ac_user_scripts.cc` (the engine call `ac_user_scripts`: `read`, `readStatus`,
+  `writeStatus`, `watch`), a port of `UserScripts.swift`: it takes a shared lock (`flock` on Linux, `LockFileEx` on
+  Windows), validates `Scripts/extension` the same way and watches `Scripts/` with a `FilePathWatcher`, sending the
+  `userScripts` engine event when `generation` or the `extension` folder changes. `apps/webui/src/host/userScripts.ts`
+  provides the shell functions, so `apps/browser/src/lib/userScripts.ts` runs unchanged, in the leader page only.
+- `ac_scripts_policy.cc` builds on Windows too: real paths come from `GetFinalPathNameByHandleW`, links are reparse
+  points.
+- `exec` cancels on SIGTERM and SIGHUP on Linux; Windows' event loop takes no signal handlers, so only Ctrl-C stops
+  it there. `history()` may fail on Windows while Astro runs, since Chromium can hold `History` open without sharing.
+
+Packages ship the CLI beside the engine as `cli/` (`apps/cli/scripts/build.sh --platform linux-x64|windows-x64`,
+called by `scripts/linux-package.sh` and `scripts/windows-package.sh` with the app's `MARKETING_VERSION`): Python,
+`astro_cli`, esbuild, `VERSION`, and the launcher `cli/bin/astro` (`cli/bin/astro.cmd` on Windows). Nothing is
+downloaded. Installing (`ac_cli_install.cc`, the engine call `ac_cli_install`: `status`, `install`) links
+`~/.local/bin/astro` to the launcher on Linux, adding the PATH line to `~/.profile` once when that folder isn't on
+PATH and `~/.profile` doesn't mention it; on Windows it writes `%LOCALAPPDATA%\Oxy\Astro\bin\astro.cmd`, which calls
+the launcher, and adds that folder to the user's `Path` (HKCU\Environment). It replaces only a link or script that
+already points at some Astro's `cli/bin`. `$ASTRO_CLI_BIN_DIR` picks another folder (and leaves PATH alone); an
+instance started with `--user-data-dir` installs only with it set. `--astro-cli-dir=<dir>` points a development
+engine at an unpacked CLI tree. The interface reports the bundled CLI as the app's own version when the link points
+at this engine's `cli/`, and as `elsewhere` otherwise, so an app that moved relinks itself after launch.
+
+The active page (`/astro/active`) comes from the window page that shows the focused window: it asks the tab bridge
+for the tab's `SessionTabHelper` id (`astroTabCall` `sessionId`) and passes it to `ac_cli_control`.
+
 ## Build and release
 
 `apps/cli/scripts/build.sh <version> <out dir>` writes `astro-cli-<version>-macos-arm64.tar.gz` and its `.sha256`:

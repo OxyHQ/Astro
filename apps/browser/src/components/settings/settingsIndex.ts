@@ -1,3 +1,4 @@
+import { DEVICE, DEVICES, ON_MAC, SYSTEM_UNLOCK } from "../../lib/device";
 import { prepare, type Searchable } from "./searchMatch";
 import type { SettingsPane } from "./windows";
 
@@ -81,7 +82,7 @@ const ROWS: Record<SettingsPane, Section[]> = {
     {
       section: "Sync",
       rows: {
-        sync: { title: "Sync", description: "Sync your profiles, bookmarks, history, tabs, passwords, extensions and settings across your Macs.", keywords: ["icloud", "recovery phrase", "devices", "turn on sync", "end to end", "encrypted"] },
+        sync: { title: "Sync", description: `Sync your profiles, bookmarks, history, tabs, passwords, extensions and settings across your ${DEVICES}.`, keywords: ["icloud", "recovery phrase", "devices", "turn on sync", "end to end", "encrypted"] },
         folder: { title: "Sync folder", keywords: ["icloud drive", "dropbox", "folder"] },
       },
     },
@@ -121,11 +122,13 @@ const ROWS: Record<SettingsPane, Section[]> = {
           description: "A video or call you're watching pops out when you switch tabs or leave the window, and returns when you come back.",
           keywords: ["pip", "video", "floating", "mini player"],
         },
-        videoUpscaling: {
-          title: "Video upscaling",
-          description: "Sharpens low-resolution videos shown larger than they are, on Apple silicon. Only in the tab you're watching, never in the background, in Low Power Mode or when the Mac runs hot.",
-          keywords: ["super resolution", "sharpen", "video quality"],
-        },
+        ...(ON_MAC && {
+          videoUpscaling: {
+            title: "Video upscaling",
+            description: "Sharpens low-resolution videos shown larger than they are, on Apple silicon. Only in the tab you're watching, never in the background, in Low Power Mode or when the Mac runs hot.",
+            keywords: ["super resolution", "sharpen", "video quality"],
+          },
+        }),
       },
     },
     {
@@ -157,7 +160,7 @@ const ROWS: Record<SettingsPane, Section[]> = {
       rows: { theme: { title: "Appearance Theme", description: "Also in View › Appearance. Incognito windows are always dark.", keywords: ["dark mode", "light mode", "automatic", "night", "system"] } },
     },
     { section: "Address Bar", rows: { addressBar: { title: "Address Bar", description: "In the toolbar or in the sidebar.", keywords: ["url bar", "location bar", "toolbar"] } } },
-    { section: "App Icon", rows: { appIcon: { title: "App Icon", description: "Shown in the Dock and the app switcher. The Dock keeps it after you quit.", keywords: ["dock icon", "logo"] } } },
+    ...(ON_MAC ? [{ section: "App Icon", rows: { appIcon: { title: "App Icon", description: "Shown in the Dock and the app switcher. The Dock keeps it after you quit.", keywords: ["dock icon", "logo"] } } }] : []),
   ],
   privacy: [
     {
@@ -188,7 +191,7 @@ const ROWS: Record<SettingsPane, Section[]> = {
       section: "Crash reports and usage",
       rows: {
         shareDiagnostics: { title: "Share anonymous crash reports and usage stats", keywords: ["telemetry", "analytics", "diagnostics", "crash"] },
-        whatsSent: { title: "What's Sent", description: "Every field, and what never leaves this Mac.", keywords: ["telemetry", "data collection"] },
+        whatsSent: { title: "What's Sent", description: `Every field, and what never leaves this ${DEVICE}.`, keywords: ["telemetry", "data collection"] },
       },
     },
   ],
@@ -212,7 +215,7 @@ const ROWS: Record<SettingsPane, Section[]> = {
       section: "Autofill",
       rows: {
         addresses: { title: "Save and fill addresses", description: "Names, addresses, email addresses and phone numbers.", keywords: ["forms", "contact", "phone", "email"] },
-        cards: { title: "Save and fill credit cards", description: "Filling in or showing a card number asks for Touch ID or your password.", keywords: ["payment", "debit card", "forms"] },
+        cards: { title: "Save and fill credit cards", description: `Filling in or showing a card number asks for ${ON_MAC ? "Touch ID or your password" : SYSTEM_UNLOCK}.`, keywords: ["payment", "debit card", "forms"] },
       },
     },
     { section: "Addresses", rows: { addressList: { title: "Addresses", keywords: ["add address", "saved addresses"] } } },
@@ -263,7 +266,7 @@ const ROWS: Record<SettingsPane, Section[]> = {
     },
   ],
   calendar: [
-    { section: "Live Calendar", rows: { access: { title: "Calendar access", keywords: ["connect calendar", "google calendar", "outlook", "icloud"] } } },
+    { section: "Live Calendar", rows: { access: { title: "Oxy account", keywords: ["connect calendar", "sign in with oxy", "nilo", "oxy account"] } } },
     {
       section: "Meeting alerts",
       rows: {

@@ -14,12 +14,14 @@ share a file with anything through a hard link.
 """
 import os
 import pwd
+import shutil
 import stat
 import subprocess
 import sys
 
 STEP_TARGETS = ['chromium_git', 'chromium_git/chromium', 'chromium_git/chromium/src',
                 'chromium_git/chromium/src/out', 'chromium_git/chromium/src/out/Release_GN_arm64',
+                'chromium_git/chromium/src/out/Release_GN_x64', 'chromium_git/chromium/src/out/Release_GN_x64_dev',
                 'chromium_git/chromium/src/components/neterror/resources/game', 'series-base', 'scripts', 'logs',
                 'depot_tools', 'domsubcache.tar.gz']
 
@@ -88,6 +90,11 @@ def overlaps(path, other):
     return os.path.lexists(os.path.abspath(path)) and identity(existing(path)) in other_up
 
 
+def lockf_command():
+    return shutil.which('lockf') or os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                 '../../../scripts/agent/lockf')
+
+
 def chromium_lock_held():
     kernel = os.path.realpath(os.path.join(os.environ.get('AC_LOCK_ROOT', '/tmp'), 'ac-chromium.lockf'))
     pid, seen = os.getpid(), set()
@@ -109,7 +116,7 @@ def chromium_lock_held():
                     held = arg
                     break
             if held and os.path.realpath(held) == kernel:
-                probe = subprocess.run(['lockf', '-s', '-k', '-t', '0', kernel, 'true'], capture_output=True)
+                probe = subprocess.run([lockf_command(), '-s', '-k', '-t', '0', kernel, 'true'], capture_output=True)
                 return probe.returncode != 0
         pid = int(ppid)
     return False

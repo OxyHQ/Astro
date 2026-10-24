@@ -1,10 +1,8 @@
 // Copyright 2026 Oxy. Apache-2.0.
 
 #include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <memory>
 #include <optional>
@@ -24,8 +22,8 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/no_destructor.h"
+#include "base/files/file.h"
 #include "base/path_service.h"
-#include "base/posix/eintr_wrapper.h"
 #include "base/process/process_handle.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
@@ -37,6 +35,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "build/build_config.h"
 #include "chrome/browser/astro/ac_cli_token_policy.h"
 #include "chrome/browser/astro/ac_engine.h"
 #include "chrome/browser/browser_process.h"
@@ -58,6 +57,13 @@
 #include "net/base/net_errors.h"
 #include "net/log/net_log_source.h"
 #include "net/socket/tcp_server_socket.h"
+
+#if BUILDFLAG(IS_POSIX)
+#include <fcntl.h>
+#include <unistd.h>
+
+#include "base/posix/eintr_wrapper.h"
+#endif
 
 namespace astro {
 namespace {
@@ -104,9 +110,10 @@ base::FilePath ControlFilePath() {
   if (!base::PathService::Get(chrome::DIR_USER_DATA, &dir)) {
     return base::FilePath();
   }
-  return dir.Append(kControlFileName);
+  return dir.AppendASCII(kControlFileName);
 }
 
+#if BUILDFLAG(IS_POSIX)
 std::string ErrnoText() {
   return base::ToLowerASCII(strerror(errno));
 }
@@ -157,6 +164,55 @@ void DeleteControlFile(const base::FilePath& path) {
     PLOG(ERROR) << "[astro] can't delete " << path;
   }
 }
+
+#else
+std::string WriteControlFile(const base::FilePath& path,
+                             const std::string& contents,
+                             uint64_t generation) {
+  if (path.empty()) {
+    return "Astro has no data folder.";
+  }
+  const std::string shown = path.AsUTF8Unsafe();
+  const base::FilePath temp = path.DirName().AppendASCII(
+      base::StrCat({".", kControlFileName, ".",
+                    base::HexEncode(base::RandBytesAsVector(8))}));
+  base::File file(temp, base::File::FLAG_CREATE | base::File::FLAG_WRITE);
+  if (!file.IsValid()) {
+    return base::StrCat({"Couldn't write ", shown, ": ",
+                         base::File::ErrorToString(file.error_details())});
+  }
+  const bool written =
+      file.WriteAtCurrentPosAndCheck(base::as_byte_span(contents)) &&
+      file.Flush();
+  file.Close();
+  if (!written) {
+    base::DeleteFile(temp);
+    return base::StrCat({"Couldn't write ", shown});
+  }
+  {
+    base::AutoLock hold(PublishLock());
+    if (g_live_generation != generation) {
+      base::DeleteFile(temp);
+      return "The control server stopped.";
+    }
+    base::File::Error error = base::File::FILE_OK;
+    if (!base::ReplaceFile(temp, path, &error)) {
+      base::DeleteFile(temp);
+      return base::StrCat({"Couldn't write ", shown, ": ",
+                           base::File::ErrorToString(error)});
+    }
+  }
+  return std::string();
+}
+
+void DeleteControlFile(const base::FilePath& path) {
+  if (!path.empty() && !base::DirectoryExists(path) &&
+      !base::DeleteFile(path)) {
+    LOG(ERROR) << "[astro] can't delete " << path;
+  }
+}
+
+#endif
 
 bool ServerStartedBySwitch() {
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -263,7 +319,7 @@ class ControlServer {
     }
     status.Set("connections", static_cast<int>(connections_));
     status.Set("generation", static_cast<int>(generation_));
-    status.Set("file", file_path_.value());
+    status.Set("file", file_path_.AsUTF8Unsafe());
     if (!error_.empty()) {
       status.Set("reason", error_);
     }

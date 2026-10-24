@@ -1,5 +1,6 @@
 import { Symbol } from "@astro-browser/shell";
 import { Pressable, Text, View } from "react-native";
+import { ON_MAC } from "../../../lib/device";
 import { useTheme } from "../../../lib/theme";
 import { useBrowser } from "../../../store/browser";
 import { tabLayoutOf } from "../../../store/model";
@@ -56,7 +57,7 @@ export function TabsPane() {
         {toggle("extendWebsiteColor", "tabs.extendWebsiteColor")}
         {toggle("sidebarMediaControls", "tabs.sidebarMediaControls")}
         {toggle("autoPictureInPicture", "tabs.autoPictureInPicture")}
-        {toggle("videoUpscaling", "tabs.videoUpscaling")}
+        {ON_MAC && toggle("videoUpscaling", "tabs.videoUpscaling")}
       </Group>
 
       <SectionHeader title="Tab groups" />

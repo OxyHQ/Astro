@@ -19,6 +19,7 @@ import {
 import { confirm } from "@astro-browser/shell";
 import { useEffect, useState } from "react";
 import { Image, ScrollView, Text, View } from "react-native";
+import { DEVICE } from "../../../lib/device";
 import { useTheme } from "../../../lib/theme";
 import { useBrowser } from "../../../store/browser";
 import { useProfiles } from "../../../store/hooks";
@@ -85,7 +86,7 @@ export function PrivacyPane() {
 
   return (
     <View>
-      <SectionHeader title="Content blocking" description="Built on EasyList and EasyPrivacy. Blocking happens on this Mac." />
+      <SectionHeader title="Content blocking" description={`Built on EasyList and EasyPrivacy. Blocking happens on this ${DEVICE}.`} />
       <Group>
         {CATEGORIES.filter((c) => c.toggle).map((c) => (
           <Row key={c.id} anchor={c.anchor} title={c.toggle}>

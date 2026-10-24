@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Step 3: turn a Chromium $CHROMIUM_VERSION tree into Helium's, as Astro takes it, ready for our series (step 4).
 
-Helium is helium-chromium $HELIUM_TAG plus helium-macos $HELIUM_MACOS_TAG (helium-pins.ini pins both by commit).
+Helium is helium-chromium $HELIUM_TAG plus its platform repo, helium-macos or helium-linux at $HELIUM_PLATFORM_TAG
+(helium-pins.ini pins each by commit). The platform is this host's (env.sh).
 Helium's downloads (its uBlock Origin, the onboarding page, the non-free search engine data) stay out of Astro
 entirely: no stage fetches them, and the hunks of Helium's patches that edit them are left out. Stages, in order:
 
@@ -9,14 +10,14 @@ entirely: no stage fetches them, and the hunks of Helium's patches that edit the
                  downloads nothing Astro doesn't omit
   guard          every skipped patch is still in Helium's series, and no applied patch's added lines touch what a
                  skip protects (Safe Storage, passwords, Sparkle, the product dir, mDNS) beyond the 0.19.4 allowlist
-  patches        helium-chromium's series, then helium-macos's, minus SKIP and minus the omitted downloads' files;
+  patches        helium-chromium's series, then the platform repo's, minus SKIP and minus the omitted downloads' files;
                  patch -p1 -l -N with no fuzz (Helium allows 2; a patch that needs it fails here instead)
   fixups         saving passwords, addresses and cards on by default
   domsub         Helium's domain substitution, minus domsub-keep-store.txt (the Web Store and extension updates)
   namesub        Helium's name_substitution.py --sub and i18n_apply.py
   brand-namesub  astro_namesub.py: Helium -> Astro in the string files
   version        HELIUM_* in chrome/VERSION, equal to Chromium's own version, so Helium's version is never shown
-  resources      Helium's icons (its generated ones made with sips), then astro_resources.txt over them
+  resources      Helium's icons (generated with sips on macOS, Pillow elsewhere), then astro_resources.txt over them
 
 Run once on a fresh tree (step 1), then step 4. The changing stages run once per tree: a record beside the tree
 (.helium-stages-<dir>) refuses a second run, and a run that died mid-stage. The live tree needs --apply and the
@@ -50,6 +51,12 @@ SKIP = {
     'ungoogled-chromium/fix-building-without-mdns-and-service-discovery.patch':
         'empties DnsSdDeviceLister; the Cast dialog needs mDNS (enable_mdns stays true)',
     'helium/core/memory-saving-by-default.patch': 'Memory Saver would fight Astro\'s own tab sleeping',
+    'helium/ui/crash-dialog.patch': 'a startup infobar asking to upload crashes to crash.helium.computer',
+    'helium/core/use-system-python3.patch': 'Helium\'s build setup: .gn script_executable (reruns every action)',
+    'helium/core/rbe-nativelink-config.patch': 'Helium\'s remote build setup',
+}
+
+PLATFORM_SKIP = {'macos': {
     'helium/macos/change-keychain-name.patch':
         'renames the Safe Storage item; every user\'s passwords and cookies are encrypted with "Astro Safe Storage"',
     'helium/macos/change-product-dir-name.patch': 'moves the fallback product dir to net.imput.helium',
@@ -57,12 +64,37 @@ SKIP = {
     'helium/macos/updater/fixup-sparkle-glue.patch': 'Sparkle inside the framework',
     'helium/macos/updater/sparkle2-integration.patch': 'Sparkle inside the framework',
     'helium/macos/updater/disable-default-updater.patch': 'Sparkle inside the framework',
-    'helium/ui/crash-dialog.patch': 'a startup infobar asking to upload crashes to crash.helium.computer',
-    'helium/core/use-system-python3.patch': 'Helium\'s build setup: .gn script_executable (reruns every action)',
-    'helium/core/rbe-nativelink-config.patch': 'Helium\'s remote build setup',
     'helium/macos/rbe-linux-clang-wrapper.patch': 'Helium\'s remote build setup',
     'helium/macos/chromium-signing.patch': 'Helium\'s signing flow; scripts/release.sh signs Astro',
+}, 'linux': {
+    'helium/linux/change-chromium-branding.patch':
+        'brands the Linux build as Helium: its data dir (net.imput.helium), desktop file, package and maintainers',
+    'helium/linux/rename-chrome-binary.patch': 'renames the binary and crash handler to helium',
+    'helium/linux/add-middle-click-paste-flag.patch':
+        'only a chrome://flags toggle (middle-click paste stays on); its flag entry collides with chromium-helium-branding.patch',
+}, 'windows': {
+    'helium/windows/change-branding.patch': 'brands the Windows build and its installer as Helium',
+    'helium/windows/rbe-linux-workers.patch': 'Helium\'s remote build setup; it rewrites the cross toolchain\'s setup',
+    'helium/windows/updater/winsparkle-drop-3rdparty-deps.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/winsparkle-api-extensions.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/winsparkle-headless-ui.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/glue.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/build-wiring.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/register.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/helper.patch': 'WinSparkle; Astro has its own updater',
+    'helium/windows/updater/update-notifications.patch': 'WinSparkle; Astro has its own updater',
+}}
+
+WEBIUM_SKIP = {
+    'helium/core/remove-experimental-webui.patch':
+        'unregisters Webium (chrome://webui-browser) and drops its paks: Astro\'s Windows and Linux window is built on it',
 }
+
+PLATFORM = os.environ.get('AC_PLATFORM') or ('macos' if sys.platform == 'darwin' else 'linux')
+PLATFORM_REPO = f'helium-{PLATFORM}'
+SKIP.update(PLATFORM_SKIP[PLATFORM])
+if PLATFORM != 'macos':
+    SKIP.update(WEBIUM_SKIP)
 
 GUARD_MARKERS = [
     ('keychain_password_mac.mm', False), ('Safe Storage', False), ('Storage Key', False),
@@ -116,7 +148,7 @@ def series(repo):
 
 
 def helium_patches(ctx):
-    for repo, tag in ((ctx.hc, 'helium-chromium'), (ctx.hm, 'helium-macos')):
+    for repo, tag in ((ctx.hc, 'helium-chromium'), (ctx.hp, PLATFORM_REPO)):
         for name in series(repo):
             yield tag, name, repo / 'patches' / name
 
@@ -128,7 +160,7 @@ def git(repo, *args):
 def stage_pins(ctx):
     config = pins()
     problems = []
-    for section, repo in (('helium-chromium', ctx.hc), ('helium-macos', ctx.hm)):
+    for section, repo in (('helium-chromium', ctx.hc), (PLATFORM_REPO, ctx.hp)):
         want = config[section]['commit']
         head = git(repo, 'rev-parse', 'HEAD').stdout.strip()
         if head != want:
@@ -156,7 +188,7 @@ def stage_pins(ctx):
             problems.append(f'deps.ini [{section}] downloads into {out}, which Astro doesn\'t omit: decide on it')
     if problems:
         raise StageError('\n'.join(problems))
-    print(f'Helium {config["helium-chromium"]["tag"]} / macOS {config["helium-macos"]["tag"]} on Chromium {chromium}')
+    print(f'Helium {config["helium-chromium"]["tag"]} / {PLATFORM} {config[PLATFORM_REPO]["tag"]} on Chromium {chromium}')
 
 
 def guard_hits(name, path):
@@ -188,7 +220,8 @@ def stage_guard(ctx):
             seen.add(key)
             if key not in GUARD_ALLOWED:
                 problems.append(f'{name} ({target}) touches what a skip protects [{marker}]: {line[:160]}')
-    for key in sorted(GUARD_ALLOWED - seen):
+    applied = {name for name, _ in candidates}
+    for key in sorted(k for k in GUARD_ALLOWED - seen if k[0] in applied):
         problems.append(f'allowlisted guard hit is gone (re-review and update GUARD_ALLOWED): {key}')
     if problems:
         raise StageError('\n'.join(problems))
@@ -303,7 +336,7 @@ def stage_patches(ctx):
         applied += 1
     write_report(ctx, rows)
     partial = [r[1] for r in rows if r[2] == 'partial']
-    leftovers = [d for d in OMITTED if (ctx.tree / d).exists()]
+    leftovers = [d for d in OMITTED if (ctx.tree / d).exists() and any((ctx.tree / d).iterdir())]
     if leftovers:
         raise StageError(f'omitted downloads are in the tree: {", ".join(leftovers)}')
     print(f'applied {applied} with no fuzz, skipped {len(skipped)}; '
@@ -407,8 +440,13 @@ def generate_icons(ctx):
         source, size, dest = line.split()
         target = out / dest
         target.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(['sips', '-s', 'format', 'png', '-z', size, size, str(ctx.hc / 'resources' / source),
-                        '--out', str(target)], check=True, capture_output=True)
+        if PLATFORM == 'macos':
+            subprocess.run(['sips', '-s', 'format', 'png', '-z', size, size, str(ctx.hc / 'resources' / source),
+                            '--out', str(target)], check=True, capture_output=True)
+        else:
+            from PIL import Image
+            Image.open(ctx.hc / 'resources' / source).convert('RGBA').resize(
+                (int(size), int(size)), Image.LANCZOS).save(target, 'PNG')
     return out
 
 
@@ -477,8 +515,8 @@ def main():
                         default=pathlib.Path(os.environ.get('CHROMIUM_SRC', CB / 'chromium_git/chromium/src')))
     parser.add_argument('--helium', type=pathlib.Path,
                         default=pathlib.Path(os.environ.get('HELIUM_DIR', CB / 'helium')))
-    parser.add_argument('--helium-macos', type=pathlib.Path,
-                        default=pathlib.Path(os.environ.get('HELIUM_MACOS_DIR', CB / 'helium-macos')))
+    parser.add_argument('--helium-platform', '--helium-macos', type=pathlib.Path,
+                        default=pathlib.Path(os.environ.get('HELIUM_PLATFORM_DIR', CB / PLATFORM_REPO)))
     parser.add_argument('--domsub-cache', type=pathlib.Path,
                         help='default: ~/chromium-build/domsubcache.tar.gz for the live tree, else in --work')
     parser.add_argument('--work', type=pathlib.Path, default=None)
@@ -491,7 +529,7 @@ def main():
     parser.add_argument('--guard-extra', action='append', default=[], metavar='PATCH')
     args = parser.parse_args()
 
-    ctx = argparse.Namespace(tree=args.tree.resolve(), hc=args.helium.resolve(), hm=args.helium_macos.resolve(),
+    ctx = argparse.Namespace(tree=args.tree.resolve(), hc=args.helium.resolve(), hp=args.helium_platform.resolve(),
                              no_brand=args.no_brand, guard_extra=args.guard_extra)
     ctx.work = (args.work or pathlib.Path(tempfile.mkdtemp(prefix='helium-work-'))).resolve()
     live = bool(pathguard.reaches(ctx.tree))

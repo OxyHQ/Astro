@@ -1,7 +1,7 @@
 import { registerHooks } from "node:module";
 
 const stub = new URL("./test-native-stub.mjs", import.meta.url).href;
-const native = new Set(["@astro-browser/shell", "@astro-browser/astrocore", "expo-modules-core"]);
+const native = new Set(["@astro-browser/shell", "@astro-browser/astrocore", "expo-modules-core", "react-native"]);
 
 registerHooks({
   resolve(specifier, context, next) {

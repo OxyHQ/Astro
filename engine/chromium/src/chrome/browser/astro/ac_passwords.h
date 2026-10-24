@@ -14,5 +14,6 @@ AC_ENGINE_CALL(ac_passwords_remove);
 AC_ENGINE_CALL(ac_passwords_exceptions);
 AC_ENGINE_CALL(ac_passwords_allow);
 AC_ENGINE_CALL(ac_passwords_export);
+AC_ENGINE_CALL(ac_passwords_sync_read);
 
 #endif

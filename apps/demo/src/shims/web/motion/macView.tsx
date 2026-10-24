@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useRef, type ComponentType, type ForwardedRef, t
 import { Animated as WebAnimated, Pressable as WebPressable, StyleSheet, View as WebView } from "react-native-web";
 import "./leftEdge";
 import { currentPointer, watchPointer, type PointerSample } from "./pointer";
+import { shortcutText } from "../shortcutText";
 
 type MouseHandler = (e: MacMouseEvent) => void;
 
@@ -107,7 +108,7 @@ function useMacBehaviour(props: MacProps) {
   useEffect(() => {
     const el = node.current;
     if (!el) return;
-    if (props.tooltip) el.title = props.tooltip;
+    if (props.tooltip) el.title = shortcutText(props.tooltip);
     else el.removeAttribute("title");
   }, [props.tooltip]);
 

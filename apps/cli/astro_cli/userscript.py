@@ -1,5 +1,6 @@
 import json
 import os
+import platform
 import re
 import shutil
 import stat
@@ -8,7 +9,7 @@ import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from astro_cli import urlmatch
+from astro_cli import places, urlmatch
 
 RUN_AT = ("document-start", "document-end", "document-idle")
 INJECT_INTO = {"page": "MAIN", "auto": "MAIN", "content": "ISOLATED"}
@@ -205,19 +206,29 @@ def installed() -> bool:
     return "site-packages" in Path(__file__).resolve().parts
 
 
+def esbuild_package() -> tuple[str, str]:
+    arch = "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x64"
+    if places.MACOS:
+        return f"darwin-{arch}", "bin/esbuild"
+    if places.WINDOWS:
+        return f"win32-{arch}", "esbuild.exe"
+    return f"linux-{arch}", "bin/esbuild"
+
+
 def find_esbuild() -> str | None:
     here = Path(__file__).resolve().parent
-    bundled = here / "bin" / "esbuild"
+    bundled = here / "bin" / ("esbuild.exe" if places.WINDOWS else "esbuild")
     if os.access(bundled, os.X_OK) and not bundled.is_symlink():
         return str(bundled)
     if installed():
         return None
+    package, binary = esbuild_package()
     for parent in here.parents:
         modules = parent / "node_modules"
-        native = modules / "@esbuild" / "darwin-arm64" / "bin" / "esbuild"
+        native = modules / "@esbuild" / package / binary
         if os.access(native, os.X_OK):
             return str(native)
-        for candidate in sorted((modules / ".pnpm").glob("@esbuild+darwin-arm64@*/node_modules/@esbuild/darwin-arm64/bin/esbuild"), reverse=True):
+        for candidate in sorted((modules / ".pnpm").glob(f"@esbuild+{package}@*/node_modules/@esbuild/{package}/{binary}"), reverse=True):
             if os.access(candidate, os.X_OK):
                 return str(candidate)
     return shutil.which("esbuild")
@@ -280,7 +291,7 @@ def check_file(real: Path, forbidden: set, label: str) -> list:
 def check_inputs(inputs, base: Path, entry: Path, data_dirs) -> None:
     forbidden = {item for item in (identity(root) for root in forbidden_roots(data_dirs)) if item}
     tree = identity(entry.parent)
-    shallow = tree in (identity(Path.home()), identity(Path("/")))
+    shallow = tree in (identity(Path.home()), identity(Path(entry.anchor or "/")))
     for name in inputs:
         if name.startswith("<data:"):
             continue
