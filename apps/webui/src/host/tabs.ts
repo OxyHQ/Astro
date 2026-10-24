@@ -312,6 +312,11 @@ export class TabHub {
     return work;
   }
 
+  async closePage() {
+    await Promise.allSettled([...this.creating]);
+    this.page.close();
+  }
+
   settlingHandOff() {
     return performance.now() < this.handOffSettlesAt;
   }

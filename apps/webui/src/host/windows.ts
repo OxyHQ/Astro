@@ -8,6 +8,7 @@ type Patch = Record<string, Change>;
 type Message =
   | { type: "hello"; page: string }
   | { type: "welcome"; page: string; windowId: string; state: Data }
+  | { type: "opening"; windowId: string }
   | { type: "patch"; patch: Patch }
   | { type: "close"; windowId: string }
   | { type: "focus"; windowId: string }
@@ -32,6 +33,7 @@ const page = crypto.randomUUID();
 const channel = new BroadcastChannel(CHANNEL);
 const owners = new Map<string, string>();
 const waitingForWindow: string[] = [];
+const assignedWindows = new Map<string, string>();
 const pageListeners = new Set<() => void>();
 let windowId: string | null = null;
 let leader = false;
@@ -152,6 +154,7 @@ export function requestWindow(id: string) {
     if (owners.has(id) || waitingForWindow.includes(id)) return;
     waitingForWindow.push(id);
     chrome.send("astroNewWindow");
+    post({ type: "opening", windowId: id });
   });
 }
 
@@ -168,9 +171,17 @@ export function focusPageWindow(id: string) {
   else post({ type: "focus", windowId: id });
 }
 
+function noteWelcome(newPage: string, id: string) {
+  assignedWindows.set(newPage, id);
+  const waiting = waitingForWindow.indexOf(id);
+  if (waiting >= 0) waitingForWindow.splice(waiting, 1);
+}
+
 function welcome(newPage: string) {
   const s = useBrowser.getState();
-  const id = waitingForWindow.shift() ?? s.createWindow();
+  const known = assignedWindows.get(newPage);
+  const id = known && s.windows[known] ? known : (waitingForWindow.shift() ?? s.createWindow());
+  noteWelcome(newPage, id);
   closeWhenGone(id, newPage);
   post({ type: "welcome", page: newPage, windowId: id, state: snapshot() });
 }
@@ -196,7 +207,11 @@ channel.onmessage = ({ data }: MessageEvent<Message>) => {
       else pendingHellos.push(data.page);
       return;
     case "welcome":
+      noteWelcome(data.page, data.windowId);
       if (data.page === page) welcomed?.(data);
+      return;
+    case "opening":
+      if (!waitingForWindow.includes(data.windowId)) waitingForWindow.push(data.windowId);
       return;
     case "patch":
       if (windowId) applyPatch(data.patch);
@@ -209,6 +224,7 @@ channel.onmessage = ({ data }: MessageEvent<Message>) => {
       return;
     case "rollCall":
       if (windowId && !leader) post({ type: "here", page, windowId });
+      else if (welcomed) post({ type: "hello", page });
       return;
     case "here":
       if (leader) closeWhenGone(data.windowId, data.page);
@@ -239,11 +255,13 @@ function trackFocus() {
 function leadAfterPromotion(roles: WindowRoles) {
   leader = true;
   owners.set(windowId!, page);
+  const { windows } = useBrowser.getState();
+  waitingForWindow.splice(0, waitingForWindow.length, ...waitingForWindow.filter((id) => windows[id] && !owners.has(id)));
   roles.lead(false);
   post({ type: "rollCall" });
   setTimeout(() => {
     const s = useBrowser.getState();
-    for (const id of s.windowOrder) if (!owners.has(id)) s.closeWindow(id);
+    for (const id of s.windowOrder) if (!owners.has(id) && !waitingForWindow.includes(id)) s.closeWindow(id);
   }, ROLL_CALL_MS);
   ready = true;
 }

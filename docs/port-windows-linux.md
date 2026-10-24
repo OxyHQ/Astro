@@ -119,7 +119,10 @@ session, runs the global effects (history, favicons, bookmarks) and opens and cl
 `chrome::OpenEmptyWindow`). A new page says hello on the `astro-windows` BroadcastChannel and is welcomed with a
 snapshot and the window it shows; after that each page sends what changed in the store, entry by entry, and applies
 what the others send. When the leader's page closes, the next page in the lock's queue takes over, asks the others
-which windows they show and closes the rest in the store. Each page holds a Web Lock named after it, and the leader
+which windows they show and closes the rest in the store, except the windows the old leader had asked the engine for
+whose pages haven't been welcomed yet: the leader announces each one it opens, so every page knows them, and a page
+still waiting for its welcome says hello again at the roll call (moving the leader's only tab to a new window closes
+the leader's window while the new one is opening). Each page holds a Web Lock named after it, and the leader
 waits on it: when the page goes away however it goes, its window closes in the store, unless the leader goes too
 (quitting keeps the session).
 
@@ -134,7 +137,8 @@ its history and form text) and nothing reloads. A WebView that opens before the 
 of another profile stays in its profile's hidden browser and only changes page (`MoveProfileTab`). The page a tab
 leaves keeps a blank spare in its strip when that tab was its last, so Chromium doesn't close the window, and ignores
 the activation Chromium makes of a neighbour for a second; a tab whose window is closing and whose destination has no
-page yet goes to another window's strip or the next window the engine opens, and no page adopts a parked tab as its
+page yet goes to another window's strip or the next window the engine opens (the page waits for its parks to finish
+before it closes its window, since a closing strip gives up no tabs), and no page adopts a parked tab as its
 own. `releaseTransfer`, and the leader page when a tab leaves the store, close a parked tab nobody took. Private and
 normal windows don't exchange tabs (the store refuses, as on macOS).
 

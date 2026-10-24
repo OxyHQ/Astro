@@ -45,7 +45,7 @@ const startPage = () =>
       },
       end: () => flushPersistence({ final: true }),
     },
-    () => void tabHub().then((hub) => hub.page.close()),
+    () => void tabHub().then((hub) => hub.closePage()),
   );
 
 void loadDocuments().then(startPage);
