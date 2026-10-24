@@ -33,6 +33,7 @@
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/printing/print_view_manager_common.h"
 #include "chrome/browser/profiles/profile.h"
@@ -69,7 +70,10 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
+#include "content/public/browser/render_process_host.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
+#include "content/public/common/result_codes.h"
 #include "content/public/browser/ssl_status.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/net_errors.h"
@@ -91,6 +95,14 @@ extern bool (*g_astro_target_url)(content::WebContents* source,
                                   const GURL& url);
 extern void (*g_astro_unhandled_key)(content::WebContents* source,
                                      const input::NativeWebKeyboardEvent& event);
+namespace content {
+extern bool (*g_astro_debugger_attached)(WebContents* contents);
+}
+extern bool (*g_astro_renderer_unresponsive)(content::WebContents* source,
+                                             content::RenderWidgetHost* host,
+                                             base::RepeatingClosure restarter);
+extern bool (*g_astro_renderer_responsive)(content::WebContents* source,
+                                           content::RenderWidgetHost* host);
 
 namespace astro {
 namespace {
@@ -111,6 +123,34 @@ std::set<TabBridge*>& LiveBridges() {
 
 bool InPrimaryPage(content::RenderFrameHost* frame) {
   return frame && frame->GetOutermostMainFrame()->IsInPrimaryMainFrame();
+}
+
+bool DevToolsShown(content::WebContents* contents) {
+  return DevToolsWindow::GetInstanceForInspectedWebContents(contents) != nullptr;
+}
+
+bool RendererUnresponsive(content::WebContents* source,
+                          content::RenderWidgetHost* host,
+                          base::RepeatingClosure restarter) {
+  bool shown = false;
+  for (TabBridge* bridge : LiveBridges()) {
+    if (bridge->web_contents() == source) {
+      bridge->SetUnresponsive(host, restarter);
+      shown = true;
+    }
+  }
+  return shown;
+}
+
+bool RendererResponsive(content::WebContents* source,
+                        content::RenderWidgetHost* host) {
+  bool shown = false;
+  for (TabBridge* bridge : LiveBridges()) {
+    if (bridge->web_contents() == source) {
+      shown = bridge->SetResponsive(host) || shown;
+    }
+  }
+  return shown;
 }
 
 void RuleMatched(content::BrowserContext* context,
@@ -431,6 +471,9 @@ TabBridge::TabBridge(content::WebContents* contents, Emit emit)
   media_access_ = MediaAccess();
   LiveBridges().insert(this);
   g_astro_dnr_rule_matched = &RuleMatched;
+  g_astro_renderer_unresponsive = &RendererUnresponsive;
+  g_astro_renderer_responsive = &RendererResponsive;
+  content::g_astro_debugger_attached = &DevToolsShown;
 }
 
 TabBridge::~TabBridge() {
@@ -867,6 +910,8 @@ void TabBridge::Call(const std::string& method,
     }
   } else if (method == "mediaCaptureSourceId") {
     return std::move(done).Run(DisplayMediaSourceId(contents));
+  } else if (method == "resolveUnresponsive") {
+    ResolveUnresponsive(args.FindBool("terminate").value_or(false));
   } else if (method == "callPage") {
     const std::string* kind = args.FindString("kind");
     const std::string* json = args.FindString("json");
@@ -1161,6 +1206,46 @@ void TabBridge::ReportBlocked() {
   emit_.Run("contentBlocked", base::DictValue()
                                   .Set("count", blocked_count_)
                                   .Set("url", blocked_last_url_.spec()));
+}
+
+void TabBridge::SetUnresponsive(content::RenderWidgetHost* host,
+                                base::RepeatingClosure restarter) {
+  if (host) {
+    unresponsive_ = std::make_pair(host->GetProcess()->GetDeprecatedID(),
+                                   host->GetRoutingID());
+  }
+  hang_monitor_restarter_ = std::move(restarter);
+  emit_.Run("unresponsive", base::DictValue());
+}
+
+bool TabBridge::SetResponsive(content::RenderWidgetHost* host) {
+  if (!unresponsive_ ||
+      (host && *unresponsive_ !=
+                   std::make_pair(host->GetProcess()->GetDeprecatedID(),
+                                  host->GetRoutingID()))) {
+    return false;
+  }
+  unresponsive_.reset();
+  hang_monitor_restarter_.Reset();
+  emit_.Run("responsive", base::DictValue());
+  return true;
+}
+
+void TabBridge::ResolveUnresponsive(bool terminate) {
+  content::RenderWidgetHost* host =
+      unresponsive_ ? content::RenderWidgetHost::FromID(unresponsive_->first,
+                                                         unresponsive_->second)
+                    : nullptr;
+  base::RepeatingClosure restarter = std::move(hang_monitor_restarter_);
+  hang_monitor_restarter_.Reset();
+  if (terminate) {
+    unresponsive_.reset();
+    if (host && host->GetProcess()->IsInitializedAndNotDead()) {
+      host->GetProcess()->Shutdown(content::RESULT_CODE_HUNG);
+    }
+  } else if (restarter) {
+    restarter.Run();
+  }
 }
 
 void TabBridge::ResetBlocked() {

@@ -7,6 +7,7 @@
 #include <optional>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -82,6 +83,9 @@ class TabBridge : public content::WebContentsObserver,
       const blink::mojom::ResourceLoadInfo& resource_load_info) override;
 
   void NoteRuleMatched(bool block, const GURL& url);
+  void SetUnresponsive(content::RenderWidgetHost* host,
+                       base::RepeatingClosure restarter);
+  bool SetResponsive(content::RenderWidgetHost* host);
   void AboutToBeDiscarded(content::WebContents* new_contents) override;
   void DispatchProtocolMessage(content::DevToolsAgentHost* agent_host,
                                base::span<const uint8_t> message) override;
@@ -129,6 +133,7 @@ class TabBridge : public content::WebContentsObserver,
   void NoteBlocked(const GURL& url);
   void ReportBlocked();
   void ResetBlocked();
+  void ResolveUnresponsive(bool terminate);
   void CallPage(const std::string& kind,
                 const std::string& json,
                 std::optional<int> context);
@@ -157,6 +162,8 @@ class TabBridge : public content::WebContentsObserver,
   int blocked_pending_ = 0;
   GURL blocked_last_url_;
   std::vector<GURL> rule_blocked_urls_;
+  std::optional<std::pair<int, int>> unresponsive_;
+  base::RepeatingClosure hang_monitor_restarter_;
   std::map<int, base::OnceCallback<void(base::Value)>> evaluations_;
   base::WeakPtrFactory<TabBridge> weak_factory_{this};
 };

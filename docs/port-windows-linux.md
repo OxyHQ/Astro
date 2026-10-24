@@ -159,7 +159,11 @@ reports what AstroCore's `TabBridge` reports on macOS: camera, microphone and sc
 (`pageFocus`, which activates a split pane), a navigation that turned into a download (`downloadNavigation`, which closes
 the blank tab a link opened for it) and the requests an extension blocked (`contentBlocked`, from declarativeNetRequest's
 rule matches and `ERR_BLOCKED_BY_CLIENT` loads, reset when a load starts). `capturePicture` is a JPEG of the tab from
-`CopyFromSurface`, for the tab drag preview and the pin handoff.
+`CopyFromSurface`, for the tab drag preview and the pin handoff. A hung page shows Astro's overlay: a hook in
+`BrowserWebContentsDelegate::RendererUnresponsive` hands it to the bridge (`unresponsive`, `responsive`), and Exit Page
+shuts the renderer down or Wait restarts the hang monitor (`resolveUnresponsive`). Chromium ignores a hung renderer while
+a DevTools client is attached, and the bridge keeps one on every tab, so a second hook makes only DevTools itself count
+(`g_astro_debugger_attached` in `WebContentsImpl::ShouldIgnoreUnresponsiveRenderer`).
 
 The page script (`packages/astrocore/ios/page_script.js`, which the renderer runs in every frame on macOS) is injected by
 the bridge's internal DevTools client: `Page.addScriptToEvaluateOnNewDocument` installs it in every document, and it
@@ -335,6 +339,7 @@ inert function that returns `null`. Each gap was then tried in a hidden instance
 | 13 | Esc didn't cancel a sidebar drag | `setDragEscapeCapture` | Fixed |
 | 14 | Popovers and the switcher didn't react to switching apps | `resignActive` | Fixed |
 | 15 | The tab switcher took the row under a pointer that hadn't moved | `switcherPointerMoved` | Fixed |
+| 16 | A hung page showed nothing: Chromium's dialog needs a views host, and the bridge's DevTools client hid the hang | `onUnresponsive`, `onResponsive`, `resolveUnresponsive` | Fixed |
 | — | The menu bar's bookmarks | `setMenuBookmarks` | Nothing to do: the app menu reads the store |
 
 Still missing, by what a user would notice:
@@ -342,8 +347,6 @@ Still missing, by what a user would notice:
 - Saving an address or a card: Webium has no `AutofillBubbleHandler`, so Chromium never offers it (`onAutofillPrompt`,
   `resolveAutofillPrompt`); Autofill's command opens Settings instead of the page's suggestions (`showAutofillSuggestions`).
   The port is AstroCore's `ac_autofill_prompt.mm` and `ac_autofill_trigger.mm` as a portable handler.
-- A hung page: Webium's guest tabs use Chromium's delegate, so Astro's "page isn't responding" overlay never shows
-  (`onUnresponsive`, `onResponsive`, `resolveUnresponsive`); this needs a hook in `RendererUnresponsive`.
 - Calendar: no system calendar is read (`AstroCalendar`), so Connect Calendar does nothing; Windows (WinRT appointments)
   and Linux (Evolution Data Server) each need their own reader.
 - Dragging a tab onto another window's sidebar inserts it at the end with no pill: the insert point is computed by the

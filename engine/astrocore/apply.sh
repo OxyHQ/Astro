@@ -2001,6 +2001,72 @@ def edit(s):
 hook(["bool (*g_astro_window_unhandled_key)(\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc" "hung pages reach the host" <<'PY'
+at = "void BrowserWebContentsDelegate::RendererUnresponsive(\n"
+decl = """// Astro: AstroCore shows its own overlay for a hung page in a window whose interface it draws.
+bool (*g_astro_renderer_unresponsive)(content::WebContents* source,
+                                      content::RenderWidgetHost* host,
+                                      base::RepeatingClosure restarter) = nullptr;
+bool (*g_astro_renderer_responsive)(content::WebContents* source,
+                                    content::RenderWidgetHost* host) = nullptr;
+
+"""
+old_hung = """    base::RepeatingClosure hang_monitor_restarter) {
+  // Don't show the page hung dialog when a HTML popup hangs because
+"""
+new_hung = """    base::RepeatingClosure hang_monitor_restarter) {
+  if (g_astro_renderer_unresponsive &&
+      g_astro_renderer_unresponsive(source, render_widget_host,
+                                    hang_monitor_restarter)) {
+    return;
+  }
+  // Don't show the page hung dialog when a HTML popup hangs because
+"""
+old_ok = """    content::RenderWidgetHost* render_widget_host) {
+  content::RenderWidgetHostView* view = render_widget_host->GetView();
+  if (view && !render_widget_host->GetView()->IsHTMLFormPopup()) {
+    TabDialogs::FromWebContents(source)->HideHungRendererDialog(
+"""
+new_ok = """    content::RenderWidgetHost* render_widget_host) {
+  if (g_astro_renderer_responsive &&
+      g_astro_renderer_responsive(source, render_widget_host)) {
+    return;
+  }
+  content::RenderWidgetHostView* view = render_widget_host->GetView();
+  if (view && !render_widget_host->GetView()->IsHTMLFormPopup()) {
+    TabDialogs::FromWebContents(source)->HideHungRendererDialog(
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old_hung) == 1 and s.count(old_ok) == 1
+    i = s.index(at)
+    s = s[:i] + decl + s[i:]
+    return s.replace(old_hung, new_hung).replace(old_ok, new_ok)
+hook(["bool (*g_astro_renderer_unresponsive)(content::WebContents* source,\n",
+      "  if (g_astro_renderer_unresponsive &&\n",
+      "  if (g_astro_renderer_responsive &&\n"], edit)
+PY
+
+hook "$src/content/browser/web_contents/web_contents_impl.cc" "a hung page counts DevTools, not the host's client" <<'PY'
+at = "bool WebContentsImpl::ShouldIgnoreUnresponsiveRenderer() {\n"
+decl = """// Astro: AstroCore keeps its own DevTools client on its tabs; only DevTools itself should hide a hung page.
+bool (*g_astro_debugger_attached)(WebContents* contents) = nullptr;
+
+"""
+old = """  return DevToolsAgentHost::IsDebuggerAttached(this);
+}
+"""
+new = """  return g_astro_debugger_attached ? g_astro_debugger_attached(this)
+                                   : DevToolsAgentHost::IsDebuggerAttached(this);
+}
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1
+    i = s.index(at)
+    return s[:i] + decl + s[i:].replace(old, new, 1)
+hook(["bool (*g_astro_debugger_attached)(WebContents* contents) = nullptr;\n",
+      "  return g_astro_debugger_attached ? g_astro_debugger_attached(this)\n"], edit)
+PY
+
 hook "$src/chrome/browser/ui/extensions/extension_action_view_model.cc" "action shortcuts reach the host" <<'PY'
 old = "void ExtensionActionViewModel::ExecuteUserAction(InvocationSource source) {\n"
 decl = """// Astro: a window whose interface AstroCore draws opens an action's popup there when its shortcut is pressed.

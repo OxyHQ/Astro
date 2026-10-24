@@ -114,6 +114,8 @@ function tabEvents(props: { current: WebViewProps }, browserId: number, onDevToo
     if (kind === "windowClose") return p.onWindowClose?.();
     if (kind === "pageFocus") return p.onPageFocus?.();
     if (kind === "contentBlocked") return p.onContentBlocked?.(payload as ContentBlockedState);
+    if (kind === "unresponsive") return p.onUnresponsive?.();
+    if (kind === "responsive") return p.onResponsive?.();
     if (kind === "downloadNavigation") return p.onDownloadNavigation?.(payload as DownloadNavigation);
     if (kind === "preferredSize") return p.onPreferredSize?.(payload as { width: number; height: number });
     if (kind === "find") p.onFindResult?.(payload as FindResult);
@@ -346,6 +348,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       requestPictureInPicture: async () => (await call<string>("evaluate", { code: PICTURE_IN_PICTURE, userGesture: true })) === "true",
       exitPictureInPicture: async () => run("executeJavaScript", { code: EXIT_PICTURE_IN_PICTURE }),
       notificationAction: async (id, action) => channel.current?.notificationAction(id, action),
+      resolveUnresponsive: async (terminate) => run("resolveUnresponsive", { terminate }),
       capturePicture: async (scale) => {
         const picture = await call<{ data: string }>("capturePicture", { scale });
         const bounds = frame.current?.getBoundingClientRect();
