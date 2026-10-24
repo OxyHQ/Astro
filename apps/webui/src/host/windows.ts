@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { type BrowserState, useBrowser } from "../../../browser/src/store/browser";
+import { notePageWindow, releaseClosedTabs } from "./tabTransfer";
 
 type Data = Record<string, unknown>;
 type Change = { value: unknown } | { set: Data; del: string[] };
@@ -128,6 +129,7 @@ function trackFrame() {
 function setPageWindow(id: string) {
   restoreFrame(id);
   windowId = id;
+  notePageWindow(id);
   document.documentElement.dataset.windowId = id;
   for (const listener of pageListeners) listener();
 }
@@ -215,6 +217,7 @@ channel.onmessage = ({ data }: MessageEvent<Message>) => {
 };
 
 function shareChanges() {
+  releaseClosedTabs(isLeaderPage);
   useBrowser.subscribe((s, prev) => {
     if (remote || !windowId) return;
     const patch = diff(s as unknown as Data, prev as unknown as Data);

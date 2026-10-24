@@ -1,4 +1,5 @@
 import { callTab, watchTab } from "./tabBridge";
+import { isTabInTransit, parkTab, type TakenTab } from "./tabTransfer";
 
 type TabData = {
   id: string;
@@ -51,6 +52,7 @@ const NETWORK_LOADING = 2;
 const FIRST_URL_WAIT_MS = 500;
 const STARTUP_URL_WAIT_MS = 3000;
 const CLOSED_TAB_SETTLE_MS = 300;
+const HANDED_OFF_ACTIVATION_QUIET_MS = 1000;
 
 export type TabState = {
   url: string;
@@ -79,6 +81,7 @@ export interface EngineTab {
   stop(): void;
   activate(): void;
   close(): void;
+  handOff?(key: string, toWindow: string | null, keepWindow: boolean): void;
 }
 
 export class ChromiumTab implements EngineTab {
@@ -120,7 +123,7 @@ export class ChromiumTab implements EngineTab {
   async update(data: TabData) {
     const activated = data.isActive && !this.active;
     this.active = data.isActive;
-    if (activated && this.hub.requestedActive !== this.id) this.onActivatedByEngine?.();
+    if (activated && this.hub.requestedActive !== this.id && !this.hub.settlingHandOff()) this.onActivatedByEngine?.();
     const [{ canGoBack }, { canGoForward }] = await Promise.all([this.guest.canGoBack(), this.guest.canGoForward()]);
     this.state = toState(data, canGoBack, canGoForward, this.state.themeColor);
     for (const listener of this.listeners) listener(this.state);
@@ -175,6 +178,12 @@ export class ChromiumTab implements EngineTab {
     this.stopWatching();
     this.hub.close(this);
   }
+
+  handOff(key: string, toWindow: string | null, keepWindow: boolean) {
+    this.listeners.clear();
+    this.stopWatching();
+    this.hub.park(this, key, toWindow, keepWindow);
+  }
 }
 
 function toState(data: TabData, canGoBack: boolean, canGoForward: boolean, themeColor: string | null): TabState {
@@ -202,6 +211,7 @@ export class TabHub {
   private known = new Map<string, TabData>();
   private creating = new Set<Promise<unknown>>();
   requestedActive: string | null = null;
+  private handOffSettlesAt = 0;
   private foreignHandler: ((tab: ForeignTab) => void) | null = null;
   private waitingForHandler: TabData[] = [];
   onFocusLocationBar: (() => void) | null = null;
@@ -272,23 +282,57 @@ export class TabHub {
     for (const tab of waiting) void this.settleCreated(tab);
   }
 
+  private unclaimed(id: string) {
+    return !this.tabs.has(id) && this.known.has(id) && !this.spare.some((tab) => tab.id === id);
+  }
+
   private async settleCreated(tab: TabData) {
     await Promise.allSettled([...this.creating]);
-    if (this.tabs.has(tab.id) || !this.known.has(tab.id)) return;
+    if (!this.unclaimed(tab.id)) return;
     if (!this.onForeignTab) {
       this.waitingForHandler.push(tab);
       return;
     }
     const url = await this.firstUrl(tab.id);
-    const settled = this.known.get(tab.id);
-    if (settled && !this.tabs.has(tab.id)) this.onForeignTab?.({ id: tab.id, url });
+    await Promise.allSettled([...this.creating]);
+    if (!this.unclaimed(tab.id) || (await isTabInTransit(tab.id)) || !this.unclaimed(tab.id)) return;
+    this.onForeignTab?.({ id: tab.id, url });
   }
 
   private async settleStartup(tab: TabData) {
     const url = await this.firstUrl(tab.id, STARTUP_URL_WAIT_MS);
-    if (this.tabs.has(tab.id) || !this.known.has(tab.id)) return;
+    if (!this.unclaimed(tab.id) || (await isTabInTransit(tab.id)) || !this.unclaimed(tab.id)) return;
     if (isBlank(url)) this.spare.push(this.known.get(tab.id) ?? tab);
     else void this.settleCreated(tab);
+  }
+
+  private track<T>(work: Promise<T>): Promise<T> {
+    this.creating.add(work);
+    void work.finally(() => this.creating.delete(work)).catch(() => {});
+    return work;
+  }
+
+  settlingHandOff() {
+    return performance.now() < this.handOffSettlesAt;
+  }
+
+  take(taken: Promise<TakenTab | null>): Promise<TakenTab | null> {
+    return this.track(taken);
+  }
+
+  adopt({ ref, url, title }: TakenTab): ChromiumTab {
+    return this.claim(this.known.get(ref) ?? { id: ref, title, url, networkState: 0, isActive: false }, null);
+  }
+
+  park(tab: ChromiumTab, key: string, toWindow: string | null, keepWindow: boolean) {
+    if (this.tabs.get(tab.id) !== tab) return;
+    this.tabs.delete(tab.id);
+    tab.guest.$.close();
+    this.handOffSettlesAt = performance.now() + HANDED_OFF_ACTIVATION_QUIET_MS;
+    void this.track(parkTab(key, tab.id, toWindow, keepWindow)).then((spare) => {
+      if (!spare || this.tabs.has(spare) || this.spare.some((t) => t.id === spare)) return;
+      this.spare.push(this.known.get(spare) ?? { id: spare, title: "", url: "about:blank", networkState: 0, isActive: false });
+    });
   }
 
   private async firstUrl(id: string, wait = FIRST_URL_WAIT_MS): Promise<string> {

@@ -39,6 +39,7 @@
 #include "chrome/browser/astro/ac_sync_files.h"
 #include "chrome/browser/astro/ac_system.h"
 #include "chrome/browser/astro/ac_tab_bridge.h"
+#include "chrome/browser/astro/ac_tab_transfer.h"
 #include "chrome/browser/astro/ac_translate.h"
 #include "chrome/browser/astro/ac_updater.h"
 #include "chrome/browser/astro/ac_ui_source.h"
@@ -262,6 +263,7 @@ void Dispatched(void* context, const char* topic, const char* json);
 
 class EngineWebUIHandler : public content::WebUIMessageHandler,
                            public ProfileTabsClient,
+                           public TabTransferPage,
                            public ui::SelectFileDialog::Listener {
  public:
   explicit EngineWebUIHandler(Profile* profile) : profile_(profile) {
@@ -290,6 +292,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       picker_->ListenerDestroyed();
     }
     Handlers().erase(this);
+    ForgetTransferPage(this);
     ForgetProfileTabsClient(this);
   }
 
@@ -397,6 +400,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroTabWatch", base::BindRepeating(&EngineWebUIHandler::HandleTabWatch,
                                              base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroTabTransfer",
+        base::BindRepeating(&EngineWebUIHandler::HandleTabTransfer,
+                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroTabCall", base::BindRepeating(&EngineWebUIHandler::HandleTabCall,
                                             base::Unretained(this)));
@@ -684,7 +691,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     if (!args.empty()) {
       return;
     }
-    chrome::NewEmptyWindow(profile_, false);
+    if (BrowserWindowInterface* made =
+            chrome::OpenEmptyWindow(profile_, false)) {
+      KeepOrphanedTabs(made);
+    }
   }
 
   BrowserWindowInterface* WindowBrowser() {
@@ -982,6 +992,66 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     content::WebContents* contents = tab ? tab->GetContents() : nullptr;
     return contents && contents->GetBrowserContext() == profile_ ? contents
                                                                  : nullptr;
+  }
+
+  BrowserWindowInterface* TransferWindow() override { return WindowBrowser(); }
+
+  ProfileTabsClient* TransferClient() override { return this; }
+
+  content::WebContents* TransferContents(const std::string& ref) override {
+    return ref.starts_with(kExtensionViewPrefix) ? nullptr : TabContents(ref);
+  }
+
+  void TransferredAway(content::WebContents* contents) override {
+    std::erase_if(bridges_, [contents](const auto& entry) {
+      return entry.second->web_contents() == contents;
+    });
+  }
+
+  void HandleTabTransfer(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() < 2 || !args[1].is_string()) {
+      return;
+    }
+    const base::Value& callback_id = args[0];
+    const std::string& action = args[1].GetString();
+    auto text = [&args](size_t index) {
+      return index < args.size() && args[index].is_string()
+                 ? args[index].GetString()
+                 : std::string();
+    };
+    if (action == "take") {
+      TakeTab(this, text(2),
+              base::BindOnce(
+                  [](base::WeakPtr<EngineWebUIHandler> self,
+                     base::Value callback_id, base::Value result) {
+                    if (self && self->IsJavascriptAllowed()) {
+                      self->ResolveJavascriptCallback(callback_id, result);
+                    }
+                  },
+                  weak_factory_.GetWeakPtr(), callback_id.Clone()));
+      return;
+    }
+    base::Value result;
+    if (action == "window") {
+      NoteTransferWindow(this, text(2));
+    } else if (action == "live") {
+      NoteLiveTab(this, text(2), text(3));
+    } else if (action == "gone") {
+      NoteTabGone(this, text(2));
+    } else if (action == "park") {
+      const bool keep_window = args.size() > 5 && args[5].is_bool() &&
+                               args[5].GetBool();
+      if (std::optional<std::string> spare =
+              ParkTab(this, text(2), text(3), text(4), keep_window)) {
+        result = base::Value(*spare);
+      }
+    } else if (action == "release") {
+      ReleaseTab(text(2));
+    } else if (action == "transit") {
+      result = base::Value(IsTabInTransit(text(2)));
+    }
+    ResolveJavascriptCallback(callback_id, result);
   }
 
   TabBridge* BridgeFor(const std::string& tab_ref) {

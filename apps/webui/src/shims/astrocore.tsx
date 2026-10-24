@@ -11,13 +11,14 @@ import { keychainServices } from "../host/keychain";
 import { profileServices } from "../host/profileTabs";
 import { appServices, engineServices, systemServices } from "../host/system";
 import { startTabEvents } from "../host/tabBridge";
+import { tabTransferServices } from "../host/tabTransfer";
 
 export * from "../../../demo/src/shims/astrocore";
 export { faviconsFor, fetchFavicon } from "@astro-browser-real/astrocore";
 export { WebView } from "./WebView";
 export { setCliActiveTab } from "../host/cli";
 
-provideNativeModule("AstroCEF", { ...cefServices, ...contentBlockerServices, ...engineServices, ...displayMediaServices, ...profileServices, engineCall, forwardEngineTopics, fetchFavicon: fetchFaviconImage });
+provideNativeModule("AstroCEF", { ...cefServices, ...contentBlockerServices, ...engineServices, ...displayMediaServices, ...profileServices, ...tabTransferServices, engineCall, forwardEngineTopics, fetchFavicon: fetchFaviconImage });
 provideNativeModule("AstroExtensions", extensionServices);
 provideNativeModule("AstroImport", importServices);
 provideNativeModule("AstroKeychain", keychainServices);

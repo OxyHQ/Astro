@@ -116,13 +116,27 @@ browser uses it, as AstroCore does on macOS.
 Windows: every Webium window runs its own copy of the interface, and the copies share one store
 (`apps/webui/src/host/windows.ts`). One page holds the `astro-window-leader` Web Lock: it hydrates and saves the
 session, runs the global effects (history, favicons, bookmarks) and opens and closes windows (`astroNewWindow` is
-`chrome::NewEmptyWindow`). A new page says hello on the `astro-windows` BroadcastChannel and is welcomed with a
+`chrome::OpenEmptyWindow`). A new page says hello on the `astro-windows` BroadcastChannel and is welcomed with a
 snapshot and the window it shows; after that each page sends what changed in the store, entry by entry, and applies
 what the others send. When the leader's page closes, the next page in the lock's queue takes over, asks the others
 which windows they show and closes the rest in the store. Each page holds a Web Lock named after it, and the leader
 waits on it: when the page goes away however it goes, its window closes in the store, unless the leader goes too
-(quitting keeps the session). Tabs live in the tab strip of the page that shows them, so a
-tab moved to another window reloads there.
+(quitting keeps the session).
+
+Moving a tab to another window (Move to Window, Merge All Windows, anything that changes a tab's window in the store)
+keeps its live page, as AstroCore's `prepareTransfer`/`releaseTransfer` do on macOS (`host/tabTransfer.ts`,
+`ac_tab_transfer.cc`). Each tab lives in the tab strip of the window that shows it. `prepareTransfer` in the page it
+leaves parks it in the engine at once, keyed by the Astro tab id, and the engine moves it into the destination window's
+strip with Chromium's own detach and insert (`DetachTabAtForInsertion`, `InsertDetachedTabAt`, as tab dragging does)
+when that window's page is open; the destination's WebView takes it by its key, the engine detaches its guest from the
+old page's iframe and the new page attaches it, so the same WebContents carries over (its document keeps running, with
+its history and form text) and nothing reloads. A WebView that opens before the other page has let go waits up to 1.5 s for it. A tab
+of another profile stays in its profile's hidden browser and only changes page (`MoveProfileTab`). The page a tab
+leaves keeps a blank spare in its strip when that tab was its last, so Chromium doesn't close the window, and ignores
+the activation Chromium makes of a neighbour for a second; a tab whose window is closing and whose destination has no
+page yet goes to another window's strip or the next window the engine opens, and no page adopts a parked tab as its
+own. `releaseTransfer`, and the leader page when a tab leaves the store, close a parked tab nobody took. Private and
+normal windows don't exchange tabs (the store refuses, as on macOS).
 
 Pages: each tab has a bridge in the engine (`ac_tab_bridge.cc`, the portable counterpart of AstroCore's `TabBridge`).
 `astroTabCall` runs find, zoom, mute, back/forward by offset, the history list, hard reload, print, save page, caret

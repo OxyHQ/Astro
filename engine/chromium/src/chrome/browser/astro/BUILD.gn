@@ -80,6 +80,8 @@ source_set("astro") {
     "ac_system.h",
     "ac_tab_bridge.cc",
     "ac_tab_bridge.h",
+    "ac_tab_transfer.cc",
+    "ac_tab_transfer.h",
     "ac_tabs.cc",
     "ac_tabs.h",
     "ac_trash.cc",

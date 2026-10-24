@@ -9,6 +9,7 @@ import { forgetDisplayMedia, noteDisplayMediaRequest, noteDisplayMediaSources } 
 import { openExtensionView } from "../host/extensionViews";
 import { cefServices } from "../host/services";
 import { callTab, type TabEventListener, watchTab } from "../host/tabBridge";
+import { offerHandOff, noteLiveTab, noteTabGone, takeTransferredTab, transferredUrlGuard } from "../host/tabTransfer";
 import { pageWindowId } from "../host/windows";
 import { openFromPage } from "../../../browser/src/components/layout/openFromPage";
 import { useBrowser } from "../../../browser/src/store/browser";
@@ -59,10 +60,30 @@ onProfileTabOpened(({ id, url }) =>
 
 const isProfileTab = (profile: string | undefined, adoptId: string | undefined) => adoptId?.startsWith(PROFILE_TAB_PREFIX) || !!profile;
 
-function openEngineTab(props: WebViewProps): Promise<EngineTab | null> {
+async function takeTransferred(key: string, arrived: ReturnType<typeof transferredUrlGuard>): Promise<EngineTab | null> {
+  const hub = await tabHub();
+  const taken = await hub.take(takeTransferredTab(key));
+  if (!taken) return null;
+  const tab = taken.ref.startsWith(PROFILE_TAB_PREFIX) ? await openProfileTab("", taken.ref, undefined) : hub.adopt(taken);
+  if (tab) arrived.arrive(taken.url);
+  return tab;
+}
+
+async function openEngineTab(props: WebViewProps, arrived: ReturnType<typeof transferredUrlGuard>): Promise<EngineTab | null> {
   if (props.extensionHost) return openExtensionView(props.url ?? "", props.extensionHost, tabRefForProfile(props.profile ?? ""));
+  const transferred = props.transferKey ? await takeTransferred(props.transferKey, arrived) : null;
+  if (transferred) {
+    if (arrived.differs(props.url)) transferred.navigate(props.url!);
+    return transferred;
+  }
   if (isProfileTab(props.profile, props.adoptId)) return openProfileTab(props.profile ?? "", props.adoptId, props.url);
   return tabHub().then((hub) => hub.open({ adoptId: props.adoptId, url: props.url }));
+}
+
+function handOffTarget(key: string) {
+  const s = useBrowser.getState();
+  const own = pageWindowId();
+  return { toWindow: s.tabs[key]?.windowId ?? null, keepWindow: !!own && !!s.windows[own] };
 }
 
 const ESCAPE_KEPT_BY_PAGE =
@@ -129,6 +150,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
   const tab = useRef<EngineTab | null>(null);
   const opened = useRef<Promise<EngineTab | null> | null>(null);
   const frame = useRef<HTMLIFrameElement | null>(null);
+  const arrived = useRef(transferredUrlGuard());
   const [devTools, setDevTools] = useState<DevToolsDock | null>(null);
 
   useEffect(() => {
@@ -136,13 +158,25 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
     let lastFavicon: string | null = null;
     let lastLoading: boolean | null = null;
     const browserId = nextBrowserId++;
-    opened.current = openEngineTab(latest.current);
+    const key = latest.current.extensionHost ? "" : (latest.current.transferKey ?? "");
+    opened.current = openEngineTab(latest.current, arrived.current);
     let stopListening = () => {};
     let stopWatching = () => {};
+    let handedOff = false;
+    let withdrawHandOff = () => {};
     void opened.current.then((opening) => {
       if (!opening) return;
       if (closed) return opening.close();
       tab.current = opening;
+      if (key) {
+        noteLiveTab(key, opening.ref);
+        withdrawHandOff = offerHandOff(key, () => {
+          if (handedOff || tab.current !== opening || !opening.handOff) return;
+          handedOff = true;
+          const { toWindow, keepWindow } = handOffTarget(key);
+          opening.handOff(key, toWindow, keepWindow);
+        });
+      }
       browsers.set(browserId, { ref: opening.ref, profile: latest.current.profile ?? "" });
       void watchTab(opening.ref, tabEvents(latest, browserId, setDevTools, opening.ref)).then(({ snapshot, stop }) => {
         if (closed) return stop();
@@ -174,9 +208,13 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
     return () => {
       closed = true;
       browsers.delete(browserId);
+      withdrawHandOff();
       stopListening();
       stopWatching();
-      tab.current?.close();
+      if (!handedOff) {
+        if (key && tab.current) noteTabGone(key);
+        tab.current?.close();
+      }
       tab.current = null;
     };
   }, []);
@@ -212,7 +250,10 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
     const run = (method: string, args?: Record<string, unknown>) => void call(method, args);
     const handle: Partial<WebViewHandle> = {
       nativeTag: () => null,
-      loadUrl: async (url) => withTab((current) => current.navigate(url))(),
+      loadUrl: async (url) =>
+        withTab((current) => {
+          if (!arrived.current.skips(url)) current.navigate(url);
+        })(),
       goBack: withTab((current) => current.back()),
       goForward: withTab((current) => current.forward()),
       goToOffset: async (offset) => run("goToOffset", { offset }),

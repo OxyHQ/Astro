@@ -100,6 +100,7 @@ class TrackedTab : public content::WebContentsObserver,
 
   int id() const { return id_; }
   ProfileTabsClient* client() const { return client_; }
+  void set_client(ProfileTabsClient* client) { client_ = client; }
   BrowserWindowInterface* host() const { return host_; }
 
   base::DictValue State() {
@@ -400,6 +401,17 @@ std::optional<std::string> GuestIdForProfileTab(ProfileTabsClient* client,
       tab->web_contents());
   return handle ? std::optional<std::string>(handle->id().ToString())
                 : std::nullopt;
+}
+
+bool MoveProfileTab(ProfileTabsClient* from,
+                    ProfileTabsClient* to,
+                    int tab_id) {
+  TrackedTab* tab = OwnedTab(from, tab_id);
+  if (!tab || !to) {
+    return false;
+  }
+  tab->set_client(to);
+  return true;
 }
 
 void ProfileTabCommand(ProfileTabsClient* client,

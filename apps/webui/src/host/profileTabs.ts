@@ -1,5 +1,6 @@
 import { loadCr } from "./engine";
 import type { EngineTab, TabState } from "./tabs";
+import { parkTab } from "./tabTransfer";
 
 declare const chrome: {
   send(method: string, args?: unknown[]): void;
@@ -115,8 +116,16 @@ class ProfileTab implements EngineTab {
   }
   close() {
     this.listeners.clear();
+    if (tabs.get(this.tabId) !== this) return;
     tabs.delete(this.tabId);
     this.command("close");
+  }
+
+  handOff(key: string, toWindow: string | null, keepWindow: boolean) {
+    this.listeners.clear();
+    if (tabs.get(this.tabId) !== this) return;
+    tabs.delete(this.tabId);
+    void parkTab(key, this.ref, toWindow, keepWindow);
   }
 }
 

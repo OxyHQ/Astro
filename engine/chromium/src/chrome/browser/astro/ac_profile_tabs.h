@@ -49,6 +49,9 @@ content::WebContents* ContentsForProfileTab(ProfileTabsClient* client,
                                             int tab_id);
 std::optional<std::string> GuestIdForProfileTab(ProfileTabsClient* client,
                                                 int tab_id);
+bool MoveProfileTab(ProfileTabsClient* from,
+                    ProfileTabsClient* to,
+                    int tab_id);
 void ProfileTabCommand(ProfileTabsClient* client,
                        int tab_id,
                        const std::string& command,
