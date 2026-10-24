@@ -432,6 +432,9 @@ void TabBridge::Call(const std::string& method,
         contents->GetVisibility() != content::Visibility::VISIBLE) {
       contents->SetPageFrozen(frozen);
     }
+  } else if (method == "sessionId") {
+    return std::move(done).Run(
+        base::Value(sessions::SessionTabHelper::IdForTab(contents).id()));
   } else if (method == "navigationEntries") {
     base::ListValue entries;
     const int current = controller.GetCurrentEntryIndex();

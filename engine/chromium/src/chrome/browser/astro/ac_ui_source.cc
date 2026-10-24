@@ -14,6 +14,7 @@
 #include "base/path_service.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
+#include "chrome/browser/astro/ac_translate.h"
 #include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
@@ -25,7 +26,11 @@ constexpr char kInterfaceProfileDir[] = "Default";
 constexpr char kHostPage[] = "<!doctype html><title>Astro</title>";
 
 std::optional<base::FilePath> Resolve(const base::FilePath& dir,
+                                      const base::FilePath& profile_dir,
                                       const std::string& path) {
+  if (std::optional<base::FilePath> file = TranslationFile(profile_dir, path)) {
+    return file;
+  }
   const std::string relative =
       path.substr(0, path.find_first_of("?#"));
   if (relative.find("..") != std::string::npos ||
@@ -36,15 +41,21 @@ std::optional<base::FilePath> Resolve(const base::FilePath& dir,
   return dir.AppendASCII(relative.empty() ? "index.html" : relative);
 }
 
-bool ShouldServe(const base::FilePath& dir, const std::string& path) {
-  std::optional<base::FilePath> file = Resolve(dir, path);
+bool ShouldServe(const base::FilePath& dir,
+                 const base::FilePath& profile_dir,
+                 const std::string& path) {
+  if (TranslationFile(profile_dir, path)) {
+    return true;
+  }
+  std::optional<base::FilePath> file = Resolve(dir, profile_dir, path);
   return file && base::PathExists(*file) && !base::DirectoryExists(*file);
 }
 
 void Serve(const base::FilePath& dir,
+           const base::FilePath& profile_dir,
            const std::string& path,
            content::WebUIDataSource::GotDataCallback done) {
-  std::optional<base::FilePath> file = Resolve(dir, path);
+  std::optional<base::FilePath> file = Resolve(dir, profile_dir, path);
   if (!file) {
     std::move(done).Run(nullptr);
     return;
@@ -87,12 +98,18 @@ void ServeUiFromDisk(content::WebUIDataSource* source, Profile* profile) {
       return;
     }
   }
-  source->SetRequestFilter(base::BindRepeating(&ShouldServe, dir),
-                           base::BindRepeating(&Serve, dir));
+  const base::FilePath profile_dir = profile->GetPath();
+  source->SetRequestFilter(base::BindRepeating(&ShouldServe, dir, profile_dir),
+                           base::BindRepeating(&Serve, dir, profile_dir));
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::RequireTrustedTypesFor, "");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::TrustedTypes, "");
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ScriptSrc,
+      "script-src chrome://resources 'self' 'wasm-unsafe-eval';");
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::WorkerSrc, "worker-src 'self';");
 }
 
 base::FilePath BesideEngine(std::string_view relative) {

@@ -7,13 +7,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlsplit
 
+from astro_cli import places
 from astro_cli.redact import add_secret
 
 NOT_REACHABLE = (
     "Astro isn't running, or \"Let the astro command control Astro\" is off in Settings."
 )
-CONTROL_FILE = "AstroControl.json"
-INSTALLED_DATA_DIR = Path.home() / "Library" / "Application Support" / "so.oxy.Astro"
+CONTROL_FILE = places.CONTROL_FILE
+INSTALLED_DATA_DIR = places.installed_data_dir()
 _BROWSER_PATH = re.compile(r"^/devtools/browser/[0-9A-Za-z-]{1,128}$")
 _TOKEN = re.compile(r"^[\x21-\x7e]{16,1024}$")
 _MAX_CONTROL_FILE = 64 * 1024
@@ -39,7 +40,7 @@ def resolve(ws: str | None = None, port: int | None = None, data_dir: str | None
     env_ws = os.environ.get("ASTRO_CDP_URL")
     if env_ws:
         return _from_ws(env_ws, "ASTRO_CDP_URL")
-    return from_control_file(data_root(data_dir) / "Chromium" / CONTROL_FILE)
+    return from_control_file(places.control_file(data_root(data_dir)))
 
 
 def data_root(data_dir: str | None = None) -> Path:
@@ -53,7 +54,7 @@ def explicit_data_root(data_dir: str | None = None) -> Path | None:
 
 
 def require_control(root: Path) -> Endpoint:
-    return from_control_file(root / "Chromium" / CONTROL_FILE)
+    return from_control_file(places.control_file(root))
 
 
 def _from_ws(url: str, source: str) -> Endpoint:
@@ -89,7 +90,7 @@ def _reason(error: Exception) -> str:
 
 def from_control_file(path: Path) -> Endpoint:
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        fd = places.open_no_follow(path, os.O_RDONLY | places.NONBLOCK)
     except FileNotFoundError:
         raise EndpointError(NOT_REACHABLE) from None
     except OSError as error:
@@ -99,9 +100,9 @@ def from_control_file(path: Path) -> Endpoint:
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode):
             raise EndpointError(f"{NOT_REACHABLE} ({path.name} isn't a regular file)")
-        if info.st_uid != os.getuid():
+        if not places.owned_by_user(info):
             raise EndpointError(f"{NOT_REACHABLE} ({path.name} belongs to another user)")
-        if stat.S_IMODE(info.st_mode) != 0o600:
+        if not places.private_mode(info):
             raise EndpointError(f"{NOT_REACHABLE} ({path.name} must be mode 0600)")
         raw = os.read(fd, _MAX_CONTROL_FILE + 1)
     finally:
@@ -135,10 +136,4 @@ def from_control_file(path: Path) -> Endpoint:
 
 
 def _alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return False
-    return True
+    return places.process_alive(pid)

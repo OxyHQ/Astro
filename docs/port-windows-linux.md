@@ -193,12 +193,32 @@ and writes the folder and keeps the recovery key encrypted with the profile's OS
 folder is `%OneDrive%\Astro Sync` (or `Documents\Astro Sync`) on Windows and `~/Astro Sync` on Linux. The recovery kit
 is a text file; passwords don't sync yet.
 
+The `astro` command and userscripts (`docs/cli.md` › Linux and Windows): Settings › Advanced › "Let the astro
+command control Astro" starts the same token-guarded DevTools server (`ac_cli_control.cc`, now on every platform) and
+writes `AstroControl.json` in the user data dir. The packages carry the CLI in `cli/` (Python, `astro_cli`, esbuild);
+installing links it into `~/.local/bin` or writes `astro.cmd` into `%LOCALAPPDATA%\Oxy\Astro\bin` on the user's
+Path (`ac_cli_install.cc`). Userscripts load from `<user data>/Scripts/extension` through `ac_user_scripts.cc` and the
+unchanged `userScripts.ts`, with `ac_scripts_policy.cc` guarding the extension on Windows too.
+
 Files: `astroPickFiles` opens the platform's file dialog, for a folder (an unpacked extension, which
 `ac_extensions_inspect` reads with Chromium's own loader before the install prompt) or for files to open.
 
 Passwords: revealing, copying and exporting them asks the OS first. On Windows that is Windows Hello, through
 Chromium's own device authenticator (`ac_reauth.cc`, as on macOS); Chromium has none for Linux, so there it is denied.
 Export asks where to save (`astroPickFiles` in save mode) and writes Chromium's CSV.
+
+Translation (`host/translate.ts`, `ac_translate.cc`): the same button, menu and toasts as macOS, on Mozilla's
+Bergamot translator instead of Apple's Translation framework, so pages are translated on the device and nothing goes to
+Google. `AstroTranslate`'s calls are the macOS module's. The page's language comes from Chromium's CLD3, run by the
+engine on the page sample (`detect`), else the page's `lang`. The engine fetches the list of language models from
+Mozilla's Remote Settings (`translations-models-v2`, cached a day in the profile's `Astro Translations/`) and, the
+first time a pair is used, the Bergamot WebAssembly build and that pair's files: each is checked against its record's
+SHA-256, unpacked from zstd, checked again and saved under its hash, which `chrome://webui-browser/astro-translations/`
+serves to the page. Bergamot runs in a Worker per language pair (two at most, closed after five idle minutes) with the
+loader Firefox ships (`public/bergamot/`); a pair without a model goes through English. The WebAssembly is pinned by
+hash, since it must match that loader. A paragraph is one HTML text whose pieces are `<span>`s, so each text node gets
+its own part back, as Apple's attributed strings do on macOS. The interface's CSP allows `'wasm-unsafe-eval'` and
+same-origin workers for this.
 
 Still missing: a packaged build (the interface in a pak instead of `astro-ui/`) and a way to reauthenticate on Linux.
 

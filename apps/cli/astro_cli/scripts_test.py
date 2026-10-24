@@ -3,7 +3,6 @@ import base64
 import json
 import re
 import secrets
-import signal
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -11,7 +10,7 @@ from pathlib import Path
 from astro_cli.cdp import Cdp, CdpError, ConnectionLost
 from astro_cli.endpoint import NOT_REACHABLE, Endpoint, EndpointError
 from astro_cli.redact import redact
-from astro_cli import urlmatch
+from astro_cli import places, urlmatch
 from astro_cli.userscript import SOURCE_URL_PREFIX, Build, SourceMap, rules
 
 CONNECT_TIMEOUT = 10
@@ -269,8 +268,7 @@ async def run_test(build: Build, url: str, endpoint: Endpoint, expect: str | Non
         )
     loop = asyncio.get_running_loop()
     main = asyncio.current_task()
-    for signum in (signal.SIGTERM, signal.SIGHUP):
-        loop.add_signal_handler(signum, main.cancel)
+    places.cancel_on_signals(loop, main)
     run = Run(build, url, report)
     cdp = run.cdp = Cdp(endpoint.ws)
     try:

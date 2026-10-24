@@ -38,6 +38,7 @@
 #include "chrome/browser/astro/ac_sync_files.h"
 #include "chrome/browser/astro/ac_system.h"
 #include "chrome/browser/astro/ac_tab_bridge.h"
+#include "chrome/browser/astro/ac_translate.h"
 #include "chrome/browser/astro/ac_ui_source.h"
 #include "chrome/browser/astro/ac_window_keys.h"
 #include "chrome/browser/astro/public/ac_engine.h"
@@ -89,6 +90,7 @@ void ac_bookmarks_tree(const char*, const char*, ac_engine_reply_t, void*);
 void ac_bookmarks_watch(const char*, const char*, ac_engine_reply_t, void*);
 void ac_browsing_data_clear(const char*, const char*, ac_engine_reply_t, void*);
 void ac_cli_control(const char*, const char*, ac_engine_reply_t, void*);
+void ac_cli_install(const char*, const char*, ac_engine_reply_t, void*);
 void ac_components_list(const char*, const char*, ac_engine_reply_t, void*);
 void ac_downloads_cancel(const char*, const char*, ac_engine_reply_t, void*);
 void ac_downloads_list(const char*, const char*, ac_engine_reply_t, void*);
@@ -132,6 +134,7 @@ void ac_site_settings_reset(const char*, const char*, ac_engine_reply_t, void*);
 void ac_site_settings_set(const char*, const char*, ac_engine_reply_t, void*);
 void ac_task_manager_open(const char*, const char*, ac_engine_reply_t, void*);
 void ac_tasks_list(const char*, const char*, ac_engine_reply_t, void*);
+void ac_user_scripts(const char*, const char*, ac_engine_reply_t, void*);
 void ac_zoom_list(const char*, const char*, ac_engine_reply_t, void*);
 void ac_zoom_set(const char*, const char*, ac_engine_reply_t, void*);
 }
@@ -152,6 +155,7 @@ constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_
     {"ac_bookmarks_watch", &ac_bookmarks_watch},
     {"ac_browsing_data_clear", &ac_browsing_data_clear},
     {"ac_cli_control", &ac_cli_control},
+    {"ac_cli_install", &ac_cli_install},
     {"ac_components_list", &ac_components_list},
     {"ac_downloads_cancel", &ac_downloads_cancel},
     {"ac_downloads_list", &ac_downloads_list},
@@ -195,6 +199,7 @@ constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_
     {"ac_site_settings_set", &ac_site_settings_set},
     {"ac_task_manager_open", &ac_task_manager_open},
     {"ac_tasks_list", &ac_tasks_list},
+    {"ac_user_scripts", &ac_user_scripts},
     {"ac_zoom_list", &ac_zoom_list},
     {"ac_zoom_set", &ac_zoom_set},
 });
@@ -364,6 +369,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroSync", base::BindRepeating(&EngineWebUIHandler::HandleSync,
                                          base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroTranslate",
+        base::BindRepeating(&EngineWebUIHandler::HandleTranslate,
+                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroExternalAppResolve",
         base::BindRepeating(&EngineWebUIHandler::HandleExternalAppResolve,
@@ -842,6 +851,15 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       return;
     }
     SyncFilesCall(profile_, args[1].GetString(), args[2].GetDict(),
+                  ResolveLater(args[0].Clone()));
+  }
+
+  void HandleTranslate(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 3 || !args[1].is_string() || !args[2].is_dict()) {
+      return;
+    }
+    TranslateCall(profile_, args[1].GetString(), args[2].GetDict(),
                   ResolveLater(args[0].Clone()));
   }
 

@@ -67,7 +67,8 @@ console.log({quoted}, "ran on", location.href);
 """
 ENDPOINT_EPILOG = """\
 Endpoint: --ws, else --port (plain DevTools servers only), else $ASTRO_CDP_URL, else
-<data dir>/Chromium/AstroControl.json with --data-dir or $ASTRO_DATA_DIR, else the installed Astro's.
+AstroControl.json in the data dir (--data-dir or $ASTRO_DATA_DIR, else the installed Astro's): under
+Chromium/ on macOS, at the top on Linux and Windows.
 """
 UNKNOWN_EXIT = 3
 

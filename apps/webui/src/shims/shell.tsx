@@ -8,6 +8,9 @@ import { focusPageWindow, pageWindowId, releaseWindow, requestWindow } from "../
 import { closeUtilityWindow, openUtilityWindow, openUtilityWindows } from "../utilityWindows";
 
 export * from "../../../demo/src/shims/shell";
+export { installCli, installedCliVersion, onCliInstallLine } from "../host/cli";
+export { onUserScriptsChange, readUserScripts, readUserScriptsStatus, userScriptsAvailable, watchUserScripts, writeUserScriptsStatus } from "../host/userScripts";
+export { translation } from "../host/translate";
 
 declare const chrome: { send(method: string, args?: unknown[]): void };
 

@@ -3,9 +3,13 @@ import "./styles.css";
 import { createRoot } from "react-dom/client";
 import { unstable_batchedUpdates } from "react-native";
 import { WindowRoot } from "../../browser/src/App";
+import { startTranslate } from "../../browser/src/components/site/translate";
+import { afterFirstWindow } from "../../browser/src/lib/afterFirstWindow";
+import { startCliControl } from "../../browser/src/lib/cliControl";
 import { startNativeSync } from "../../browser/src/lib/native";
 import { flushPersistence, startPersistence } from "../../browser/src/lib/persist";
 import { startTabPages } from "../../browser/src/lib/tabPages";
+import { startUserScripts } from "../../browser/src/lib/userScripts";
 import { setStoreBatching, useBrowser } from "../../browser/src/store/browser";
 import { emitCommand, loadDocuments } from "./shims/shell";
 import { MenuHost } from "../../demo/src/shims/web/menus";
@@ -19,6 +23,7 @@ import { UtilityWindows } from "./UtilityWindows";
 import { WindowControls } from "./WindowControls";
 
 installEngineFetch();
+startTranslate();
 void startEngineKeys();
 setStoreBatching(unstable_batchedUpdates);
 
@@ -27,10 +32,14 @@ Object.assign(globalThis, { astro: { store: useBrowser, emitCommand } });
 const startPage = () =>
   startWindows(
     {
-      lead: (hydrate) => void startPersistence({ hydrate }),
+      lead: (hydrate) => {
+        void startPersistence({ hydrate });
+        afterFirstWindow(startUserScripts);
+      },
       begin: () => {
         startTabPages();
         startNativeSync();
+        startCliControl();
       },
       end: () => flushPersistence({ final: true }),
     },

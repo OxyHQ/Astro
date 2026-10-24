@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote, urlsplit
 
+from astro_cli import places
 from astro_cli.endpoint import EndpointError, require_control
 
 DEFAULT_PROFILE_ID = "default"
@@ -140,9 +141,9 @@ def checked_root(root: Path | None, name: str) -> Path:
 
 
 def read_session(root: Path, deadline: float) -> dict:
-    path = root / "session.json"
+    path = places.session_file(root)
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        fd = places.open_no_follow(path)
     except FileNotFoundError:
         return {}
     except OSError as error:
@@ -235,7 +236,7 @@ def pinned(root: Path | None, deadline: float | None = None) -> list[dict]:
 
 
 def profile_dirs(root: Path, session: dict) -> list[tuple[str, Path]]:
-    chromium = root / "Chromium"
+    chromium = places.chromium_dir(root)
     names = profile_names(session)
     profiles = session.get("profiles") or {}
     by_dir: dict[str, str] = {}
@@ -328,7 +329,7 @@ def clear(work: Path) -> None:
 
 
 def copy_file(source: Path, target: Path, deadline: float) -> None:
-    fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
+    fd = places.open_no_follow(source)
     try:
         if not stat.S_ISREG(os.fstat(fd).st_mode):
             raise OSError(f"{source} isn't a regular file")

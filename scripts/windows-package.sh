@@ -34,5 +34,12 @@ while IFS= read -r file; do
   cp -r "$out/$file" "$dir/$file"
 done <<<"$files"
 
+cli_version="$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' "$root/apps/browser/macos/Astro.xcodeproj/project.pbxproj" | head -1)"
+cli_out="$(mktemp -d)"
+sh "$root/apps/cli/scripts/build.sh" --platform windows-x64 "$cli_version" "$cli_out" >/dev/null
+mkdir "$dir/cli"
+tar -xzf "$cli_out/astro-cli-$cli_version-windows-x64.tar.gz" -C "$dir/cli" --strip-components=1
+rm -rf "$cli_out"
+
 (cd "$release" && zip -qr9 "$name.zip" "$name")
 echo "$release/$name.zip ($(du -h "$release/$name.zip" | cut -f1))"

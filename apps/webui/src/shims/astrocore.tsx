@@ -13,6 +13,7 @@ import { startTabEvents } from "../host/tabBridge";
 export * from "../../../demo/src/shims/astrocore";
 export { faviconsFor, fetchFavicon } from "@astro-browser-real/astrocore";
 export { WebView } from "./WebView";
+export { setCliActiveTab } from "../host/cli";
 
 provideNativeModule("AstroCEF", { ...cefServices, ...contentBlockerServices, ...engineServices, ...displayMediaServices, engineCall, forwardEngineTopics, fetchFavicon: fetchFaviconImage });
 provideNativeModule("AstroExtensions", extensionServices);

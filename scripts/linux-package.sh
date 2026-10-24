@@ -28,6 +28,13 @@ cp "$out/locales/"*.pak "$dir/locales/"
 find "$dir" -maxdepth 1 -type f \( -name chrome -o -name chrome_crashpad_handler -o -name '*.so' -o -name '*.so.1' \) \
   -exec strip --strip-unneeded {} +
 
+cli_version="$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' "$root/apps/browser/macos/Astro.xcodeproj/project.pbxproj" | head -1)"
+cli_out="$(mktemp -d)"
+sh "$root/apps/cli/scripts/build.sh" --platform linux-x64 "$cli_version" "$cli_out" >/dev/null
+mkdir "$dir/cli"
+tar -xzf "$cli_out/astro-cli-$cli_version-linux-x64.tar.gz" -C "$dir/cli" --strip-components=1
+rm -rf "$cli_out"
+
 install -m 755 "$root/engine/linux/astro-browser-wrapper.sh" "$dir/astro-browser"
 cp "$root/engine/linux/astro-browser.desktop" "$root/engine/linux/apparmor.cfg" "$dir/"
 cp "$root/engine/chromium/src/chrome/app/theme/chromium/product_logo_256.png" "$dir/astro-browser.png"

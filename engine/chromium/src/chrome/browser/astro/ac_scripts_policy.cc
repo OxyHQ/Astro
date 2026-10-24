@@ -2,11 +2,6 @@
 
 #include "chrome/browser/astro/ac_scripts_policy.h"
 
-#include <limits.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <memory>
 #include <algorithm>
 #include <optional>
@@ -17,7 +12,9 @@
 #include <vector>
 
 #include "base/containers/fixed_flat_set.h"
+#include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
@@ -25,6 +22,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/crx_file/id_util.h"
 #include "content/public/browser/navigation_handle.h"
@@ -40,6 +38,17 @@
 #include "extensions/common/permissions/permission_set.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_POSIX)
+#include <limits.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include <windows.h>
+#endif
 
 extern bool (*g_astro_unpacked_path_allowed)(const base::FilePath& requested,
                                              const base::FilePath& resolved,
@@ -65,6 +74,14 @@ constexpr auto kContentScriptKeys = base::MakeFixedFlatSet<std::string_view>(
      "js", "match_about_blank", "match_origin_as_fallback", "matches",
      "run_at", "world"});
 
+enum class NodeKind { kMissing, kFile, kFolder, kOther };
+
+struct AbsolutePath {
+  base::FilePath root;
+  std::vector<base::FilePath::StringType> parts;
+};
+
+#if BUILDFLAG(IS_POSIX)
 std::optional<base::FilePath> RealPath(const base::FilePath& path) {
   char resolved[PATH_MAX];
   if (!realpath(path.value().c_str(), resolved)) {
@@ -73,16 +90,22 @@ std::optional<base::FilePath> RealPath(const base::FilePath& path) {
   return base::FilePath(resolved);
 }
 
-std::optional<mode_t> LinkType(const base::FilePath& path) {
+NodeKind KindOf(const base::FilePath& path) {
   struct stat info;
   if (lstat(path.value().c_str(), &info) != 0) {
-    return std::nullopt;
+    return NodeKind::kMissing;
   }
-  return info.st_mode & S_IFMT;
+  switch (info.st_mode & S_IFMT) {
+    case S_IFREG:
+      return NodeKind::kFile;
+    case S_IFDIR:
+      return NodeKind::kFolder;
+    default:
+      return NodeKind::kOther;
+  }
 }
 
-std::optional<std::vector<std::string>> AbsoluteParts(
-    const base::FilePath& path) {
+std::optional<AbsolutePath> Absolute(const base::FilePath& path) {
   std::string value = path.value();
   if (value == "~" || value.starts_with("~/")) {
     if (const char* home = getenv("HOME")) {
@@ -96,31 +119,90 @@ std::optional<std::vector<std::string>> AbsoluteParts(
     }
     value = std::string(cwd) + "/" + value;
   }
-  std::vector<std::string> parts;
+  AbsolutePath absolute{base::FilePath("/"), {}};
   for (std::string& part : base::SplitString(
            value, "/", base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
     if (part != ".") {
-      parts.push_back(std::move(part));
+      absolute.parts.push_back(std::move(part));
     }
   }
-  return parts;
+  return absolute;
+}
+#elif BUILDFLAG(IS_WIN)
+constexpr std::wstring_view kExtendedUncPrefix = L"\\\\?\\UNC\\";
+constexpr std::wstring_view kExtendedPrefix = L"\\\\?\\";
+
+std::optional<base::FilePath> RealPath(const base::FilePath& path) {
+  base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ |
+                            base::File::FLAG_WIN_SHARE_DELETE |
+                            base::File::FLAG_WIN_BACKUP_SEMANTICS);
+  if (!file.IsValid()) {
+    return std::nullopt;
+  }
+  std::wstring resolved(32768, L'\0');
+  const DWORD used = ::GetFinalPathNameByHandleW(
+      file.GetPlatformFile(), resolved.data(),
+      static_cast<DWORD>(resolved.size()),
+      FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
+  if (used == 0 || used >= resolved.size()) {
+    return std::nullopt;
+  }
+  resolved.resize(used);
+  if (resolved.starts_with(kExtendedUncPrefix)) {
+    return base::FilePath(L"\\\\" +
+                          resolved.substr(kExtendedUncPrefix.size()));
+  }
+  if (resolved.starts_with(kExtendedPrefix)) {
+    return base::FilePath(resolved.substr(kExtendedPrefix.size()));
+  }
+  return base::FilePath(resolved);
 }
 
+NodeKind KindOf(const base::FilePath& path) {
+  const DWORD attributes = ::GetFileAttributesW(path.value().c_str());
+  if (attributes == INVALID_FILE_ATTRIBUTES) {
+    return NodeKind::kMissing;
+  }
+  if (attributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+    return NodeKind::kOther;
+  }
+  return (attributes & FILE_ATTRIBUTE_DIRECTORY) ? NodeKind::kFolder
+                                                 : NodeKind::kFile;
+}
+
+std::optional<AbsolutePath> Absolute(const base::FilePath& path) {
+  base::FilePath full = base::MakeAbsoluteFilePath(path);
+  if (full.empty()) {
+    return std::nullopt;
+  }
+  AbsolutePath absolute;
+  while (full.DirName() != full) {
+    absolute.parts.push_back(full.BaseName().value());
+    full = full.DirName();
+  }
+  std::ranges::reverse(absolute.parts);
+  absolute.root = full;
+  return absolute;
+}
+#endif
+
 base::FilePath Collapsed(base::FilePath base,
-                         const std::vector<std::string>& parts,
+                         const std::vector<base::FilePath::StringType>& parts,
                          size_t from) {
   for (size_t i = from; i < parts.size(); ++i) {
-    base = parts[i] == ".." ? base.DirName() : base.Append(parts[i]);
+    base = parts[i] == FILE_PATH_LITERAL("..") ? base.DirName()
+                                               : base.Append(parts[i]);
   }
   return base;
 }
 
 base::FilePath LexicallyAbsolute(const base::FilePath& path) {
-  const std::optional<std::vector<std::string>> parts = AbsoluteParts(path);
-  return parts ? Collapsed(base::FilePath("/"), *parts, 0) : base::FilePath();
+  const std::optional<AbsolutePath> absolute = Absolute(path);
+  return absolute ? Collapsed(absolute->root, absolute->parts, 0)
+                  : base::FilePath();
 }
 
-std::string Lowered(const base::FilePath& path) {
+base::FilePath::StringType Lowered(const base::FilePath& path) {
   return base::ToLowerASCII(path.StripTrailingSeparators().value());
 }
 
@@ -150,9 +232,9 @@ std::optional<std::string> ScriptFileProblem(const base::FilePath& root,
     if (part.empty() || part == "." || part == "..") {
       return "\"" + relative + "\" isn't a plain path inside the folder";
     }
-    path = path.Append(part);
+    path = path.Append(base::FilePath::FromUTF8Unsafe(part));
     const bool last = i + 1 == parts.size();
-    if (LinkType(path) != (last ? S_IFREG : S_IFDIR)) {
+    if (KindOf(path) != (last ? NodeKind::kFile : NodeKind::kFolder)) {
       return "\"" + relative + "\" isn't a plain file inside the folder";
     }
   }
@@ -199,8 +281,12 @@ class ScriptsPolicyProvider : public extensions::ManagementPolicy::Provider {
     base::FilePath user_data;
     if (base::PathService::Get(chrome::DIR_USER_DATA, &user_data) &&
         !user_data.empty()) {
-      scripts_ = user_data.DirName().Append("Scripts");
-      folder_ = scripts_.Append("extension");
+#if BUILDFLAG(IS_MAC)
+      scripts_ = user_data.DirName().Append(FILE_PATH_LITERAL("Scripts"));
+#else
+      scripts_ = user_data.Append(FILE_PATH_LITERAL("Scripts"));
+#endif
+      folder_ = scripts_.Append(FILE_PATH_LITERAL("extension"));
       designated_id_ = crx_file::id_util::GenerateIdForPath(folder_);
     }
   }
@@ -274,7 +360,8 @@ class ScriptsPolicyProvider : public extensions::ManagementPolicy::Provider {
     if (std::optional<std::string> problem = CachedShapeProblem(extension)) {
       return problem;
     }
-    if (LinkType(scripts_) != S_IFDIR || LinkType(folder_) != S_IFDIR) {
+    if (KindOf(scripts_) != NodeKind::kFolder ||
+        KindOf(folder_) != NodeKind::kFolder) {
       return "Scripts/extension must be a plain folder";
     }
     const std::optional<base::FilePath> real_folder = RealPath(folder_);
@@ -454,21 +541,22 @@ class ScriptsPagesThrottle : public content::NavigationThrottle {
 
 bool ResolvedPrefixNamesScripts(const base::FilePath& scripts,
                                 const base::FilePath& requested) {
-  const std::optional<std::vector<std::string>> parts = AbsoluteParts(requested);
-  if (!parts || parts->size() > kMaxPathComponents) {
+  const std::optional<AbsolutePath> absolute = Absolute(requested);
+  if (!absolute || absolute->parts.size() > kMaxPathComponents) {
     return true;
   }
+  const std::vector<base::FilePath::StringType>& parts = absolute->parts;
   const std::optional<base::FilePath> real_scripts = RealPath(scripts);
-  base::FilePath prefix("/");
-  for (size_t i = 0; i <= parts->size(); ++i) {
+  base::FilePath prefix = absolute->root;
+  for (size_t i = 0; i <= parts.size(); ++i) {
     if (i > 0) {
-      prefix = prefix.Append((*parts)[i - 1]);
+      prefix = prefix.Append(parts[i - 1]);
     }
     const std::optional<base::FilePath> real = RealPath(prefix);
     if (!real) {
       continue;
     }
-    const base::FilePath candidate = Collapsed(*real, *parts, i);
+    const base::FilePath candidate = Collapsed(*real, parts, i);
     if (IsSameOrInsideIgnoringCase(scripts, candidate) ||
         (real_scripts && IsSameOrInsideIgnoringCase(*real_scripts, candidate))) {
       return true;
@@ -518,7 +606,8 @@ bool UnpackedPathAllowed(const base::FilePath& requested,
   if (!names_scripts) {
     return true;
   }
-  if (LinkType(scripts) == S_IFDIR && LinkType(folder) == S_IFDIR &&
+  if (KindOf(scripts) == NodeKind::kFolder &&
+      KindOf(folder) == NodeKind::kFolder &&
       resolved.StripTrailingSeparators() == folder &&
       RealPath(folder) == std::optional<base::FilePath>(folder)) {
     return true;
@@ -566,10 +655,10 @@ std::optional<std::string> ScriptsFolderInstallProblem(
   if (folder.empty()) {
     return "Astro has no data folder";
   }
-  if (LinkType(path.StripTrailingSeparators().DirName()) != S_IFDIR ||
-      LinkType(path.StripTrailingSeparators()) != S_IFDIR ||
-      LinkType(Scripts().scripts()) != S_IFDIR ||
-      LinkType(folder) != S_IFDIR) {
+  if (KindOf(path.StripTrailingSeparators().DirName()) != NodeKind::kFolder ||
+      KindOf(path.StripTrailingSeparators()) != NodeKind::kFolder ||
+      KindOf(Scripts().scripts()) != NodeKind::kFolder ||
+      KindOf(folder) != NodeKind::kFolder) {
     return "Astro Scripts: Scripts/extension must be a plain folder";
   }
   const std::optional<base::FilePath> real_path = RealPath(path);

@@ -1917,7 +1917,7 @@ old = """    CopySectionFilesToStagingDir(
 new = old + """    # Astro: the interface and the content blocker ship as folders beside chrome.dll.
     version_dir = os.path.join(
         staging_dir, config.get('GENERAL', 'chrome.dll').replace('\\\\', os.sep))
-    for folder, staged in (('astro-ui', 'astro-ui'), ('extensions', 'Extensions')):
+    for folder, staged in (('astro-ui', 'astro-ui'), ('extensions', 'Extensions'), ('cli', 'cli')):
         source = os.path.join(build_dir, folder)
         if not os.path.isdir(source):
             continue

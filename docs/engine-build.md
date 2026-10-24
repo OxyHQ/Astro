@@ -445,10 +445,9 @@ The Windows SDK comes from a Windows machine with Visual Studio 2026 Build Tools
 before `gclient sync`/`runhooks`. On a WSL machine the Windows side is the host itself (`/mnt/c`, `cmd.exe`,
 `winget`); a portable Python is enough to run the packaging script.
 
-The engine layer links into `chrome.dll`. Its POSIX-only parts, the command-line control file (`ac_cli_control.cc`)
-and the Astro Scripts folder policy (`ac_scripts_policy.cc`), are left out: `ac_platform_win.cc` turns them down, so
-Astro Scripts and `ac_cli_control` answer that they are unavailable on Windows. Paths cross the engine boundary as
-UTF-8 (`base::FilePath::FromUTF8Unsafe`), since a Windows `FilePath` is UTF-16.
+The engine layer links into `chrome.dll`, all of it: the command-line control file (`ac_cli_control.cc`) and the
+Astro Scripts folder policy (`ac_scripts_policy.cc`) have Windows branches (`docs/cli.md` › Linux and Windows). Paths
+cross the engine boundary as UTF-8 (`base::FilePath::FromUTF8Unsafe`), since a Windows `FilePath` is UTF-16.
 
 `/tmp` here is a RAM disk shared with other work; siso writes its logs to `TMPDIR`, so the Windows build runs with
 `TMPDIR=$AC_CHROMIUM_BUILD/tmp` (a full `/tmp` killed one build at 20%).
