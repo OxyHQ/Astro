@@ -266,7 +266,7 @@ const ROWS: Record<SettingsPane, Section[]> = {
     },
   ],
   calendar: [
-    { section: "Live Calendar", rows: { access: { title: "Calendar access", keywords: ["connect calendar", "google calendar", "outlook", "icloud"] } } },
+    { section: "Live Calendar", rows: { access: { title: "Oxy account", keywords: ["connect calendar", "sign in with oxy", "nilo", "oxy account"] } } },
     {
       section: "Meeting alerts",
       rows: {

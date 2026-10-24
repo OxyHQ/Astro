@@ -1,4 +1,4 @@
-import type { SystemCalendar, SystemCalendarEvent } from "@astro-browser/shell";
+import type { CalendarEvent, CalendarInfo } from "./meetings";
 
 export type NiloColor = "default" | "gray" | "brown" | "orange" | "yellow" | "green" | "blue" | "purple" | "pink" | "red";
 
@@ -43,13 +43,12 @@ const ACCOUNT = "Oxy";
 
 const calendarColor = (calendar: NiloCalendar | undefined) => PALETTE[calendar?.colors[0]?.color ?? "default"];
 
-export function toSystemCalendar(calendar: NiloCalendar): SystemCalendar {
+export function toCalendarInfo(calendar: NiloCalendar): CalendarInfo {
   return {
     id: calendar.id,
     title: calendar.name,
     color: calendarColor(calendar),
     account: ACCOUNT,
-    accountType: "other",
     owned: calendar.role === "owner",
   };
 }
@@ -61,7 +60,7 @@ function localDay(day: string): number {
 
 const instant = (event: NiloCalendarEvent, value: string) => (event.allDay ? localDay(value) : Date.parse(value));
 
-export function toSystemEvent(event: NiloCalendarEvent, calendars: Map<string, NiloCalendar>): SystemCalendarEvent {
+export function toCalendarEvent(event: NiloCalendarEvent, calendars: Map<string, NiloCalendar>): CalendarEvent {
   return {
     id: event.id,
     occurrence: event.seriesStart ? `${event.rowId}@${event.start}` : event.rowId,

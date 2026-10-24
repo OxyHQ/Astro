@@ -90,8 +90,6 @@
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Signing in with a passkey from your phone uses Bluetooth, and websites may ask to use Bluetooth devices.</string>
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Astro shows your upcoming meetings on pinned calendar tabs, alerts you before they start, and groups the tabs you open during a call.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Websites may ask to use your camera.</string>
 	<key>NSDockTilePlugIn</key>

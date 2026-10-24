@@ -8,6 +8,8 @@ assert(is_mac || is_linux || is_win)
 
 source_set("astro") {
   sources = [
+    "ac_account_fetch.cc",
+    "ac_account_fetch.h",
     "ac_autofill.cc",
     "ac_autofill.h",
     "ac_autofill_prompt.cc",
@@ -235,7 +237,6 @@ source_set("astro") {
 
   if (is_linux || is_win) {
     sources += [
-      "ac_calendar.h",
       "ac_diagnostics.cc",
       "ac_diagnostics.h",
     ]
@@ -248,16 +249,12 @@ source_set("astro") {
   }
 
   if (is_win) {
-    sources += [
-      "ac_calendar_win.cc",
-      "ac_reauth.cc",
-    ]
+    sources += [ "ac_reauth.cc" ]
     deps += [ "//chrome/browser/webshare" ]
   }
 
   if (is_linux) {
     sources += [
-      "ac_calendar_linux.cc",
       "ac_polkit_authenticator.cc",
       "ac_polkit_authenticator.h",
       "ac_reauth.cc",

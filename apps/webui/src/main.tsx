@@ -19,6 +19,7 @@ import { startDragPreview } from "./host/dragPreview";
 import { installEngineFetch } from "./host/fetch";
 import { startEngineKeys } from "./host/keys";
 import { startFeedbackCommands } from "./host/feedback";
+import { OxyHost } from "./host/oxy";
 import { leadLifecycle, startLifecycle } from "./host/lifecycle";
 import { offerOnboarding, startOnboardingCommand } from "./host/onboarding";
 import { startPerformanceRecordingCommand } from "./host/performanceRecording";
@@ -84,6 +85,7 @@ function PageWindow() {
       </div>
       <UtilityWindows />
       <OverlayHost />
+      <OxyHost />
     </>
   );
 }

@@ -15,22 +15,6 @@ export const FILE_MANAGER = byPlatform("Finder", "File Explorer", "Files");
 export const TRASH = byPlatform("Trash", "Recycle Bin", "Trash");
 export const NATIVE_APPS = ON_MAC ? "Mac apps" : "desktop apps";
 export const MENU_BAR = ON_MAC ? "menu bar" : "app menu";
-export const CALENDAR_ACCOUNTS = byPlatform(
-  "the Calendar app's accounts",
-  "the accounts Windows' Calendar syncs",
-  "the accounts GNOME Calendar and Evolution sync (Online Accounts)",
-);
-export const CALENDAR_ADD_ACCOUNTS = byPlatform(
-  "Add accounts in the Calendar app.",
-  "Add accounts in Settings › Accounts › Email & accounts.",
-  "Add accounts in Settings › Online Accounts.",
-);
-export const CALENDAR_PRIVACY = byPlatform("System Settings › Privacy & Security › Calendars", "Settings › Privacy & security › Calendar", "");
-export const CALENDAR_PRIVACY_URL = byPlatform(
-  "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars",
-  "ms-settings:privacy-calendar",
-  "",
-);
 export const KEYCHAIN = byPlatform("your Keychain", "Windows' data protection", "your system keyring");
 export const IN_KEYCHAIN = byPlatform("in your Keychain", "with Windows' data protection", "in your system keyring");
 export const KEYCHAIN_KEY = byPlatform("a key in your Keychain", "a key protected by Windows' data protection", "a key in your system keyring");

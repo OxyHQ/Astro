@@ -31,6 +31,7 @@
 #include "base/values.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "chrome/browser/astro/ac_account_fetch.h"
 #include "chrome/browser/astro/ac_chrome_ui.h"
 #include "chrome/browser/astro/ac_devtools_dock.h"
 #include "chrome/browser/astro/ac_display_media.h"
@@ -355,6 +356,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroFetch", base::BindRepeating(&EngineWebUIHandler::HandleFetch,
                                           base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroAccountFetch",
+        base::BindRepeating(&EngineWebUIHandler::HandleAccountFetch,
+                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroPref", base::BindRepeating(&EngineWebUIHandler::HandlePref,
                                          base::Unretained(this)));
@@ -1324,6 +1329,26 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
                               : base::Value()));
   }
 
+  void HandleAccountFetch(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 5) {
+      return;
+    }
+    if (!account_fetcher_) {
+      account_fetcher_ = std::make_unique<AccountFetcher>(profile_);
+    }
+    account_fetcher_->Fetch(
+        args[1], args[2], args[3], args[4],
+        base::BindOnce(&EngineWebUIHandler::AccountFetched,
+                       weak_factory_.GetWeakPtr(), args[0].Clone()));
+  }
+
+  void AccountFetched(base::Value callback_id, base::Value result) {
+    if (IsJavascriptAllowed()) {
+      ResolveJavascriptCallback(callback_id, result);
+    }
+  }
+
   void HandlePref(const base::ListValue& args) {
     AllowJavascript();
     if (args.size() != 3 || !args[1].is_string()) {
@@ -1356,6 +1381,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
   std::set<std::string> topics_;
   std::map<int, std::unique_ptr<network::SimpleURLLoader>> fetches_;
   int next_fetch_ = 0;
+  std::unique_ptr<AccountFetcher> account_fetcher_;
   std::map<std::string, std::unique_ptr<TabBridge>> bridges_;
   scoped_refptr<ui::SelectFileDialog> picker_;
   base::Value picker_callback_;

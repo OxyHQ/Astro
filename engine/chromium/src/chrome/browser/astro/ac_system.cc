@@ -59,7 +59,6 @@
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
-#include "chrome/browser/astro/ac_calendar.h"
 #include "chrome/browser/astro/ac_diagnostics.h"
 #endif
 
@@ -289,7 +288,7 @@ void SystemCall(Profile* profile,
                 const base::DictValue& args,
                 Done done) {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
-  if (DiagnosticsCall(method, args, done) || CalendarCall(method, args, done)) {
+  if (DiagnosticsCall(method, args, done)) {
     return;
   }
 #endif

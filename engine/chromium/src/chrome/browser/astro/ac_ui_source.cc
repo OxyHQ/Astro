@@ -135,6 +135,11 @@ void ServeUi(content::WebUIDataSource* source, Profile* profile) {
       "script-src chrome://resources 'self' 'wasm-unsafe-eval';");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::WorkerSrc, "worker-src 'self';");
+  source->OverrideContentSecurityPolicy(
+      network::mojom::CSPDirectiveName::ConnectSrc,
+      "connect-src chrome://webui-test chrome://resources chrome://theme "
+      "'self' https://api.oxy.so wss://api.oxy.so https://api.nilo.so "
+      "wss://api.nilo.so;");
 }
 
 base::FilePath BesideEngine(std::string_view relative) {

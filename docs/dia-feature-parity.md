@@ -275,7 +275,7 @@ string doesn't matter. Afterwards: `kill %1` for the server, quit the app, `rm -
 | Single‑tab group auto‑ungroups | ✓ | ✅ | for ⌘-click groups (`autoUngroup`), like Dia |
 | Close group → Bookmarks Bar / Recently Closed Groups | ✓ | ✅ | |
 | Tab groups in the top tab strip | ✓ | ✅ | As Dia's (owner recording 2026-09-30, numbers in `dia-spec.md` › Top tab strip › Groups): a group is one container (the pinned dock's fill and stroke, lighter while the pointer is on the chip) holding the chip (group glyph + name) and its members. Collapsed, only the window's active tab stays out, attached after the chip. Clicking the chip slides the members out of it at full width, with a divider and Close Group (✕) at the end, and back in; the container and the tabs after it move on Dia's spring (response 0.30 s, damping 0.82; in the app 0.31 s / 0.81 expanding, 0.30 s / 0.82 collapsing, 1.1 % overshoot both ways, as Dia's). Hovering the active tab of a collapsed group shows "–" instead of ✕: it hides the tab in the group (it fades out in 0.12 s while the container closes up) and goes back to the most recent tab outside the group. Picking a member leaves the group open: in the recording it closed only when the chip was clicked. Right-click on the chip: the group menu. Left for a person: "–" and the hover states by eye |
-| Meeting tab groups (auto for calls, countdown wiggle, "Open All and Join") | ✓ | ✅ | calendar from macOS EventKit |
+| Meeting tab groups (auto for calls, countdown wiggle, "Open All and Join") | ✓ | ✅ | calendar from Nilo, through Sign in with Oxy (Windows and Linux; macOS waits on the Oxy SDK, see Live Calendar) |
 | GitHub / Bitbucket PR live folder (checks, stacks, review requests, hover preview) | ✓ | ✅ | the user supplies a token or their own OAuth app |
 | Documents live folder (Drive, Notion, Confluence) | ✓ | ✅ | same: user-supplied Google OAuth client / Notion / Confluence tokens |
 | Unread pip on live folders | ✓ | ✅ | |
@@ -456,7 +456,7 @@ own sign-ins instead.
 | Outlook, Teams, SharePoint | ✓ | ⏸ | |
 | Zoom, Loom, Granola, Amplitude, Salesforce, LinkedIn | ✓ | ⏸ | |
 | Write actions with approval ("Always allow for this chat") | ✓ | ⏸ | |
-| Live Calendar pinned‑tab hover, next‑meeting alerts, one‑click join | ✓ | ✅ | from macOS Calendar (EventKit), not a Google connection; alerts as notifications and in-window |
+| Live Calendar pinned‑tab hover, next‑meeting alerts, one‑click join | ✓ | 🟡 | from Nilo only (owner's decision, 2026-10-24): Connect Calendar signs in with Oxy (`@oxy.so/services`) and reads Nilo's `/calendar`; the system calendars (EventKit, Evolution Data Server, Windows' appointment store) are no longer read. Works on Windows and Linux once Astro's Oxy `clientId` ships; on macOS the Oxy dialog isn't mounted yet (the SDK needs Reanimated 4, which needs the New Architecture; the Mac app runs the Legacy one), so the pane says sign-in isn't available there yet. Alerts as notifications and in-window |
 
 ## 12. Bookmarks
 | Feature | Dia | Astro | Gap |

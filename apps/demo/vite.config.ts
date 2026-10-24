@@ -82,8 +82,28 @@ function lazyComponents(): Plugin {
   };
 }
 
-const BLOOM = /[/\\]node_modules[/\\]@oxy\.so[/\\]bloom[/\\].*\.[cm]?jsx?$/;
-const JSX_IN_JS = /[/\\]node_modules[/\\](react-native-reanimated|react-native-gesture-handler|react-native-css|nativewind)[/\\].*\.js$/;
+const IN_NODE_MODULES = /[/\\]node_modules[/\\]/;
+
+const EXPO_MODULES_CORE = "\0astro-expo-modules-core";
+const expoModulesCore = dirname(createRequire(import.meta.url).resolve("expo-modules-core/package.json"));
+
+function nativeModuleShim(): Plugin {
+  return {
+    name: "astro-demo:native-modules",
+    enforce: "pre",
+    resolveId(source, importer) {
+      if (source !== "expo-modules-core") return null;
+      return importer && IN_NODE_MODULES.test(importer) ? EXPO_MODULES_CORE : `${shims}expo-modules-core.ts`;
+    },
+    load(id) {
+      if (id !== EXPO_MODULES_CORE) return null;
+      return [`import "${expoModulesCore}/src/polyfill/index.web.ts";`, `export * from "${expoModulesCore}/src/index.ts";`].join("\n");
+    },
+  };
+}
+
+const BLOOM = /[/\\]node_modules[/\\]@oxy\.so[/\\](bloom|services)[/\\].*\.[cm]?jsx?$/;
+const JSX_IN_JS = /[/\\]node_modules[/\\](react-native-reanimated|react-native-gesture-handler|react-native-css|nativewind|react-native-qrcode-svg|@expo[\/\\]vector-icons)[/\\].*\.js$/;
 
 function bloomWorklets(): Plugin {
   const require = createRequire(import.meta.url);
@@ -127,6 +147,7 @@ const analyze = !!process.env.ASTRO_DEMO_ANALYZE;
 
 export default defineConfig({
   plugins: [
+    nativeModuleShim(),
     bloomWorklets(),
     tailwindcss(),
     bloomStylesPresent(),
@@ -146,7 +167,6 @@ export default defineConfig({
     alias: [
       { find: /^react-native\/Libraries\/Animated\/useAnimatedProps$/, replacement: `${reactNativeWeb}/dist/vendor/react-native/Animated/useAnimatedProps.js` },
       { find: /^react-native(-macos)?$/, replacement: `${shims}react-native.tsx` },
-      { find: /^expo-modules-core$/, replacement: `${shims}expo-modules-core.ts` },
       { find: /^expo-blur$/, replacement: `${shims}expo-blur.tsx` },
       { find: /^@astro-browser\/(shell|astrocore|shaders|sync|import)$/, replacement: `${shims}$1.tsx` },
       ...Object.entries(realPackages).map(([name, path]) => ({ find: new RegExp(`^@astro-browser-real/${name}$`), replacement: path })),

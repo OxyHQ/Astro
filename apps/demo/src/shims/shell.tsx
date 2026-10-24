@@ -37,7 +37,6 @@ const SYSTEM_INFO: SystemInfo = {
 };
 
 provideNativeModule("AstroApp", { launchEnvironment: () => null, systemInfo: () => SYSTEM_INFO });
-provideNativeModule("AstroCalendar", { authorizationStatus: () => "notDetermined" });
 provideNativeModule("AstroDockSelection", { iconTheme });
 
 let dragEscape: ((e: KeyboardEvent) => void) | null = null;
