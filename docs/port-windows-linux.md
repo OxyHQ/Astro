@@ -153,7 +153,23 @@ browsing, devtools, JavaScript (in an isolated world) and security info; `astroT
 `astro-tab-event` the changes: find results, audio, zoom, security, crashes, load errors, full screen and the theme
 colour (`<meta name="theme-color">`). Print uses the system dialog, since Chromium's preview needs a modal host that
 Webium's guest tabs don't have; devtools dock inside the window (`ac_devtools_dock.cc` gives Webium browsers the `DevtoolsUIController` Chromium docks with, and the page lays the DevTools guest out beside the page). A tab's first navigation away
-from a blank or Chromium new tab page replaces that entry, so Back never lands on Chromium's page.
+from a blank or Chromium new tab page replaces that entry, so Back never lands on Chromium's page. The bridge also
+reports what AstroCore's `TabBridge` reports on macOS: camera, microphone and screen capture from Chromium's
+`MediaStreamCaptureIndicator` (`mediaAccess`: the red badge, the toolbar icon, the share bar), a pointer press in the page
+(`pageFocus`, which activates a split pane), a navigation that turned into a download (`downloadNavigation`, which closes
+the blank tab a link opened for it) and the requests an extension blocked (`contentBlocked`, from declarativeNetRequest's
+rule matches and `ERR_BLOCKED_BY_CLIENT` loads, reset when a load starts). `capturePicture` is a JPEG of the tab from
+`CopyFromSurface`, for the tab drag preview and the pin handoff.
+
+The page script (`packages/astrocore/ios/page_script.js`, which the renderer runs in every frame on macOS) is injected by
+the bridge's internal DevTools client: `Page.addScriptToEvaluateOnNewDocument` installs it in every document, and it
+answers through `Runtime.addBinding` under a random name that the installer catches with a non-enumerable accessor first,
+so the page never holds the binding. `Runtime.enable` would carry bindings into new documents by itself, but it made a
+page logging 20,000 objects take 690 ms instead of 82; the bridge re-adds the binding on frame events instead and the
+page queues its messages until then. `host/pageChannel.ts` is the macOS dispatcher (`AstroCoreWebView`'s
+`didReceivePageMessage`) ported: selection (the Search popover), scroll (hiding the toolbar while scrolling), the page's
+theme colour (the toolbar tint), Now Playing and its controls (`mediaCommand` to the frame that plays), Picture in
+Picture, pinch zoom, dropped links, autoplay blocking from the site setting, and notifications.
 
 Prompts: AstroCore's Chromium hooks are in the Linux and Windows trees too (`engine/astrocore/apply.sh` applies on every
 platform), so the layer plugs Astro's own prompts into them, delivered to the window page that shows the tab
@@ -170,7 +186,11 @@ Extensions (`ac_extension_views.cc`, AstroCore's extension view host ported): a 
 (`executeExtensionAction`), reads each action's icon, badge and title (`actionStates`) and the side panel URL;
 `g_astro_open_action_popup` and `g_astro_extension_side_panel` reach the page that shows the active tab. Web Store
 installs ask through Astro's prompt (`ac_extension_prompts.cc`); Chromium's installed bubble, which needs a views anchor,
-is not shown. Evaluation keeps AstroCore's contract: the code is the body of `function(post){…}`, runs in the page's main world and
+is not shown. An action's keyboard shortcut (`_execute_action`) opened Webium's own popup, which Astro doesn't show: a
+hook in `ExtensionActionViewModel::ExecuteUserAction` hands it to the page (`actionShortcut`), which opens the popup in
+Astro's panel. Named commands reach `chrome.commands` through Chromium's own registry; a key Astro uses wins over an
+extension's, as on macOS (`g_astro_reserved_accelerator` answers from the page's active shortcuts,
+`ac_extension_shortcuts.cc`). Evaluation keeps AstroCore's contract: the code is the body of `function(post){…}`, runs in the page's main world and
 answers with `post("result", json)`, whenever that comes. The bridge sends it as `Runtime.evaluate` (awaiting the
 promise) through an internal DevTools client attached to the tab, since content has no public API that runs main-world
 code and waits for a promise.
@@ -186,7 +206,8 @@ Trash (`ac_trash.cc`: `IFileOperation` with a sink that refuses any delete that 
 which follows the freedesktop.org spec), its icon (Chromium's `IconManager`, a 2x PNG data URL as on macOS), open an
 external URL, the default browser (Chromium's worker), launch at login (a `~/.config/autostart` entry, or the `Run` key
 on Windows) and the interface's own notifications (Chromium's notification service; click and close come back as `notificationResponse`).
-Pages' notifications already go to the system through Chromium's platform bridge.
+Pages' notifications go through Astro as on macOS: the page script replaces `Notification`, Astro posts it, and its
+click or close goes back to the page (`notificationAction`).
 
 Screen sharing (`ac_display_media.cc`): Chromium's views picker can't show for a guest tab, so `getDisplayMedia` hung.
 A hook in `DesktopMediaPicker::Create` hands the request to Astro's own share picker when a window page shows the tab:
@@ -194,16 +215,34 @@ the engine runs Chromium's screen and window lists, the page lists its tabs, and
 bridge (`resolveDisplayMedia`). On Wayland the system dialog does the choosing. Device choosers (WebUSB, WebHID, Web
 Serial, Web Bluetooth; `ac_device_chooser.cc`) and the Cast dialog with its routes (`ac_cast.cc`) use AstroCore's
 existing hooks, as on macOS. Web Bluetooth is off in Chromium on Linux; `--astro-test-bluetooth-chooser` and
-`--astro-test-media-route-provider` test them without hardware.
+`--astro-test-media-route-provider` test them without hardware. The share bar's Stop Sharing stops the capture
+(`stopCapture`, `MediaStreamCaptureIndicator::StopMediaCapturing`) and Share This Tab Instead uses Chromium's tab sharing
+infobar delegate (`shareThisTabInstead`), as AstroCore does.
 
 Window: Webium keeps the system frame except on ChromeOS; Astro removes it on Windows and Linux too, since it draws its
 own title bar and controls. A window whose browser is already closing ignores activation, as Chrome's `BrowserView` does: Webium's
 `PaintAsActiveChanged` lacked that check, so an activation arriving while windows closed on quit hit a CHECK. The page's `app-region: drag` areas move the window and its outer 5 px resize it; both keep
 the press instead of passing it to the page. The link under the pointer reaches the page as the tab's `status` event
-(a hook in `UpdateTargetURL`).
+(a hook in `UpdateTargetURL`). A close the system asks for (Alt+F4, the taskbar, Ctrl+Shift+W) goes to the window's page
+as `closeRequest` (`g_astro_window_close_requested` in `OnWindowCloseRequested`), so "Close N tabs?" asks as the close
+button does; the page closes its own window with `astroCloseWindow`, which the hook lets through until that browser has
+closed. Whether the app is active comes from Webium's `OnPaintAsActiveChanged`: when no Astro window is active for a
+second, every page emits `resignActive` (`host/appActive.ts`).
+
+Tab drag preview (`host/dragPreview.ts`, `ac_drag_preview.cc`): the macOS `DragPreview` ported. The engine shows a
+frameless, inactive popup widget that ignores the pointer and draws the image the page sends; the page composes the pill
+(the dragged row) and the card (the window and the tab's picture, or a placeholder) on a canvas from `astroCapturePage`,
+moves the widget with the pointer, inside the window or outside it, and grows it into the window a drop opens. Page
+iframes stop taking the pointer during a drag (`astro-ui-drag`, `astro-tab-drag`), so a drag over the page keeps moving.
 
 Menu: Linux and Windows have no menu bar, so a button beside the window controls opens the macOS menu bar's commands
 (`AppMenu.tsx`, from the same `menuState`), with Ctrl shortcuts; Exit is `astroQuit` (`chrome::AttemptUserExit`).
+Quitting with a download running asks first, with the macOS wording (`host/quit.ts`); Webium's
+`ConfirmBrowserCloseWithPendingDownloads` never answered, so quitting, or closing the last window, hung while a download
+ran. It now goes ahead, as AstroCore does. Closing the last window quits on these platforms, so with a download running it
+asks the same question and quits through the quit path; cancelling a last-tab close reopens the window. Share is the
+Windows share sheet; Linux has none, so it offers Email Link and Copy Link, also as the menus' Share submenu
+(`host/share.ts`).
 
 Menus and dialogs are Bloom's (`@oxy.so/bloom`), where macOS uses NSMenu and NSAlert: `showMenu(items)` opens a
 `ContextMenu` anchored at the pointer (`anchor`, no trigger; flyout submenus sized to their rows, shortcuts, checks,
@@ -271,6 +310,58 @@ loader Firefox ships (`public/bergamot/`); a pair without a model goes through E
 hash, since it must match that loader. A paragraph is one HTML text whose pieces are `<span>`s, so each text node gets
 its own part back, as Apple's attributed strings do on macOS. The interface's CSP allows `'wasm-unsafe-eval'` and
 same-origin workers for this.
+
+## Native surface (audit, 2026-10-24)
+
+What `apps/browser/src` calls in the native modules, and what it gets on Windows and Linux. A static pass listed every
+member of every `requireNativeModule` type, every package export that calls one and every view, and checked which ones
+`apps/webui` provides (`provideNativeModule`, its shim exports) and which fall back to `apps/demo`; a missing member is an
+inert function that returns `null`. Each gap was then tried in a hidden instance. Ranked by what a user notices:
+
+| | Gap | Native call | Now |
+|---|---|---|---|
+| 1 | Exit, or closing the last window, hung while a download ran; no warning | Webium's `ConfirmBrowserCloseWithPendingDownloads`; `downloadsInProgress` | Fixed: asks first; Quit exits within 250 ms |
+| 2 | The page script didn't run: no selection Search, no toolbar hiding on scroll, no toolbar tint, no Now Playing or media controls, no PiP state, no autoplay blocking | `onPageMessage`, `onNowPlaying`, `onPictureInPicture`, `onNotification`, `mediaCommand`, `requestPictureInPicture`, `notificationAction` | Ported |
+| 3 | Pinned tiles and many favicons stayed a globe | `downloadFavicon`, `downloadImage`, `iconTheme` | Fixed, with the tile theme (macOS algorithm) |
+| 4 | Camera, microphone and screen indicators never showed; the share bar never appeared | `onMediaAccess` | Fixed |
+| 5 | Stop Sharing and Share This Tab Instead did nothing | `stopCapture`, `changeCaptureSource` | Fixed |
+| 6 | Alt+F4, the taskbar and Ctrl+Shift+W closed a window without "Close N tabs?" | `windowShouldClose` (macOS) | Fixed |
+| 7 | Dragging a tab showed nothing over the page or outside the window, and stopped at the page | `dragPreviewBegin`…`End`, `windowFrame` | Fixed |
+| 8 | Share did nothing | `share`, `shareVia` | Windows share sheet; Email Link, Copy Link on Linux |
+| 9 | An extension's action shortcut showed nothing | `onActionShortcut` | Fixed |
+| 10 | Site Controls never said how many requests were blocked | `onContentBlocked` | Fixed |
+| 11 | Clicking into a split pane didn't make it the active one | `onPageFocus` | Fixed |
+| 12 | A link that downloads left a blank tab | `onDownloadNavigation` | Fixed |
+| 13 | Esc didn't cancel a sidebar drag | `setDragEscapeCapture` | Fixed |
+| 14 | Popovers and the switcher didn't react to switching apps | `resignActive` | Fixed |
+| 15 | The tab switcher took the row under a pointer that hadn't moved | `switcherPointerMoved` | Fixed |
+| — | The menu bar's bookmarks | `setMenuBookmarks` | Nothing to do: the app menu reads the store |
+
+Still missing, by what a user would notice:
+
+- Saving an address or a card: Webium has no `AutofillBubbleHandler`, so Chromium never offers it (`onAutofillPrompt`,
+  `resolveAutofillPrompt`); Autofill's command opens Settings instead of the page's suggestions (`showAutofillSuggestions`).
+  The port is AstroCore's `ac_autofill_prompt.mm` and `ac_autofill_trigger.mm` as a portable handler.
+- A hung page: Webium's guest tabs use Chromium's delegate, so Astro's "page isn't responding" overlay never shows
+  (`onUnresponsive`, `onResponsive`, `resolveUnresponsive`); this needs a hook in `RendererUnresponsive`.
+- Calendar: no system calendar is read (`AstroCalendar`), so Connect Calendar does nothing; Windows (WinRT appointments)
+  and Linux (Evolution Data Server) each need their own reader.
+- Dragging a tab onto another window's sidebar inserts it at the end with no pill: the insert point is computed by the
+  other window's page, which is another JS context.
+- Record Performance Issue (`beginTracing`, `endTracing`), battery saver and thermal state for tab discarding
+  (`systemState`, `onSystemState`), crash reports (`crashReports`), app icons of windows in the share picker
+  (`runningAppIcon`), the onboarding music (`playIntroMusic`).
+- Not needed on the web: `revealTab`, `dropTabReveals` and `revealOffered` show the next tab's page ahead of React on
+  macOS, where every tab's iframe is already attached here and switching is an opacity change; `raiseView` orders native
+  views, where the dragged tab's `zIndex` does it; `cancelFocusMove` and `claimFocus` hold keys typed while AppKit moves
+  focus, which a page's focus does synchronously; `WindowProfile` switches an AppKit window's Chromium browser to the
+  profile it shows, where each profile's tabs already live in that profile's hidden browser here.
+
+macOS only, left as no-ops: the Dock (`isInDock`, `addToDock`; onboarding hides it), Handoff (`setWindowActivity`),
+AppleScript (`setScriptState`, `replyToScript`, `onScriptCommand`), trackpad haptics (`hapticTick`, `swipeHaptic`),
+alternate app icons (`setAppIcon`; `appIcons` is empty, so Settings hides the picker), Liquid Glass, Metal video
+upscaling (`setVideoUpscaling`, `videoUpscalingState`), the Safari and Dia importers with their Full Disk Access and
+Automation prompts, `reopen` (a Dock click), and the `dev*` test hooks.
 
 ## Minimum steps to browse on Linux
 
