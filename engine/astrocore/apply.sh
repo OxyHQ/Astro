@@ -1689,6 +1689,70 @@ hook(["std::optional<content::KeyboardEventProcessingResult> (*g_astro_window_ke
       "  if (g_astro_window_key) {\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "frameless window" <<'PY'
+old = """#if BUILDFLAG(IS_CHROMEOS)
+  params.remove_standard_frame = true;
+#endif
+"""
+new = """#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  // Astro: AstroCore draws the whole window, its title bar and controls included.
+  params.remove_standard_frame = true;
+#endif
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["  // Astro: AstroCore draws the whole window, its title bar and controls included.\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_client_view.cc" "frameless window edges" <<'PY'
+old = """int WebUIBrowserClientView::NonClientHitTest(const gfx::Point& point) {
+"""
+new = old + """#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  // Astro: the window has no system frame, so its own edges resize it.
+  if (views::Widget* widget = GetWidget(); widget && widget->widget_delegate() &&
+      widget->widget_delegate()->CanResize() && !widget->IsMaximized() &&
+      !widget->IsFullscreen()) {
+    constexpr int kResizeEdge = 5;
+    constexpr int kResizeCorner = 16;
+    const bool top = point.y() < kResizeEdge;
+    const bool bottom = point.y() >= height() - kResizeEdge;
+    const bool left = point.x() < kResizeEdge;
+    const bool right = point.x() >= width() - kResizeEdge;
+    if (top || bottom || left || right) {
+      const bool near_top = point.y() < kResizeCorner;
+      const bool near_bottom = point.y() >= height() - kResizeCorner;
+      const bool near_left = point.x() < kResizeCorner;
+      const bool near_right = point.x() >= width() - kResizeCorner;
+      if (near_top && near_left) {
+        return HTTOPLEFT;
+      }
+      if (near_top && near_right) {
+        return HTTOPRIGHT;
+      }
+      if (near_bottom && near_left) {
+        return HTBOTTOMLEFT;
+      }
+      if (near_bottom && near_right) {
+        return HTBOTTOMRIGHT;
+      }
+      return top ? HTTOP : bottom ? HTBOTTOM : left ? HTLEFT : HTRIGHT;
+    }
+  }
+#endif
+"""
+includes = ['#include "build/build_config.h"\n', '#include "ui/base/hit_test.h"\n', '#include "ui/views/widget/widget.h"\n', '#include "ui/views/widget/widget_delegate.h"\n']
+first = '#include "chrome/browser/ui/webui_browser/webui_browser_client_view.h"\n'
+def edit(s):
+    assert s.count(old) == 1 and s.count(first) == 1
+    s = s.replace(old, new)
+    missing = "".join(i for i in includes if i not in s)
+    if missing:
+        s = s.replace(first, first + "\n" + missing, 1)
+    return s
+hook(["  // Astro: the window has no system frame, so its own edges resize it.\n"], edit)
+PY
+
 if [[ $mode == check ]]; then
   exit "$drift"
 fi
