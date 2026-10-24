@@ -7,6 +7,11 @@ import demo from "../demo/vite.config";
 const shims = fileURLToPath(new URL("./src/shims/", import.meta.url));
 const project = readFileSync(new URL("../browser/macos/Astro.xcodeproj/project.pbxproj", import.meta.url), "utf8");
 const appVersion = /MARKETING_VERSION = ([^;]+);/.exec(project)?.[1] ?? "0.0.0";
+const infoPlist = readFileSync(new URL("../browser/macos/Astro-macOS/Info.plist", import.meta.url), "utf8");
+const plistValue = (key: string) => new RegExp(`<key>${key}</key>\\s*<(?:string|integer)>([^<]*)</`).exec(infoPlist)?.[1]?.trim() ?? "";
+const updateKey = plistValue("SUPublicEDKey");
+const updateInterval = Number(plistValue("SUScheduledCheckInterval")) || 86400;
+const updateFeed = process.env.ASTRO_WINDOWS_UPDATE_FEED ?? "https://github.com/OxyHQ/Astro/releases/latest/download/appcast-windows.xml";
 const appBuild = (() => {
   try {
     return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
@@ -18,7 +23,14 @@ const appBuild = (() => {
 export default defineConfig({
   ...demo,
   root: fileURLToPath(new URL(".", import.meta.url)),
-  define: { ...demo.define, __ASTRO_VERSION__: JSON.stringify(appVersion), __ASTRO_BUILD__: JSON.stringify(appBuild) },
+  define: {
+    ...demo.define,
+    __ASTRO_VERSION__: JSON.stringify(appVersion),
+    __ASTRO_BUILD__: JSON.stringify(appBuild),
+    __ASTRO_UPDATE_KEY__: JSON.stringify(updateKey),
+    __ASTRO_UPDATE_FEED__: JSON.stringify(updateFeed),
+    __ASTRO_UPDATE_INTERVAL__: JSON.stringify(updateInterval),
+  },
   base: "./",
   resolve: {
     ...demo.resolve,

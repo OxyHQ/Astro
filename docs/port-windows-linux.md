@@ -87,11 +87,14 @@ AppArmor profile: `sudo cp /opt/astro-browser/apparmor.cfg /etc/apparmor.d/astro
 
 The Windows installer is Chromium's `mini_installer`: `AC_TARGET_PLATFORM=windows scripts/windows-installer.sh` (with
 the Windows build's environment from `docs/engine-build.md`) builds `chrome` and `mini_installer` with `astro-ui/` and
-uBlock Origin staged beside `chrome.dll`, and writes `release/astro-browser-<version>-windows-x64-setup.exe`. It
+uBlock Origin staged beside `chrome.dll`, and writes `release/Astro-<version>-windows-x64-setup.exe`. It
 installs per user into `%LOCALAPPDATA%\Oxy\Astro\Application`, keeps the profile in `%LOCALAPPDATA%\Oxy\Astro\User
 Data`, creates the shortcuts and registers Astro with Windows, so it can be the default browser. Helium's Windows
 patches find 7-Zip through the registry; `engine/astrocore/apply.sh` points a Linux host at Chromium's own `7za`. The
 engine looks for `astro-ui/` and `extensions/ublock` beside `chrome.exe` (the zip) or beside `chrome.dll` (installed).
+An installed copy updates itself from `appcast-windows.xml` (`host/updater.ts`, `ac_updater.cc`; `docs/releasing.md` ›
+Windows): it downloads and verifies the newer installer and runs it when Astro quits, or at once from the toast's
+Restart.
 
 On Windows, `AC_TARGET_PLATFORM=windows scripts/windows-package.sh` (`AC_CHROMIUM_BUILD` for the Windows tree,
 `AC_ENGINE_PROFILE=dev` for the dev engine) writes `release/astro-browser-<version>-windows-x64.zip`: the files

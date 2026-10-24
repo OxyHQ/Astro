@@ -84,6 +84,8 @@ source_set("astro") {
     "ac_translate.h",
     "ac_ui_source.cc",
     "ac_ui_source.h",
+    "ac_updater.cc",
+    "ac_updater.h",
     "ac_user_scripts.cc",
     "ac_window_keys.cc",
     "ac_window_keys.h",

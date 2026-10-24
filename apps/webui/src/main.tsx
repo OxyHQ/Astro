@@ -17,6 +17,7 @@ import "../../demo/src/shims/web/motion/shortcuts";
 import { installEngineFetch } from "./host/fetch";
 import { startEngineKeys } from "./host/keys";
 import { tabHub } from "./host/tabs";
+import { startUpdater } from "./host/updater";
 import { startWindows, usePageWindowId } from "./host/windows";
 import { AppMenuButton } from "./AppMenu";
 import { UtilityWindows } from "./UtilityWindows";
@@ -35,6 +36,7 @@ const startPage = () =>
       lead: (hydrate) => {
         void startPersistence({ hydrate });
         afterFirstWindow(startUserScripts);
+        afterFirstWindow(startUpdater);
       },
       begin: () => {
         startTabPages();

@@ -69,7 +69,6 @@ export const systemInfo: SystemInfo = {
 export const appServices = {
   systemInfo: () => systemInfo,
   killSwitchEnvironment: (_name: string): string | null => null,
-  updaterState: async () => ({ available: false }),
   appIcons: async (_size: number) => [],
   appIcon: async () => "default",
   openExternalURL: async (url: string) => (await systemCall<boolean>("openExternal", { url })) ?? false,

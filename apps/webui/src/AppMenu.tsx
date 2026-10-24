@@ -1,8 +1,11 @@
 import type { BrowserCommand, MenuBookmark, MenuItem, MenuState } from "@astro-browser-real/shell";
+import { openUrls } from "../../browser/src/lib/actions";
 import { menuState } from "../../browser/src/lib/native";
 import { useBrowser } from "../../browser/src/store/browser";
 import { showMenu } from "../../demo/src/shims/web/menus";
 import { TRAFFIC_LIGHT_DIAMETER, TRAFFIC_LIGHT_SPACING, useTrafficLightsCenter } from "../../demo/src/shims/web/windowChrome";
+import { displayVersion } from "./host/appcast";
+import { checkForUpdatesNow, installReadyUpdate, releaseNotesFor, updateMenuState } from "./host/updater";
 import { pageWindowId } from "./host/windows";
 import { emitCommand } from "./shims/shell";
 
@@ -13,6 +16,9 @@ type Spec = [title: string, command: BrowserCommand, key?: string, mods?: Mod[],
 
 const SEPARATOR = "\u0000";
 const QUIT = "astro:quit";
+const CHECK_FOR_UPDATES = "astro:checkForUpdates";
+const INSTALL_UPDATE = "astro:installUpdate";
+const UPDATE_NOTES = "astro:updateNotes";
 const BUTTON_SIZE = 22;
 const BUTTON_GAP = 14;
 
@@ -41,8 +47,22 @@ function bookmarkItems(nodes: MenuBookmark[]): MenuItem[] {
   );
 }
 
+function updateItems(): { help: MenuItem[]; ready: MenuItem[] } {
+  const updates = updateMenuState();
+  if (!updates) return { help: [], ready: [] };
+  return {
+    help: [
+      separator,
+      { id: CHECK_FOR_UPDATES, title: "Check for Updates…" },
+      ...(updates.ready ? [{ id: `${UPDATE_NOTES}${SEPARATOR}${updates.ready}`, title: `What's New in Astro ${displayVersion(updates.ready)}` }] : []),
+    ],
+    ready: updates.ready ? [{ id: INSTALL_UPDATE, title: `Restart and Update to Astro ${displayVersion(updates.ready)}` }] : [],
+  };
+}
+
 function appMenu(state: MenuState): MenuItem[] {
   const c = (spec: Spec) => command(state, spec);
+  const updates = updateItems();
   const closed = state.recentlyClosed.map((entry) => c([entry.title, "restoreClosed", undefined, undefined, entry.id]));
   return [
     c(["New Tab", "newTab", "t"]),
@@ -122,8 +142,9 @@ function appMenu(state: MenuState): MenuItem[] {
     ]),
     separator,
     c(["Settings", "openSettings", ","]),
-    submenu("Help", [c(["Keyboard Shortcuts", "keyboardShortcuts"]), c(["Show Onboarding", "showOnboarding"])]),
+    submenu("Help", [c(["Keyboard Shortcuts", "keyboardShortcuts"]), c(["Show Onboarding", "showOnboarding"]), ...updates.help]),
     separator,
+    ...(updates.ready.length ? [...updates.ready, separator] : []),
     { id: QUIT, title: "Exit", key: "q", modifiers: ["command", "shift"] },
   ];
 }
@@ -132,7 +153,10 @@ export async function openAppMenu() {
   const chosen = await showMenu(appMenu(menuState(useBrowser.getState())));
   if (!chosen) return;
   if (chosen === QUIT) return chrome.send("astroQuit");
+  if (chosen === CHECK_FOR_UPDATES) return void checkForUpdatesNow();
+  if (chosen === INSTALL_UPDATE) return void installReadyUpdate();
   const [name, arg] = chosen.split(SEPARATOR) as [BrowserCommand, string | undefined];
+  if ((name as string) === UPDATE_NOTES && arg) return openUrls([releaseNotesFor(arg)], pageWindowId());
   emitCommand({ command: name, arg: arg ?? null, windowId: pageWindowId() });
 }
 

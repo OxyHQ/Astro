@@ -39,6 +39,7 @@
 #include "chrome/browser/astro/ac_system.h"
 #include "chrome/browser/astro/ac_tab_bridge.h"
 #include "chrome/browser/astro/ac_translate.h"
+#include "chrome/browser/astro/ac_updater.h"
 #include "chrome/browser/astro/ac_ui_source.h"
 #include "chrome/browser/astro/ac_window_keys.h"
 #include "chrome/browser/astro/public/ac_engine.h"
@@ -357,6 +358,9 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroSystem", base::BindRepeating(&EngineWebUIHandler::HandleSystem,
                                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroUpdater", base::BindRepeating(&EngineWebUIHandler::HandleUpdater,
+                                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroShortcuts",
         base::BindRepeating(&EngineWebUIHandler::HandleShortcuts,
@@ -795,6 +799,15 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     }
     SystemCall(profile_, args[1].GetString(), args[2].GetDict(),
                ResolveLater(args[0].Clone()));
+  }
+
+  void HandleUpdater(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 3 || !args[1].is_string() || !args[2].is_dict()) {
+      return;
+    }
+    UpdaterCall(args[1].GetString(), args[2].GetDict(),
+                ResolveLater(args[0].Clone()));
   }
 
   static std::vector<std::string> Strings(const base::Value& list) {
