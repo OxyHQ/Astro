@@ -7,6 +7,7 @@ import { contentBlockerServices, startContentBlocker } from "../host/contentBloc
 import { devicesCastServices, startCastRoutes } from "../host/devicesCast";
 import { displayMediaServices } from "../host/displayMedia";
 import { importServices, startImportEvents } from "../host/import";
+import { keychainServices } from "../host/keychain";
 import { appServices, engineServices, systemServices } from "../host/system";
 import { startTabEvents } from "../host/tabBridge";
 
@@ -18,6 +19,7 @@ export { setCliActiveTab } from "../host/cli";
 provideNativeModule("AstroCEF", { ...cefServices, ...contentBlockerServices, ...engineServices, ...displayMediaServices, engineCall, forwardEngineTopics, fetchFavicon: fetchFaviconImage });
 provideNativeModule("AstroExtensions", extensionServices);
 provideNativeModule("AstroImport", importServices);
+provideNativeModule("AstroKeychain", keychainServices);
 provideNativeModule("AstroSystem", systemServices);
 provideNativeModule("AstroApp", appServices);
 provideNativeModule("AstroChromeUI", chromeUIServices);
