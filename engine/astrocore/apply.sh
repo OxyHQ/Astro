@@ -2068,6 +2068,21 @@ def edit(s):
 hook(["  return autofill::AutofillBubbleHandler::Get(browser_->GetUnownedUserDataHost());\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/autofill/chrome_autofill_client.cc" "autofill suggestions sit under a guest tab's field" <<'PY'
+old = """  // Convert element_bounds to be in screen space.
+  const gfx::Rect client_area = web_contents()->GetContainerBounds();
+"""
+new = """  // Convert element_bounds to be in screen space.
+  // Astro: the bounds are in the outermost page's space, so a guest tab's offset isn't added twice.
+  const gfx::Rect client_area =
+      web_contents()->GetOutermostWebContents()->GetContainerBounds();
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["  // Astro: the bounds are in the outermost page's space, so a guest tab's offset isn't added twice.\n"], edit)
+PY
+
 hook "$src/content/browser/web_contents/web_contents_impl.cc" "a hung page counts DevTools, not the host's client" <<'PY'
 at = "bool WebContentsImpl::ShouldIgnoreUnresponsiveRenderer() {\n"
 decl = """// Astro: AstroCore keeps its own DevTools client on its tabs; only DevTools itself should hide a hung page.

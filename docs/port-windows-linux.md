@@ -342,6 +342,7 @@ inert function that returns `null`. Each gap was then tried in a hidden instance
 | 15 | The tab switcher took the row under a pointer that hadn't moved | `switcherPointerMoved` | Fixed |
 | 16 | A hung page showed nothing: Chromium's dialog needs a views host, and the bridge's DevTools client hid the hang | `onUnresponsive`, `onResponsive`, `resolveUnresponsive` | Fixed |
 | 17 | Chromium never offered to save or update an address or a card: Webium has no `AutofillBubbleHandler` | `onAutofillPrompt`, `resolveAutofillPrompt` | Fixed |
+| 18 | Chromium's autofill dropdown opened a tab's offset away from its field: the field's bounds were added to the tab's own container bounds, which already sit inside the interface page | Chromium's `ChromeAutofillClient` | Fixed: the outermost page's bounds are used |
 | — | The menu bar's bookmarks | `setMenuBookmarks` | Nothing to do: the app menu reads the store |
 
 Still missing, by what a user would notice:
