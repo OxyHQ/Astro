@@ -21,9 +21,11 @@
 #include "base/base64.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/astro/ac_host.h"
+#include "chrome/browser/astro/ac_system_state.h"
 #include "chrome/browser/astro/ac_trash.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/first_run/first_run.h"
 #include "chrome/browser/icon_manager.h"
 #include "chrome/browser/notifications/notification_display_service.h"
 #include "chrome/browser/notifications/notification_display_service_factory.h"
@@ -315,6 +317,10 @@ void SystemCall(Profile* profile,
         base::BindOnce(&SetLaunchAtLogin,
                        args.FindBool("enabled").value_or(false)),
         std::move(done));
+  } else if (method == "systemState") {
+    CurrentSystemState(std::move(done));
+  } else if (method == "firstRun") {
+    std::move(done).Run(base::Value(first_run::IsChromeFirstRun()));
   } else if (method == "startDictation") {
     std::move(done).Run(base::Value(StartSystemDictation()));
   } else if (method == "engineInfo") {

@@ -18,6 +18,8 @@ import { startAppActivity } from "./host/appActive";
 import { startDragPreview } from "./host/dragPreview";
 import { installEngineFetch } from "./host/fetch";
 import { startEngineKeys } from "./host/keys";
+import { offerOnboarding, startOnboardingCommand } from "./host/onboarding";
+import { startTabDragShare } from "./host/tabDragShare";
 import { tabHub } from "./host/tabs";
 import { startUpdater } from "./host/updater";
 import { startWindows, usePageWindowId } from "./host/windows";
@@ -30,6 +32,7 @@ startTranslate();
 void startEngineKeys();
 void startAppActivity();
 startDragPreview();
+startTabDragShare();
 setStoreBatching(unstable_batchedUpdates);
 
 Object.assign(globalThis, { astro: { store: useBrowser, emitCommand } });
@@ -38,6 +41,7 @@ const startPage = () =>
   startWindows(
     {
       lead: (hydrate) => {
+        if (hydrate) offerOnboarding();
         void startPersistence({ hydrate });
         afterFirstWindow(startUserScripts);
         afterFirstWindow(startUpdater);
@@ -46,6 +50,7 @@ const startPage = () =>
         startTabPages();
         startNativeSync();
         startCliControl();
+        startOnboardingCommand();
       },
       end: () => flushPersistence({ final: true }),
     },

@@ -103,6 +103,7 @@ export type DisplayMediaSource = {
   name: string;
   app?: string;
   pid?: number;
+  icon?: string;
   width: number;
   height: number;
 };

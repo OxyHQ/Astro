@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/base64.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -17,6 +18,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "build/build_config.h"
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/media/webrtc/desktop_media_list.h"
 #include "chrome/browser/media/webrtc/desktop_media_list_observer.h"
@@ -29,11 +31,20 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_media_capture_id.h"
+#include "skia/ext/image_operations.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
+#include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/gfx/image/image_skia.h"
+#include "ui/gfx/image/image_skia_operations.h"
+#include "ui/gfx/image/image_skia_rep.h"
 #include "url/origin.h"
+
+#if !BUILDFLAG(IS_MAC)
+#include "chrome/browser/media/webrtc/window_icon_util.h"
+#endif
 
 extern std::unique_ptr<DesktopMediaPicker> (*g_astro_desktop_media_picker)(
     const content::MediaStreamRequest* request);
@@ -48,6 +59,7 @@ constexpr base::TimeDelta kFirstListingWait = base::Milliseconds(600);
 constexpr base::TimeDelta kSourcesUpdateDelay = base::Milliseconds(500);
 constexpr base::TimeDelta kListUpdatePeriod = base::Seconds(2);
 constexpr gfx::Size kThumbnailSize(32, 18);
+constexpr int kWindowIconPixels = 40;
 
 class DisplayMediaPicker;
 
@@ -67,6 +79,27 @@ content::WebContents* ContentsOfFrame(int render_process_id,
 bool IsDesktopList(DesktopMediaList::Type type) {
   return type == DesktopMediaList::Type::kScreen ||
          type == DesktopMediaList::Type::kWindow;
+}
+
+std::string WindowIconDataUrl(const content::DesktopMediaID& id) {
+#if BUILDFLAG(IS_MAC)
+  return std::string();
+#else
+  const gfx::ImageSkia icon = GetWindowIcon(id);
+  if (icon.isNull()) {
+    return std::string();
+  }
+  const gfx::ImageSkia sized = gfx::ImageSkiaOperations::CreateResizedImage(
+      icon, skia::ImageOperations::RESIZE_BEST,
+      gfx::Size(kWindowIconPixels, kWindowIconPixels));
+  std::optional<std::vector<uint8_t>> png =
+      gfx::PNGCodec::EncodeBGRASkBitmap(
+          sized.GetRepresentation(1.0f).GetBitmap(), false);
+  if (!png) {
+    return std::string();
+  }
+  return "data:image/png;base64," + base::Base64Encode(*png);
+#endif
 }
 
 class DisplayMediaPicker : public DesktopMediaPicker {
@@ -216,7 +249,16 @@ class DisplayMediaPicker : public DesktopMediaPicker {
     }
   }
 
-  base::ListValue Sources() const {
+  const std::string& IconOf(const content::DesktopMediaID& id) {
+    const std::string key = id.ToString();
+    auto known = icons_.find(key);
+    if (known == icons_.end()) {
+      known = icons_.emplace(key, WindowIconDataUrl(id)).first;
+    }
+    return known->second;
+  }
+
+  base::ListValue Sources() {
     base::ListValue sources;
     int screen_count = 0;
     for (size_t index = 0; index < lists_.size(); ++index) {
@@ -242,12 +284,18 @@ class DisplayMediaPicker : public DesktopMediaPicker {
           continue;
         }
         screen_count += screens ? 1 : 0;
-        sources.Append(base::DictValue()
-                           .Set("id", source.id.ToString())
-                           .Set("kind", screens ? "screen" : "window")
-                           .Set("name", base::UTF16ToUTF8(source.name))
-                           .Set("width", 0)
-                           .Set("height", 0));
+        base::DictValue entry = base::DictValue()
+                                    .Set("id", source.id.ToString())
+                                    .Set("kind", screens ? "screen" : "window")
+                                    .Set("name", base::UTF16ToUTF8(source.name))
+                                    .Set("width", 0)
+                                    .Set("height", 0);
+        if (!screens) {
+          if (const std::string& icon = IconOf(source.id); !icon.empty()) {
+            entry.Set("icon", icon);
+          }
+        }
+        sources.Append(std::move(entry));
       }
     }
     display::Screen* screen = display::Screen::Get();
@@ -362,6 +410,7 @@ class DisplayMediaPicker : public DesktopMediaPicker {
   std::optional<size_t> choosing_;
   std::vector<std::unique_ptr<ListWatcher>> watchers_;
   std::vector<std::unique_ptr<DesktopMediaList>> lists_;
+  std::map<std::string, std::string> icons_;
   base::OneShotTimer first_listing_;
   base::OneShotTimer sources_update_;
   base::WeakPtrFactory<DisplayMediaPicker> weak_factory_{this};

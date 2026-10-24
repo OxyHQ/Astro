@@ -346,17 +346,23 @@ inert function that returns `null`. Each gap was then tried in a hidden instance
 | 19 | Autofill's command and its shortcut opened Settings instead of the focused field's suggestions | `showAutofillSuggestions` | Fixed: `ac_autofill_trigger.cc` (AstroCore's `ac_autofill_trigger.mm` ported) remembers each tab's last focused field and asks its frame's autofill driver for suggestions; Settings opens only when no field of the tab has focus |
 | 20 | With tabs on top, the "⋯" app menu button sat over the first tab | `APP_MENU_BUTTON_ROOM` (shell) | Fixed: the strip starts after the button, the gap macOS leaves after the zoom light |
 | 21 | The native window title (X11's `_NET_WM_NAME`) showed the Webium browser's active tab, which a tab switch doesn't change, so it went stale | Webium's `GetWindowTitle` | Fixed: the window takes its page's title (`setWindowTitle`, macOS's "Profile — Tab & N Tabs"), from the window's first frame, and updates when it changes |
+| 22 | Dragging a tab onto another window showed nothing there and dropped the tab at the end: the drop point was worked out by the dragging window's page, while the target's state lives in another page | `useTabDrag` (`overWindow`, `overPoint`, `insert`; one JS context on macOS) | Fixed: the dragging page sends the pointer's screen point to the target page (`tabDragShare.ts`, a `BroadcastChannel`), which shows the drop highlight and, with tabs on top, the insert gap, and answers with the insert point; the dragged picture turns into the pill and the tab lands at the gap, live. With tabs in the sidebar the target glows and the tab goes to the end, as on macOS |
+| 23 | The share picker's windows had no app icons | `runningAppIcon` | Fixed: each window source carries its icon from Chromium's `GetWindowIcon` (`_NET_WM_ICON` on X11, `WM_GETICON` on Windows), as Chrome's own picker does |
+| 24 | The page never learnt the power source, battery level or battery saver | `systemState`, `onSystemState` | Provided (`ac_system_state.cc`), but nothing consumes it yet (below): Windows takes the power source and level from Chromium's `PowerMonitor` and `BatteryLevelProvider` and Windows' battery saver from `GetSystemPowerStatus`; Linux reads UPower's display device, since Helium's `disable-battery-status-service` stubs out Chromium's own reader. Memory pressure stays "normal" (below) |
+| 25 | Onboarding never started (nothing called `maybeStartOnboarding`, and Help › Show Onboarding did nothing), and its music never played | `playIntroMusic`, `setIntroMusicMuted`, `stopIntroMusic` | Fixed: the leader page starts it on Chromium's first run (`--no-first-run` test instances skip it) or to finish one already begun, and every page handles Show Onboarding; the macOS synthesis runs in a worker and plays through Web Audio with a hall reverb; skipping before it starts cancels it |
 | — | The menu bar's bookmarks | `setMenuBookmarks` | Nothing to do: the app menu reads the store |
 
 Still missing, by what a user would notice:
 
 - Calendar: no system calendar is read (`AstroCalendar`), so Connect Calendar does nothing; Windows (WinRT appointments)
   and Linux (Evolution Data Server) each need their own reader.
-- Dragging a tab onto another window's sidebar inserts it at the end with no pill: the insert point is computed by the
-  other window's page, which is another JS context.
-- Record Performance Issue (`beginTracing`, `endTracing`), battery saver and thermal state for tab discarding
-  (`systemState`, `onSystemState`), crash reports (`crashReports`), app icons of windows in the share picker
-  (`runningAppIcon`), the onboarding music (`playIntroMusic`).
+- Record Performance Issue (`beginTracing`, `endTracing`), crash reports (`crashReports`).
+- Tab sleeping, freezing and Battery Saver (`startTabLifecycle`) never start: `apps/webui` doesn't call it, so the
+  system state above reaches every page and goes unused. Each page holds only its own window's tabs, so the port needs
+  the sweeps per page and the store-wide parts (waking recent tabs at launch, the Battery Saver toast) in one page.
+- Memory pressure for tab sleeping (`systemState`'s `memoryPressure`): Chromium's listener needs a
+  `MemoryPressureListenerTag` of its own, an enum in a base header nearly every target includes, so adding one rebuilds
+  almost everything. No platform reports a thermal state to tab sleeping, macOS included.
 - Not needed on the web: `revealTab`, `dropTabReveals` and `revealOffered` show the next tab's page ahead of React on
   macOS, where every tab's iframe is already attached here and switching is an opacity change; `raiseView` orders native
   views, where the dragged tab's `zIndex` does it; `cancelFocusMove` and `claimFocus` hold keys typed while AppKit moves

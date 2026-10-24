@@ -96,11 +96,11 @@ export function dismissOnboarding(session: number) {
   if (tourAfter && windowId) startToolTour(windowId);
 }
 
-export function maybeStartOnboarding() {
+export function maybeStartOnboarding(hadSession = !!readDocument("session.json")) {
   const saved = readSaved();
   if (saved?.completedAt) return;
   if (saved?.startedAt) return startOnboarding(null, "defaultBrowser");
-  if (readDocument("session.json")) return markCompleted();
+  if (hadSession) return markCompleted();
   if (__DEV__ && launchEnvironment("ASTRO_ONBOARDING") !== "1") return;
   save({ startedAt: Date.now() });
   startOnboarding();
