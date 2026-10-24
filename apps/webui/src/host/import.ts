@@ -68,8 +68,7 @@ export const importServices = {
     return url ? fileUrlToPath(url) : null;
   },
 
-  writeImported: (_token: string, _profile: string, _kinds: string[]): Promise<string> =>
-    Promise.reject({ code: "unsupported", message: "Writing imported cookies and autofill isn't supported yet" }),
+  writeImported: (token: string, profile: string, kinds: string[]): Promise<string> => sendJson("writeImported", { token, profile, kinds }),
 
-  discardImported: (_token: string) => {},
+  discardImported: (token: string) => void send("discardImported", { token }),
 };

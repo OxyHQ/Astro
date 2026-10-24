@@ -37,15 +37,28 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/strings/escape.h"
+#include "base/strings/strcat.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/time/time.h"
+#include "base/uuid.h"
 #include "build/build_config.h"
+#include "chrome/browser/astro/ac_autofill.h"
+#include "chrome/browser/astro/ac_cookies.h"
+#include "chrome/browser/astro/ac_profile_tabs.h"
+#include "chrome/browser/astro/ac_sensitive_args.h"
+#include "chrome/browser/profiles/profile.h"
+#include "content/public/browser/browser_task_traits.h"
+#include "content/public/browser/browser_thread.h"
 #include "sql/database.h"
 #include "sql/statement.h"
 #include "third_party/boringssl/src/include/openssl/aead.h"
 #include "third_party/boringssl/src/include/openssl/cipher.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
+#include "third_party/boringssl/src/include/openssl/hmac.h"
+#include "third_party/boringssl/src/include/openssl/sha.h"
 
 #if BUILDFLAG(IS_LINUX)
 #include "base/environment.h"
@@ -186,6 +199,228 @@ std::optional<std::string> AesGcmOpen(base::span<const uint8_t> key,
     return std::nullopt;
   }
   return std::string(reinterpret_cast<char*>(out.data()), out_len);
+}
+
+std::optional<std::string> CipherDecrypt(const EVP_CIPHER* cipher,
+                                         base::span<const uint8_t> key,
+                                         base::span<const uint8_t> iv,
+                                         base::span<const uint8_t> body,
+                                         bool padding) {
+  const size_t block = EVP_CIPHER_block_size(cipher);
+  if (key.size() != EVP_CIPHER_key_length(cipher) ||
+      iv.size() != EVP_CIPHER_iv_length(cipher) || body.empty() ||
+      body.size() % block != 0) {
+    return std::nullopt;
+  }
+  bssl::UniquePtr<EVP_CIPHER_CTX> ctx(EVP_CIPHER_CTX_new());
+  if (!ctx ||
+      !EVP_DecryptInit_ex(ctx.get(), cipher, nullptr, key.data(), iv.data()) ||
+      !EVP_CIPHER_CTX_set_padding(ctx.get(), padding ? 1 : 0)) {
+    return std::nullopt;
+  }
+  std::vector<uint8_t> out(body.size() + block);
+  int len = 0;
+  int final_len = 0;
+  if (!EVP_DecryptUpdate(ctx.get(), out.data(), &len, body.data(),
+                         static_cast<int>(body.size())) ||
+      !EVP_DecryptFinal_ex(ctx.get(), out.data() + len, &final_len)) {
+    return std::nullopt;
+  }
+  return std::string(reinterpret_cast<char*>(out.data()), len + final_len);
+}
+
+std::string UnpadLeniently(std::string data, size_t block) {
+  if (data.empty()) {
+    return data;
+  }
+  const size_t pad = static_cast<uint8_t>(data.back());
+  if (pad == 0 || pad > block || pad > data.size()) {
+    return data;
+  }
+  for (size_t i = data.size() - pad; i < data.size(); ++i) {
+    if (static_cast<uint8_t>(data[i]) != pad) {
+      return data;
+    }
+  }
+  data.resize(data.size() - pad);
+  return data;
+}
+
+std::string Sha1(std::string_view data) {
+  std::array<uint8_t, SHA_DIGEST_LENGTH> digest;
+  SHA1(reinterpret_cast<const uint8_t*>(data.data()), data.size(),
+       digest.data());
+  return std::string(digest.begin(), digest.end());
+}
+
+std::string Sha256(std::string_view data) {
+  std::array<uint8_t, SHA256_DIGEST_LENGTH> digest;
+  SHA256(reinterpret_cast<const uint8_t*>(data.data()), data.size(),
+         digest.data());
+  return std::string(digest.begin(), digest.end());
+}
+
+std::string HmacSha1(std::string_view key, std::string_view data) {
+  std::array<uint8_t, EVP_MAX_MD_SIZE> out;
+  unsigned int len = 0;
+  HMAC(EVP_sha1(), key.data(), key.size(),
+       reinterpret_cast<const uint8_t*>(data.data()), data.size(), out.data(),
+       &len);
+  return std::string(out.begin(), out.begin() + len);
+}
+
+base::span<const uint8_t> Bytes(std::string_view data) {
+  return base::as_byte_span(data);
+}
+
+struct DerNode {
+  uint8_t tag = 0;
+  std::string content;
+  std::vector<DerNode> children;
+};
+
+std::optional<DerNode> ReadDer(std::string_view data, size_t* at, int depth) {
+  if (depth > 16 || *at + 2 > data.size()) {
+    return std::nullopt;
+  }
+  DerNode node;
+  node.tag = static_cast<uint8_t>(data[*at]);
+  size_t length = static_cast<uint8_t>(data[*at + 1]);
+  *at += 2;
+  if (length & 0x80) {
+    const size_t n = length & 0x7f;
+    if (n == 0 || n > 4 || *at + n > data.size()) {
+      return std::nullopt;
+    }
+    length = 0;
+    for (size_t i = 0; i < n; ++i) {
+      length = (length << 8) | static_cast<uint8_t>(data[*at + i]);
+    }
+    *at += n;
+  }
+  if (*at + length > data.size()) {
+    return std::nullopt;
+  }
+  node.content = std::string(data.substr(*at, length));
+  if (node.tag & 0x20) {
+    size_t inner = 0;
+    while (inner < node.content.size()) {
+      std::optional<DerNode> child = ReadDer(node.content, &inner, depth + 1);
+      if (!child) {
+        return std::nullopt;
+      }
+      node.children.push_back(std::move(*child));
+    }
+  }
+  *at += length;
+  return node;
+}
+
+std::optional<DerNode> ParseDer(std::string_view data) {
+  size_t at = 0;
+  return ReadDer(data, &at, 0);
+}
+
+std::string DerOid(const DerNode& node) {
+  if (node.tag != 0x06 || node.content.empty()) {
+    return std::string();
+  }
+  const uint8_t first = static_cast<uint8_t>(node.content[0]);
+  std::string out = base::NumberToString(first / 40) + "." +
+                    base::NumberToString(first % 40);
+  uint64_t value = 0;
+  for (size_t i = 1; i < node.content.size(); ++i) {
+    const uint8_t byte = static_cast<uint8_t>(node.content[i]);
+    value = (value << 7) | (byte & 0x7f);
+    if (!(byte & 0x80)) {
+      out += "." + base::NumberToString(value);
+      value = 0;
+    }
+  }
+  return out;
+}
+
+int64_t DerInteger(const DerNode& node) {
+  int64_t value = 0;
+  for (char c : node.content) {
+    value = (value << 8) | static_cast<uint8_t>(c);
+  }
+  return value;
+}
+
+constexpr char kOidPbes2[] = "1.2.840.113549.1.5.13";
+constexpr char kOidPbkdf2[] = "1.2.840.113549.1.5.12";
+constexpr char kOidSha1And3Des[] = "1.2.840.113549.1.12.5.1.3";
+constexpr char kOidAes256Cbc[] = "2.16.840.1.101.3.4.1.42";
+constexpr char kOid3DesCbc[] = "1.2.840.113549.3.7";
+
+std::optional<std::string> DecryptPbe(const DerNode& node,
+                                      const std::string& global_salt,
+                                      const std::string& password) {
+  if (node.children.size() < 2 || node.children[0].children.size() < 2) {
+    return std::nullopt;
+  }
+  const std::string algorithm = DerOid(node.children[0].children[0]);
+  const DerNode& params = node.children[0].children[1];
+  const std::string& cipher = node.children[1].content;
+  if (algorithm == kOidPbes2) {
+    if (params.children.size() < 2 || params.children[0].children.size() < 2 ||
+        DerOid(params.children[0].children[0]) != kOidPbkdf2 ||
+        params.children[0].children[1].children.size() < 3 ||
+        params.children[1].children.size() < 2) {
+      return std::nullopt;
+    }
+    const DerNode& kdf = params.children[0].children[1];
+    const std::string& salt = kdf.children[0].content;
+    const int64_t iterations = DerInteger(kdf.children[1]);
+    const int64_t key_length = DerInteger(kdf.children[2]);
+    if (iterations <= 0 || iterations > 10000000 || key_length != 32) {
+      return std::nullopt;
+    }
+    const std::string hashed = Sha1(global_salt + password);
+    std::array<uint8_t, 32> key;
+    if (!PKCS5_PBKDF2_HMAC(hashed.data(), hashed.size(),
+                           reinterpret_cast<const uint8_t*>(salt.data()),
+                           salt.size(), static_cast<unsigned>(iterations),
+                           EVP_sha256(), key.size(), key.data())) {
+      return std::nullopt;
+    }
+    const std::string iv =
+        std::string("\x04\x0e", 2) + params.children[1].children[1].content;
+    std::optional<std::string> clear =
+        CipherDecrypt(EVP_aes_256_cbc(), key, Bytes(iv), Bytes(cipher), false);
+    if (!clear) {
+      return std::nullopt;
+    }
+    return UnpadLeniently(std::move(*clear), 16);
+  }
+  if (algorithm == kOidSha1And3Des) {
+    if (params.children.empty()) {
+      return std::nullopt;
+    }
+    const std::string& entry_salt = params.children[0].content;
+    const std::string hp = Sha1(global_salt + password);
+    std::string pes = entry_salt;
+    if (pes.size() < 20) {
+      pes.append(20 - pes.size(), '\0');
+    }
+    const std::string chp = Sha1(hp + entry_salt);
+    const std::string k1 = HmacSha1(chp, pes + entry_salt);
+    const std::string tk = HmacSha1(chp, pes);
+    const std::string k2 = HmacSha1(chp, tk + entry_salt);
+    const std::string k = k1 + k2;
+    if (k.size() < 40) {
+      return std::nullopt;
+    }
+    std::optional<std::string> clear =
+        CipherDecrypt(EVP_des_ede3_cbc(), Bytes(k.substr(0, 24)),
+                      Bytes(k.substr(k.size() - 8)), Bytes(cipher), false);
+    if (!clear) {
+      return std::nullopt;
+    }
+    return UnpadLeniently(std::move(*clear), 8);
+  }
+  return std::nullopt;
 }
 
 enum class Family { kChromium, kFirefox, kArc };
@@ -421,6 +656,13 @@ std::vector<std::string> ChromiumKinds(const base::FilePath& dir, bool arc) {
   if (FileThere(dir, "Login Data") || FileThere(dir, "Login Data For Account")) {
     kinds.push_back("passwords");
   }
+  if (base::PathExists(dir.AppendASCII("Network").AppendASCII("Cookies")) ||
+      FileThere(dir, "Cookies")) {
+    kinds.push_back("cookies");
+  }
+  if (FileThere(dir, "Web Data")) {
+    kinds.push_back("autofill");
+  }
   return kinds;
 }
 
@@ -628,6 +870,12 @@ std::vector<DiscoveredProfile> FirefoxProfiles(const Def& def) {
       profile.available.push_back("bookmarks");
       profile.available.push_back("history");
     }
+    if (FileThere(dir, "logins.json") && FileThere(dir, "key4.db")) {
+      profile.available.push_back("passwords");
+    }
+    if (FileThere(dir, "cookies.sqlite")) {
+      profile.available.push_back("cookies");
+    }
     out.push_back(std::move(profile));
   }
   return out;
@@ -651,6 +899,8 @@ class ImportState {
   bool IsUnlocked(const std::string& browser_id);
   void Forget();
   std::optional<BrowserKey> KeyFor(const std::string& browser_id);
+  void SetPrimaryPassword(const std::string& browser_id, std::string password);
+  std::optional<std::string> PrimaryPassword(const std::string& browser_id);
 
   std::shared_ptr<std::atomic<bool>> StartJob(const std::string& job_id);
   void CancelJob(const std::string& job_id);
@@ -659,6 +909,7 @@ class ImportState {
  private:
   base::Lock lock_;
   std::map<std::string, BrowserKey> keys_;
+  std::map<std::string, std::string> primary_passwords_;
   std::map<std::string, std::shared_ptr<std::atomic<bool>>> jobs_;
 };
 
@@ -760,6 +1011,28 @@ bool ImportState::IsUnlocked(const std::string& browser_id) {
 void ImportState::Forget() {
   base::AutoLock locked(lock_);
   keys_.clear();
+  for (auto& [id, password] : primary_passwords_) {
+    Cleanse(password);
+  }
+  primary_passwords_.clear();
+}
+
+void ImportState::SetPrimaryPassword(const std::string& browser_id,
+                                     std::string password) {
+  base::AutoLock locked(lock_);
+  std::string& slot = primary_passwords_[browser_id];
+  Cleanse(slot);
+  slot = std::move(password);
+}
+
+std::optional<std::string> ImportState::PrimaryPassword(
+    const std::string& browser_id) {
+  base::AutoLock locked(lock_);
+  auto it = primary_passwords_.find(browser_id);
+  if (it == primary_passwords_.end()) {
+    return std::nullopt;
+  }
+  return it->second;
 }
 
 std::optional<BrowserKey> ImportState::KeyFor(const std::string& browser_id) {
@@ -1421,6 +1694,868 @@ bool ReadLogins(const base::FilePath& profile,
     if (!ReadLoginsDatabase(file, key, cancel, &seen, outcome, error)) {
       return false;
     }
+  }
+  return true;
+}
+
+std::set<std::string> TableColumns(sql::Database* db, std::string_view table) {
+  std::set<std::string> columns;
+  sql::Statement statement(db->GetUniqueStatement(
+      base::StrCat({"PRAGMA table_info(", table, ")"})));
+  while (statement.Step()) {
+    columns.insert(statement.ColumnString(1));
+  }
+  return columns;
+}
+
+std::string FirstColumn(const std::set<std::string>& columns,
+                        std::initializer_list<std::string_view> names) {
+  for (std::string_view name : names) {
+    if (columns.contains(std::string(name))) {
+      return std::string(name);
+    }
+  }
+  return "NULL";
+}
+
+double NowMillis() {
+  return base::Time::Now().InMillisecondsFSinceUnixEpoch();
+}
+
+const char* CookiePriority(sql::Statement& s, int column) {
+  if (s.GetColumnType(column) == sql::ColumnType::kNull) {
+    return "medium";
+  }
+  switch (s.ColumnInt(column)) {
+    case 0:
+      return "low";
+    case 2:
+      return "high";
+    default:
+      return "medium";
+  }
+}
+
+const char* CookieSourceScheme(sql::Statement& s, int column) {
+  if (s.GetColumnType(column) == sql::ColumnType::kNull) {
+    return "unset";
+  }
+  switch (s.ColumnInt(column)) {
+    case 1:
+      return "nonSecure";
+    case 2:
+      return "secure";
+    default:
+      return "unset";
+  }
+}
+
+const char* CookieSameSite(sql::Statement& s, int column) {
+  if (s.GetColumnType(column) == sql::ColumnType::kNull) {
+    return "unspecified";
+  }
+  switch (s.ColumnInt(column)) {
+    case 0:
+      return "none";
+    case 1:
+      return "lax";
+    case 2:
+      return "strict";
+    default:
+      return "unspecified";
+  }
+}
+
+std::optional<bool> ColumnFlag(sql::Statement& s, int column) {
+  if (s.GetColumnType(column) == sql::ColumnType::kNull) {
+    return std::nullopt;
+  }
+  return s.ColumnInt(column) != 0;
+}
+
+struct CookiesOutcome {
+  base::ListValue items;
+  int undecryptable = 0;
+  int rejected = 0;
+  int skipped = 0;
+};
+
+bool ReadChromiumCookies(const base::FilePath& profile,
+                         const BrowserKey& key,
+                         std::atomic<bool>* cancel,
+                         CookiesOutcome* outcome,
+                         ImportError* error) {
+  base::FilePath file = profile.AppendASCII("Network").AppendASCII("Cookies");
+  if (!base::PathExists(file)) {
+    file = profile.AppendASCII("Cookies");
+  }
+  if (!base::PathExists(file)) {
+    error->code = "empty";
+    error->message = "No cookies in this profile";
+    return false;
+  }
+  Snapshot snapshot;
+  if (!snapshot.Open(file, sql::Database::Tag("Passwords")) ||
+      !snapshot.TableExists("cookies")) {
+    error->code = "unreadable";
+    error->message = "Cookies has no cookies table";
+    return false;
+  }
+  int version = 0;
+  if (snapshot.TableExists("meta")) {
+    sql::Statement meta(snapshot.db()->GetUniqueStatement(
+        "SELECT CAST(value AS INTEGER) FROM meta WHERE key='version'"));
+    if (meta.Step()) {
+      version = meta.ColumnInt(0);
+    }
+  }
+  const bool host_hashed = version >= 24;
+  const std::set<std::string> c = TableColumns(snapshot.db(), "cookies");
+  const std::string query = base::StrCat(
+      {"SELECT host_key, name, ", FirstColumn(c, {"value"}), ", ",
+       FirstColumn(c, {"encrypted_value"}), ", ", FirstColumn(c, {"path"}),
+       ", ", FirstColumn(c, {"creation_utc"}), ", ",
+       FirstColumn(c, {"expires_utc"}), ", ",
+       FirstColumn(c, {"last_access_utc"}), ", ",
+       FirstColumn(c, {"is_secure", "secure"}), ", ",
+       FirstColumn(c, {"is_httponly", "httponly"}), ", ",
+       FirstColumn(c, {"has_expires", "is_persistent", "persistent"}), ", ",
+       FirstColumn(c, {"samesite", "firstpartyonly"}), ", ",
+       FirstColumn(c, {"priority"}), ", ",
+       FirstColumn(c, {"top_frame_site_key"}), ", ",
+       FirstColumn(c, {"has_cross_site_ancestor"}), ", ",
+       FirstColumn(c, {"source_scheme"}), ", ",
+       FirstColumn(c, {"source_port"}), " FROM cookies"});
+  sql::Statement s(snapshot.db()->GetUniqueStatement(query));
+  const double now = NowMillis();
+  int index = 0;
+  while (s.Step()) {
+    if (index++ % 256 == 0 && cancel->load()) {
+      error->code = "cancelled";
+      error->message = "Import cancelled";
+      return false;
+    }
+    const std::string host = s.ColumnString(0);
+    const std::string name = s.ColumnString(1);
+    if (host.empty()) {
+      continue;
+    }
+    const bool persistent = ColumnFlag(s, 10).value_or(true);
+    std::optional<double> expires =
+        persistent ? FromWebKit(s.ColumnInt64(6)) : std::nullopt;
+    if (expires && *expires < now) {
+      continue;
+    }
+    base::span<const uint8_t> plain = s.ColumnBlob(2);
+    base::span<const uint8_t> encrypted = s.ColumnBlob(3);
+    std::string value;
+    if (!plain.empty() && !encrypted.empty()) {
+      ++outcome->undecryptable;
+      continue;
+    }
+    if (!plain.empty()) {
+      value.assign(plain.begin(), plain.end());
+    } else if (!encrypted.empty()) {
+      std::optional<std::string> decrypted =
+          DecryptValue(key, encrypted, &outcome->undecryptable);
+      if (!decrypted) {
+        continue;
+      }
+      if (host_hashed) {
+        const std::string hash = Sha256(host);
+        if (decrypted->size() < hash.size() ||
+            decrypted->compare(0, hash.size(), hash) != 0) {
+          ++outcome->undecryptable;
+          continue;
+        }
+        decrypted->erase(0, hash.size());
+      }
+      value = std::move(*decrypted);
+    }
+    if (!base::IsStringUTF8AllowingNoncharacters(value)) {
+      ++outcome->rejected;
+      continue;
+    }
+    base::DictValue cookie;
+    cookie.Set("name", name);
+    cookie.Set("value", std::move(value));
+    cookie.Set("domain", host);
+    const std::string path = s.ColumnString(4);
+    cookie.Set("path", path.empty() ? "/" : path);
+    if (std::optional<double> created = FromWebKit(s.ColumnInt64(5))) {
+      cookie.Set("created", *created);
+    }
+    if (expires) {
+      cookie.Set("expires", *expires);
+    }
+    if (std::optional<double> last = FromWebKit(s.ColumnInt64(7))) {
+      cookie.Set("lastAccess", *last);
+    }
+    cookie.Set("secure", ColumnFlag(s, 8).value_or(false));
+    cookie.Set("httpOnly", ColumnFlag(s, 9).value_or(false));
+    cookie.Set("sameSite", CookieSameSite(s, 11));
+    cookie.Set("priority", CookiePriority(s, 12));
+    const std::string top_frame = s.ColumnString(13);
+    if (!top_frame.empty()) {
+      cookie.Set("partitionKey",
+                 base::DictValue()
+                     .Set("topLevelSite", top_frame)
+                     .Set("crossSite", ColumnFlag(s, 14).value_or(false)));
+    }
+    cookie.Set("sourceScheme", CookieSourceScheme(s, 15));
+    const int port = s.GetColumnType(16) == sql::ColumnType::kNull
+                         ? -1
+                         : s.ColumnInt(16);
+    cookie.Set("sourcePort", port >= 0 && port <= 65535 ? port : -1);
+    outcome->items.Append(std::move(cookie));
+  }
+  return true;
+}
+
+std::optional<std::string> TrimmedText(std::string text) {
+  base::TrimWhitespaceASCII(text, base::TRIM_ALL, &text);
+  if (text.empty()) {
+    return std::nullopt;
+  }
+  return text;
+}
+
+std::optional<std::string> JoinParts(
+    std::initializer_list<std::optional<std::string>> parts,
+    std::string_view separator) {
+  std::vector<std::string> kept;
+  for (const std::optional<std::string>& part : parts) {
+    if (part) {
+      if (std::optional<std::string> t = TrimmedText(*part)) {
+        kept.push_back(*t);
+      }
+    }
+  }
+  if (kept.empty()) {
+    return std::nullopt;
+  }
+  return base::JoinString(kept, separator);
+}
+
+using AddressFields = std::map<int, std::string>;
+
+base::DictValue AddressDict(std::optional<std::string> name,
+                            std::optional<std::string> organization,
+                            std::optional<std::string> street,
+                            std::optional<std::string> city,
+                            std::optional<std::string> state,
+                            std::optional<std::string> postal_code,
+                            std::optional<std::string> country,
+                            std::optional<std::string> phone,
+                            std::optional<std::string> email) {
+  base::DictValue address;
+  auto set = [&](const char* field, std::optional<std::string>& value) {
+    if (value) {
+      address.Set(field, *value);
+    }
+  };
+  if (country) {
+    *country = base::ToUpperASCII(*country);
+  }
+  set("name", name);
+  set("organization", organization);
+  set("street", street);
+  set("city", city);
+  set("state", state);
+  set("postalCode", postal_code);
+  set("country", country);
+  set("phone", phone);
+  set("email", email);
+  return address;
+}
+
+std::optional<std::string> Field(const AddressFields& fields, int type) {
+  auto it = fields.find(type);
+  return it == fields.end() ? std::nullopt : std::optional(it->second);
+}
+
+void TokenAddresses(sql::Database* db,
+                    const std::string& table,
+                    const std::string& tokens,
+                    std::vector<std::pair<std::string, base::DictValue>>* out) {
+  std::vector<std::string> order;
+  sql::Statement guids(db->GetUniqueStatement(
+      base::StrCat({"SELECT guid FROM ", table, " ORDER BY rowid"})));
+  while (guids.Step()) {
+    order.push_back(guids.ColumnString(0));
+  }
+  std::map<std::string, AddressFields> values;
+  sql::Statement rows(db->GetUniqueStatement(
+      base::StrCat({"SELECT guid, type, value FROM ", tokens})));
+  while (rows.Step()) {
+    if (std::optional<std::string> v = TrimmedText(rows.ColumnString(2))) {
+      values[rows.ColumnString(0)][rows.ColumnInt(1)] = *v;
+    }
+  }
+  for (const std::string& guid : order) {
+    auto it = values.find(guid);
+    if (it == values.end()) {
+      continue;
+    }
+    const AddressFields& f = it->second;
+    std::optional<std::string> name = Field(f, 7);
+    if (!name) {
+      name = JoinParts({Field(f, 3), Field(f, 5)}, " ");
+    }
+    std::optional<std::string> street = Field(f, 77);
+    if (!street) {
+      street = JoinParts({Field(f, 30), Field(f, 31)}, "\n");
+    }
+    out->emplace_back(guid,
+                      AddressDict(name, Field(f, 60), street, Field(f, 33),
+                                  Field(f, 34), Field(f, 35), Field(f, 36),
+                                  Field(f, 14), Field(f, 9)));
+  }
+}
+
+std::map<std::string, std::string> FirstValues(
+    sql::Database* db,
+    const std::string& table,
+    std::initializer_list<std::string_view> fields,
+    std::string_view separator) {
+  std::map<std::string, std::string> out;
+  if (!db->DoesTableExist(table)) {
+    return out;
+  }
+  const std::set<std::string> columns = TableColumns(db, table);
+  std::string select = "SELECT guid";
+  for (std::string_view field : fields) {
+    select += ", " + FirstColumn(columns, {field});
+  }
+  sql::Statement s(db->GetUniqueStatement(
+      base::StrCat({select, " FROM ", table, " ORDER BY rowid"})));
+  while (s.Step()) {
+    const std::string guid = s.ColumnString(0);
+    if (guid.empty() || out.contains(guid)) {
+      continue;
+    }
+    std::optional<std::string> value = TrimmedText(s.ColumnString(1));
+    if (!value && fields.size() > 1) {
+      std::vector<std::optional<std::string>> parts;
+      for (size_t i = 2; i <= fields.size(); ++i) {
+        parts.push_back(TrimmedText(s.ColumnString(static_cast<int>(i))));
+      }
+      std::vector<std::string> kept;
+      for (const std::optional<std::string>& part : parts) {
+        if (part) {
+          kept.push_back(*part);
+        }
+      }
+      if (!kept.empty()) {
+        value = base::JoinString(kept, separator);
+      }
+    }
+    if (value) {
+      out[guid] = *value;
+    }
+  }
+  return out;
+}
+
+void LegacyAddresses(sql::Database* db,
+                     std::vector<std::pair<std::string, base::DictValue>>* out) {
+  auto names = FirstValues(db, "autofill_profile_names",
+                           {"full_name", "first_name", "middle_name",
+                            "last_name"},
+                           " ");
+  auto emails = FirstValues(db, "autofill_profile_emails", {"email"}, "");
+  auto phones = FirstValues(db, "autofill_profile_phones", {"number"}, "");
+  auto lookup = [](const std::map<std::string, std::string>& map,
+                   const std::string& guid) -> std::optional<std::string> {
+    auto it = map.find(guid);
+    return it == map.end() ? std::nullopt : std::optional(it->second);
+  };
+  const std::set<std::string> c = TableColumns(db, "autofill_profiles");
+  sql::Statement s(db->GetUniqueStatement(base::StrCat(
+      {"SELECT guid, ", FirstColumn(c, {"company_name"}), ", ",
+       FirstColumn(c, {"street_address"}), ", ",
+       FirstColumn(c, {"address_line_1"}), ", ",
+       FirstColumn(c, {"address_line_2"}), ", ", FirstColumn(c, {"city"}),
+       ", ", FirstColumn(c, {"state"}), ", ", FirstColumn(c, {"zipcode"}),
+       ", ", FirstColumn(c, {"country_code"}),
+       " FROM autofill_profiles ORDER BY rowid"})));
+  while (s.Step()) {
+    const std::string guid = s.ColumnString(0);
+    if (guid.empty()) {
+      continue;
+    }
+    std::optional<std::string> street = TrimmedText(s.ColumnString(2));
+    if (!street) {
+      street = JoinParts({s.ColumnString(3), s.ColumnString(4)}, "\n");
+    }
+    out->emplace_back(
+        guid,
+        AddressDict(lookup(names, guid), TrimmedText(s.ColumnString(1)),
+                    street, TrimmedText(s.ColumnString(5)),
+                    TrimmedText(s.ColumnString(6)),
+                    TrimmedText(s.ColumnString(7)),
+                    TrimmedText(s.ColumnString(8)), lookup(phones, guid),
+                    lookup(emails, guid)));
+  }
+}
+
+std::optional<std::string> CardDigits(const std::string& number) {
+  std::string digits;
+  for (char c : number) {
+    if (c >= '0' && c <= '9') {
+      digits.push_back(c);
+    } else if (c != ' ' && c != '-') {
+      return std::nullopt;
+    }
+  }
+  if (digits.size() < 12 || digits.size() > 19) {
+    return std::nullopt;
+  }
+  return digits;
+}
+
+struct AutofillOutcome {
+  base::ListValue addresses;
+  base::ListValue cards;
+  int undecryptable = 0;
+  int locked_cards = 0;
+};
+
+bool ReadAutofill(const base::FilePath& profile,
+                  const BrowserKey* key,
+                  std::atomic<bool>* cancel,
+                  AutofillOutcome* outcome,
+                  ImportError* error) {
+  const base::FilePath file = profile.AppendASCII("Web Data");
+  if (!base::PathExists(file)) {
+    error->code = "empty";
+    error->message = "No autofill data in this profile";
+    return false;
+  }
+  Snapshot snapshot;
+  if (!snapshot.Open(file, sql::Database::Tag("Passwords"))) {
+    error->code = "unreadable";
+    error->message = "Couldn't open Web Data";
+    return false;
+  }
+  sql::Database* db = snapshot.db();
+  std::vector<std::pair<std::string, base::DictValue>> found;
+  const std::pair<const char*, const char*> kTables[] = {
+      {"addresses", "address_type_tokens"},
+      {"local_addresses", "local_addresses_type_tokens"},
+      {"contact_info", "contact_info_type_tokens"}};
+  for (const auto& [table, tokens] : kTables) {
+    if (db->DoesTableExist(table) && db->DoesTableExist(tokens)) {
+      TokenAddresses(db, table, tokens, &found);
+    }
+  }
+  if (db->DoesTableExist("autofill_profiles")) {
+    LegacyAddresses(db, &found);
+  }
+  if (cancel->load()) {
+    error->code = "cancelled";
+    error->message = "Import cancelled";
+    return false;
+  }
+  std::set<std::string> guids;
+  std::vector<base::DictValue> unique;
+  for (auto& [guid, address] : found) {
+    if (!guids.insert(guid).second || address.empty() ||
+        std::ranges::find(unique, address) != unique.end()) {
+      continue;
+    }
+    unique.push_back(std::move(address));
+  }
+  for (base::DictValue& address : unique) {
+    outcome->addresses.Append(std::move(address));
+  }
+  bool has_tables = !found.empty();
+  if (db->DoesTableExist("credit_cards")) {
+    has_tables = true;
+    const std::set<std::string> columns = TableColumns(db, "credit_cards");
+    sql::Statement s(db->GetUniqueStatement(base::StrCat(
+        {"SELECT card_number_encrypted, ",
+         FirstColumn(columns, {"name_on_card"}), ", ",
+         FirstColumn(columns, {"expiration_month"}), ", ",
+         FirstColumn(columns, {"expiration_year"}), ", ",
+         FirstColumn(columns, {"nickname"}), " FROM credit_cards"})));
+    while (s.Step()) {
+      base::span<const uint8_t> blob = s.ColumnBlob(0);
+      if (blob.empty()) {
+        continue;
+      }
+      if (!key) {
+        ++outcome->locked_cards;
+        continue;
+      }
+      std::optional<std::string> number =
+          DecryptValue(*key, blob, &outcome->undecryptable);
+      std::optional<std::string> digits =
+          number ? CardDigits(*number) : std::nullopt;
+      if (!digits) {
+        if (number) {
+          ++outcome->undecryptable;
+        }
+        continue;
+      }
+      base::DictValue card;
+      if (std::optional<std::string> name = TrimmedText(s.ColumnString(1))) {
+        card.Set("name", *name);
+      }
+      card.Set("number", *digits);
+      const int month = s.ColumnInt(2);
+      if (month >= 1 && month <= 12) {
+        card.Set("expMonth", month);
+      }
+      const int year = s.ColumnInt(3);
+      if (year > 0) {
+        card.Set("expYear", year < 100 ? 2000 + year : year);
+      }
+      if (std::optional<std::string> nickname = TrimmedText(s.ColumnString(4))) {
+        card.Set("nickname", *nickname);
+      }
+      outcome->cards.Append(std::move(card));
+    }
+  }
+  if (!has_tables && !db->DoesTableExist("addresses") &&
+      !db->DoesTableExist("autofill_profiles")) {
+    error->code = "unreadable";
+    error->message = "Web Data has no autofill tables";
+    return false;
+  }
+  return true;
+}
+
+std::optional<std::string> PartitionSite(const std::string& key) {
+  if (key.size() < 2 || key.front() != '(' || key.back() != ')') {
+    return std::nullopt;
+  }
+  std::vector<std::string> fields = base::SplitString(
+      key.substr(1, key.size() - 2), ",", base::KEEP_WHITESPACE,
+      base::SPLIT_WANT_ALL);
+  if ((fields.size() != 2 && fields.size() != 3) ||
+      (fields[0] != "https" && fields[0] != "http")) {
+    return std::nullopt;
+  }
+  if (fields.size() == 3) {
+    int port = 0;
+    if (!base::StringToInt(fields[2], &port) || port < 1 || port > 65535) {
+      return std::nullopt;
+    }
+  }
+  const std::string host = base::ToLowerASCII(fields[1]);
+  if (host.empty() || host.front() == '.' || host.back() == '.' ||
+      !std::ranges::all_of(host, [](char c) {
+        return base::IsAsciiLower(c) || base::IsAsciiDigit(c) || c == '.' ||
+               c == '-' || c == '_';
+      })) {
+    return std::nullopt;
+  }
+  return fields[0] + "://" + host;
+}
+
+struct OriginAttributes {
+  bool isolated = false;
+  std::optional<std::string> partition;
+};
+
+OriginAttributes ParseOriginAttributes(std::string text) {
+  OriginAttributes out;
+  if (!text.empty() && text.front() == '^') {
+    text.erase(0, 1);
+  }
+  for (const std::string& pair :
+       base::SplitString(text, "&", base::KEEP_WHITESPACE,
+                         base::SPLIT_WANT_NONEMPTY)) {
+    const size_t eq = pair.find('=');
+    const std::string name = pair.substr(0, eq);
+    if (name.empty()) {
+      out.isolated = true;
+      continue;
+    }
+    std::string value =
+        eq == std::string::npos ? std::string() : pair.substr(eq + 1);
+    std::string decoded;
+    if (base::UnescapeBinaryURLComponentSafe(value, false, &decoded)) {
+      value = decoded;
+    }
+    if (name == "userContextId" || name == "privateBrowsingId") {
+      if (!value.empty() && value != "0") {
+        out.isolated = true;
+      }
+    } else if (name == "firstPartyDomain" ||
+               name == "geckoViewSessionContextId") {
+      if (!value.empty()) {
+        out.isolated = true;
+      }
+    } else if (name == "partitionKey") {
+      out.partition = PartitionSite(value);
+      if (!out.partition) {
+        out.isolated = true;
+      }
+    }
+  }
+  return out;
+}
+
+bool ReadFirefoxCookies(const base::FilePath& profile,
+                        std::atomic<bool>* cancel,
+                        CookiesOutcome* outcome,
+                        ImportError* error) {
+  Snapshot snapshot;
+  if (!snapshot.Open(profile.AppendASCII("cookies.sqlite"),
+                     sql::Database::Tag("FirefoxImporter")) ||
+      !snapshot.TableExists("moz_cookies")) {
+    error->code = "unreadable";
+    error->message = "cookies.sqlite has no cookies";
+    return false;
+  }
+  const std::set<std::string> c = TableColumns(snapshot.db(), "moz_cookies");
+  sql::Statement s(snapshot.db()->GetUniqueStatement(base::StrCat(
+      {"SELECT host, name, value, ", FirstColumn(c, {"path"}), ", ",
+       FirstColumn(c, {"creationTime"}), ", ", FirstColumn(c, {"expiry"}), ", ",
+       FirstColumn(c, {"lastAccessed"}), ", ", FirstColumn(c, {"isSecure"}),
+       ", ", FirstColumn(c, {"isHttpOnly"}), ", ", FirstColumn(c, {"sameSite"}),
+       ", ", FirstColumn(c, {"rawSameSite"}), ", ",
+       FirstColumn(c, {"schemeMap"}), ", ",
+       FirstColumn(c, {"originAttributes"}), " FROM moz_cookies"})));
+  const double now = NowMillis();
+  int index = 0;
+  while (s.Step()) {
+    if (index++ % 256 == 0 && cancel->load()) {
+      error->code = "cancelled";
+      error->message = "Import cancelled";
+      return false;
+    }
+    const std::string host = s.ColumnString(0);
+    if (host.empty()) {
+      continue;
+    }
+    const OriginAttributes attributes =
+        ParseOriginAttributes(s.ColumnString(12));
+    if (attributes.isolated) {
+      ++outcome->skipped;
+      continue;
+    }
+    std::optional<double> expires;
+    if (const int64_t expiry = s.ColumnInt64(5); expiry > 0) {
+      expires = expiry > 100000000000 ? static_cast<double>(expiry)
+                                      : static_cast<double>(expiry) * 1000;
+    }
+    if (expires && *expires < now) {
+      continue;
+    }
+    std::string value = s.ColumnString(2);
+    if (!base::IsStringUTF8AllowingNoncharacters(value)) {
+      ++outcome->rejected;
+      continue;
+    }
+    const bool secure = s.ColumnInt(7) != 0;
+    const char* same_site = "unspecified";
+    const bool raw_differs = s.GetColumnType(10) != sql::ColumnType::kNull &&
+                             s.GetColumnType(9) != sql::ColumnType::kNull &&
+                             s.ColumnInt(10) != s.ColumnInt(9);
+    if (!raw_differs && s.GetColumnType(9) != sql::ColumnType::kNull) {
+      switch (s.ColumnInt(9)) {
+        case 0:
+          same_site = secure ? "none" : "unspecified";
+          break;
+        case 1:
+          same_site = "lax";
+          break;
+        case 2:
+          same_site = "strict";
+          break;
+      }
+    }
+    const int scheme_map = s.ColumnInt(11);
+    base::DictValue cookie;
+    cookie.Set("name", s.ColumnString(1));
+    cookie.Set("value", std::move(value));
+    cookie.Set("domain", host);
+    const std::string path = s.ColumnString(3);
+    cookie.Set("path", path.empty() ? "/" : path);
+    if (const int64_t created = s.ColumnInt64(4); created > 0) {
+      cookie.Set("created", static_cast<double>(created) / 1000.0);
+    }
+    if (expires) {
+      cookie.Set("expires", *expires);
+    }
+    if (const int64_t last = s.ColumnInt64(6); last > 0) {
+      cookie.Set("lastAccess", static_cast<double>(last) / 1000.0);
+    }
+    cookie.Set("secure", secure);
+    cookie.Set("httpOnly", s.ColumnInt(8) != 0);
+    cookie.Set("sameSite", same_site);
+    cookie.Set("priority", "medium");
+    if (attributes.partition) {
+      cookie.Set("partitionKey", base::DictValue()
+                                     .Set("topLevelSite", *attributes.partition)
+                                     .Set("crossSite", false));
+    }
+    cookie.Set("sourceScheme", scheme_map & 2   ? "secure"
+                               : scheme_map & 1 ? "nonSecure"
+                                                : "unset");
+    cookie.Set("sourcePort", -1);
+    outcome->items.Append(std::move(cookie));
+  }
+  return true;
+}
+
+std::optional<std::string> FirefoxMasterKey(const base::FilePath& key4,
+                                            const std::string& primary,
+                                            ImportError* error) {
+  Snapshot snapshot;
+  if (!snapshot.Open(key4, sql::Database::Tag("FirefoxImporter")) ||
+      !snapshot.TableExists("metaData") || !snapshot.TableExists("nssPrivate")) {
+    error->code = "unsupported";
+    error->message = "key4.db has an unexpected layout";
+    return std::nullopt;
+  }
+  sql::Statement meta(snapshot.db()->GetUniqueStatement(
+      "SELECT item1, item2 FROM metaData WHERE id = 'password'"));
+  if (!meta.Step()) {
+    error->code = "unreadable";
+    error->message = "key4.db has no password entry";
+    return std::nullopt;
+  }
+  const std::string global_salt = meta.ColumnBlobAsString(0);
+  std::optional<DerNode> check = ParseDer(meta.ColumnBlobAsString(1));
+  std::optional<std::string> clear =
+      check ? DecryptPbe(*check, global_salt, primary) : std::nullopt;
+  if (!clear || !base::StartsWith(*clear, "password-check")) {
+    error->code = "locked";
+    error->message = "Wrong Firefox primary password";
+    return std::nullopt;
+  }
+  static constexpr char kCkaId[] = {'\xf8', 0, 0, 0, 0, 0, 0, 0,
+                                    0,      0, 0, 0, 0, 0, 0, 1};
+  const std::string cka_id(kCkaId, sizeof(kCkaId));
+  std::optional<std::string> encrypted_key;
+  sql::Statement keys(
+      snapshot.db()->GetUniqueStatement("SELECT a11, a102 FROM nssPrivate"));
+  while (keys.Step()) {
+    if (keys.GetColumnType(0) == sql::ColumnType::kNull) {
+      continue;
+    }
+    const bool matches = keys.ColumnBlobAsString(1) == cka_id;
+    if (!encrypted_key || matches) {
+      encrypted_key = keys.ColumnBlobAsString(0);
+    }
+    if (matches) {
+      break;
+    }
+  }
+  std::optional<DerNode> wrapped =
+      encrypted_key ? ParseDer(*encrypted_key) : std::nullopt;
+  std::optional<std::string> key =
+      wrapped ? DecryptPbe(*wrapped, global_salt, primary) : std::nullopt;
+  if (!key || key->size() < 24) {
+    error->code = "unreadable";
+    error->message = "key4.db holds no usable login key";
+    return std::nullopt;
+  }
+  return key;
+}
+
+std::optional<std::string> DecryptFirefoxField(const std::string* base64,
+                                               const std::string& key) {
+  std::string raw;
+  if (!base64 || !base::Base64Decode(*base64, &raw)) {
+    return std::nullopt;
+  }
+  std::optional<DerNode> der = ParseDer(raw);
+  if (!der || der->children.size() < 3 ||
+      der->children[1].children.size() < 2) {
+    return std::nullopt;
+  }
+  const std::string oid = DerOid(der->children[1].children[0]);
+  const std::string& iv = der->children[1].children[1].content;
+  const std::string& cipher = der->children[2].content;
+  std::optional<std::string> plain;
+  if (oid == kOid3DesCbc) {
+    plain = CipherDecrypt(EVP_des_ede3_cbc(), Bytes(key.substr(0, 24)),
+                          Bytes(iv), Bytes(cipher), true);
+  } else if (oid == kOidAes256Cbc && key.size() >= 32) {
+    plain = CipherDecrypt(EVP_aes_256_cbc(), Bytes(key.substr(0, 32)),
+                          Bytes(iv), Bytes(cipher), true);
+  }
+  if (!plain || !base::IsStringUTF8(*plain)) {
+    return std::nullopt;
+  }
+  return plain;
+}
+
+bool ReadFirefoxLogins(const base::FilePath& profile,
+                       const std::string& primary,
+                       std::atomic<bool>* cancel,
+                       LoginsOutcome* outcome,
+                       ImportError* error) {
+  const base::FilePath json_file = profile.AppendASCII("logins.json");
+  const base::FilePath key4 = profile.AppendASCII("key4.db");
+  std::string json;
+  if (!base::ReadFileToString(json_file, &json)) {
+    error->code = "empty";
+    error->message = "No saved logins in this profile";
+    return false;
+  }
+  if (!base::PathExists(key4)) {
+    error->code = "unsupported";
+    error->message = "This profile has no key4.db";
+    return false;
+  }
+  std::optional<std::string> key = FirefoxMasterKey(key4, primary, error);
+  if (!key) {
+    return false;
+  }
+  std::optional<base::Value> parsed = base::JSONReader::Read(json, 0);
+  const base::ListValue* rows =
+      parsed && parsed->is_dict() ? parsed->GetDict().FindList("logins")
+                                  : nullptr;
+  if (!rows) {
+    error->code = "unreadable";
+    error->message = "logins.json is malformed";
+    return false;
+  }
+  for (const base::Value& value : *rows) {
+    if (cancel->load()) {
+      error->code = "cancelled";
+      error->message = "Import cancelled";
+      return false;
+    }
+    const base::DictValue* row = value.GetIfDict();
+    const std::string* host = row ? row->FindString("hostname") : nullptr;
+    if (!host) {
+      continue;
+    }
+    std::optional<std::string> user =
+        DecryptFirefoxField(row->FindString("encryptedUsername"), *key);
+    std::optional<std::string> pass =
+        DecryptFirefoxField(row->FindString("encryptedPassword"), *key);
+    if (!user || !pass) {
+      ++outcome->undecryptable;
+      continue;
+    }
+    if (pass->empty()) {
+      continue;
+    }
+    const std::string* form = row->FindString("formSubmitURL");
+    const std::string* realm = row->FindString("httpRealm");
+    base::DictValue item;
+    item.Set("url", form && !form->empty() ? *form : *host);
+    item.Set("username", *user);
+    item.Set("password", *pass);
+    item.Set("realm", realm ? *realm : *host);
+    if (std::optional<double> created = row->FindDouble("timeCreated")) {
+      item.Set("created", *created);
+    }
+    if (std::optional<double> last = row->FindDouble("timeLastUsed")) {
+      item.Set("lastUsed", *last);
+    }
+    if (std::optional<int> times = row->FindInt("timesUsed")) {
+      item.Set("timesUsed", *times);
+    }
+    outcome->items.Append(std::move(item));
   }
   return true;
 }
@@ -2488,7 +3623,7 @@ base::DictValue BuildSource(const Def& def,
     base::ListValue available;
     for (const std::string& kind : profile.available) {
       available.Append(kind);
-      if (kind == "passwords") {
+      if (kind == "passwords" || kind == "cookies" || kind == "autofill") {
         has_passwords = true;
       }
     }
@@ -2545,6 +3680,232 @@ std::string CountWord(int n, const std::string& word) {
   return base::NumberToString(n) + " " + word + (n == 1 ? "" : "s");
 }
 
+struct VaultEntry {
+  base::ListValue cookies;
+  base::ListValue addresses;
+  base::ListValue cards;
+  base::TimeTicks kept;
+};
+
+constexpr base::TimeDelta kVaultLifetime = base::Minutes(10);
+constexpr size_t kCookieBatch = 500;
+constexpr size_t kAutofillBatch = 500;
+
+class ImportVault {
+ public:
+  static ImportVault& Get() {
+    static base::NoDestructor<ImportVault> vault;
+    return *vault;
+  }
+
+  std::optional<std::string> Keep(base::ListValue cookies,
+                                  base::ListValue addresses,
+                                  base::ListValue cards) {
+    if (cookies.empty() && addresses.empty() && cards.empty()) {
+      return std::nullopt;
+    }
+    const std::string token = base::Uuid::GenerateRandomV4().AsLowercaseString();
+    base::AutoLock locked(lock_);
+    Purge();
+    entries_[token] = VaultEntry{std::move(cookies), std::move(addresses),
+                                 std::move(cards), base::TimeTicks::Now()};
+    return token;
+  }
+
+  std::optional<VaultEntry> Take(const std::string& token) {
+    base::AutoLock locked(lock_);
+    Purge();
+    auto it = entries_.find(token);
+    if (it == entries_.end()) {
+      return std::nullopt;
+    }
+    VaultEntry entry = std::move(it->second);
+    entries_.erase(it);
+    return entry;
+  }
+
+  void Discard(const std::string& token) {
+    if (std::optional<VaultEntry> entry = Take(token)) {
+      Wipe(*entry);
+    }
+  }
+
+  void DiscardAll() {
+    base::AutoLock locked(lock_);
+    for (auto& [token, entry] : entries_) {
+      Wipe(entry);
+    }
+    entries_.clear();
+  }
+
+  static void Wipe(VaultEntry& entry) {
+    for (base::ListValue* list : {&entry.cookies, &entry.addresses, &entry.cards}) {
+      base::Value value(std::move(*list));
+      Cleanse(value);
+    }
+  }
+
+ private:
+  void Purge() {
+    const base::TimeTicks cutoff = base::TimeTicks::Now() - kVaultLifetime;
+    for (auto it = entries_.begin(); it != entries_.end();) {
+      if (it->second.kept < cutoff) {
+        Wipe(it->second);
+        it = entries_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
+  base::Lock lock_;
+  std::map<std::string, VaultEntry> entries_;
+};
+
+class ImportWriter {
+ public:
+  static void Start(VaultEntry entry,
+                    Profile* profile,
+                    const std::set<std::string>& kinds,
+                    Done done) {
+    auto* writer = new ImportWriter(std::move(done));
+    writer->profile_dir_ = profile->GetPath().AsUTF8Unsafe();
+    if (kinds.contains("cookies")) {
+      writer->QueueCookies(std::move(entry.cookies));
+    } else {
+      base::Value unused(std::move(entry.cookies));
+      Cleanse(unused);
+    }
+    if (kinds.contains("autofill")) {
+      writer->QueueAutofill(std::move(entry.addresses), std::move(entry.cards));
+    } else {
+      base::Value addresses(std::move(entry.addresses));
+      base::Value cards(std::move(entry.cards));
+      Cleanse(addresses);
+      Cleanse(cards);
+    }
+    writer->Next();
+  }
+
+ private:
+  struct Batch {
+    bool cookies = false;
+    std::string json;
+  };
+
+  explicit ImportWriter(Done done) : done_(std::move(done)) {}
+
+  void QueueCookies(base::ListValue cookies) {
+    while (!cookies.empty()) {
+      base::ListValue chunk;
+      while (!cookies.empty() && chunk.size() < kCookieBatch) {
+        chunk.Append(std::move(cookies.front()));
+        cookies.erase(cookies.begin());
+      }
+      base::Value body(base::DictValue().Set("cookies", std::move(chunk)));
+      batches_.push_back({true, base::WriteJson(body).value_or("{}")});
+      Cleanse(body);
+    }
+  }
+
+  void QueueAutofill(base::ListValue addresses, base::ListValue cards) {
+    while (!addresses.empty() || !cards.empty()) {
+      base::ListValue some_addresses;
+      base::ListValue some_cards;
+      while (!addresses.empty() && some_addresses.size() < kAutofillBatch) {
+        some_addresses.Append(std::move(addresses.front()));
+        addresses.erase(addresses.begin());
+      }
+      while (!cards.empty() && some_cards.size() < kAutofillBatch) {
+        some_cards.Append(std::move(cards.front()));
+        cards.erase(cards.begin());
+      }
+      base::Value body(base::DictValue()
+                           .Set("addresses", std::move(some_addresses))
+                           .Set("cards", std::move(some_cards)));
+      batches_.push_back({false, base::WriteJson(body).value_or("{}")});
+      Cleanse(body);
+    }
+  }
+
+  void Next() {
+    if (batches_.empty()) {
+      return Finish();
+    }
+    current_ = std::move(batches_.front());
+    batches_.erase(batches_.begin());
+    if (current_.cookies) {
+      ac_cookies_import(profile_dir_.c_str(), current_.json.c_str(), &Replied,
+                        this);
+    } else {
+      ac_autofill_import(profile_dir_.c_str(), current_.json.c_str(), &Replied,
+                         this);
+    }
+  }
+
+  static void Replied(void* context, const char* json) {
+    auto* writer = static_cast<ImportWriter*>(context);
+    std::string reply_json = json ? json : "";
+    content::GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(&ImportWriter::Handle,
+                                  base::Unretained(writer),
+                                  std::move(reply_json)));
+  }
+
+  void Handle(std::string reply_json) {
+    Cleanse(current_.json);
+    std::optional<base::Value> reply = base::JSONReader::Read(reply_json, 0);
+    const base::DictValue* dict = reply ? reply->GetIfDict() : nullptr;
+    const std::string* error = dict ? dict->FindString("error") : nullptr;
+    if (!dict || error) {
+      error_ = error ? *error : std::string("bad reply from the engine");
+      out_.Set(current_.cookies ? "cookiesFailed" : "autofillFailed", 1);
+      std::erase_if(batches_, [this](Batch& batch) {
+        if (batch.cookies != current_.cookies) {
+          return false;
+        }
+        Cleanse(batch.json);
+        return true;
+      });
+    } else if (current_.cookies) {
+      Add("cookies", dict->FindInt("imported"));
+      Add("cookiesRejected", dict->FindInt("rejected"));
+      Add("cookiesExisting", dict->FindInt("existing"));
+    } else {
+      Add("addresses", dict->FindInt("addresses"));
+      Add("cards", dict->FindInt("cards"));
+    }
+    Next();
+  }
+
+  void Add(const char* key, std::optional<int> value) {
+    out_.Set(key, out_.FindInt(key).value_or(0) + value.value_or(0));
+  }
+
+  void Finish() {
+    for (Batch& batch : batches_) {
+      Cleanse(batch.json);
+    }
+    if (!error_.empty()) {
+      out_.Set("error", error_);
+    }
+    std::move(done_).Run(JsonReply(base::Value(std::move(out_))));
+    delete this;
+  }
+
+  Done done_;
+  std::string profile_dir_;
+  std::vector<Batch> batches_;
+  Batch current_;
+  std::string error_;
+  base::DictValue out_ = base::DictValue()
+                             .Set("cookies", 0)
+                             .Set("cookiesRejected", 0)
+                             .Set("cookiesExisting", 0)
+                             .Set("addresses", 0)
+                             .Set("cards", 0);
+};
+
 base::DictValue RunImport(const std::string& job_id,
                           const std::string& browser_id,
                           const std::string& profile_id,
@@ -2574,6 +3935,9 @@ base::DictValue RunImport(const std::string& job_id,
   base::ListValue tabs;
   base::ListValue tab_groups;
   base::ListValue credentials;
+  base::ListValue cookies;
+  base::ListValue addresses;
+  base::ListValue cards;
   base::ListValue spaces;
   base::ListValue favorites;
   base::ListValue failed;
@@ -2686,6 +4050,75 @@ base::DictValue RunImport(const std::string& job_id,
           }
         }
       }
+    } else if (kind == "passwords" && def->family == Family::kFirefox) {
+      LoginsOutcome outcome;
+      if (ReadFirefoxLogins(
+              dir, ImportState::Get().PrimaryPassword(browser_id).value_or(""),
+              cancel, &outcome, &error)) {
+        count = static_cast<int>(outcome.items.size());
+        credentials = std::move(outcome.items);
+        succeeded = true;
+        if (outcome.undecryptable > 0) {
+          warn(kind, "undecryptable",
+               CountWord(outcome.undecryptable, "password") +
+                   " couldn't be decrypted");
+        }
+      }
+    } else if (kind == "cookies" && (def->family == Family::kChromium ||
+                                     def->family == Family::kArc)) {
+      if (!key) {
+        error.code = "locked";
+        error.message = "Unlock " + def->name + " to import cookies";
+      } else {
+        CookiesOutcome outcome;
+        if (ReadChromiumCookies(dir, *key, cancel, &outcome, &error)) {
+          count = static_cast<int>(outcome.items.size());
+          cookies = std::move(outcome.items);
+          succeeded = true;
+          if (outcome.undecryptable > 0) {
+            warn(kind, "undecryptable",
+                 CountWord(outcome.undecryptable, "cookie") +
+                     " couldn't be decrypted");
+          }
+          if (outcome.rejected > 0) {
+            warn(kind, "rejected",
+                 CountWord(outcome.rejected, "cookie") +
+                     " had values Astro can't store");
+          }
+        }
+      }
+    } else if (kind == "cookies" && def->family == Family::kFirefox) {
+      CookiesOutcome outcome;
+      if (ReadFirefoxCookies(dir, cancel, &outcome, &error)) {
+        count = static_cast<int>(outcome.items.size());
+        cookies = std::move(outcome.items);
+        succeeded = true;
+        if (outcome.skipped > 0) {
+          warn(kind, "skipped",
+               CountWord(outcome.skipped, "cookie") +
+                   " from containers or private windows weren't imported");
+        }
+      }
+    } else if (kind == "autofill" && (def->family == Family::kChromium ||
+                                      def->family == Family::kArc)) {
+      AutofillOutcome outcome;
+      if (ReadAutofill(dir, key ? &*key : nullptr, cancel, &outcome, &error)) {
+        count = static_cast<int>(outcome.addresses.size() +
+                                 outcome.cards.size());
+        addresses = std::move(outcome.addresses);
+        cards = std::move(outcome.cards);
+        succeeded = true;
+        if (outcome.locked_cards > 0) {
+          warn(kind, "locked",
+               "Unlock " + def->name + " to import " +
+                   CountWord(outcome.locked_cards, "saved card"));
+        }
+        if (outcome.undecryptable > 0) {
+          warn(kind, "undecryptable",
+               CountWord(outcome.undecryptable, "card") +
+                   " couldn't be decrypted");
+        }
+      }
     } else {
       error.code = "unsupported";
       error.message = def->name + " has no " + kind + " to import";
@@ -2719,9 +4152,13 @@ base::DictValue RunImport(const std::string& job_id,
   result.Set("favorites", std::move(favorites));
   result.Set("failed", std::move(failed));
   result.Set("warnings", std::move(warnings));
-  result.Set("cookieCount", 0);
-  result.Set("addressCount", 0);
-  result.Set("cardCount", 0);
+  result.Set("cookieCount", static_cast<int>(cookies.size()));
+  result.Set("addressCount", static_cast<int>(addresses.size()));
+  result.Set("cardCount", static_cast<int>(cards.size()));
+  if (std::optional<std::string> token = ImportVault::Get().Keep(
+          std::move(cookies), std::move(addresses), std::move(cards))) {
+    result.Set("vaultToken", *token);
+  }
   return result;
 }
 
@@ -2847,6 +4284,7 @@ void ImportCall(const std::string& method,
 
   if (method == "forgetUnlockedKeys") {
     ImportState::Get().Forget();
+    ImportVault::Get().DiscardAll();
     std::move(done).Run(JsonReply(base::Value()));
     return;
   }
@@ -2860,9 +4298,56 @@ void ImportCall(const std::string& method,
     return;
   }
 
+  if (method == "discardImported") {
+    if (const std::string* token = args.FindString("token")) {
+      ImportVault::Get().Discard(*token);
+    }
+    std::move(done).Run(JsonReply(base::Value()));
+    return;
+  }
+
+  if (method == "writeImported") {
+    const std::string* token = args.FindString("token");
+    const std::string* profile = args.FindString("profile");
+    std::set<std::string> kinds;
+    if (const base::ListValue* list = args.FindList("kinds")) {
+      for (const base::Value& kind : *list) {
+        if (kind.is_string()) {
+          kinds.insert(kind.GetString());
+        }
+      }
+    }
+    std::optional<VaultEntry> entry =
+        token ? ImportVault::Get().Take(*token) : std::nullopt;
+    if (!entry) {
+      std::move(done).Run(
+          ErrorReply("notFound", "Nothing to write; import again"));
+      return;
+    }
+    WithProfile(
+        profile ? *profile : std::string(),
+        base::BindOnce(
+            [](VaultEntry entry, std::set<std::string> kinds, Done done,
+               Profile* profile) {
+              if (!profile || profile->IsOffTheRecord()) {
+                ImportVault::Wipe(entry);
+                std::move(done).Run(ErrorReply(
+                    "notFound", "That profile isn't available"));
+                return;
+              }
+              ImportWriter::Start(std::move(entry), profile, kinds,
+                                  std::move(done));
+            },
+            std::move(*entry), std::move(kinds), std::move(done)));
+    return;
+  }
+
   if (method == "unlockBrowser") {
     const std::string* id = args.FindString("browserId");
     std::string browser_id = id ? *id : std::string();
+    if (const std::string* primary = args.FindString("primaryPassword")) {
+      ImportState::Get().SetPrimaryPassword(browser_id, *primary);
+    }
     Sequence()->PostTask(
         FROM_HERE,
         base::BindOnce(
