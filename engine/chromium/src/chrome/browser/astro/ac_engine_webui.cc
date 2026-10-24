@@ -397,6 +397,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
         base::BindRepeating(&EngineWebUIHandler::HandleCapturePage,
                             base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
+        "astroPageScript",
+        base::BindRepeating(&EngineWebUIHandler::HandlePageScript,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
         "astroCloseWindow",
         base::BindRepeating(&EngineWebUIHandler::HandleCloseWindow,
                             base::Unretained(this)));
@@ -793,6 +797,23 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
                        : base::Value());
             },
             weak_factory_.GetWeakPtr(), args[0].Clone())));
+  }
+
+  void HandlePageScript(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 1 || !args[0].is_string() || args[0].GetString().empty()) {
+      return;
+    }
+    SetPageScript(args[0].GetString());
+    for (EngineWebUIHandler* handler : Handlers()) {
+      handler->InstallPageScripts();
+    }
+  }
+
+  void InstallPageScripts() {
+    for (auto& [ref, bridge] : bridges_) {
+      bridge->InstallPageScript();
+    }
   }
 
   void HandleCloseWindow(const base::ListValue& args) {
@@ -1192,6 +1213,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       bridge = std::make_unique<TabBridge>(
           contents, base::BindRepeating(&EngineWebUIHandler::TabEvent,
                                         base::Unretained(this), tab_ref));
+      bridge->InstallPageScript();
     }
     return bridge.get();
   }

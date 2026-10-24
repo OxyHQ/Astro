@@ -13,6 +13,7 @@ import { appServices, engineServices, systemServices } from "../host/system";
 import { startTabEvents } from "../host/tabBridge";
 import { tabTransferServices } from "../host/tabTransfer";
 import { setShareTabRef, startShare } from "../host/share";
+import { startPageScript } from "../host/pageChannel";
 import { latestTabRef } from "./WebView";
 
 export * from "../../../demo/src/shims/astrocore";
@@ -35,4 +36,5 @@ startCastRoutes();
 startContentBlocker();
 startDownloads();
 startShare();
+startPageScript();
 setShareTabRef(() => latestTabRef());

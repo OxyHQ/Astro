@@ -7,6 +7,8 @@ import { type EngineTab, type TabState, tabHub } from "../host/tabs";
 import { emitNativeEvent } from "../../../demo/src/shims/expo-modules-core";
 import { forgetDisplayMedia, noteDisplayMediaRequest, noteDisplayMediaSources } from "../host/displayMedia";
 import { openExtensionView } from "../host/extensionViews";
+import { PageChannel } from "../host/pageChannel";
+import { fetchFaviconImage } from "../host/favicons";
 import { cefServices } from "../host/services";
 import { callTab, type TabEventListener, watchTab } from "../host/tabBridge";
 import { offerHandOff, noteLiveTab, noteTabGone, takeTransferredTab, transferredUrlGuard } from "../host/tabTransfer";
@@ -95,9 +97,11 @@ async function escapeIfUnused(ref: string, p: WebViewProps) {
   if (kept === "false") p.onCommand?.({ command: "escape", text: "" });
 }
 
-function tabEvents(props: { current: WebViewProps }, browserId: number, onDevTools: (dock: DevToolsDock | null) => void, ref: string): TabEventListener {
+function tabEvents(props: { current: WebViewProps }, browserId: number, onDevTools: (dock: DevToolsDock | null) => void, ref: string, channel: PageChannel, zoom: (state: ZoomState) => void): TabEventListener {
   return (kind, payload) => {
     const p = props.current;
+    if (kind === "pageScript")
+      return channel.handle(String(payload.kind ?? ""), String(payload.json ?? "null"), Number(payload.frame), payload.main === true);
     if (kind === "unhandledEscape") return void escapeIfUnused(ref, p);
     if (kind === "devTools") return onDevTools(devToolsDock(payload));
     if (kind === "permission") return emitNativeEvent("AstroCEF", "onPermission", { ...payload, browserId });
@@ -113,9 +117,12 @@ function tabEvents(props: { current: WebViewProps }, browserId: number, onDevToo
     if (kind === "find") p.onFindResult?.(payload as FindResult);
     else if (kind === "media") p.onMedia?.(payload as MediaState);
     else if (kind === "mediaAccess") p.onMediaAccess?.(payload as MediaAccess);
-    else if (kind === "zoom") p.onZoom?.(payload as ZoomState);
+    else if (kind === "zoom") zoom(payload as ZoomState);
     else if (kind === "security") p.onSecurity?.(payload as SecurityInfo);
-    else if (kind === "crashed") p.onCrashed?.(payload as CrashInfo);
+    else if (kind === "crashed") {
+      channel.crashed();
+      p.onCrashed?.(payload as CrashInfo);
+    }
     else if (kind === "loadError") p.onLoadError?.(payload as LoadError);
     else if (kind === "fullscreen") p.onFullscreen?.(!!payload.fullscreen);
     else if (kind === "passwordPrompt") p.onPasswordPrompt?.(payload as PasswordPrompt);
@@ -128,6 +135,18 @@ function tabEvents(props: { current: WebViewProps }, browserId: number, onDevToo
   };
 }
 
+const PICTURE_IN_PICTURE =
+  "(async () => {" +
+  "  const videos = [...document.querySelectorAll('video')].filter(v => v.readyState > 0 && !v.disablePictureInPicture);" +
+  "  videos.sort((a, b) => (b.paused ? 0 : 1) - (a.paused ? 0 : 1) || b.clientWidth * b.clientHeight - a.clientWidth * a.clientHeight);" +
+  "  if (!videos.length) return post('result', 'false');" +
+  "  if (document.pictureInPictureElement === videos[0]) return post('result', 'true');" +
+  "  try { await videos[0].requestPictureInPicture(); post('result', 'true'); } catch (e) { post('result', 'false'); }" +
+  "})()";
+const EXIT_PICTURE_IN_PICTURE =
+  "document.pictureInPictureElement && document.exitPictureInPicture();" +
+  "window.documentPictureInPicture && documentPictureInPicture.window && documentPictureInPicture.window.close()";
+
 const originOf = (url: string) => {
   try {
     return new URL(url).origin;
@@ -136,15 +155,16 @@ const originOf = (url: string) => {
   }
 };
 
-function navigationState(state: TabState): NavigationState {
+function navigationState(state: TabState, channel: PageChannel | null): NavigationState {
+  const pageTheme = channel?.theme?.color ?? null;
   return {
     url: state.url,
     title: state.title,
     canGoBack: state.canGoBack,
     canGoForward: state.canGoForward,
     isLoading: state.isLoading,
-    themeColor: state.themeColor,
-    themeColorSource: state.themeColor ? "meta" : null,
+    themeColor: pageTheme ?? state.themeColor,
+    themeColorSource: pageTheme ? (channel?.theme?.source as NavigationState["themeColorSource"]) ?? null : state.themeColor ? "meta" : null,
   };
 }
 
@@ -156,6 +176,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
   const frame = useRef<HTMLIFrameElement | null>(null);
   const arrived = useRef(transferredUrlGuard());
   const [devTools, setDevTools] = useState<DevToolsDock | null>(null);
+  const channel = useRef<PageChannel | null>(null);
 
   useEffect(() => {
     let closed = false;
@@ -182,13 +203,30 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
         });
       }
       browsers.set(browserId, { ref: opening.ref, profile: latest.current.profile ?? "" });
-      void watchTab(opening.ref, tabEvents(latest, browserId, setDevTools, opening.ref)).then(({ snapshot, stop }) => {
+      let lastZoom: ZoomState | null = null;
+      const emitZoom = (state: ZoomState) => {
+        lastZoom = state;
+        latest.current.onZoom?.({ ...state, pinchScale: page.pinchScale });
+      };
+      const page = new PageChannel(
+        () => tab.current?.ref ?? null,
+        latest,
+        browserId,
+        () => tab.current?.state.url ?? "",
+        () => latest.current.visible !== false,
+        (what) => {
+          if (what === "zoom" && lastZoom) emitZoom(lastZoom);
+          if (what === "theme" && tab.current) latest.current.onNavigationChange?.(navigationState(tab.current.state, page));
+        },
+      );
+      channel.current = page;
+      void watchTab(opening.ref, tabEvents(latest, browserId, setDevTools, opening.ref, page, emitZoom)).then(({ snapshot, stop }) => {
         if (closed) return stop();
         stopWatching = stop;
         if (!snapshot) return;
         latest.current.onMedia?.(snapshot.media as MediaState);
         if (snapshot.mediaAccess) latest.current.onMediaAccess?.(snapshot.mediaAccess as MediaAccess);
-        latest.current.onZoom?.(snapshot.zoom as ZoomState);
+        emitZoom(snapshot.zoom as ZoomState);
         latest.current.onSecurity?.(snapshot.security as SecurityInfo);
         if (snapshot.preferredSize) latest.current.onPreferredSize?.(snapshot.preferredSize);
         setDevTools(devToolsDock((snapshot as { devTools?: unknown }).devTools));
@@ -196,7 +234,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       opening.onClosed = () => latest.current.onWindowClose?.();
       opening.onActivatedByEngine = () => latest.current.onActivateRequest?.({ reason: "engine" });
       stopListening = opening.listen((state) => {
-        latest.current.onNavigationChange?.(navigationState(state));
+        latest.current.onNavigationChange?.(navigationState(state, page));
         if (state.isLoading !== lastLoading) {
           lastLoading = state.isLoading;
           latest.current.onProgress?.(state.isLoading ? 0.3 : 1);
@@ -300,6 +338,12 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       },
       discard: async () => (await call<Awaited<ReturnType<WebViewHandle["discard"]>>>("discard")) ?? "unsupported",
       setFrozen: async (frozen) => run("setFrozen", { frozen }),
+      mediaCommand: async (action, seconds) => channel.current?.mediaCommand(action, seconds),
+      downloadFavicon: async (url) => fetchFaviconImage(url, latest.current.profile ?? ""),
+      downloadImage: async (url, maxPixels) => fetchFaviconImage(url, latest.current.profile ?? "", maxPixels),
+      requestPictureInPicture: async () => (await call<string>("evaluate", { code: PICTURE_IN_PICTURE, userGesture: true })) === "true",
+      exitPictureInPicture: async () => run("executeJavaScript", { code: EXIT_PICTURE_IN_PICTURE }),
+      notificationAction: async (id, action) => channel.current?.notificationAction(id, action),
       capturePicture: async (scale) => {
         const picture = await call<{ data: string }>("capturePicture", { scale });
         const bounds = frame.current?.getBoundingClientRect();

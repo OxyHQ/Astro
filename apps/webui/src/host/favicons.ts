@@ -8,19 +8,37 @@ const dataUri = (blob: Blob) =>
     reader.readAsDataURL(blob);
   });
 
-async function asPng(blob: Blob): Promise<{ uri: string; width: number; height: number }> {
-  const bitmap = await createImageBitmap(blob);
-  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0);
-  const png = await canvas.convertToBlob({ type: "image/png" });
-  return { uri: await dataUri(png), width: bitmap.width, height: bitmap.height };
+const decodeDataUrl = (url: string) =>
+  new Promise<ImageBitmap | null>((resolve) => {
+    const image = new Image();
+    image.onload = () => void createImageBitmap(image).then(resolve, () => resolve(null));
+    image.onerror = () => resolve(null);
+    image.src = url;
+  });
+
+async function decode(url: string): Promise<ImageBitmap | null> {
+  if (url.startsWith("data:")) return decodeDataUrl(url);
+  const response = await fetch(url);
+  return response.ok ? createImageBitmap(await response.blob()) : null;
 }
 
-export async function fetchFaviconImage(url: string, _profile: string): Promise<FaviconImage | null> {
+async function asPng(bitmap: ImageBitmap, maxPixels?: number): Promise<FaviconImage> {
+  const area = bitmap.width * bitmap.height;
+  const scale = maxPixels && area > maxPixels ? Math.sqrt(maxPixels / area) : 1;
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  const png = await canvas.convertToBlob({ type: "image/png" });
+  return { uri: await dataUri(png), width, height };
+}
+
+export async function fetchFaviconImage(url: string, _profile: string, maxPixels?: number): Promise<FaviconImage | null> {
   try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    return await asPng(await response.blob());
+    const bitmap = await decode(url);
+    return bitmap ? await asPng(bitmap, maxPixels) : null;
   } catch {
     return null;
   }

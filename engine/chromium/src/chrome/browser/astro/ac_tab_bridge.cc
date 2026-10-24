@@ -15,6 +15,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/json/json_reader.h"
+#include "base/no_destructor.h"
+#include "crypto/random.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/astro/ac_devtools_dock.h"
@@ -90,6 +92,43 @@ constexpr double kQualityScale = 0.5;
 constexpr int kSmallPictureQuality = 55;
 constexpr int kPictureQuality = 75;
 constexpr base::TimeDelta kPictureTimeout = base::Seconds(1);
+constexpr size_t kPageScriptBindingBytes = 16;
+constexpr size_t kMaxQueuedPageMessages = 256;
+constexpr char kPageScriptReceiver[] = "astro.page";
+constexpr size_t kMaxPageMessage = 2 * 1024 * 1024;
+
+std::string& PageScript() {
+  static base::NoDestructor<std::string> script;
+  return *script;
+}
+
+std::string PageScriptInstaller(const std::string& binding) {
+  return std::string("(() => {\n"
+                     "  const key = Symbol.for('") +
+         kPageScriptReceiver +
+         "');\n"
+         "  if (Object.prototype.hasOwnProperty.call(globalThis, key)) return;\n"
+         "  const stringify = JSON.stringify;\n"
+         "  const top = window === window.top;\n"
+         "  const queue = [];\n"
+         "  let binding = null;\n"
+         "  const deliver = (message) => { try { binding(message); } catch (e) {} };\n"
+         "  Object.defineProperty(globalThis, '" + binding + "', {\n"
+         "    configurable: false, enumerable: false, get() { return undefined; },\n"
+         "    set(fn) { if (binding || typeof fn !== 'function') return; binding = fn;"
+         " for (const message of queue.splice(0)) deliver(message); },\n"
+         "  });\n"
+         "  const post = (kind, json) => {\n"
+         "    const message = stringify([String(kind), String(json), top]);\n"
+         "    if (binding) deliver(message); else if (queue.length < " +
+         base::NumberToString(kMaxQueuedPageMessages) +
+         ") queue.push(message);\n"
+         "  };\n"
+         "  const install = (" + PageScript() + "\n);\n"
+         "  const receive = install(post);\n"
+         "  Object.defineProperty(globalThis, key, { value: typeof receive === 'function' ? receive : () => {} });\n"
+         "})();\n";
+}
 
 TabSharingInfoBarDelegate* TabSharingDelegateFor(content::WebContents* contents,
                                                  content::WebContents* capturer) {
@@ -497,6 +536,10 @@ bool TabBridge::Share(const std::string& url, const std::string& title) {
 #endif
 }
 
+void SetPageScript(std::string script) {
+  PageScript() = std::move(script);
+}
+
 bool ShareThisTabInstead(content::WebContents* contents,
                          content::WebContents* capturer) {
   TabSharingInfoBarDelegate* sharing = TabSharingDelegateFor(contents, capturer);
@@ -655,7 +698,8 @@ void TabBridge::Call(const std::string& method,
       return std::move(done).Run(base::Value());
     }
     if (method == "evaluate") {
-      return Evaluate(*code, std::move(done));
+      return Evaluate(*code, args.FindBool("userGesture").value_or(false),
+                      std::move(done));
     }
     contents->GetPrimaryMainFrame()->ExecuteJavaScriptInIsolatedWorld(
         base::UTF8ToUTF16(*code), std::move(done),
@@ -773,6 +817,12 @@ void TabBridge::Call(const std::string& method,
     }
   } else if (method == "mediaCaptureSourceId") {
     return std::move(done).Run(DisplayMediaSourceId(contents));
+  } else if (method == "callPage") {
+    const std::string* kind = args.FindString("kind");
+    const std::string* json = args.FindString("json");
+    if (kind && json) {
+      CallPage(*kind, *json, args.FindInt("frame"));
+    }
   } else if (method == "capturePicture") {
     return CapturePicture(args.FindDouble("scale").value_or(1),
                           std::move(done));
@@ -789,14 +839,99 @@ void TabBridge::Call(const std::string& method,
 
 constexpr base::TimeDelta kEvaluationTimeout = base::Seconds(20);
 
+bool TabBridge::EnsureAgent() {
+  if (agent_) {
+    return true;
+  }
+  if (!web_contents()) {
+    return false;
+  }
+  agent_ = content::DevToolsAgentHost::GetOrCreateFor(web_contents());
+  if (!agent_ || !agent_->AttachClient(this)) {
+    agent_ = nullptr;
+    return false;
+  }
+  return true;
+}
+
+void TabBridge::SendProtocol(const std::string& method,
+                             base::DictValue params) {
+  if (!EnsureAgent()) {
+    return;
+  }
+  const std::string message =
+      base::WriteJson(base::DictValue()
+                          .Set("id", ++last_message_id_)
+                          .Set("method", method)
+                          .Set("params", std::move(params)))
+          .value_or("{}");
+  agent_->DispatchProtocolMessage(this, base::as_byte_span(message));
+}
+
+void TabBridge::InstallPageScript() {
+  if (page_script_installed_ || PageScript().empty() || !EnsureAgent()) {
+    return;
+  }
+  page_script_installed_ = true;
+  if (page_binding_.empty()) {
+    page_binding_ = "__astro" + base::HexEncode(crypto::RandBytesAsVector(
+                                    kPageScriptBindingBytes));
+  }
+  SendProtocol("Page.enable", base::DictValue());
+  SendProtocol("Page.addScriptToEvaluateOnNewDocument",
+               base::DictValue()
+                   .Set("source", PageScriptInstaller(page_binding_))
+                   .Set("runImmediately", true));
+  BindPageScript();
+}
+
+void TabBridge::BindPageScript() {
+  SendProtocol("Runtime.addBinding",
+               base::DictValue().Set("name", page_binding_));
+}
+
+void TabBridge::PageScriptMessage(const base::DictValue& params) {
+  const std::string* name = params.FindString("name");
+  const std::string* payload = params.FindString("payload");
+  std::optional<int> context = params.FindInt("executionContextId");
+  if (!name || *name != page_binding_ || !payload || !context ||
+      payload->size() > kMaxPageMessage) {
+    return;
+  }
+  std::optional<base::Value> message =
+      base::JSONReader::Read(*payload, base::JSON_PARSE_RFC);
+  const base::ListValue* parts =
+      message && message->is_list() ? &message->GetList() : nullptr;
+  if (!parts || parts->size() != 3 || !(*parts)[0].is_string() ||
+      !(*parts)[1].is_string() || !(*parts)[2].is_bool()) {
+    return;
+  }
+  emit_.Run("pageScript", base::DictValue()
+                              .Set("kind", (*parts)[0].GetString())
+                              .Set("json", (*parts)[1].GetString())
+                              .Set("frame", *context)
+                              .Set("main", (*parts)[2].GetBool()));
+}
+
+void TabBridge::CallPage(const std::string& kind,
+                         const std::string& json,
+                         std::optional<int> context) {
+  const std::string expression =
+      "(globalThis[Symbol.for('" + std::string(kPageScriptReceiver) +
+      "')] || (() => {}))(" + base::WriteJson(base::Value(kind)).value_or("\"\"") +
+      ", " + base::WriteJson(base::Value(json)).value_or("\"null\"") + ")";
+  base::DictValue params = base::DictValue().Set("expression", expression);
+  if (context) {
+    params.Set("contextId", *context);
+  }
+  SendProtocol("Runtime.evaluate", std::move(params));
+}
+
 void TabBridge::Evaluate(const std::string& code,
+                         bool user_gesture,
                          base::OnceCallback<void(base::Value)> done) {
-  if (!agent_) {
-    agent_ = content::DevToolsAgentHost::GetOrCreateFor(web_contents());
-    if (!agent_ || !agent_->AttachClient(this)) {
-      agent_ = nullptr;
-      return std::move(done).Run(base::Value());
-    }
+  if (!EnsureAgent()) {
+    return std::move(done).Run(base::Value());
   }
   const int id = ++last_message_id_;
   evaluations_[id] = std::move(done);
@@ -812,6 +947,7 @@ void TabBridge::Evaluate(const std::string& code,
               .Set("params", base::DictValue()
                                  .Set("expression", expression)
                                  .Set("awaitPromise", true)
+                                 .Set("userGesture", user_gesture)
                                  .Set("returnByValue", true)))
           .value_or("{}");
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -836,6 +972,20 @@ void TabBridge::DispatchProtocolMessage(content::DevToolsAgentHost*,
                                         base::span<const uint8_t> message) {
   std::optional<base::DictValue> reply = base::JSONReader::ReadDict(
       base::as_string_view(message), base::JSON_PARSE_RFC);
+  if (const std::string* method = reply ? reply->FindString("method") : nullptr) {
+    if (*method == "Runtime.bindingCalled") {
+      if (const base::DictValue* params = reply->FindDict("params")) {
+        PageScriptMessage(*params);
+      }
+    } else if (page_script_installed_ &&
+               (*method == "Page.frameNavigated" ||
+                *method == "Page.frameAttached" ||
+                *method == "Page.domContentEventFired" ||
+                *method == "Page.frameStoppedLoading")) {
+      BindPageScript();
+    }
+    return;
+  }
   std::optional<int> id = reply ? reply->FindInt("id") : std::nullopt;
   if (!id) {
     return;
@@ -847,6 +997,7 @@ void TabBridge::DispatchProtocolMessage(content::DevToolsAgentHost*,
 
 void TabBridge::AgentHostClosed(content::DevToolsAgentHost*) {
   agent_ = nullptr;
+  page_script_installed_ = false;
   std::map<int, base::OnceCallback<void(base::Value)>> pending =
       std::move(evaluations_);
   for (auto& [id, done] : pending) {

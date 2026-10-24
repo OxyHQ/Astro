@@ -4,6 +4,7 @@
 #define CHROME_BROWSER_ASTRO_AC_TAB_BRIDGE_H_
 
 #include <map>
+#include <optional>
 #include <memory>
 #include <string>
 
@@ -35,6 +36,7 @@ namespace astro {
 base::DictValue SecurityInfo(content::WebContents* contents);
 bool ShareThisTabInstead(content::WebContents* contents,
                          content::WebContents* capturer);
+void SetPageScript(std::string script);
 
 class TabBridge : public content::WebContentsObserver,
                   public zoom::ZoomObserver,
@@ -51,6 +53,7 @@ class TabBridge : public content::WebContentsObserver,
   ~TabBridge() override;
 
   base::DictValue Snapshot();
+  void InstallPageScript();
   void Call(const std::string& method,
             const base::DictValue& args,
             base::OnceCallback<void(base::Value)> done);
@@ -107,7 +110,15 @@ class TabBridge : public content::WebContentsObserver,
   void ObserveHelpers();
   void CheckSecurity();
   void Evaluate(const std::string& code,
+                bool user_gesture,
                 base::OnceCallback<void(base::Value)> done);
+  bool EnsureAgent();
+  void SendProtocol(const std::string& method, base::DictValue params);
+  void PageScriptMessage(const base::DictValue& params);
+  void BindPageScript();
+  void CallPage(const std::string& kind,
+                const std::string& json,
+                std::optional<int> context);
   void Answer(int id, base::Value result);
 
   Emit emit_;
@@ -127,6 +138,8 @@ class TabBridge : public content::WebContentsObserver,
   std::unique_ptr<webshare::ShareOperation> share_;
 #endif
   int last_message_id_ = 0;
+  bool page_script_installed_ = false;
+  std::string page_binding_;
   std::map<int, base::OnceCallback<void(base::Value)>> evaluations_;
   base::WeakPtrFactory<TabBridge> weak_factory_{this};
 };
