@@ -1837,6 +1837,40 @@ hook(["std::unique_ptr<DesktopMediaPicker> (*g_astro_desktop_media_picker)(\n",
       "  if (g_astro_desktop_media_picker) {\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/startup/startup_browser_creator.cc" "links from other apps" <<'PY'
+at = "void StartupBrowserCreator::ProcessCommandLineAlreadyRunning(\n"
+decl = """// Astro: AstroCore routes links from other apps itself, to Little Astro or a tab.
+bool (*g_astro_open_urls)(const base::CommandLine& command_line,
+                          const base::FilePath& cur_dir) = nullptr;
+
+"""
+old = """    const StartupProfilePathInfo& profile_path_info) {
+  if (profile_path_info.mode == StartupProfileMode::kError) {
+    return;
+  }
+
+  Profile* profile = nullptr;
+"""
+new = """    const StartupProfilePathInfo& profile_path_info) {
+  if (profile_path_info.mode == StartupProfileMode::kError) {
+    return;
+  }
+  if (g_astro_open_urls && g_astro_open_urls(command_line, cur_dir)) {
+    return;
+  }
+
+  Profile* profile = nullptr;
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1
+    i = s.index(at)
+    j = s.rfind("// static\n", 0, i)
+    i = j if j != -1 and i - j < 20 else i
+    return s[:i] + decl + s[i:].replace(old, new, 1)
+hook(["bool (*g_astro_open_urls)(const base::CommandLine& command_line,\n",
+      "  if (g_astro_open_urls && g_astro_open_urls(command_line, cur_dir)) {\n"], edit)
+PY
+
 if [[ $mode == check ]]; then
   exit "$drift"
 fi

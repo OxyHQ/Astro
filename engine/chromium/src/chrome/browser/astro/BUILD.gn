@@ -51,6 +51,7 @@ source_set("astro") {
     "ac_passwords.h",
     "ac_import.cc",
     "ac_import.h",
+    "ac_open_urls.cc",
     "ac_permission_prompts.cc",
     "ac_process.cc",
     "ac_process.h",

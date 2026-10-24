@@ -28,6 +28,7 @@ const listen = () =>
     });
     add("astro-host-event", (kind: string, payload: Record<string, unknown>) => {
       if (kind === "installPrompt") return void (isLeaderPage() && emitNativeEvent("AstroExtensions", "onInstallPrompt", payload));
+      if (kind === "openURLs") return void (isLeaderPage() && emitNativeEvent("AstroShell", "onOpenURLs", payload));
       if (kind === "notificationResponse") return emitNativeEvent("AstroApp", "onNotificationResponse", notificationResponse(payload));
       const target = HOST_EVENTS[kind];
       if (target) emitNativeEvent(target[0], target[1], payload);

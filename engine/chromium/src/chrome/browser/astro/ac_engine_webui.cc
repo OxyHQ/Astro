@@ -262,6 +262,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       InstallExtensionPrompts();
       InstallWindowKeys();
       InstallTargetUrl();
+      InstallOpenUrls();
       InstallDeviceChooser();
       InstallCastDialog();
       InstallDisplayMediaPicker();
@@ -1101,6 +1102,10 @@ void Dispatched(void* context, const char* topic, const char* json) {
                      std::move(name), std::move(payload)));
 }
 
+}
+
+bool HostHasPages() {
+  return !Handlers().empty();
 }
 
 bool HostShowsTab(content::WebContents* contents) {

@@ -39,6 +39,7 @@ export const engineServices = {
   setVideoUpscaling: async (_enabled: boolean) => {},
   setSearchEngineName: async (_name: string) => {},
   claimLaunchTab: (_key: string, _url: string, _profile: string) => {},
+  routeLinkTabs: async (_urls: string[]) => ({}),
 };
 
 export const appServices = {
