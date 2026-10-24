@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import type { BlockedPopup, CrashInfo, ExternalAppRequest, FindResult, LoadError, MediaState, NavigationState, PasswordPrompt, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
+import type { BlockedPopup, CrashInfo, DownloadNavigation, ExternalAppRequest, FindResult, LoadError, MediaAccess, MediaState, NavigationState, PasswordPrompt, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
 import type { BrowserCommand } from "@astro-browser-real/shell";
 import { openProfileTab, onProfileTabOpened, PROFILE_TAB_PREFIX } from "../host/profileTabs";
 import { type EngineTab, type TabState, tabHub } from "../host/tabs";
@@ -20,6 +20,7 @@ let nextBrowserId = 1;
 const browsers = new Map<number, { ref: string; profile: string }>();
 
 export const refForBrowser = (browserId: number) => browsers.get(browserId)?.ref ?? null;
+export const latestTabRef = () => [...browsers.values()].reverse().find((entry) => !entry.ref.startsWith("x:"))?.ref ?? null;
 
 const tabRefForProfile = (profile: string) => {
   for (const entry of [...browsers.values()].reverse()) if (entry.profile === profile && !entry.ref.startsWith("x:")) return entry.ref;
@@ -106,9 +107,12 @@ function tabEvents(props: { current: WebViewProps }, browserId: number, onDevToo
     if (kind === "deviceChooser") return emitNativeEvent("AstroChromeUI", "onDeviceChooser", { ...payload, browserId });
     if (kind === "castDialog") return emitNativeEvent("AstroChromeUI", "onCastDialog", { ...payload, browserId });
     if (kind === "windowClose") return p.onWindowClose?.();
+    if (kind === "pageFocus") return p.onPageFocus?.();
+    if (kind === "downloadNavigation") return p.onDownloadNavigation?.(payload as DownloadNavigation);
     if (kind === "preferredSize") return p.onPreferredSize?.(payload as { width: number; height: number });
     if (kind === "find") p.onFindResult?.(payload as FindResult);
     else if (kind === "media") p.onMedia?.(payload as MediaState);
+    else if (kind === "mediaAccess") p.onMediaAccess?.(payload as MediaAccess);
     else if (kind === "zoom") p.onZoom?.(payload as ZoomState);
     else if (kind === "security") p.onSecurity?.(payload as SecurityInfo);
     else if (kind === "crashed") p.onCrashed?.(payload as CrashInfo);
@@ -183,6 +187,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
         stopWatching = stop;
         if (!snapshot) return;
         latest.current.onMedia?.(snapshot.media as MediaState);
+        if (snapshot.mediaAccess) latest.current.onMediaAccess?.(snapshot.mediaAccess as MediaAccess);
         latest.current.onZoom?.(snapshot.zoom as ZoomState);
         latest.current.onSecurity?.(snapshot.security as SecurityInfo);
         if (snapshot.preferredSize) latest.current.onPreferredSize?.(snapshot.preferredSize);
@@ -295,7 +300,12 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       },
       discard: async () => (await call<Awaited<ReturnType<WebViewHandle["discard"]>>>("discard")) ?? "unsupported",
       setFrozen: async (frozen) => run("setFrozen", { frozen }),
-      capturePicture: async () => null,
+      capturePicture: async (scale) => {
+        const picture = await call<{ data: string }>("capturePicture", { scale });
+        const bounds = frame.current?.getBoundingClientRect();
+        if (!picture?.data || !bounds?.width || !bounds.height) return null;
+        return { data: picture.data, frame: [bounds.left, bounds.top, bounds.width, bounds.height] };
+      },
     };
     return new Proxy(handle, { get: (target, key) => (key in target ? target[key as keyof WebViewHandle] : () => done) }) as WebViewHandle;
   }, []);

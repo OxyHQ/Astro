@@ -78,3 +78,8 @@ a,
   flex: 1;
   display: flex;
 }
+
+.astro-ui-drag iframe,
+.astro-tab-drag iframe {
+  pointer-events: none !important;
+}

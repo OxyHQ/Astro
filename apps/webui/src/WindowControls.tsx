@@ -1,4 +1,5 @@
 import { TRAFFIC_LIGHT_DIAMETER, TRAFFIC_LIGHT_SPACING, TrafficLights, useTrafficLightsCenter } from "../../demo/src/shims/web/windowChrome";
+import { confirmWindowClose } from "./host/quit";
 import { tabHub } from "./host/tabs";
 import { pageWindowId } from "./host/windows";
 import { emitWindowEvent } from "./shims/shell";
@@ -10,8 +11,8 @@ const ACTIONS = [
     name: "close",
     run: () => {
       const id = pageWindowId();
-      if (id) emitWindowEvent({ type: "closeRequest", id });
-      else void tabHub().then((hub) => hub.page.close());
+      if (id) void confirmWindowClose(id).then((confirmed) => confirmed && emitWindowEvent({ type: "closeRequest", id }));
+      else void tabHub().then((hub) => hub.closePage());
     },
   },
   { name: "minimize", run: () => void tabHub().then((hub) => hub.page.minimize()) },

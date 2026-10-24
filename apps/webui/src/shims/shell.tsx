@@ -6,6 +6,7 @@ import { provideNativeModule } from "../../../demo/src/shims/expo-modules-core";
 import { emitAppEvent } from "../../../demo/src/shims/shell";
 import { confirm } from "../../../demo/src/shims/web/overlays";
 import { loadCr, pickFiles as pickEngineFiles } from "../host/engine";
+import { confirmDownloadsCancelled, setQuitConfirmed } from "../host/quit";
 import { startDictation, systemInfo as webuiSystemInfo } from "../host/system";
 import { focusPageWindow, isLeaderPage, pageWindowId, releaseWindow, requestWindow } from "../host/windows";
 import { closeUtilityWindow, openUtilityWindow, openUtilityWindows } from "../utilityWindows";
@@ -59,13 +60,21 @@ async function quitConfirmed() {
 export async function requestQuit() {
   if (askingToQuit || terminating) return;
   askingToQuit = true;
-  const confirmed = await quitConfirmed().finally(() => {
-    askingToQuit = false;
-  });
-  if (!confirmed) return;
+  const confirmed = await quitConfirmed()
+    .then((ok) => ok && confirmDownloadsCancelled(pageWindowId()))
+    .finally(() => {
+      askingToQuit = false;
+    });
+  if (confirmed) quit();
+}
+
+function quit() {
+  if (terminating) return;
   quitChannel.postMessage("willQuit");
   terminate();
 }
+
+setQuitConfirmed(quit);
 
 export const replyToTerminate = async (ok: boolean) => {
   if (!terminating) return;

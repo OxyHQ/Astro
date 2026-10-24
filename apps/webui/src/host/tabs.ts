@@ -27,7 +27,7 @@ type TabStripService = {
   activateTab(id: string): Promise<unknown>;
 };
 type Listener = { addListener(listener: () => void): unknown };
-type PageCallbackRouter = { setFocusToLocationBar: Listener };
+type PageCallbackRouter = { setFocusToLocationBar: Listener; onPaintAsActiveChanged: { addListener(listener: (active: boolean) => void): unknown } };
 type PageHandler = {
   getGuestIdForTabId(tabId: string, receiver: unknown): Promise<{ guestId: unknown }>;
   minimize(): void;
@@ -43,7 +43,7 @@ type Observer = {
   onNodeMoved(): void;
 };
 
-declare const chrome: { browser: { attachIframeGuest(guestId: unknown, contentWindow: Window): void } };
+declare const chrome: { send(method: string, args?: unknown[]): void; browser: { attachIframeGuest(guestId: unknown, contentWindow: Window): void } };
 
 const importFromPage = <T>(path: string): Promise<T> => import(/* @vite-ignore */ path);
 
@@ -215,6 +215,7 @@ export class TabHub {
   private foreignHandler: ((tab: ForeignTab) => void) | null = null;
   private waitingForHandler: TabData[] = [];
   onFocusLocationBar: (() => void) | null = null;
+  onActiveChanged: ((active: boolean) => void) | null = null;
 
   constructor(
     readonly service: TabStripService,
@@ -234,6 +235,7 @@ export class TabHub {
     const proxy = browser.browserProxyFactory.getInstance();
     const hub = new TabHub(tabsApi.TabStripService.getRemote(), proxy.handler, () => new browser.GuestHandlerRemote());
     proxy.callbackRouter.setFocusToLocationBar.addListener(() => hub.onFocusLocationBar?.());
+    proxy.callbackRouter.onPaintAsActiveChanged.addListener((active) => hub.onActiveChanged?.(active));
     const snapshot = await hub.service.getTabs();
     for (const tab of flatten(snapshot.tabStrip)) {
       hub.known.set(tab.id, tab);
@@ -314,7 +316,7 @@ export class TabHub {
 
   async closePage() {
     await Promise.allSettled([...this.creating]);
-    this.page.close();
+    chrome.send("astroCloseWindow");
   }
 
   settlingHandOff() {

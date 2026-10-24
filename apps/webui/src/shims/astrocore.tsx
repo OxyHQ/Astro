@@ -12,6 +12,8 @@ import { profileServices } from "../host/profileTabs";
 import { appServices, engineServices, systemServices } from "../host/system";
 import { startTabEvents } from "../host/tabBridge";
 import { tabTransferServices } from "../host/tabTransfer";
+import { setShareTabRef, startShare } from "../host/share";
+import { latestTabRef } from "./WebView";
 
 export * from "../../../demo/src/shims/astrocore";
 export { faviconsFor, fetchFavicon } from "@astro-browser-real/astrocore";
@@ -32,3 +34,5 @@ startTabEvents();
 startCastRoutes();
 startContentBlocker();
 startDownloads();
+startShare();
+setShareTabRef(() => latestTabRef());

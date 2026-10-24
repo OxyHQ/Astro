@@ -28,6 +28,8 @@ source_set("astro") {
     "ac_display_media.h",
     "ac_documents.cc",
     "ac_documents.h",
+    "ac_drag_preview.cc",
+    "ac_drag_preview.h",
     "ac_downloads.cc",
     "ac_downloads.h",
     "ac_engine.cc",
@@ -221,6 +223,7 @@ source_set("astro") {
 
   if (is_win) {
     sources += [ "ac_reauth.cc" ]
+    deps += [ "//chrome/browser/webshare" ]
   }
 
   if (is_linux) {

@@ -2,12 +2,16 @@
 
 #include "chrome/browser/astro/ac_tab_bridge.h"
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
 #include <string>
 #include <utility>
 
+#include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/json/json_writer.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/json/json_reader.h"
@@ -19,11 +23,15 @@
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/printing/print_view_manager_common.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tab_sharing/tab_sharing_infobar_delegate.h"
+#include "components/infobars/content/content_infobar_manager.h"
+#include "components/infobars/core/infobar.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
 #include "base/base64.h"
@@ -33,7 +41,9 @@
 #include "extensions/browser/extension_action_manager.h"
 #include "extensions/browser/extension_registry.h"
 #include "chrome/browser/extensions/api/side_panel/side_panel_service.h"
+#include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/codec/png_codec.h"
+#include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_rep.h"
@@ -48,6 +58,8 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/ssl_status.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/net_errors.h"
@@ -61,6 +73,10 @@
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_WIN)
+#include "chrome/browser/webshare/win/share_operation.h"
+#endif
+
 extern bool (*g_astro_target_url)(content::WebContents* source,
                                   const GURL& url);
 extern void (*g_astro_unhandled_key)(content::WebContents* source,
@@ -68,6 +84,39 @@ extern void (*g_astro_unhandled_key)(content::WebContents* source,
 
 namespace astro {
 namespace {
+
+constexpr double kMinPictureScale = 0.05;
+constexpr double kQualityScale = 0.5;
+constexpr int kSmallPictureQuality = 55;
+constexpr int kPictureQuality = 75;
+constexpr base::TimeDelta kPictureTimeout = base::Seconds(1);
+
+TabSharingInfoBarDelegate* TabSharingDelegateFor(content::WebContents* contents,
+                                                 content::WebContents* capturer) {
+  auto* manager =
+      contents ? infobars::ContentInfoBarManager::FromWebContents(contents)
+               : nullptr;
+  if (!manager || !capturer) {
+    return nullptr;
+  }
+  TabSharingInfoBarDelegate* found = nullptr;
+  for (infobars::InfoBar* infobar : manager->infobars()) {
+    if (infobar->delegate()->GetIdentifier() !=
+        infobars::InfoBarDelegate::TAB_SHARING_INFOBAR_DELEGATE) {
+      continue;
+    }
+    auto* sharing = static_cast<TabSharingInfoBarDelegate*>(infobar->delegate());
+    content::RenderFrameHost* frame =
+        content::RenderFrameHost::FromID(sharing->capturer_id());
+    if (frame && content::WebContents::FromRenderFrameHost(frame) == capturer) {
+      if (found) {
+        return nullptr;
+      }
+      found = sharing;
+    }
+  }
+  return found;
+}
 
 void UnhandledKey(content::WebContents* source,
                   const input::NativeWebKeyboardEvent& event) {
@@ -290,9 +339,14 @@ TabBridge::TabBridge(content::WebContents* contents, Emit emit)
     : content::WebContentsObserver(contents), emit_(std::move(emit)) {
   ObserveHelpers();
   security_ = SecurityInfo(contents);
+  capture_indicator_ =
+      MediaCaptureDevicesDispatcher::GetInstance()->GetMediaStreamCaptureIndicator();
+  capture_indicator_->AddObserver(this);
+  media_access_ = MediaAccess();
 }
 
 TabBridge::~TabBridge() {
+  capture_indicator_->RemoveObserver(this);
   if (agent_) {
     agent_->DetachClient(this);
   }
@@ -307,6 +361,7 @@ base::DictValue TabBridge::Snapshot() {
   base::DictValue snapshot =
       base::DictValue()
           .Set("media", Media())
+          .Set("mediaAccess", MediaAccess())
           .Set("zoom", Zoom())
           .Set("security", SecurityInfo(contents))
           .Set("themeColor", ThemeColor(contents))
@@ -331,6 +386,127 @@ base::DictValue TabBridge::Media() {
   return base::DictValue()
       .Set("playing", contents && contents->IsCurrentlyAudible())
       .Set("muted", contents && contents->IsAudioMuted());
+}
+
+base::DictValue TabBridge::MediaAccess() {
+  content::WebContents* contents = web_contents();
+  const bool known = contents && capture_indicator_;
+  return base::DictValue()
+      .Set("camera", known && capture_indicator_->IsCapturingVideo(contents))
+      .Set("microphone",
+           known && capture_indicator_->IsCapturingAudio(contents))
+      .Set("screen", known && (capture_indicator_->IsCapturingTab(contents) ||
+                               capture_indicator_->IsCapturingWindow(contents) ||
+                               capture_indicator_->IsCapturingDisplay(contents)));
+}
+
+void TabBridge::MediaAccessChanged(content::WebContents* contents) {
+  if (!contents || contents != web_contents()) {
+    return;
+  }
+  base::DictValue access = MediaAccess();
+  if (access == media_access_) {
+    return;
+  }
+  media_access_ = access.Clone();
+  emit_.Run("mediaAccess", std::move(access));
+}
+
+void TabBridge::OnIsCapturingVideoChanged(content::WebContents* contents,
+                                          bool) {
+  MediaAccessChanged(contents);
+}
+
+void TabBridge::OnIsCapturingAudioChanged(content::WebContents* contents,
+                                          bool) {
+  MediaAccessChanged(contents);
+}
+
+void TabBridge::OnIsCapturingTabChanged(content::WebContents* contents, bool) {
+  MediaAccessChanged(contents);
+}
+
+void TabBridge::OnIsCapturingWindowChanged(content::WebContents* contents,
+                                           bool) {
+  MediaAccessChanged(contents);
+}
+
+void TabBridge::OnIsCapturingDisplayChanged(content::WebContents* contents,
+                                            bool) {
+  MediaAccessChanged(contents);
+}
+
+bool TabBridge::StopCapture() {
+  content::WebContents* contents = web_contents();
+  if (!contents || !capture_indicator_) {
+    return false;
+  }
+  const bool capturing = capture_indicator_->IsCapturingTab(contents) ||
+                         capture_indicator_->IsCapturingWindow(contents) ||
+                         capture_indicator_->IsCapturingDisplay(contents);
+  capture_indicator_->StopMediaCapturing(
+      contents, MediaStreamCaptureIndicator::MediaType::kDisplayMedia);
+  return capturing;
+}
+
+void TabBridge::CapturePicture(double scale,
+                               base::OnceCallback<void(base::Value)> done) {
+  content::WebContents* contents = web_contents();
+  content::RenderWidgetHostView* view =
+      contents ? contents->GetRenderWidgetHostView() : nullptr;
+  if (!view || !view->IsSurfaceAvailableForCopy() ||
+      view->GetViewBounds().IsEmpty()) {
+    return std::move(done).Run(base::Value());
+  }
+  const double clamped = std::clamp(scale, kMinPictureScale, 1.0);
+  const gfx::Size output = gfx::ScaleToCeiledSize(
+      view->GetViewBounds().size(),
+      static_cast<float>(clamped * view->GetDeviceScaleFactor()));
+  const int quality =
+      clamped < kQualityScale ? kSmallPictureQuality : kPictureQuality;
+  view->CopyFromSurface(
+      gfx::Rect(), output, kPictureTimeout,
+      base::BindOnce(
+          [](base::OnceCallback<void(base::Value)> done, int quality,
+             const content::CopyFromSurfaceResult& result) {
+            std::optional<std::vector<uint8_t>> jpeg;
+            if (result.has_value() && !result->bitmap.drawsNothing()) {
+              jpeg = gfx::JPEGCodec::Encode(result->bitmap, quality);
+            }
+            std::move(done).Run(
+                jpeg ? base::Value(base::DictValue().Set(
+                           "data", base::Base64Encode(*jpeg)))
+                     : base::Value());
+          },
+          base::BindPostTaskToCurrentDefault(std::move(done)), quality));
+}
+
+bool TabBridge::Share(const std::string& url, const std::string& title) {
+#if BUILDFLAG(IS_WIN)
+  content::WebContents* contents = web_contents();
+  const GURL target(url);
+  if (!contents || !target.SchemeIsHTTPOrHTTPS()) {
+    return false;
+  }
+  share_ = std::make_unique<webshare::ShareOperation>(title, std::string(),
+                                                      target, contents);
+  share_->Run({}, base::DoNothing());
+  return true;
+#else
+  return false;
+#endif
+}
+
+bool ShareThisTabInstead(content::WebContents* contents,
+                         content::WebContents* capturer) {
+  TabSharingInfoBarDelegate* sharing = TabSharingDelegateFor(contents, capturer);
+  if (!sharing ||
+      !(sharing->GetButtons() & TabSharingInfoBarDelegate::kShareThisTabInstead) ||
+      !sharing->IsButtonEnabled(TabSharingInfoBarDelegate::kShareThisTabInstead)) {
+    return false;
+  }
+  sharing->ShareThisTabInstead();
+  return true;
 }
 
 base::DictValue TabBridge::Zoom() {
@@ -597,6 +773,16 @@ void TabBridge::Call(const std::string& method,
     }
   } else if (method == "mediaCaptureSourceId") {
     return std::move(done).Run(DisplayMediaSourceId(contents));
+  } else if (method == "capturePicture") {
+    return CapturePicture(args.FindDouble("scale").value_or(1),
+                          std::move(done));
+  } else if (method == "stopCapture") {
+    return std::move(done).Run(base::Value(StopCapture()));
+  } else if (method == "share") {
+    const std::string* url = args.FindString("url");
+    const std::string* title = args.FindString("title");
+    return std::move(done).Run(base::Value(
+        url && Share(*url, title ? *title : std::string())));
   }
   std::move(done).Run(base::Value());
 }
@@ -673,6 +859,17 @@ void TabBridge::DidFinishNavigation(content::NavigationHandle* handle) {
   if (!handle->IsInPrimaryMainFrame()) {
     return;
   }
+  if (handle->IsDownload()) {
+    const GURL& committed = web_contents()->GetLastCommittedURL();
+    emit_.Run("downloadNavigation",
+              base::DictValue()
+                  .Set("url", handle->GetURL().spec())
+                  .Set("committedUrl", committed.IsAboutBlank() || !committed.is_valid()
+                                           ? std::string()
+                                           : committed.spec())
+                  .Set("skipped", false));
+    return;
+  }
   if (handle->HasCommitted()) {
     CheckSecurity();
     emit_.Run("zoom", Zoom());
@@ -683,6 +880,13 @@ void TabBridge::DidFinishNavigation(content::NavigationHandle* handle) {
                                .Set("url", handle->GetURL().spec())
                                .Set("code", error)
                                .Set("text", net::ErrorToShortString(error)));
+  }
+}
+
+void TabBridge::DidGetUserInteraction(const blink::WebInputEvent& event) {
+  if (event.GetType() == blink::WebInputEvent::Type::kMouseDown ||
+      event.GetType() == blink::WebInputEvent::Type::kTouchStart) {
+    emit_.Run("pageFocus", base::DictValue());
   }
 }
 

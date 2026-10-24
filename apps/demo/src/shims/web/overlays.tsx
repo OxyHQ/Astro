@@ -21,9 +21,21 @@ if (typeof window !== "undefined")
     true,
   );
 
+export type ShareService = { id: string; title: string; symbol?: string };
+let shareServices: ShareService[] = [];
+export const setShareServices = (services: ShareService[]) => void (shareServices = services);
+
+const withShareServices = (items: MenuItem[]): MenuItem[] =>
+  items.map((item) => {
+    if ("separator" in item) return item;
+    if (item.children) return { ...item, children: withShareServices(item.children) };
+    if (!item.share || !shareServices.length) return item;
+    return { ...item, children: shareServices.map((service) => ({ id: `${item.id}:via:${service.id}`, title: service.title, symbol: service.symbol })) };
+  });
+
 export function showMenu(items: MenuItem[]): Promise<string | null> {
   open?.resolve(null);
-  return new Promise((resolve) => publish({ items, x: pointer.x, y: pointer.y, resolve }));
+  return new Promise((resolve) => publish({ items: withShareServices(items), x: pointer.x, y: pointer.y, resolve }));
 }
 
 export const closeMenu = (id: string | null) => {

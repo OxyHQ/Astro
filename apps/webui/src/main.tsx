@@ -14,6 +14,8 @@ import { setStoreBatching, useBrowser } from "../../browser/src/store/browser";
 import { emitCommand, loadDocuments } from "./shims/shell";
 import { OverlayHost } from "../../demo/src/shims/web/overlays";
 import "../../demo/src/shims/web/motion/shortcuts";
+import { startAppActivity } from "./host/appActive";
+import { startDragPreview } from "./host/dragPreview";
 import { installEngineFetch } from "./host/fetch";
 import { startEngineKeys } from "./host/keys";
 import { tabHub } from "./host/tabs";
@@ -26,6 +28,8 @@ import { WindowControls } from "./WindowControls";
 installEngineFetch();
 startTranslate();
 void startEngineKeys();
+void startAppActivity();
+startDragPreview();
 setStoreBatching(unstable_batchedUpdates);
 
 Object.assign(globalThis, { astro: { store: useBrowser, emitCommand } });

@@ -1,5 +1,8 @@
 import { useSyncExternalStore } from "react";
 import { type BrowserState, useBrowser } from "../../../browser/src/store/browser";
+import { emitWindowEvent } from "../../../demo/src/shims/shell";
+import { loadCr } from "./engine";
+import { closeOwnWindow, confirmWindowClose } from "./quit";
 import { notePageWindow, releaseClosedTabs } from "./tabTransfer";
 
 type Data = Record<string, unknown>;
@@ -162,7 +165,7 @@ export function releaseWindow(id: string) {
   if (!leader) return;
   const waiting = waitingForWindow.indexOf(id);
   if (waiting >= 0) waitingForWindow.splice(waiting, 1);
-  if (id === windowId) return closePage();
+  if (id === windowId) return void closeOwnWindow(id, closePage);
   if (owners.has(id)) post({ type: "close", windowId: id });
 }
 
@@ -275,8 +278,20 @@ function acquireLeadership(wait: boolean): Promise<boolean> {
   });
 }
 
+async function listenForCloseRequests() {
+  const cr = await loadCr();
+  const add = cr.addWebUiListener as unknown as (event: string, listener: (kind: string) => void) => void;
+  add("astro-window-event", (kind) => {
+    if (kind !== "closeRequest") return;
+    const id = windowId;
+    if (!id) return closePage();
+    void confirmWindowClose(id).then((confirmed) => confirmed && emitWindowEvent({ type: "closeRequest", id }));
+  });
+}
+
 export async function startWindows(roles: WindowRoles, close: () => void) {
   closePage = close;
+  void listenForCloseRequests();
   window.addEventListener("pagehide", () => {
     unloading = true;
     if (leader) roles.end();

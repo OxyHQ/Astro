@@ -11,6 +11,7 @@ export type TabSnapshot = {
   themeColor: string | null;
   navigation?: Record<string, unknown>;
   preferredSize?: { width: number; height: number };
+  mediaAccess?: Record<string, unknown>;
 };
 
 const listeners = new Map<string, Set<TabEventListener>>();

@@ -2001,6 +2001,51 @@ def edit(s):
 hook(["bool (*g_astro_window_unhandled_key)(\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "downloads never hold a close" <<'PY'
+old = """    base::OnceCallback<void(bool)> callback) {
+  NOTIMPLEMENTED_LOG_ONCE();
+}
+"""
+new = """    base::OnceCallback<void(bool)> callback) {
+  // Astro: as AstroCore does on macOS, a close goes ahead; Astro asks about downloads before it quits.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), true));
+}
+"""
+includes = ['#include "base/functional/bind.h"\n', '#include "base/task/single_thread_task_runner.h"\n']
+first = '#include "base/check.h"\n'
+def edit(s):
+    assert s.count(old) == 1 and s.count(first) == 1
+    s = s.replace(old, new)
+    for line in includes:
+        if line not in s:
+            s = s.replace(first, first + line, 1)
+    return s
+hook(["  // Astro: as AstroCore does on macOS, a close goes ahead; Astro asks about downloads before it quits.\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "window close asks the page" <<'PY'
+old = """void WebUIBrowserWindow::OnWindowCloseRequested(
+    views::Widget::ClosedReason close_reason) {
+"""
+new = """// Astro: a close the system asks for (Alt+F4, the taskbar) goes to AstroCore's page, as its close button does.
+bool (*g_astro_window_close_requested)(BrowserWindowInterface* browser) =
+    nullptr;
+
+""" + old + """  if (g_astro_window_close_requested &&
+      g_astro_window_close_requested(browser_.get())) {
+    widget_->MakeCloseSynchronous(base::BindOnce(
+        &WebUIBrowserWindow::OnWindowCloseRequested, base::Unretained(this)));
+    return;
+  }
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["bool (*g_astro_window_close_requested)(BrowserWindowInterface* browser) =\n",
+      "  if (g_astro_window_close_requested &&\n"], edit)
+PY
+
 if [[ $mode == check ]]; then
   exit "$drift"
 fi

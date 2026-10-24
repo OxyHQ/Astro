@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/base64.h"
+#include "base/callback_list.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/files/file_path.h"
@@ -24,6 +25,8 @@
 #include "base/command_line.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/bind_post_task.h"
+#include "base/time/time.h"
 #include "base/values.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -31,6 +34,7 @@
 #include "chrome/browser/astro/ac_devtools_dock.h"
 #include "chrome/browser/astro/ac_display_media.h"
 #include "chrome/browser/astro/ac_documents.h"
+#include "chrome/browser/astro/ac_drag_preview.h"
 #include "chrome/browser/astro/ac_extension_views.h"
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
@@ -47,8 +51,11 @@
 #include "chrome/browser/astro/public/ac_engine.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
+#include "chrome/browser/lifetime/application_lifetime_desktop.h"
+#include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/extensions/component_loader.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/unload_controller.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
@@ -56,8 +63,10 @@
 #include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui.h"
@@ -74,10 +83,13 @@
 #include "ui/base/base_window.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
+#include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 #include "ui/shell_dialogs/selected_file_info.h"
 #include "url/gurl.h"
+
+extern bool (*g_astro_window_close_requested)(BrowserWindowInterface* browser);
 
 extern "C" {
 void ac_engine_set_event_sink(ac_engine_event_t sink, void* context);
@@ -214,6 +226,7 @@ constexpr char kProfileTabListener[] = "astro-profile-tab";
 constexpr char kTabEventListener[] = "astro-tab-event";
 constexpr char kHostEventListener[] = "astro-host-event";
 constexpr char kWindowKeyListener[] = "astro-window-key";
+constexpr char kWindowEventListener[] = "astro-window-event";
 constexpr char kImportEventListener[] = "astro-import-event";
 constexpr char kProfileTabPrefix[] = "p:";
 constexpr char kExtensionViewPrefix[] = "x:";
@@ -226,6 +239,8 @@ constexpr auto kBoolPrefs = base::MakeFixedFlatSet<std::string_view>({
 });
 
 constexpr size_t kMaxFetchBody = 8 * 1024 * 1024;
+constexpr base::TimeDelta kPageCaptureTimeout = base::Seconds(1);
+constexpr int kPageCaptureQuality = 85;
 
 constexpr net::NetworkTrafficAnnotationTag kFetchAnnotation =
     net::DefineNetworkTrafficAnnotation("astro_interface_fetch", R"(
@@ -258,6 +273,35 @@ struct PendingReply {
 };
 
 void Replied(void* context, const char* json);
+bool WindowCloseRequested(BrowserWindowInterface* browser);
+bool g_closing_all_browsers = false;
+
+std::map<BrowserWindowInterface*, base::CallbackListSubscription>&
+AllowedCloses() {
+  static base::NoDestructor<
+      std::map<BrowserWindowInterface*, base::CallbackListSubscription>>
+      allowed;
+  return *allowed;
+}
+
+void ForgetAllowedClose(BrowserWindowInterface* browser) {
+  content::GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](BrowserWindowInterface* browser) {
+                       AllowedCloses().erase(browser);
+                     },
+                     browser));
+}
+
+void AllowClose(BrowserWindowInterface* browser) {
+  UnloadController* unload = UnloadController::From(browser);
+  if (!unload || AllowedCloses().contains(browser)) {
+    return;
+  }
+  AllowedCloses()[browser] =
+      unload->RegisterBrowserDidClose(base::BindRepeating(&ForgetAllowedClose));
+}
+
 void Dispatched(void* context, const char* topic, const char* json);
 
 
@@ -282,6 +326,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       InstallCastDialog();
       InstallDisplayMediaPicker();
       InstallDockedDevTools();
+      g_astro_window_close_requested = &WindowCloseRequested;
+      static base::NoDestructor<base::CallbackListSubscription> closing_all(
+          chrome::AddClosingAllBrowsersCallback(base::BindRepeating(
+              [](bool closing) { g_closing_all_browsers = closing; })));
       return true;
     }();
     (void)installed;
@@ -340,6 +388,18 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroQuit", base::BindRepeating(&EngineWebUIHandler::HandleQuit,
                                          base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroDragPreview",
+        base::BindRepeating(&EngineWebUIHandler::HandleDragPreview,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroCapturePage",
+        base::BindRepeating(&EngineWebUIHandler::HandleCapturePage,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroCloseWindow",
+        base::BindRepeating(&EngineWebUIHandler::HandleCloseWindow,
+                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroNewWindow", base::BindRepeating(&EngineWebUIHandler::HandleNewWindow,
                                               base::Unretained(this)));
@@ -436,6 +496,16 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       FireWebUIListener(kWindowKeyListener, base::Value(kind),
                         base::Value(payload.Clone()));
     }
+  }
+
+  bool AskToClose(BrowserWindowInterface* browser) {
+    if (!IsJavascriptAllowed() || WindowBrowser() != browser ||
+        web_ui()->GetWebContents()->IsCrashed()) {
+      return false;
+    }
+    FireWebUIListener(kWindowEventListener, base::Value("closeRequest"),
+                      base::Value(base::DictValue()));
+    return true;
   }
 
   void DeliverHostEvent(const std::string& kind,
@@ -685,6 +755,54 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     if (args.empty()) {
       chrome::AttemptUserExit();
     }
+  }
+
+  void HandleDragPreview(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() == 1 && args[0].is_dict()) {
+      UpdateDragPreview(args[0].GetDict());
+    }
+  }
+
+  void HandleCapturePage(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 1) {
+      return;
+    }
+    content::RenderWidgetHostView* view =
+        web_ui()->GetWebContents()->GetRenderWidgetHostView();
+    if (!view || !view->IsSurfaceAvailableForCopy()) {
+      return ResolveJavascriptCallback(args[0], base::Value());
+    }
+    view->CopyFromSurface(
+        gfx::Rect(), gfx::Size(), kPageCaptureTimeout,
+        base::BindPostTaskToCurrentDefault(base::BindOnce(
+            [](base::WeakPtr<EngineWebUIHandler> self, base::Value callback_id,
+               const content::CopyFromSurfaceResult& result) {
+              if (!self || !self->IsJavascriptAllowed()) {
+                return;
+              }
+              std::optional<std::vector<uint8_t>> jpeg;
+              if (result.has_value() && !result->bitmap.drawsNothing()) {
+                jpeg = gfx::JPEGCodec::Encode(result->bitmap, kPageCaptureQuality);
+              }
+              self->ResolveJavascriptCallback(
+                  callback_id,
+                  jpeg ? base::Value("data:image/jpeg;base64," +
+                                     base::Base64Encode(*jpeg))
+                       : base::Value());
+            },
+            weak_factory_.GetWeakPtr(), args[0].Clone())));
+  }
+
+  void HandleCloseWindow(const base::ListValue& args) {
+    AllowJavascript();
+    BrowserWindowInterface* browser = WindowBrowser();
+    if (!args.empty() || !browser || !browser->GetWindow()) {
+      return;
+    }
+    AllowClose(browser);
+    browser->GetWindow()->Close();
   }
 
   void HandleNewWindow(const base::ListValue& args) {
@@ -951,6 +1069,14 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
         !args[3].is_dict()) {
       return;
     }
+    if (args[2].GetString() == "shareThisTabInstead") {
+      const std::string* capturer = args[3].GetDict().FindString("capturer");
+      content::WebContents* target = TabContents(args[1].GetString());
+      return ResolveJavascriptCallback(
+          args[0], base::Value(capturer && target &&
+                               ShareThisTabInstead(target,
+                                                   TabContents(*capturer))));
+    }
     TabBridge* bridge = BridgeFor(args[1].GetString());
     if (!bridge) {
       return ResolveJavascriptCallback(args[0], base::Value());
@@ -1202,6 +1328,20 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
   bool picking_paths_ = false;
   base::WeakPtrFactory<EngineWebUIHandler> weak_factory_{this};
 };
+
+bool WindowCloseRequested(BrowserWindowInterface* browser) {
+  if (!browser || g_closing_all_browsers || AllowedCloses().contains(browser) ||
+      browser_shutdown::IsTryingToQuit()) {
+    return false;
+  }
+  if (UnloadController* unload = UnloadController::From(browser);
+      unload && unload->is_attempting_to_close_browser()) {
+    return false;
+  }
+  return std::ranges::any_of(Handlers(), [browser](EngineWebUIHandler* handler) {
+    return handler->AskToClose(browser);
+  });
+}
 
 void Replied(void* context, const char* json) {
   std::unique_ptr<PendingReply> pending(static_cast<PendingReply*>(context));

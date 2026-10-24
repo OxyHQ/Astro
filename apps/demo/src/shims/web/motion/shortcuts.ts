@@ -523,11 +523,25 @@ function onBlur() {
   emitAppEvent({ type: "switcherReleased" });
 }
 
+let pointer: [number, number] | null = null;
+const switcherPointer = { origin: null as [number, number] | null, moved: false };
+
+function onPointerMove(e: PointerEvent) {
+  pointer = [e.screenX, e.screenY];
+  if (!switcher.capturing || switcherPointer.moved) return;
+  const origin = switcherPointer.origin;
+  if (!origin) switcherPointer.origin = pointer;
+  else if (Math.hypot(pointer[0] - origin[0], pointer[1] - origin[1]) >= 1) switcherPointer.moved = true;
+}
+
 provideNativeModule("AstroShell", {
   setSwitcherCapture: async (active: boolean) => {
     switcher.capturing = active;
+    switcherPointer.origin = active ? pointer : null;
+    switcherPointer.moved = false;
     captureChanged();
   },
+  switcherPointerMoved: () => !switcher.capturing || switcherPointer.moved,
 });
 
 provideNativeModule("AstroSystem", {
@@ -546,5 +560,6 @@ if (typeof window !== "undefined") {
   window.addEventListener("keyup", keyUp, true);
   window.addEventListener("pointerdown", onPointerDown, true);
   window.addEventListener("pointerup", onPointerUp, true);
+  window.addEventListener("pointermove", onPointerMove, true);
   window.addEventListener("blur", onBlur);
 }
