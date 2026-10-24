@@ -1,9 +1,10 @@
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, type Plugin, transformWithEsbuild } from "vite";
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const repo = here("../../");
@@ -81,10 +82,38 @@ function lazyComponents(): Plugin {
   };
 }
 
+const BLOOM = /[/\\]node_modules[/\\]@oxy\.so[/\\]bloom[/\\].*\.[cm]?jsx?$/;
+const JSX_IN_JS = /[/\\]node_modules[/\\](react-native-reanimated|react-native-gesture-handler|react-native-css|nativewind)[/\\].*\.js$/;
+
+function bloomWorklets(): Plugin {
+  const require = createRequire(import.meta.url);
+  return {
+    name: "astro-demo:bloom-worklets",
+    enforce: "pre",
+    async transform(code, id) {
+      const file = id.split("?", 1)[0]!;
+      if (JSX_IN_JS.test(file)) return { code: (await transformWithEsbuild(code, file, { loader: "jsx", jsx: "automatic" })).code, map: null };
+      if (!BLOOM.test(file)) return null;
+      const babel = require("@babel/core") as typeof import("@babel/core");
+      const result = babel.transformSync(code, {
+        filename: file,
+        babelrc: false,
+        configFile: false,
+        sourceMaps: false,
+        parserOpts: { plugins: ["jsx"] },
+        plugins: [[require("react-native-reanimated/plugin"), { substituteWebPlatformChecks: true }]],
+      });
+      return result?.code ? { code: result.code, map: null } : null;
+    },
+  };
+}
+
 const analyze = !!process.env.ASTRO_DEMO_ANALYZE;
 
 export default defineConfig({
   plugins: [
+    bloomWorklets(),
+    tailwindcss(),
     commonJsRequires(),
     lazyComponents(),
     react(),
@@ -102,6 +131,7 @@ export default defineConfig({
       { find: /^react-native\/Libraries\/Animated\/useAnimatedProps$/, replacement: `${reactNativeWeb}/dist/vendor/react-native/Animated/useAnimatedProps.js` },
       { find: /^react-native(-macos)?$/, replacement: `${shims}react-native.tsx` },
       { find: /^expo-modules-core$/, replacement: `${shims}expo-modules-core.ts` },
+      { find: /^expo-blur$/, replacement: `${shims}expo-blur.tsx` },
       { find: /^@astro-browser\/(shell|astrocore|shaders|sync|import)$/, replacement: `${shims}$1.tsx` },
       ...Object.entries(realPackages).map(([name, path]) => ({ find: new RegExp(`^@astro-browser-real/${name}$`), replacement: path })),
     ],

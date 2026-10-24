@@ -11,23 +11,33 @@
     "icons": "node scripts/icons/regenerate.mjs"
   },
   "dependencies": {
-    "@astro-browser/core": "workspace:*",
     "@astro-browser/astrocore": "workspace:*",
+    "@astro-browser/core": "workspace:*",
     "@astro-browser/import": "workspace:*",
     "@astro-browser/shaders": "workspace:*",
     "@astro-browser/shell": "workspace:*",
     "@astro-browser/sync": "workspace:*",
+    "@oxy.so/bloom": "^15.43.0",
     "lucide-react": "^0.546.0",
+    "nativewind": "5.0.0-rc.0",
     "react": "19.1.4",
     "react-dom": "19.1.4",
+    "react-native-css": "3.1.0-rc.0",
+    "react-native-gesture-handler": "~3.3.0",
+    "react-native-reanimated": "4.7.1",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-svg": "15.16.0",
     "react-native-web": "^0.21.1",
+    "react-native-worklets": "0.13.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
     "@mdi/svg": "7.4.47",
     "@phosphor-icons/core": "2.1.1",
     "@resvg/resvg-js": "2.6.2",
     "@tabler/icons": "3.49.0",
+    "@tailwindcss/vite": "4.3.2",
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.7",
     "@vitejs/plugin-react": "^5.0.4",
@@ -36,6 +46,7 @@
     "playwright": "1.64.0",
     "pngjs": "7.0.0",
     "rollup-plugin-visualizer": "^6.0.4",
+    "tailwindcss": "4.3.2",
     "typescript": "~5.9.2",
     "vite": "^7.1.9"
   }
