@@ -11,6 +11,7 @@ import {
 } from "@astro-browser/shell";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { DEVICE, ON_MAC } from "../../lib/device";
 import { PROFILE_COLORS, themeFor, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { Favicon, useHover } from "../primitives";
@@ -83,7 +84,7 @@ export function DefaultBrowserStep() {
     try {
       if (!system.isDefault && (setDefault || trial) && (await setAsDefaultBrowser()) && !setDefault) recordDefaultBrowserTrial();
       if (login !== system.loginEnabled) await setLaunchAtLogin(login).catch(() => {});
-      if (dock && !system.inDock) await addToDock();
+      if (ON_MAC && dock && !system.inDock) await addToDock();
     } finally {
       setBusy(false);
       next();
@@ -118,7 +119,7 @@ export function DefaultBrowserStep() {
             onChange={setTrial}
           />
         ) : null}
-        {system && !system.inDock ? (
+        {ON_MAC && system && !system.inDock ? (
           <CheckRow icon="dock.rectangle" title="Add Astro to Dock" subtitle="Quick access to Astro whenever you need it" value={dock} onChange={setDock} />
         ) : null}
         <CheckRow icon="power" title="Open Astro at login" subtitle="Automatically open Astro when you sign in" value={login} onChange={setLogin} />
@@ -156,7 +157,7 @@ function SystemPreview({ isDefault, dock, login }: { isDefault: boolean; dock: b
       <Image source={ICON} style={{ width: 132, height: 132 }} />
       <View style={{ gap: 8, alignItems: "center" }}>
         {chip(isDefault, "globe", "Default browser")}
-        {chip(dock, "dock.rectangle", "In your Dock")}
+        {ON_MAC && chip(dock, "dock.rectangle", "In your Dock")}
         {chip(login, "power", "Opens at login")}
       </View>
     </View>
@@ -300,8 +301,8 @@ export function ImportStep() {
           title="Bring your browsing with you"
           subtitle={
             opened
-              ? "Finish up in the import window, then continue here. You can import more any time from the Astro menu."
-              : "Import bookmarks, history, passwords and tabs from the browser you use now, and stay signed in to your sites. It all stays on this Mac."
+              ? `Finish up in the import window, then continue here. You can import more any time from ${ON_MAC ? "the Astro menu" : "Settings › General"}.`
+              : `Import bookmarks, history, passwords and tabs from the browser you use now, and stay signed in to your sites. It all stays on this ${DEVICE}.`
           }
         />
       </Reveal>

@@ -27,6 +27,7 @@ import { useBrowser, type BrowserState } from "../store/browser";
 import { activeTabId, resolveWindowId, viewTabIds, windowTitle } from "../store/model";
 import { focus, openUrls, openWindow, switchProfile, switchToTab } from "./actions";
 import { afterFirstWindow } from "./afterFirstWindow";
+import { ON_MAC } from "./device";
 import { offerDefaultBrowserAgain } from "./defaultBrowserOffer";
 import { openReleaseNotesAfterUpdate, openReleaseNotesPage } from "./releaseNotesPage";
 import { JAVASCRIPT_FROM_APPLE_EVENTS_REFUSED, runsJavaScript } from "./scriptUrls";
@@ -99,7 +100,7 @@ export async function diagnostics(): Promise<string> {
   return [
     `${app.appName} ${app.appVersion} (${app.appBuild}) — ${app.configuration}`,
     engine ? `Engine: AstroCore, Chromium ${engine.chromiumVersion}` : "Engine: unavailable",
-    `macOS ${app.osVersion} (${app.osBuild}), ${app.arch}, ${app.model}, ${Math.round(app.memoryGB)} GB`,
+    `${ON_MAC ? `macOS ${app.osVersion} (${app.osBuild})` : app.osVersion}, ${app.arch}, ${app.model}, ${Math.round(app.memoryGB)} GB`,
     `Bundle: ${app.bundleId}, locale ${app.locale}`,
     `Windows: ${regular.length} (+${s.windowOrder.length - regular.length} incognito), tabs: ${Object.keys(s.tabs).length}, profiles: ${s.profileOrder.length}`,
     !updates?.available

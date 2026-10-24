@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { syncFolder } from "../paneData";
 import { useResource } from "../resources";
 import { Linking, Text, View } from "react-native";
-import { DEVICE, DEVICES, ON_MAC, SYNC_FOLDER_EXAMPLE, THIS_DEVICE_TITLE } from "../../../lib/device";
+import { DEVICE, DEVICES, FILE_MANAGER, ON_MAC, SYNC_FOLDER_EXAMPLE, THIS_DEVICE_TITLE } from "../../../lib/device";
 import { useTheme } from "../../../lib/theme";
 import { useBrowser } from "../../../store/browser";
 import { useProfiles } from "../../../store/hooks";
@@ -181,7 +181,7 @@ function SyncOn({ info }: { info: FolderInfo | null }) {
       { id: "copy", title: "Copy Recovery Code", symbol: "doc.on.doc" },
       { separator: true },
       { id: "now", title: "Sync Now", symbol: "arrow.triangle.2.circlepath" },
-      { id: "reveal", title: "Show Sync Folder in Finder", symbol: "folder", enabled: !!info?.exists },
+      { id: "reveal", title: `Show Sync Folder in ${FILE_MANAGER}`, symbol: "folder", enabled: !!info?.exists },
       { separator: true },
       { id: "stop", title: "Stop Syncing…", symbol: "xmark.circle" },
     ]);

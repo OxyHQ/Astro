@@ -2,7 +2,7 @@ import { showMenu, Symbol } from "@astro-browser/shell";
 import { SyncNative, type FolderInfo } from "@astro-browser/sync";
 import { useEffect, useState, type ReactNode } from "react";
 import { Image, StyleSheet, Text, TextInput, View } from "react-native";
-import { DEVICE, ON_MAC } from "../../../lib/device";
+import { DEVICE, IN_KEYCHAIN, ON_MAC } from "../../../lib/device";
 import { useTheme } from "../../../lib/theme";
 import { enterRecoveryPhrase, stopSync } from "../../../sync/engine";
 import { Button, Checkbox, Sheet, useFormColors } from "../controls";
@@ -112,7 +112,7 @@ const phraseError = (r: Awaited<ReturnType<typeof enterRecoveryPhrase>>): string
     case "noData":
       return "There’s no synced data in this folder yet. Choose the folder your other devices sync to, or wait for it to finish downloading.";
     case "keychain":
-      return "Couldn’t save the sync key in your Keychain.";
+      return `Couldn’t save the sync key ${IN_KEYCHAIN}.`;
     case "unavailable":
       return "Sync isn’t available in this build.";
   }

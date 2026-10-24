@@ -1,3 +1,4 @@
+export const Platform = { OS: "macos" };
 export const docs = new Map();
 export const readDocument = (name) => docs.get(name) ?? null;
 export const writeDocument = (name, contents) => docs.set(name, contents);

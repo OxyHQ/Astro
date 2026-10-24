@@ -3,6 +3,7 @@ import { fileExists, MouseArea, openFile, revealFile, Symbol } from "@astro-brow
 import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useShallow } from "zustand/react/shallow";
+import { FILE_MANAGER } from "../../lib/device";
 import { useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { downloadsIn } from "../../store/ui";
@@ -99,7 +100,7 @@ function DownloadCard({ d, windowId }: { d: Download; windowId: string }) {
               <Button title="Cancel" onPress={() => void cancelDownload(d.id)} />
             </View>
           ) : done ? (
-            <Button title="Show in Finder" onPress={() => void revealFile(d.path)} />
+            <Button title={`Show in ${FILE_MANAGER}`} onPress={() => void revealFile(d.path)} />
           ) : null}
           <IconButton icon="ellipsis" size={13} box={26} radius={6} onPress={() => void downloadMenu(d, windowId)} tooltip="More actions" />
           {d.state !== "downloading" && (

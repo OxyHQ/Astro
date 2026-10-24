@@ -1,9 +1,11 @@
+import { DEVICE, OS_NAME } from "../lib/device";
+
 export const SHARING_COPY = {
   toggle: "Share anonymous crash reports and usage stats",
   summary: "Crashes, errors, rough feature counts and speed. Never the sites you visit, anything you type or search, or what's in your tabs.",
   whatsSent: "What's Sent",
   footnote:
-    "Sent to astro.oxy.so with a random ID made on this Mac, and kept on our own servers. No third parties. Turning this off stops it at once and deletes anything waiting to be sent. This setting doesn't sync.",
+    `Sent to astro.oxy.so with a random ID made on this ${DEVICE}, and kept on our own servers. No third parties. Turning this off stops it at once and deletes anything waiting to be sent. This setting doesn't sync.`,
   ask: {
     title: "Help fix Astro?",
     body: "Share anonymous crash reports and usage stats. No sites, searches or typing. Ever.",
@@ -24,8 +26,8 @@ export const WHATS_SENT: { title: string; items: string[] }[] = [
   {
     title: "With everything",
     items: [
-      "A random install ID, made on this Mac (a new one each time sharing is turned back on)",
-      "App version and build, macOS version, chip (arm64 or x86_64), engine version",
+      `A random install ID, made on this ${DEVICE} (a new one each time sharing is turned back on)`,
+      `App version and build, ${OS_NAME} version, chip (arm64 or x86_64), engine version`,
       "Whether it's a test build",
     ],
   },
@@ -53,7 +55,7 @@ export const WHATS_SENT: { title: string; items: string[] }[] = [
     items: [
       "Time to the first window, profile switch time, and command bar speed (a sample of keystrokes)",
       "How long launches, new tabs, tab switches and page loads take, step by step: times and counts only, summed up once an hour",
-      "At launch, in rough ranges: how many tabs and windows came back, how much history there is, and whether it's the first launch since the Mac started",
+      `At launch, in rough ranges: how many tabs and windows came back, how much history there is, and whether it's the first launch since the ${DEVICE} started`,
       "Memory use and the number of tabs, once an hour",
     ],
   },

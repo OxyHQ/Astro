@@ -1,6 +1,7 @@
 import { engineInfo } from "@astro-browser/astrocore";
 import { launchEnvironment, readDocument, systemInfo, writeDocument, type SystemInfo } from "@astro-browser/shell";
 import { create } from "zustand";
+import { OS_NAME } from "../lib/device";
 import { DEV_SEND_ENV, LOGS_URL, MAX_BODY_BYTES } from "./config";
 import { EVENTS_SCOPE, eventRecord, LOGS_SCOPE, logRecord, logsRequest, outcome, type OtlpLogRecord, type QueuedEvent } from "./otlp";
 import { cleanProperties } from "./sanitize";
@@ -86,7 +87,7 @@ function context(): Record<string, unknown> {
     $app_name: "Astro",
     $app_version: info.appVersion,
     $app_build: info.appBuild,
-    $os: "macOS",
+    $os: OS_NAME,
     $os_version: info.osVersion,
     arch: info.arch,
     engine_version: engineVersion,
