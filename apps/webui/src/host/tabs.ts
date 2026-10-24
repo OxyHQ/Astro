@@ -79,7 +79,7 @@ export interface EngineTab {
   forward(): void;
   reload(): void;
   stop(): void;
-  activate(): void;
+  activate(): Promise<unknown> | void;
   close(): void;
   handOff?(key: string, toWindow: string | null, keepWindow: boolean): void;
 }
@@ -124,6 +124,7 @@ export class ChromiumTab implements EngineTab {
     const activated = data.isActive && !this.active;
     this.active = data.isActive;
     if (activated && this.hub.requestedActive !== this.id && !this.hub.settlingHandOff()) this.onActivatedByEngine?.();
+    if (activated) this.hub.onActivated?.();
     const [{ canGoBack }, { canGoForward }] = await Promise.all([this.guest.canGoBack(), this.guest.canGoForward()]);
     this.state = toState(data, canGoBack, canGoForward, this.state.themeColor);
     for (const listener of this.listeners) listener(this.state);
@@ -170,7 +171,7 @@ export class ChromiumTab implements EngineTab {
 
   activate() {
     this.hub.requestedActive = this.id;
-    void this.hub.service.activateTab(this.id);
+    return this.hub.service.activateTab(this.id);
   }
 
   close() {
@@ -216,6 +217,7 @@ export class TabHub {
   private waitingForHandler: TabData[] = [];
   onFocusLocationBar: (() => void) | null = null;
   onActiveChanged: ((active: boolean) => void) | null = null;
+  onActivated: (() => void) | null = null;
 
   constructor(
     readonly service: TabStripService,

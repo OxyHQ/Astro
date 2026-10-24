@@ -467,6 +467,7 @@ TabBridge::TabBridge(content::WebContents* contents, Emit emit)
     : content::WebContentsObserver(contents), emit_(std::move(emit)) {
   ObserveHelpers();
   security_ = SecurityInfo(contents);
+  discarded_ = contents->WasDiscarded();
   capture_indicator_ =
       MediaCaptureDevicesDispatcher::GetInstance()->GetMediaStreamCaptureIndicator();
   capture_indicator_->AddObserver(this);
@@ -509,6 +510,7 @@ base::DictValue TabBridge::Snapshot() {
                    .Set("canGoBack", controller.CanGoBack())
                    .Set("canGoForward", controller.CanGoForward()));
   snapshot.Set("devTools", DockedDevToolsState(contents));
+  snapshot.Set("discarded", contents->WasDiscarded());
   if (std::optional<base::DictValue> prompt = PendingAutofillPrompt(contents)) {
     snapshot.Set("autofillPrompt", std::move(*prompt));
   }
@@ -748,6 +750,9 @@ void TabBridge::Call(const std::string& method,
     if (contents->WasDiscarded()) {
       return std::move(done).Run(base::Value("already"));
     }
+    if (!CanSleep()) {
+      return std::move(done).Run(base::Value("refused"));
+    }
     auto* unit =
         resource_coordinator::TabLifecycleUnitExternal::FromWebContents(
             contents);
@@ -760,6 +765,10 @@ void TabBridge::Call(const std::string& method,
     const bool discarded = asked && (!alive || alive->WasDiscarded());
     return std::move(done).Run(
         base::Value(discarded ? "discarded" : "refused"));
+  } else if (method == "setVisible") {
+    contents->UpdateWebContentsVisibility(args.FindBool("visible").value_or(true)
+                                              ? content::Visibility::VISIBLE
+                                              : content::Visibility::HIDDEN);
   } else if (method == "setFrozen") {
     const bool frozen = args.FindBool("frozen").value_or(false);
     if (!frozen ||
@@ -1319,12 +1328,36 @@ void TabBridge::DidToggleFullscreenModeForTab(bool entered_fullscreen, bool) {
 }
 
 void TabBridge::WasDiscarded() {
+  discarded_ = true;
   emit_.Run("discarded", base::DictValue().Set(
                              "url", web_contents()->GetVisibleURL().spec()));
 }
 
 void TabBridge::AboutToBeDiscarded(content::WebContents* new_contents) {
-  WasDiscarded();
+  if (new_contents != web_contents()) {
+    WasDiscarded();
+  }
+}
+
+void TabBridge::DidStartNavigation(content::NavigationHandle* handle) {
+  if (discarded_ && handle->IsInPrimaryMainFrame() &&
+      !web_contents()->WasDiscarded()) {
+    discarded_ = false;
+    emit_.Run("awake", base::DictValue());
+  }
+}
+
+bool TabBridge::CanSleep() {
+  content::WebContents* contents = web_contents();
+  return contents->GetVisibility() != content::Visibility::VISIBLE &&
+         !contents->IsCurrentlyAudible() && !contents->IsBeingCaptured() &&
+         !contents->HasPictureInPictureVideo() &&
+         !contents->HasPictureInPictureDocument() &&
+         !(capture_indicator_ &&
+           (capture_indicator_->IsCapturingUserMedia(contents) ||
+            capture_indicator_->IsCapturingTab(contents) ||
+            capture_indicator_->IsCapturingWindow(contents) ||
+            capture_indicator_->IsCapturingDisplay(contents)));
 }
 
 void TabBridge::WebContentsDestroyed() {

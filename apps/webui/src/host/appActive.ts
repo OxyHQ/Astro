@@ -11,6 +11,11 @@ const channel = new BroadcastChannel(CHANNEL);
 const activePages = new Set<string>();
 let appActive = false;
 let settling: ReturnType<typeof setTimeout> | null = null;
+const activityListeners = new Set<(active: boolean) => void>();
+
+export function onAppActivity(listener: (active: boolean) => void) {
+  activityListeners.add(listener);
+}
 
 function settle() {
   if (settling) clearTimeout(settling);
@@ -18,7 +23,9 @@ function settle() {
     settling = null;
     const active = activePages.size > 0;
     if (appActive && !active) emitAppEvent({ type: "resignActive" });
+    const changed = active !== appActive;
     appActive = active;
+    if (changed) for (const listener of activityListeners) listener(active);
   }, SETTLE_MS);
 }
 

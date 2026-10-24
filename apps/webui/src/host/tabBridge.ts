@@ -13,6 +13,7 @@ export type TabSnapshot = {
   preferredSize?: { width: number; height: number };
   mediaAccess?: Record<string, unknown>;
   autofillPrompt?: Record<string, unknown>;
+  discarded?: boolean;
 };
 
 const listeners = new Map<string, Set<TabEventListener>>();

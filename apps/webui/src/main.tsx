@@ -18,6 +18,7 @@ import { startAppActivity } from "./host/appActive";
 import { startDragPreview } from "./host/dragPreview";
 import { installEngineFetch } from "./host/fetch";
 import { startEngineKeys } from "./host/keys";
+import { leadLifecycle, startLifecycle } from "./host/lifecycle";
 import { offerOnboarding, startOnboardingCommand } from "./host/onboarding";
 import { startPerformanceRecordingCommand } from "./host/performanceRecording";
 import { startTabDragShare } from "./host/tabDragShare";
@@ -43,6 +44,7 @@ const startPage = () =>
     {
       lead: (hydrate) => {
         if (hydrate) offerOnboarding();
+        leadLifecycle(hydrate);
         void startPersistence({ hydrate });
         afterFirstWindow(startUserScripts);
         afterFirstWindow(startUpdater);
@@ -50,6 +52,7 @@ const startPage = () =>
       begin: () => {
         startTabPages();
         startNativeSync();
+        startLifecycle();
         startCliControl();
         startOnboardingCommand();
         startPerformanceRecordingCommand();

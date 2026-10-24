@@ -1,5 +1,6 @@
 import { emitNativeEvent } from "../../../demo/src/shims/expo-modules-core";
 import { boolPref, call, DEFAULT_ENGINE_PROFILE, type EngineResult, onHostEngineEvent, pickFiles } from "./engine";
+import { browserIdsOfSession } from "./tabSessions";
 
 declare const chrome: { send(method: string, args?: unknown[]): void };
 
@@ -130,7 +131,11 @@ export const cefServices = {
   getExternalAppAllowances: async (profile: string) => list(await call("ac_external_apps_allowances", profile), "allowances"),
   removeExternalAppAllowance: (profile: string, origin: string, scheme: string) =>
     void call("ac_external_apps_remove", profile, { origin: origin ?? "", scheme: scheme ?? "" }),
-  listTasks: async () => list(await call("ac_tasks_list", DEFAULT_ENGINE_PROFILE), "tasks").map((task) => ({ ...task, browserIds: [] })),
+  listTasks: async () =>
+    list(await call("ac_tasks_list", DEFAULT_ENGINE_PROFILE), "tasks").map((task) => ({
+      ...task,
+      browserIds: (Array.isArray(task.tabIds) ? (task.tabIds as number[]) : []).flatMap(browserIdsOfSession),
+    })),
   components: async () => list(await call("ac_components_list", DEFAULT_ENGINE_PROFILE), "components"),
   clearBrowsingData: async (profile: string, types: string[], since?: number | null) => {
     await call("ac_browsing_data_clear", profile, { types, since: since ?? 0 });

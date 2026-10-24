@@ -9,12 +9,17 @@
 #include <utility>
 #include <vector>
 
+#include "base/byte_size.h"
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "base/system/sys_info.h"
+#include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
@@ -41,6 +46,42 @@ namespace astro {
 namespace {
 
 constexpr base::TimeDelta kFirstStateWait = base::Seconds(1);
+constexpr base::TimeDelta kMemoryPollPeriod = base::Seconds(5);
+constexpr char kMemoryPressureThresholdsSwitch[] =
+    "astro-memory-pressure-thresholds";
+
+struct MemoryThresholds {
+  base::ByteSize moderate = base::MiB(1000);
+  base::ByteSize critical = base::MiB(400);
+};
+
+MemoryThresholds ThresholdsFromCommandLine() {
+  MemoryThresholds thresholds;
+  const std::vector<std::string> parts = base::SplitString(
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          kMemoryPressureThresholdsSwitch),
+      ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  uint64_t moderate = 0;
+  uint64_t critical = 0;
+  if (parts.size() == 2 && base::StringToUint64(parts[0], &moderate) &&
+      base::StringToUint64(parts[1], &critical) && critical <= moderate) {
+    thresholds.moderate = base::MiB(moderate);
+    thresholds.critical = base::MiB(critical);
+  }
+  return thresholds;
+}
+
+const char* MemoryPressureNow(MemoryThresholds thresholds) {
+  const base::ByteSize available =
+      base::SysInfo::AmountOfAvailablePhysicalMemory();
+  if (available.is_zero()) {
+    return "normal";
+  }
+  if (available <= thresholds.critical) {
+    return "critical";
+  }
+  return available <= thresholds.moderate ? "warning" : "normal";
+}
 
 struct Battery {
   bool on_battery = false;
@@ -210,6 +251,10 @@ class SystemStateWatcher {
                                            base::Unretained(this)));
     source_ = std::make_unique<BatterySource>(base::BindRepeating(
         &SystemStateWatcher::OnBattery, base::Unretained(this)));
+    memory_poll_.Start(FROM_HERE, kMemoryPollPeriod,
+                       base::BindRepeating(&SystemStateWatcher::PollMemory,
+                                           base::Unretained(this)));
+    PollMemory();
   }
 
   void Current(base::OnceCallback<void(base::Value)> done) {
@@ -226,6 +271,26 @@ class SystemStateWatcher {
     first_state_wait_.Stop();
     AnswerWaiting();
     Publish();
+  }
+
+  void PollMemory() {
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE,
+        {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+        base::BindOnce(&MemoryPressureNow, memory_thresholds_),
+        base::BindOnce(&SystemStateWatcher::OnMemoryPressure,
+                       base::Unretained(this)));
+  }
+
+  void OnMemoryPressure(const char* level) {
+    if (memory_pressure_ == level) {
+      return;
+    }
+    memory_pressure_ = level;
+    if (battery_) {
+      Publish();
+    }
   }
 
   void AnswerWaiting() {
@@ -255,7 +320,7 @@ class SystemStateWatcher {
       state.Set("batteryLevel", base::Value());
     }
     state.Set("lowPowerMode", battery.low_power_mode);
-    state.Set("memoryPressure", "normal");
+    state.Set("memoryPressure", memory_pressure_);
     state.Set("physicalMemory",
               base::SysInfo::AmountOfTotalPhysicalMemory().InBytesF());
     return state;
@@ -266,6 +331,9 @@ class SystemStateWatcher {
   std::optional<base::DictValue> published_;
   std::vector<base::OnceCallback<void(base::Value)>> waiting_;
   base::OneShotTimer first_state_wait_;
+  const MemoryThresholds memory_thresholds_ = ThresholdsFromCommandLine();
+  std::string memory_pressure_ = "normal";
+  base::RepeatingTimer memory_poll_;
 };
 
 }

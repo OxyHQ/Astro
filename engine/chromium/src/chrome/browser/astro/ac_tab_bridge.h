@@ -61,6 +61,7 @@ class TabBridge : public content::WebContentsObserver,
             const base::DictValue& args,
             base::OnceCallback<void(base::Value)> done);
 
+  void DidStartNavigation(content::NavigationHandle* handle) override;
   void DidFinishNavigation(content::NavigationHandle* handle) override;
   void DidChangeVisibleSecurityState() override;
   void DidStartLoading() override;
@@ -114,6 +115,7 @@ class TabBridge : public content::WebContentsObserver,
  private:
   base::DictValue Media();
   base::DictValue MediaAccess();
+  bool CanSleep();
   void MediaAccessChanged(content::WebContents* contents);
   bool StopCapture();
   void CapturePicture(double scale, base::OnceCallback<void(base::Value)> done);
@@ -157,6 +159,7 @@ class TabBridge : public content::WebContentsObserver,
 #endif
   int last_message_id_ = 0;
   bool page_script_installed_ = false;
+  bool discarded_ = false;
   std::string page_binding_;
   int blocked_count_ = 0;
   int blocked_pending_ = 0;

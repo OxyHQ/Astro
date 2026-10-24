@@ -1100,6 +1100,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
                                ShareThisTabInstead(target,
                                                    TabContents(*capturer))));
     }
+    if (args[2].GetString() == "discard" &&
+        IsTabInTransit(args[1].GetString())) {
+      return ResolveJavascriptCallback(args[0], base::Value("refused"));
+    }
     TabBridge* bridge = BridgeFor(args[1].GetString());
     if (!bridge) {
       return ResolveJavascriptCallback(args[0], base::Value());

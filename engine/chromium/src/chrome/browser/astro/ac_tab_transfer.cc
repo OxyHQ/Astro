@@ -275,6 +275,9 @@ std::optional<std::string> ParkTab(TabTransferPage* page,
   if (!contents) {
     return std::nullopt;
   }
+  if (contents->WasDiscarded()) {
+    contents->GetController().LoadIfNecessary();
+  }
   Transfers& state = State();
   NoteTabGone(page, key);
   Parked parked{.ref = ref, .to_window = to_window};

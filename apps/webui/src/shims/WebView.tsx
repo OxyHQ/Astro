@@ -12,6 +12,7 @@ import { fetchFaviconImage } from "../host/favicons";
 import { cefServices } from "../host/services";
 import { callTab, type TabEventListener, watchTab } from "../host/tabBridge";
 import { offerHandOff, noteLiveTab, noteTabGone, takeTransferredTab, transferredUrlGuard } from "../host/tabTransfer";
+import { forgetTabSession, noteTabSession } from "../host/tabSessions";
 import { pageWindowId } from "../host/windows";
 import { openFromPage } from "../../../browser/src/components/layout/openFromPage";
 import { useBrowser } from "../../../browser/src/store/browser";
@@ -52,9 +53,32 @@ function adoptForeign(id: string, url: string, closeIt: () => void) {
   if (w) openFromPage(request, { windowId: w.id, profileId: w.profileId });
 }
 
+const shownRefs = new Set<string>();
+let settling = false;
+
+function settleVisibility() {
+  if (settling) return;
+  settling = true;
+  setTimeout(() => {
+    settling = false;
+    for (const ref of shownRefs) void callTab(ref, "setVisible", { visible: true });
+  }, 0);
+}
+
+function showRef(ref: string, shown: boolean) {
+  if (!shown) return void shownRefs.delete(ref);
+  shownRefs.add(ref);
+  settleVisibility();
+}
+
+function activateShown(current: EngineTab) {
+  void Promise.resolve(current.activate()).then(settleVisibility);
+}
+
 void tabHub().then((hub) => {
   hub.onForeignTab = ({ id, url }) => adoptForeign(id, url, () => void hub.service.closeNodes([id]));
   hub.onFocusLocationBar = () => command("focusCommandBar");
+  hub.onActivated = settleVisibility;
 });
 
 onProfileTabOpened(({ id, url }) =>
@@ -136,6 +160,7 @@ function tabEvents(props: { current: WebViewProps }, browserId: number, onDevToo
     else if (kind === "displayMediaSources") noteDisplayMediaSources(payload);
     else if (kind === "popupBlocked") p.onPopupBlocked?.(payload as BlockedPopup);
     else if (kind === "discarded") p.onDiscarded?.(String(payload.url ?? ""));
+    else if (kind === "awake") p.onReady?.(browserId, browserId);
     else if (kind === "status") p.onStatus?.(String(payload.text ?? ""));
   };
 }
@@ -242,6 +267,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
         if (snapshot.preferredSize) latest.current.onPreferredSize?.(snapshot.preferredSize);
         if (snapshot.autofillPrompt) showAutofillPrompt(latest.current, snapshot.autofillPrompt);
         setDevTools(devToolsDock((snapshot as { devTools?: unknown }).devTools));
+        if (snapshot.discarded) latest.current.onDiscarded?.(String(snapshot.navigation?.url ?? opening.state.url));
       });
       opening.onClosed = () => latest.current.onWindowClose?.();
       opening.onActivatedByEngine = () => latest.current.onActivateRequest?.({ reason: "engine" });
@@ -258,11 +284,17 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       });
       latest.current.onReady?.(browserId, browserId);
       if (frame.current) void opening.attach(frame.current);
-      if (latest.current.visible !== false) opening.activate();
+      if (!latest.current.extensionHost) {
+        void callTab<number>(opening.ref, "sessionId").then((id) => !closed && typeof id === "number" && noteTabSession(browserId, id));
+        showRef(opening.ref, latest.current.visible !== false);
+      }
+      if (latest.current.visible !== false) activateShown(opening);
     });
     return () => {
       closed = true;
       browsers.delete(browserId);
+      forgetTabSession(browserId);
+      if (tab.current) shownRefs.delete(tab.current.ref);
       withdrawHandOff();
       stopListening();
       stopWatching();
@@ -276,9 +308,11 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
 
   const visible = props.visible !== false;
   useEffect(() => {
+    const current = tab.current;
+    if (current && !latest.current.extensionHost) showRef(current.ref, visible);
     if (!visible) return;
     opener = latest;
-    tab.current?.activate();
+    if (current) activateShown(current);
     return () => {
       if (opener === latest) opener = null;
     };
@@ -375,7 +409,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
         ref={frame}
         title=""
         tabIndex={visible ? 0 : -1}
-        style={pageFrameStyle(devTools)}
+        style={{ ...pageFrameStyle(devTools), visibility: visible ? undefined : "hidden" }}
       />
     </View>
   );
