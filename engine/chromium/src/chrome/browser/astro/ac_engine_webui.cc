@@ -27,6 +27,8 @@
 #include "base/values.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "chrome/browser/astro/ac_chrome_ui.h"
+#include "chrome/browser/astro/ac_display_media.h"
 #include "chrome/browser/astro/ac_documents.h"
 #include "chrome/browser/astro/ac_extension_views.h"
 #include "chrome/browser/astro/ac_host.h"
@@ -259,6 +261,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       InstallExtensionViewHooks();
       InstallExtensionPrompts();
       InstallWindowKeys();
+      InstallTargetUrl();
+      InstallDeviceChooser();
+      InstallCastDialog();
+      InstallDisplayMediaPicker();
       return true;
     }();
     (void)installed;
@@ -356,6 +362,9 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
         "astroExternalAppResolve",
         base::BindRepeating(&EngineWebUIHandler::HandleExternalAppResolve,
                             base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroChromeUI", base::BindRepeating(&EngineWebUIHandler::HandleChromeUI,
+                                             base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroPermissionResolve",
         base::BindRepeating(&EngineWebUIHandler::HandlePermissionResolve,
@@ -816,6 +825,17 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     }
     SyncFilesCall(profile_, args[1].GetString(), args[2].GetDict(),
                   ResolveLater(args[0].Clone()));
+  }
+
+  void HandleChromeUI(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 3 || !args[1].is_string() || !args[2].is_dict()) {
+      return;
+    }
+    const base::DictValue& params = args[2].GetDict();
+    const std::string* tab = params.FindString("tab");
+    ChromeUICall(args[1].GetString(), params, tab ? TabContents(*tab) : nullptr,
+                 ResolveLater(args[0].Clone()));
   }
 
   void HandlePermissionResolve(const base::ListValue& args) {

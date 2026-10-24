@@ -5,6 +5,7 @@ import type { BrowserCommand } from "@astro-browser-real/shell";
 import { openProfileTab, onProfileTabOpened, PROFILE_TAB_PREFIX } from "../host/profileTabs";
 import { type EngineTab, type TabState, tabHub } from "../host/tabs";
 import { emitNativeEvent } from "../../../demo/src/shims/expo-modules-core";
+import { forgetDisplayMedia, noteDisplayMediaRequest, noteDisplayMediaSources } from "../host/displayMedia";
 import { openExtensionView } from "../host/extensionViews";
 import { cefServices } from "../host/services";
 import { callTab, type TabEventListener, watchTab } from "../host/tabBridge";
@@ -70,6 +71,8 @@ function tabEvents(props: { current: WebViewProps }, browserId: number): TabEven
     if (kind === "installPrompt") return emitNativeEvent("AstroExtensions", "onInstallPrompt", { ...payload, browserId });
     if (kind === "actionPopup") return emitNativeEvent("AstroChromeUI", "onActionPopup", { ...payload, browserId });
     if (kind === "sidePanel") return emitNativeEvent("AstroChromeUI", "onSidePanel", { ...payload, browserId });
+    if (kind === "deviceChooser") return emitNativeEvent("AstroChromeUI", "onDeviceChooser", { ...payload, browserId });
+    if (kind === "castDialog") return emitNativeEvent("AstroChromeUI", "onCastDialog", { ...payload, browserId });
     if (kind === "windowClose") return p.onWindowClose?.();
     if (kind === "preferredSize") return p.onPreferredSize?.(payload as { width: number; height: number });
     if (kind === "find") p.onFindResult?.(payload as FindResult);
@@ -81,8 +84,11 @@ function tabEvents(props: { current: WebViewProps }, browserId: number): TabEven
     else if (kind === "fullscreen") p.onFullscreen?.(!!payload.fullscreen);
     else if (kind === "passwordPrompt") p.onPasswordPrompt?.(payload as PasswordPrompt);
     else if (kind === "externalApp") p.onExternalApp?.(payload as ExternalAppRequest);
+    else if (kind === "displayMediaRequest") p.onDisplayMediaRequest?.(noteDisplayMediaRequest(payload));
+    else if (kind === "displayMediaSources") noteDisplayMediaSources(payload);
     else if (kind === "popupBlocked") p.onPopupBlocked?.(payload as BlockedPopup);
     else if (kind === "discarded") p.onDiscarded?.(String(payload.url ?? ""));
+    else if (kind === "status") p.onStatus?.(String(payload.text ?? ""));
   };
 }
 
@@ -223,6 +229,11 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       openBlockedPopup: async (id, always) => run("openBlockedPopup", { id, always: !!always }),
       resolvePasswordPrompt: async (answer, edits) => run("resolvePasswordPrompt", { answer, ...edits }),
       getSecurityInfo: async () => await call<SecurityInfo>("securityInfo"),
+      resolveDisplayMedia: async (id, sourceId) => {
+        forgetDisplayMedia(id);
+        run("resolveDisplayMedia", { id, sourceId });
+      },
+      mediaCaptureSourceId: async () => await call<string>("mediaCaptureSourceId"),
       clearSiteData: async () => {
         const origin = originOf(tab.current?.state.url ?? "");
         if (!origin) return { cookies: false, storage: false };

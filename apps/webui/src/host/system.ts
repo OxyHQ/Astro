@@ -33,7 +33,19 @@ export function notificationResponse(payload: Record<string, unknown>) {
   return { id, action: payload.action, tabId: known?.tabId ?? null, windowId: known?.windowId ?? null, data: known?.data ?? null };
 }
 
+export const engineServices = {
+  engineInfo: async () => await systemCall<Record<string, unknown>>("engineInfo"),
+  setAutoPictureInPicture: async (enabled: boolean) => void (await systemCall("setAutoPictureInPicture", { enabled })),
+  setVideoUpscaling: async (_enabled: boolean) => {},
+  setSearchEngineName: async (_name: string) => {},
+  claimLaunchTab: (_key: string, _url: string, _profile: string) => {},
+};
+
 export const appServices = {
+  killSwitchEnvironment: (_name: string): string | null => null,
+  updaterState: async () => ({ available: false }),
+  appIcons: async (_size: number) => [],
+  appIcon: async () => "default",
   openExternalURL: async (url: string) => (await systemCall<boolean>("openExternal", { url })) ?? false,
   notificationPermission: async () => "granted",
   requestNotificationPermission: async () => true,

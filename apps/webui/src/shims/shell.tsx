@@ -1,7 +1,8 @@
-import { type ComponentType, useEffect, useRef } from "react";
+import { type ComponentType, forwardRef, useEffect, useRef } from "react";
 import { View, type ViewProps } from "react-native";
-import type { OpenWindowOptions } from "@astro-browser-real/shell";
+import type { DroppedItem, DropUpdate, FileDropAreaProps, OpenWindowOptions } from "@astro-browser-real/shell";
 import { isUtilityWindowId } from "../../../browser/src/components/settings/windows";
+import { provideNativeModule } from "../../../demo/src/shims/expo-modules-core";
 import { loadCr, pickFiles as pickEngineFiles } from "../host/engine";
 import { focusPageWindow, pageWindowId, releaseWindow, requestWindow } from "../host/windows";
 import { closeUtilityWindow, openUtilityWindow, openUtilityWindows } from "../utilityWindows";
@@ -9,6 +10,8 @@ import { closeUtilityWindow, openUtilityWindow, openUtilityWindows } from "../ut
 export * from "../../../demo/src/shims/shell";
 
 declare const chrome: { send(method: string, args?: unknown[]): void };
+
+provideNativeModule("AstroShell", { setMenuState: async () => {}, setMenuBookmarks: async () => {} });
 
 type DocumentChange = { name: string; contents: string | null };
 
@@ -46,6 +49,79 @@ export function WindowDragRegion({ titleBarDoubleClick: _double, onRegionDoubleC
   const Region = View as unknown as ComponentType<ViewProps & { ref: typeof region; onDoubleClick?: () => void }>;
   return <Region {...props} ref={region} onDoubleClick={onRegionDoubleClick} />;
 }
+
+function droppedItems(data: DataTransfer | null): DroppedItem[] {
+  if (!data) return [];
+  const uris = data
+    .getData("text/uri-list")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  if (uris.length) return uris.map((url) => (url.startsWith("file:") ? { kind: "file", url } : { kind: "url", url }));
+  const text = data.getData("text/plain");
+  return text ? [{ kind: "text", text }] : [];
+}
+
+const carriesDrop = (data: DataTransfer | null) =>
+  !!data && [...data.types].some((type) => type === "Files" || type === "text/uri-list" || type === "text/plain");
+
+export const FileDropArea = forwardRef<View, FileDropAreaProps>(function FileDropArea({ onDropUpdate, ...props }, ref) {
+  const area = useRef<HTMLElement | null>(null);
+  const report = useRef(onDropUpdate);
+  report.current = onDropUpdate;
+  useEffect(() => {
+    const element = area.current;
+    if (!element) return;
+    let depth = 0;
+    const update = (e: DragEvent, phase: DropUpdate["phase"], items: DroppedItem[] = []) => {
+      const bounds = element.getBoundingClientRect();
+      const count = Math.max(e.dataTransfer?.items.length ?? 0, items.length, 1);
+      report.current?.({ phase, x: e.clientX - bounds.left, y: e.clientY - bounds.top, count, items });
+    };
+    const enter = (e: DragEvent) => {
+      if (!carriesDrop(e.dataTransfer)) return;
+      e.preventDefault();
+      if (depth++ === 0) update(e, "enter");
+    };
+    const over = (e: DragEvent) => {
+      if (!depth) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      update(e, "move");
+    };
+    const leave = (e: DragEvent) => {
+      if (!depth) return;
+      if (--depth === 0) update(e, "exit");
+    };
+    const drop = (e: DragEvent) => {
+      if (!depth) return;
+      e.preventDefault();
+      depth = 0;
+      update(e, "drop", droppedItems(e.dataTransfer));
+    };
+    element.addEventListener("dragenter", enter);
+    element.addEventListener("dragover", over);
+    element.addEventListener("dragleave", leave);
+    element.addEventListener("drop", drop);
+    return () => {
+      element.removeEventListener("dragenter", enter);
+      element.removeEventListener("dragover", over);
+      element.removeEventListener("dragleave", leave);
+      element.removeEventListener("drop", drop);
+    };
+  }, []);
+  const Area = View as unknown as ComponentType<ViewProps & { ref: (element: HTMLElement | null) => void }>;
+  return (
+    <Area
+      {...props}
+      ref={(element) => {
+        area.current = element;
+        if (typeof ref === "function") ref(element as unknown as View);
+        else if (ref) (ref as { current: View | null }).current = element as unknown as View;
+      }}
+    />
+  );
+});
 
 export const openWindow = async (id: string, _options: OpenWindowOptions = {}) => {
   if (!openUtilityWindow(id)) requestWindow(id);

@@ -23,6 +23,7 @@ void InstallPermissionPrompts();
 void InstallPasswordPrompts();
 void InstallExternalAppPrompts();
 void InstallExtensionPrompts();
+void InstallTargetUrl();
 void ResolveExtensionInstallPrompt(const std::string& request_id, bool accepted);
 void ResolveExternalApp(const std::string& request_id, bool open, bool remember);
 void ResolvePasswordPrompt(content::WebContents* contents,

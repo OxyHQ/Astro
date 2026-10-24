@@ -1753,6 +1753,90 @@ def edit(s):
 hook(["  // Astro: the window has no system frame, so its own edges resize it.\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc" "link under the pointer" <<'PY'
+at = "void BrowserWebContentsDelegate::UpdateTargetURL(content::WebContents* source,\n"
+decl = """// Astro: AstroCore shows the link under the pointer itself.
+bool (*g_astro_target_url)(content::WebContents* source,
+                           const GURL& url) = nullptr;
+
+"""
+old = """                                                 const GURL& url) {
+  std::vector<StatusBubble*> status_bubbles =
+      browser_ui_controller_->GetStatusBubbles();
+"""
+new = """                                                 const GURL& url) {
+  if (g_astro_target_url && g_astro_target_url(source, url)) {
+    return;
+  }
+  std::vector<StatusBubble*> status_bubbles =
+      browser_ui_controller_->GetStatusBubbles();
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1
+    i = s.index(at)
+    return s[:i] + decl + s[i:].replace(old, new, 1)
+hook(["bool (*g_astro_target_url)(content::WebContents* source,\n",
+      "  if (g_astro_target_url && g_astro_target_url(source, url)) {\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "frameless window drag" <<'PY'
+old = """#if BUILDFLAG(IS_CHROMEOS)
+  // The titlebar has `app-region: drag;` set, so we shouldn't descend into it
+  // for event handling on ChromeOS.
+  if (GetWidget() &&
+      GetWidget()->GetNonClientComponent(location) == HTCAPTION) {
+    return false;
+  }
+  return true;
+#else
+"""
+new = """#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  // Astro: the page's drag regions and the frameless window's edges move and resize it, so they keep the press.
+  if (GetWidget()) {
+    const int component = GetWidget()->GetNonClientComponent(location);
+    if (component != HTCLIENT && component != HTNOWHERE) {
+      return false;
+    }
+  }
+  return true;
+#else
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["  // Astro: the page's drag regions and the frameless window's edges move and resize it, so they keep the press.\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/views/desktop_capture/desktop_media_picker_views.cc" "screen-share picker" <<'PY'
+at = "// static\nstd::unique_ptr<DesktopMediaPicker> DesktopMediaPicker::Create(\n"
+decl = """// Astro: AstroCore shows its own screen-share picker for the tabs its window hosts.
+std::unique_ptr<DesktopMediaPicker> (*g_astro_desktop_media_picker)(
+    const content::MediaStreamRequest* request) = nullptr;
+
+"""
+old = """    const content::MediaStreamRequest* request) {
+  if (request &&
+      request->video_type ==
+          blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE_THIS_TAB) {
+"""
+new = """    const content::MediaStreamRequest* request) {
+  if (g_astro_desktop_media_picker) {
+    if (auto picker = g_astro_desktop_media_picker(request)) {
+      return picker;
+    }
+  }
+  if (request &&
+      request->video_type ==
+          blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE_THIS_TAB) {
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1
+    i = s.index(at)
+    return s[:i] + decl + s[i:].replace(old, new, 1)
+hook(["std::unique_ptr<DesktopMediaPicker> (*g_astro_desktop_media_picker)(\n",
+      "  if (g_astro_desktop_media_picker) {\n"], edit)
+PY
+
 if [[ $mode == check ]]; then
   exit "$drift"
 fi

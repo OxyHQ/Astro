@@ -12,11 +12,14 @@
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/path_service.h"
+#include "base/process/process_handle.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "base/base64.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/astro/ac_host.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/notifications/notification_display_service.h"
 #include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/notifications/notification_handler.h"
@@ -27,6 +30,9 @@
 #include "ui/message_center/public/cpp/notification_delegate.h"
 #include "ui/message_center/public/cpp/notifier_id.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/version_info/version_info.h"
 #include "chrome/browser/shell_integration.h"
 #include "url/gurl.h"
 
@@ -236,6 +242,27 @@ void SystemCall(Profile* profile,
         base::BindOnce(&SetLaunchAtLogin,
                        args.FindBool("enabled").value_or(false)),
         std::move(done));
+  } else if (method == "engineInfo") {
+    std::move(done).Run(base::Value(
+        base::DictValue()
+            .Set("pid", static_cast<int>(base::GetCurrentProcId()))
+            .Set("dataDirectory", profile->GetPath().DirName().AsUTF8Unsafe())
+            .Set("engine", "webium")
+            .Set("chromiumVersion", version_info::GetVersionNumber())
+            .Set("lastUsedProfile", profile->GetBaseName().AsUTF8Unsafe())));
+  } else if (method == "setAutoPictureInPicture") {
+    const ContentSetting setting = args.FindBool("enabled").value_or(true)
+                                       ? CONTENT_SETTING_ALLOW
+                                       : CONTENT_SETTING_BLOCK;
+    for (Profile* loaded :
+         g_browser_process->profile_manager()->GetLoadedProfiles()) {
+      if (!loaded->IsOffTheRecord()) {
+        HostContentSettingsMapFactory::GetForProfile(loaded)
+            ->SetDefaultContentSetting(
+                ContentSettingsType::AUTO_PICTURE_IN_PICTURE, setting);
+      }
+    }
+    std::move(done).Run(base::Value());
   } else {
     std::move(done).Run(base::Value());
   }

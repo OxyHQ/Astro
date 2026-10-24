@@ -147,6 +147,19 @@ browser (Chromium's worker), launch at login (a `~/.config/autostart` entry, or 
 interface's own notifications (Chromium's notification service; click and close come back as `notificationResponse`).
 Pages' notifications already go to the system through Chromium's platform bridge.
 
+Screen sharing (`ac_display_media.cc`): Chromium's views picker can't show for a guest tab, so `getDisplayMedia` hung.
+A hook in `DesktopMediaPicker::Create` hands the request to Astro's own share picker when a window page shows the tab:
+the engine runs Chromium's screen and window lists, the page lists its tabs, and the answer comes back through the tab
+bridge (`resolveDisplayMedia`). On Wayland the system dialog does the choosing. Device choosers (WebUSB, WebHID, Web
+Serial, Web Bluetooth; `ac_device_chooser.cc`) and the Cast dialog with its routes (`ac_cast.cc`) use AstroCore's
+existing hooks, as on macOS. Web Bluetooth is off in Chromium on Linux; `--astro-test-bluetooth-chooser` and
+`--astro-test-media-route-provider` test them without hardware.
+
+Window: Webium keeps the system frame except on ChromeOS; Astro removes it on Windows and Linux too, since it draws its
+own title bar and controls. The page's `app-region: drag` areas move the window and its outer 5 px resize it; both keep
+the press instead of passing it to the page. The link under the pointer reaches the page as the tab's `status` event
+(a hook in `UpdateTargetURL`).
+
 Menu: Linux and Windows have no menu bar, so a button beside the window controls opens the macOS menu bar's commands
 (`AppMenu.tsx`, from the same `menuState`), with Ctrl shortcuts; Exit is `astroQuit` (`chrome::AttemptUserExit`).
 

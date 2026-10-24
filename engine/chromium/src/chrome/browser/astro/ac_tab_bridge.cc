@@ -13,6 +13,7 @@
 #include "base/json/json_reader.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/astro/ac_display_media.h"
 #include "chrome/browser/astro/ac_extension_views.h"
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
@@ -57,8 +58,21 @@
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 
+extern bool (*g_astro_target_url)(content::WebContents* source,
+                                  const GURL& url);
+
 namespace astro {
 namespace {
+
+bool ShowTargetUrl(content::WebContents* source, const GURL& url) {
+  if (!HostShowsTab(source)) {
+    return false;
+  }
+  HostTabEvent(source, "status",
+               base::DictValue().Set("text", url.is_empty() ? std::string()
+                                                            : url.spec()));
+  return true;
+}
 
 constexpr net::CertStatus kCertErrorMask =
     net::CERT_STATUS_ALL_ERRORS & ~(net::CERT_STATUS_NO_REVOCATION_MECHANISM |
@@ -563,6 +577,14 @@ void TabBridge::Call(const std::string& method,
     }
   } else if (method == "securityInfo") {
     return std::move(done).Run(base::Value(SecurityInfo(contents)));
+  } else if (method == "resolveDisplayMedia") {
+    const std::string* id = args.FindString("id");
+    const std::string* source = args.FindString("sourceId");
+    if (id) {
+      ResolveDisplayMedia(contents, *id, source ? *source : "");
+    }
+  } else if (method == "mediaCaptureSourceId") {
+    return std::move(done).Run(DisplayMediaSourceId(contents));
   }
   std::move(done).Run(base::Value());
 }
@@ -763,6 +785,10 @@ void TabBridge::BlockedUrlAdded(int32_t popup_id, const GURL& url) {
                 .Set("url", url.spec())
                 .Set("origin", origin.is_string() ? origin.GetString()
                                                   : std::string()));
+}
+
+void InstallTargetUrl() {
+  g_astro_target_url = &ShowTargetUrl;
 }
 
 }

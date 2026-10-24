@@ -11,10 +11,15 @@ source_set("astro") {
     "ac_bookmarks.cc",
     "ac_browsing_data.cc",
     "ac_browsing_data.h",
+    "ac_cast.cc",
+    "ac_chrome_ui.h",
     "ac_cli_token_policy.cc",
     "ac_cli_token_policy.h",
     "ac_cookies.cc",
     "ac_cookies.h",
+    "ac_device_chooser.cc",
+    "ac_display_media.cc",
+    "ac_display_media.h",
     "ac_documents.cc",
     "ac_documents.h",
     "ac_downloads.cc",
@@ -95,6 +100,7 @@ source_set("astro") {
     "//chrome/browser/download",
     "//chrome/browser/extensions",
     "//chrome/browser/extensions/api/passwords_private",
+    "//chrome/browser/media/webrtc",
     "//chrome/browser/performance_manager/public/user_tuning",
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/profiles:profile",
@@ -126,6 +132,8 @@ source_set("astro") {
     "//components/input",
     "//components/history/core/browser",
     "//components/keyed_service/core",
+    "//components/media_router/browser",
+    "//components/media_router/common",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
     "//components/os_crypt/common:switches",
@@ -139,6 +147,7 @@ source_set("astro") {
     "//components/sessions",
     "//components/strings",
     "//components/update_client",
+    "//components/version_info",
     "//components/tab_groups",
     "//components/tabs:public",
     "//content/public/browser",
@@ -155,6 +164,7 @@ source_set("astro") {
     "//third_party/blink/public/common",
     "//third_party/boringssl",
     "//ui/base",
+    "//ui/display",
     "//ui/events:dom_keycode_converter",
     "//ui/gfx",
     "//ui/shell_dialogs",
@@ -175,7 +185,15 @@ source_set("astro") {
       "Security.framework",
     ]
   } else {
-    sources += [ "ac_platform_default.cc" ]
+    sources += [
+      "//astro/core/ac_test_media_route_provider.cc",
+      "//astro/core/ac_test_media_route_provider.h",
+      "ac_platform_default.cc",
+    ]
+    deps += [
+      "//components/media_router/common/mojom:media_router",
+      "//mojo/public/cpp/bindings",
+    ]
   }
 
   if (is_win) {
