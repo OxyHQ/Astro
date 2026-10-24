@@ -1871,6 +1871,24 @@ hook(["bool (*g_astro_open_urls)(const base::CommandLine& command_line,\n",
       "  if (g_astro_open_urls && g_astro_open_urls(command_line, cur_dir)) {\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "hidden host windows stay hidden" <<'PY'
+old = "void WebUIBrowserWindow::Show() {\n"
+decl = """// Astro: AstroCore keeps the hidden windows that host other profiles' tabs hidden, even when docked DevTools show their window.
+bool (*g_astro_keeps_window_hidden)(BrowserWindowInterface* browser) = nullptr;
+
+"""
+new = decl + old + """  if (g_astro_keeps_window_hidden &&
+      g_astro_keeps_window_hidden(browser_.get())) {
+    return;
+  }
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new, 1)
+hook(["bool (*g_astro_keeps_window_hidden)(BrowserWindowInterface* browser) = nullptr;\n",
+      "  if (g_astro_keeps_window_hidden &&\n"], edit)
+PY
+
 if [[ $mode == check ]]; then
   exit "$drift"
 fi

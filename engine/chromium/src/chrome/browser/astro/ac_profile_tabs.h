@@ -9,6 +9,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/values.h"
 
+class BrowserWindowInterface;
 class GURL;
 class Profile;
 
@@ -53,6 +54,7 @@ void ProfileTabCommand(ProfileTabsClient* client,
                        const std::string& command,
                        const std::string& arg);
 void ForgetProfileTabsClient(ProfileTabsClient* client);
+bool IsProfileTabHost(const BrowserWindowInterface* browser);
 
 }
 

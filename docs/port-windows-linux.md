@@ -113,7 +113,7 @@ Pages: each tab has a bridge in the engine (`ac_tab_bridge.cc`, the portable cou
 browsing, devtools, JavaScript (in an isolated world) and security info; `astroTabWatch` sends a first snapshot and
 `astro-tab-event` the changes: find results, audio, zoom, security, crashes, load errors, full screen and the theme
 colour (`<meta name="theme-color">`). Print uses the system dialog, since Chromium's preview needs a modal host that
-Webium's guest tabs don't have; devtools open in their own window rather than docked. A tab's first navigation away
+Webium's guest tabs don't have; devtools dock inside the window (`ac_devtools_dock.cc` gives Webium browsers the `DevtoolsUIController` Chromium docks with, and the page lays the DevTools guest out beside the page). A tab's first navigation away
 from a blank or Chromium new tab page replaces that entry, so Back never lands on Chromium's page.
 
 Prompts: AstroCore's Chromium hooks are in the Linux and Windows trees too (`engine/astrocore/apply.sh` applies on every

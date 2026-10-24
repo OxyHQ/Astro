@@ -463,4 +463,10 @@ void ForgetProfileTabsClient(ProfileTabsClient* client) {
   }
 }
 
+bool IsProfileTabHost(const BrowserWindowInterface* browser) {
+  return browser && std::ranges::any_of(Hosts(), [browser](const auto& entry) {
+           return entry.second->browser() == browser;
+         });
+}
+
 }

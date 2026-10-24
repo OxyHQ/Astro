@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import type { BlockedPopup, CrashInfo, ExternalAppRequest, FindResult, LoadError, MediaState, NavigationState, PasswordPrompt, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
 import type { BrowserCommand } from "@astro-browser-real/shell";
@@ -12,6 +12,7 @@ import { callTab, type TabEventListener, watchTab } from "../host/tabBridge";
 import { pageWindowId } from "../host/windows";
 import { openFromPage } from "../../../browser/src/components/layout/openFromPage";
 import { useBrowser } from "../../../browser/src/store/browser";
+import { DockedDevTools, type DevToolsDock, devToolsDock, pageFrameStyle } from "./DockedDevTools";
 import { emitCommand } from "./shell";
 
 let nextBrowserId = 1;
@@ -64,9 +65,10 @@ function openEngineTab(props: WebViewProps): Promise<EngineTab | null> {
   return tabHub().then((hub) => hub.open({ adoptId: props.adoptId, url: props.url }));
 }
 
-function tabEvents(props: { current: WebViewProps }, browserId: number): TabEventListener {
+function tabEvents(props: { current: WebViewProps }, browserId: number, onDevTools: (dock: DevToolsDock | null) => void): TabEventListener {
   return (kind, payload) => {
     const p = props.current;
+    if (kind === "devTools") return onDevTools(devToolsDock(payload));
     if (kind === "permission") return emitNativeEvent("AstroCEF", "onPermission", { ...payload, browserId });
     if (kind === "installPrompt") return emitNativeEvent("AstroExtensions", "onInstallPrompt", { ...payload, browserId });
     if (kind === "actionPopup") return emitNativeEvent("AstroChromeUI", "onActionPopup", { ...payload, browserId });
@@ -118,6 +120,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
   const tab = useRef<EngineTab | null>(null);
   const opened = useRef<Promise<EngineTab | null> | null>(null);
   const frame = useRef<HTMLIFrameElement | null>(null);
+  const [devTools, setDevTools] = useState<DevToolsDock | null>(null);
 
   useEffect(() => {
     let closed = false;
@@ -132,7 +135,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       if (closed) return opening.close();
       tab.current = opening;
       browsers.set(browserId, { ref: opening.ref, profile: latest.current.profile ?? "" });
-      void watchTab(opening.ref, tabEvents(latest, browserId)).then(({ snapshot, stop }) => {
+      void watchTab(opening.ref, tabEvents(latest, browserId, setDevTools)).then(({ snapshot, stop }) => {
         if (closed) return stop();
         stopWatching = stop;
         if (!snapshot) return;
@@ -140,6 +143,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
         latest.current.onZoom?.(snapshot.zoom as ZoomState);
         latest.current.onSecurity?.(snapshot.security as SecurityInfo);
         if (snapshot.preferredSize) latest.current.onPreferredSize?.(snapshot.preferredSize);
+        setDevTools(devToolsDock((snapshot as { devTools?: unknown }).devTools));
       });
       opening.onClosed = () => latest.current.onWindowClose?.();
       opening.onActivatedByEngine = () => latest.current.onActivateRequest?.({ reason: "engine" });
@@ -248,11 +252,12 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
 
   return (
     <View style={[props.style, { overflow: "hidden" }, !visible && { opacity: 0, pointerEvents: "none" }]}>
+      {devTools && <DockedDevTools key={`${devTools.guestId}:${devTools.session}`} dock={devTools} visible={visible} />}
       <iframe
         ref={frame}
         title=""
         tabIndex={visible ? 0 : -1}
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none", background: "transparent" }}
+        style={pageFrameStyle(devTools)}
       />
     </View>
   );

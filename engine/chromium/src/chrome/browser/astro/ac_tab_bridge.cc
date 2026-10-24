@@ -13,12 +13,12 @@
 #include "base/json/json_reader.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/astro/ac_devtools_dock.h"
 #include "chrome/browser/astro/ac_display_media.h"
 #include "chrome/browser/astro/ac_extension_views.h"
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/printing/print_view_manager_common.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_external.h"
@@ -302,6 +302,7 @@ base::DictValue TabBridge::Snapshot() {
                    .Set("isLoading", contents->IsLoading())
                    .Set("canGoBack", controller.CanGoBack())
                    .Set("canGoForward", controller.CanGoForward()));
+  snapshot.Set("devTools", DockedDevToolsState(contents));
   if (std::optional<std::pair<int, int>> size = ExtensionPopupSize(contents)) {
     snapshot.Set("preferredSize", base::DictValue()
                                       .Set("width", size->first)
@@ -453,14 +454,7 @@ void TabBridge::Call(const std::string& method,
                       !prefs->GetBoolean(prefs::kCaretBrowsingEnabled));
   } else if (method == "showDevTools") {
     const std::string* panel = args.FindString("panel");
-    DevToolsToggleAction action = DevToolsToggleAction::Show();
-    if (panel && *panel == "console") {
-      action = DevToolsToggleAction::ShowConsolePanel();
-    } else if (panel && *panel == "elements") {
-      action = DevToolsToggleAction::ShowElementsPanel();
-    }
-    DevToolsWindow::OpenDevToolsWindow(contents, action,
-                                       DevToolsOpenedByAction::kUnknown);
+    ShowDevTools(contents, panel ? *panel : std::string());
   } else if (method == "evaluate" || method == "executeJavaScript") {
     const std::string* code = args.FindString("code");
     if (!code) {

@@ -18,6 +18,8 @@ source_set("astro") {
     "ac_cookies.cc",
     "ac_cookies.h",
     "ac_device_chooser.cc",
+    "ac_devtools_dock.cc",
+    "ac_devtools_dock.h",
     "ac_display_media.cc",
     "ac_display_media.h",
     "ac_documents.cc",

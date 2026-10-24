@@ -28,6 +28,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "chrome/browser/astro/ac_chrome_ui.h"
+#include "chrome/browser/astro/ac_devtools_dock.h"
 #include "chrome/browser/astro/ac_display_media.h"
 #include "chrome/browser/astro/ac_documents.h"
 #include "chrome/browser/astro/ac_extension_views.h"
@@ -66,6 +67,8 @@
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "ui/base/base_window.h"
+#include "ui/display/display.h"
+#include "ui/display/screen.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 #include "ui/shell_dialogs/selected_file_info.h"
@@ -266,6 +269,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       InstallDeviceChooser();
       InstallCastDialog();
       InstallDisplayMediaPicker();
+      InstallDockedDevTools();
       return true;
     }();
     (void)installed;
@@ -619,6 +623,20 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     }
   }
 
+  static gfx::Rect OnScreen(gfx::Rect bounds) {
+    constexpr int kTitleStrip = 40;
+    constexpr int kVisibleWidth = 100;
+    const gfx::Rect work_area =
+        display::Screen::Get()->GetDisplayMatching(bounds).work_area();
+    gfx::Rect strip(bounds.x(), bounds.y(), bounds.width(), kTitleStrip);
+    strip.Intersect(work_area);
+    if (bounds.y() < work_area.y() || strip.width() < kVisibleWidth ||
+        strip.height() < kTitleStrip) {
+      bounds.AdjustToFit(work_area);
+    }
+    return bounds;
+  }
+
   void HandleWindowBounds(const base::ListValue& args) {
     if (args.size() != 4 || !std::ranges::all_of(args, [](const base::Value& v) {
           return v.is_int() || v.is_double();
@@ -626,13 +644,13 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       return;
     }
     BrowserWindowInterface* browser = WindowBrowser();
-    const gfx::Rect bounds(static_cast<int>(args[0].GetDouble()),
-                           static_cast<int>(args[1].GetDouble()),
-                           static_cast<int>(args[2].GetDouble()),
-                           static_cast<int>(args[3].GetDouble()));
+    gfx::Rect bounds(static_cast<int>(args[0].GetDouble()),
+                     static_cast<int>(args[1].GetDouble()),
+                     static_cast<int>(args[2].GetDouble()),
+                     static_cast<int>(args[3].GetDouble()));
     if (browser && browser->GetWindow() && bounds.width() >= 200 &&
         bounds.height() >= 150) {
-      browser->GetWindow()->SetBounds(bounds);
+      browser->GetWindow()->SetBounds(OnScreen(bounds));
     }
   }
 
