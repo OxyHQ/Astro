@@ -132,7 +132,7 @@ export function calendarMenuItem(): MenuItem {
     title: "Calendar",
     symbol: "calendar",
     children: [
-      ...(calendarConnected() ? [] : [{ id: "cal:connect", title: "Connect Calendar…", symbol: "calendar.badge.plus" }, sep]),
+      ...(calendarConnected() ? [] : [{ id: "cal:connect", title: "Sign In with Oxy…", symbol: "person.crop.circle" }, sep]),
       {
         id: "cal:alerts",
         title: "Show Next Meeting Alert",

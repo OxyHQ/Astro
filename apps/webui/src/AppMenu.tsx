@@ -1,6 +1,8 @@
 import type { BrowserCommand, MenuBookmark, MenuItem, MenuState } from "@astro-browser-real/shell";
+import { openSettings } from "../../browser/src/components/settings/windows";
 import { openUrls } from "../../browser/src/lib/actions";
 import { menuState } from "../../browser/src/lib/native";
+import { manageOxyAccount, signInWithOxy, signOutOfOxy, useOxySession } from "../../browser/src/oxy/session";
 import { useBrowser } from "../../browser/src/store/browser";
 import { showMenu } from "../../demo/src/shims/web/overlays";
 import { TRAFFIC_LIGHT_DIAMETER, TRAFFIC_LIGHT_SPACING, useTrafficLightsCenter } from "../../demo/src/shims/web/windowChrome";
@@ -17,6 +19,10 @@ const QUIT = "astro:quit";
 const CHECK_FOR_UPDATES = "astro:checkForUpdates";
 const INSTALL_UPDATE = "astro:installUpdate";
 const UPDATE_NOTES = "astro:updateNotes";
+const SIGN_IN = "astro:signIn";
+const SIGN_OUT = "astro:signOut";
+const MANAGE_ACCOUNT = "astro:manageAccount";
+const ACCOUNT_SETTINGS = "astro:accountSettings";
 
 const separator: MenuItem = { separator: true };
 
@@ -56,11 +62,34 @@ function updateItems(): { help: MenuItem[]; ready: MenuItem[] } {
   };
 }
 
+function accountItems(): MenuItem[] {
+  const { available, resolved, account } = useOxySession.getState();
+  if (!available) return [];
+  if (!account) return [{ id: SIGN_IN, title: resolved ? "Sign In with Oxy…" : "Oxy Account…", symbol: "person.crop.circle" }, separator];
+  const detail = [account.handle && account.handle !== account.name ? `@${account.handle}` : "", account.email ?? ""].filter(Boolean).join(" · ");
+  return [
+    {
+      id: "menu:account",
+      title: account.name,
+      symbol: "person.crop.circle",
+      children: [
+        ...(detail ? [{ id: "account:detail", title: detail, enabled: false }, separator] : []),
+        { id: MANAGE_ACCOUNT, title: "Manage Oxy Account…" },
+        { id: ACCOUNT_SETTINGS, title: "Account Settings…" },
+        separator,
+        { id: SIGN_OUT, title: "Sign Out" },
+      ],
+    },
+    separator,
+  ];
+}
+
 function appMenu(state: MenuState): MenuItem[] {
   const c = (spec: Spec) => command(state, spec);
   const updates = updateItems();
   const closed = state.recentlyClosed.map((entry) => c([entry.title, "restoreClosed", undefined, undefined, entry.id]));
   return [
+    ...accountItems(),
     c(["New Tab", "newTab", "t"]),
     c(["New Window", "newWindow", "n"]),
     c(["New Incognito Window", "newIncognitoWindow", "n", ["command", "shift"]]),
@@ -157,6 +186,10 @@ export async function openAppMenu() {
   const chosen = await showMenu(appMenu(menuState(useBrowser.getState())));
   if (!chosen) return;
   if (chosen === QUIT) return void requestQuit();
+  if (chosen === SIGN_IN) return void (useOxySession.getState().resolved ? signInWithOxy() : openSettings("account"));
+  if (chosen === SIGN_OUT) return void signOutOfOxy();
+  if (chosen === MANAGE_ACCOUNT) return void manageOxyAccount();
+  if (chosen === ACCOUNT_SETTINGS) return openSettings("account");
   if (chosen === CHECK_FOR_UPDATES) return void checkForUpdatesNow();
   if (chosen === INSTALL_UPDATE) return void installReadyUpdate();
   const [name, arg] = chosen.split(SEPARATOR) as [BrowserCommand, string | undefined];

@@ -64,6 +64,9 @@ importers:
       react-native-macos:
         specifier: 0.81.9
         version: 0.81.9(patch_hash=f9b2340824b9e8e14d2c403217361618c452a59ebe7c35ebd617465afd21ba0c)(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)
+      socket.io-client:
+        specifier: ^4.8.1
+        version: 4.8.4
       zustand:
         specifier: ^5.0.8
         version: 5.0.15(@types/react@19.1.17)(react@19.1.4)

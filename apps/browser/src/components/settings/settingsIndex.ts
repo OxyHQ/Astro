@@ -3,6 +3,7 @@ import { prepare, type Searchable } from "./searchMatch";
 import type { SettingsPane } from "./windows";
 
 export const PANES: { id: SettingsPane; title: string; icon: string }[] = [
+  { id: "account", title: "Oxy Account", icon: "person.crop.circle" },
   { id: "general", title: "General", icon: "gearshape" },
   { id: "profiles", title: "Profiles", icon: "person.2" },
   { id: "sync", title: "Sync", icon: "arrow.triangle.2.circlepath" },
@@ -25,6 +26,22 @@ type Section = { section: string; rows: Record<string, Row> };
 const APP = "Astro";
 
 const ROWS: Record<SettingsPane, Section[]> = {
+  account: [
+    {
+      section: "Oxy Account",
+      rows: {
+        account: {
+          title: "Oxy account",
+          description: `One account for all of ${APP}, in every window and profile.`,
+          keywords: ["sign in", "sign out", "log in", "log out", "login", "oxy", "user", "username", "avatar", "email", "manage account"],
+        },
+      },
+    },
+    {
+      section: "Uses your Oxy account",
+      rows: { calendar: { title: "Calendar", description: "Your Nilo calendar: the pinned calendar, meeting alerts and meeting tab groups.", keywords: ["nilo", "meetings"] } },
+    },
+  ],
   general: [
     {
       section: "General",
@@ -266,7 +283,7 @@ const ROWS: Record<SettingsPane, Section[]> = {
     },
   ],
   calendar: [
-    { section: "Live Calendar", rows: { access: { title: "Oxy account", keywords: ["connect calendar", "sign in with oxy", "nilo", "oxy account"] } } },
+    { section: "Live Calendar", rows: { access: { title: "Nilo calendar", keywords: ["connect calendar", "sign in with oxy", "nilo", "oxy account"] } } },
     {
       section: "Meeting alerts",
       rows: {

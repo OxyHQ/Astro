@@ -1,6 +1,8 @@
 import { create } from "zustand";
 
-export type OxyAccount = { id: string; name: string; handle: string };
+export type OxyAccount = { id: string; name: string; handle: string; email: string | null; avatar: string | null; color: string | null };
+
+export type NiloSocketAccess = { url: string; token: () => Promise<string> };
 
 type OxySession = {
   available: boolean;
@@ -8,7 +10,9 @@ type OxySession = {
   resolved: boolean;
   account: OxyAccount | null;
   niloFetch: typeof fetch | null;
+  niloSocket: NiloSocketAccess | null;
   openSignIn: (() => Promise<void>) | null;
+  openAccountDialog: (() => void) | null;
   closeSession: (() => Promise<void>) | null;
 };
 
@@ -18,7 +22,9 @@ export const useOxySession = create<OxySession>()(() => ({
   resolved: false,
   account: null,
   niloFetch: null,
+  niloSocket: null,
   openSignIn: null,
+  openAccountDialog: null,
   closeSession: null,
 }));
 
@@ -50,6 +56,14 @@ export async function signInWithOxy(): Promise<boolean> {
   return !!useOxySession.getState().account;
 }
 
+export async function manageOxyAccount(): Promise<void> {
+  if (!oxySignInAvailable()) return;
+  wantOxy();
+  (await whenReady()).openAccountDialog?.();
+}
+
 export async function signOutOfOxy(): Promise<void> {
   await useOxySession.getState().closeSession?.();
 }
+
+export const accountInitial = (account: Pick<OxyAccount, "name" | "handle">) => (account.name || account.handle).trim().charAt(0).toUpperCase() || "?";

@@ -5,6 +5,7 @@ import { everySlowly } from "../lib/slowTimers";
 import { signInWithOxy, useOxySession } from "../oxy/session";
 import type { CalendarEvent, CalendarInfo } from "./meetings";
 import { niloCalendars, niloEvents } from "./nilo";
+import { setNiloRooms, startNiloLive } from "./niloLive";
 import { toCalendarEvent, toCalendarInfo } from "./niloCalendar";
 import { live, updateCalendarSettings, useLive } from "./store";
 
@@ -79,6 +80,7 @@ export function refreshCalendar(): Promise<void> {
       const session = useOxySession.getState();
       const access = sessionAccess();
       if (access !== "connected" || !session.niloFetch) {
+        setNiloRooms({ databases: [], workspaces: [] });
         useCalendar.setState({ access, calendars: [], events: [], error: null });
         return;
       }
@@ -93,6 +95,7 @@ export function refreshCalendar(): Promise<void> {
         ? (await niloEvents(session.niloFetch, { from: start.getTime(), to: Date.now() + HORIZON_MS, calendarIds: ids, timeZone })).map((e) => toCalendarEvent(e, byId))
         : [];
       if (useOxySession.getState().account?.id !== session.account?.id) return;
+      setNiloRooms({ databases: ids, workspaces: [...new Set(nilo.map((c) => c.workspaceId))] });
       useCalendar.setState({ access, calendars, events: events.sort((a, b) => a.start - b.start), error: null, lastFetch: Date.now() });
     } catch (error) {
       useCalendar.setState({ error: String((error as Error)?.message ?? error) });
@@ -136,6 +139,7 @@ let started = false;
 export function startCalendar() {
   if (started) return;
   started = true;
+  startNiloLive(() => void refreshCalendar());
   void refreshCalendar();
   useOxySession.subscribe((s, prev) => {
     if (s.available !== prev.available || s.resolved !== prev.resolved || s.account?.id !== prev.account?.id || s.niloFetch !== prev.niloFetch) {

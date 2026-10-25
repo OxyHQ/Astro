@@ -2,10 +2,11 @@ import { Text, View } from "react-native";
 import { useTheme } from "../../../lib/theme";
 import { connectCalendar, setCalendarHidden, useCalendar, type CalendarAccess } from "../../../live/calendar";
 import { ALERT_LEADS, type CalendarInfo } from "../../../live/meetings";
-import { signOutOfOxy, useOxySession, type OxyAccount } from "../../../oxy/session";
+import { useOxySession, type OxyAccount } from "../../../oxy/session";
 import { updateCalendarSettings, useLive } from "../../../live/store";
 import { useBrowser } from "../../../store/browser";
 import { Button, Checkbox, Group, PopUp, Row, SectionHeader, Toggle } from "../controls";
+import { useSettingsNav } from "../windows";
 
 export function CalendarPane() {
   const theme = useTheme();
@@ -13,6 +14,7 @@ export function CalendarPane() {
   const { access, calendars } = useCalendar();
   const autoGroup = useBrowser((s) => s.settings.autoGroupMeetingTabs);
   const account = useOxySession((s) => s.account);
+  const go = useSettingsNav((s) => s.go);
   const connected = access === "connected" || access === "fixture";
   const owned = calendars.filter((c) => c.owned);
   const others = calendars.filter((c) => !c.owned);
@@ -21,15 +23,12 @@ export function CalendarPane() {
     <View>
       <SectionHeader
         title="Live Calendar"
-        description="Pin Google Calendar, Outlook, iCloud or Notion Calendar to see your day when you hover it, a countdown to your next meeting, and alerts with a Join button before meetings start. Events come from your Nilo calendar: sign in with your Oxy account to connect it."
+        description="Your meetings come from your Nilo calendar, through your Oxy account. Hover a pinned calendar tab, like Google Calendar, Outlook or Notion Calendar, to see the rest of your day, with a countdown to your next meeting. Alerts with a Join button come before meetings start."
       />
       <Group>
         <Row anchor="calendar.access" description={accessDescription(access, account, calendars.length)}>
-          {access === "connected" ? (
-            <Button title="Sign Out" onPress={() => void signOutOfOxy()} />
-          ) : access === "signedOut" ? (
-            <Button title="Connect Calendar…" kind="primary" onPress={() => void connectCalendar()} />
-          ) : null}
+          {access === "signedOut" ? <Button title="Sign In with Oxy…" kind="primary" onPress={() => void connectCalendar()} /> : null}
+          {access !== "fixture" ? <Button title="Oxy Account…" onPress={() => go("account")} /> : null}
         </Row>
       </Group>
 
@@ -90,11 +89,11 @@ function accessDescription(access: CalendarAccess, account: OxyAccount | null, c
     case "fixture":
       return "Development build: using calendar-fixture.json";
     case "connected":
-      return account ? `Signed in as ${account.name}${account.handle && account.handle !== account.name ? ` (@${account.handle})` : ""} · ${calendarCount}` : calendarCount;
+      return account ? `${calendarCount} from ${account.name}${account.handle && account.handle !== account.name ? ` (@${account.handle})` : ""}’s Oxy account` : calendarCount;
     case "pending":
       return "Checking your Oxy account…";
     case "signedOut":
-      return "Not connected. Connecting signs you in with your Oxy account.";
+      return "Sign in with your Oxy account to show your Nilo calendar. It’s the same account for all of Astro.";
     case "unavailable":
       return "Sign in with Oxy isn't available in this build yet.";
   }

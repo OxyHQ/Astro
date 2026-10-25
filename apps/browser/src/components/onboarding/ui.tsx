@@ -3,7 +3,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { useTheme } from "../../lib/theme";
 import { useHover } from "../primitives";
-import { STEPS, useOnboarding, type OnboardingStep } from "./state";
+import { onboardingSteps, useOnboarding, type OnboardingStep } from "./state";
 
 function onboardingColors(dark: boolean) {
   return dark
@@ -92,7 +92,7 @@ export function Reveal({ delay = 0, children, style }: { delay?: number; childre
 export function StepProgress() {
   const colors = useOnboardingColors();
   const step = useOnboarding((s) => s.step);
-  const steps: OnboardingStep[] = STEPS.filter((s) => s !== "intro");
+  const steps: OnboardingStep[] = onboardingSteps().filter((s) => s !== "intro");
   const index = steps.indexOf(step);
   return (
     <View style={{ gap: 8 }}>

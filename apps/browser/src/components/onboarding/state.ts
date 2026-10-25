@@ -1,13 +1,16 @@
 import { launchEnvironment, readDocument, stopIntroMusic, writeDocument } from "@astro-browser/shell";
 import { create } from "zustand";
+import { oxySignInAvailable } from "../../oxy/session";
 import { useBrowser } from "../../store/browser";
 import { resolveWindowId } from "../../store/model";
 import { pinSites } from "./sites";
 import { endToolTour, startToolTour } from "./tour/state";
 
-export type OnboardingStep = "intro" | "defaultBrowser" | "personalize" | "import" | "pinnedTabs" | "privacy" | "cli" | "outro";
+export type OnboardingStep = "intro" | "defaultBrowser" | "personalize" | "import" | "account" | "pinnedTabs" | "privacy" | "cli" | "outro";
 
-export const STEPS: OnboardingStep[] = ["intro", "defaultBrowser", "personalize", "import", "pinnedTabs", "privacy", "cli", "outro"];
+const ALL_STEPS: OnboardingStep[] = ["intro", "defaultBrowser", "personalize", "import", "account", "pinnedTabs", "privacy", "cli", "outro"];
+
+export const onboardingSteps = () => ALL_STEPS.filter((s) => s !== "account" || oxySignInAvailable());
 
 type OnboardingState = {
   windowId: string | null;
@@ -27,8 +30,8 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
   tourAfter: false,
   go: (step) => set({ step }),
   next() {
-    const i = STEPS.indexOf(get().step);
-    const step = STEPS[i + 1];
+    const steps = onboardingSteps();
+    const step = steps[steps.indexOf(get().step) + 1];
     if (step) set({ step });
     else finishOnboarding();
   },

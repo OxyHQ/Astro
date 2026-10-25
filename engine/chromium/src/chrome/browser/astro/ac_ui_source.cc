@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/path_service.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
@@ -137,9 +138,11 @@ void ServeUi(content::WebUIDataSource* source, Profile* profile) {
       network::mojom::CSPDirectiveName::WorkerSrc, "worker-src 'self';");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ConnectSrc,
-      "connect-src chrome://webui-test chrome://resources chrome://theme "
-      "'self' https://api.oxy.so wss://api.oxy.so https://api.nilo.so "
-      "wss://api.nilo.so;");
+      base::StrCat({"connect-src chrome://webui-test chrome://resources "
+                    "chrome://theme 'self' https://api.oxy.so wss://api.oxy.so "
+                    "https://api.nilo.so wss://api.nilo.so",
+                    dir.empty() ? "" : " ws://localhost:* ws://127.0.0.1:*",
+                    ";"}));
 }
 
 base::FilePath BesideEngine(std::string_view relative) {

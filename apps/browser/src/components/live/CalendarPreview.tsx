@@ -104,9 +104,9 @@ function SignIn({ available }: { available: boolean }) {
     <View {...hoverProps} style={{ paddingVertical: 4 }}>
       <Text style={{ fontSize: 12.5, lineHeight: 17, color: theme.textSecondary }}>
         <Text onPress={() => void connectCalendar()} style={{ color: theme.accent, textDecorationLine: hovered ? "underline" : "none" }}>
-          Connect your calendar
+          Sign in with Oxy
         </Text>{" "}
-        with your Oxy account to see your Nilo meetings here and get alerts before they start.
+        to see the meetings in your Nilo calendar here and get alerts before they start.
       </Text>
     </View>
   );
