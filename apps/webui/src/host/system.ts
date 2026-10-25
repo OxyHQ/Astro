@@ -79,7 +79,7 @@ export const systemInfo: SystemInfo = {
   inApplicationsFolder: true,
 };
 
-type TelemetrySetup = { isolated?: boolean; osVersion?: string; arch?: string; url?: string };
+type TelemetrySetup = { isolated?: boolean; osVersion?: string; arch?: string; url?: string; processStart?: number; bootTime?: number };
 
 let telemetrySetup: Promise<void> | null = null;
 
@@ -91,6 +91,8 @@ export const loadTelemetrySetup = () =>
       if (setup.osVersion) systemInfo.osVersion = setup.osVersion;
       if (setup.arch) systemInfo.arch = setup.arch;
       systemInfo.telemetryURL = setup.url ?? null;
+      systemInfo.processStart = setup.processStart ?? null;
+      systemInfo.bootTime = setup.bootTime ?? null;
     })
     .catch(() => {}));
 

@@ -193,7 +193,7 @@ let launchSent = false;
 type PreviousLaunch = { lastLaunchAt: number | null; lastQuitAt: number | null; firstOfVersion: boolean | null };
 let previousLaunch: PreviousLaunch = { lastLaunchAt: null, lastQuitAt: null, firstOfVersion: null };
 
-export function launchCommitted() {
+export function launchCommitted(commit = Date.now()) {
   if (launch || launchSent || !on) return;
   const start = appInfo().processStart;
   if (!start) return;
@@ -203,7 +203,7 @@ export function launchCommitted() {
     const tab = activeTabId(s, id);
     if (tab && s.tabs[tab]?.url && !s.tabs[tab]!.unloaded) keys.push(tab);
   }
-  launch = { journey: "j1", t0: start, commit: Date.now(), keys, tabs: Object.keys(s.tabs).length, windows: s.windowOrder.length };
+  launch = { journey: "j1", t0: start, commit, keys, tabs: Object.keys(s.tabs).length, windows: s.windowOrder.length };
   frame("launch", "content");
   probeUsable(launch);
   begin(launch);

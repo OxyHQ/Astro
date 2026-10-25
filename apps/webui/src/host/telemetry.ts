@@ -1,6 +1,8 @@
 import { installErrorReporting, startTelemetry } from "../../../browser/src/telemetry";
 import { acceptQueued, adoptChoice, persistNow, type Queued, relayQueued, shareChoice } from "../../../browser/src/telemetry/client";
 import { captureException } from "../../../browser/src/telemetry/errors";
+import { launchCommitted } from "../../../browser/src/telemetry/journeys";
+import { markFirstWindow } from "../../../browser/src/telemetry/track";
 import { resumeUsage, startPageUsage } from "../../../browser/src/telemetry/usage";
 import { loadTelemetrySetup } from "./system";
 import { isLeaderPage } from "./windows";
@@ -52,8 +54,22 @@ function install() {
   }));
 }
 
+type FirstWindow = { committed: number; shown: number };
+
+let firstWindowShown: (at: FirstWindow) => void = () => {};
+const firstWindow = new Promise<FirstWindow>((resolve) => (firstWindowShown = resolve));
+
+export const windowShown = (at: FirstWindow) => firstWindowShown(at);
+
 export function leadTelemetry(hydrate: boolean) {
-  void install().then(() => (hydrate ? startTelemetry() : resumeUsage()));
+  void install().then(() => {
+    if (!hydrate) return resumeUsage();
+    startTelemetry();
+    void firstWindow.then(({ committed, shown }) => {
+      launchCommitted(committed);
+      markFirstWindow(shown);
+    });
+  });
 }
 
 export function startPageTelemetry() {

@@ -15,6 +15,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/path_service.h"
 #include "base/no_destructor.h"
+#include "base/process/process.h"
 #include "base/process/process_handle.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "base/task/thread_pool.h"
@@ -271,6 +272,13 @@ base::Value TelemetrySetup() {
   setup.Set("isolated", isolated);
   setup.Set("osVersion", base::StringPrintf("%d.%d.%d", major, minor, bugfix));
   setup.Set("arch", arch == "aarch64" ? std::string("arm64") : arch);
+  const base::Time started = base::Process::Current().CreationTime();
+  if (!started.is_null()) {
+    setup.Set("processStart", started.InMillisecondsFSinceUnixEpoch());
+  }
+  setup.Set("bootTime",
+            (base::Time::Now() - base::SysInfo::Uptime())
+                .InMillisecondsFSinceUnixEpoch());
   if (isolated) {
     const GURL url(env->GetVar("ASTRO_TELEMETRY_URL").value_or(""));
     if (url.is_valid() && url.SchemeIs(url::kHttpScheme) &&

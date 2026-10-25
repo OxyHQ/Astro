@@ -1,5 +1,6 @@
 import "../../demo/src/styles.css";
 import "./styles.css";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { unstable_batchedUpdates } from "react-native";
 import { WindowRoot } from "../../browser/src/App";
@@ -25,7 +26,7 @@ import { offerOnboarding, startOnboardingCommand } from "./host/onboarding";
 import { startPerformanceRecordingCommand } from "./host/performanceRecording";
 import { startTabDragShare } from "./host/tabDragShare";
 import { tabHub } from "./host/tabs";
-import { endTelemetry, leadTelemetry, reportUncaught, startPageTelemetry } from "./host/telemetry";
+import { endTelemetry, leadTelemetry, reportUncaught, startPageTelemetry, windowShown } from "./host/telemetry";
 import { startUpdater } from "./host/updater";
 import { startWindows, usePageWindowId } from "./host/windows";
 import { AppMenuButton } from "./AppMenu";
@@ -73,6 +74,13 @@ const startPage = () =>
 
 void loadDocuments().then(startPage);
 
+function LaunchMarks() {
+  const committed = useRef(0);
+  useLayoutEffect(() => void (committed.current = Date.now()), []);
+  useEffect(() => windowShown({ committed: committed.current, shown: Date.now() }), []);
+  return null;
+}
+
 function PageWindow() {
   const windowId = usePageWindowId();
   if (!windowId) return null;
@@ -80,6 +88,7 @@ function PageWindow() {
     <>
       <div className="astro-window">
         <WindowRoot windowId={windowId} />
+        <LaunchMarks />
         <WindowControls />
         <AppMenuButton />
       </div>
