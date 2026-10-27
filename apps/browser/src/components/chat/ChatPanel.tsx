@@ -2,7 +2,8 @@ import { AliaRuntimeProvider, useConversationThread, type AliaRuntimeHost, type 
 import type { Message } from "@alia.onl/sdk/model";
 import { getTextFromContent } from "@alia.onl/sdk/content";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PanResponder, Text, View, type TextInput } from "react-native";
+import { PanResponder, Pressable, Text, View, type TextInput } from "react-native";
+import { Symbol } from "@astro-browser/shell";
 import { closeChat, newChat, openChatTab, setChatPlacement, setComposerFocused, showChatConversation, toggleChatHistory } from "../../ai/chat/actions";
 import { buildTurnContext } from "../../ai/chat/clientContext";
 import { astroHostTools } from "../../ai/chat/hostTools";
@@ -17,9 +18,12 @@ import {
   type ChatContextItem,
 } from "../../ai/chat/state";
 import { PROMPT_ACTIONS } from "../../ai/oneShotPrompts";
-import { parseSlash, refreshSkills, useSkills } from "../../ai/skills/skills";
+import { ASTRO_COMMANDS, parseSlash, refreshSkills, useSkills, type AstroCommand } from "../../ai/skills/skills";
+import { briefDoneToday, noteCommandSent } from "../../ai/work/briefDay";
+import { proactiveCommands, welcomeContext, welcomeSuggestions, type WelcomeSuggestion } from "../../ai/work/suggestions";
+import { useCalendar, useNow } from "../../live/calendar";
 import { astroCommandTurn } from "../../ai/work/gather";
-import { openSkillsPage } from "../pages/urls";
+import { openInternalPage, openSkillsPage } from "../pages/urls";
 import { artifactOfTool, rememberArtifacts, rememberLiveArtifact, type Artifact } from "../../ai/artifacts/artifacts";
 import { openArtifactTab } from "../artifacts/open";
 import { webviews } from "../../lib/webviews";
@@ -198,6 +202,7 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       const chosen = items.flatMap((item) => (item.kind === "skill" ? [item] : []));
       const skills = chosen.filter((item) => !item.command).map((item) => item.name);
       const research = chosen.some((item) => item.command === "research");
+      for (const item of chosen) if (item.command) noteCommandSent(item.command);
       const turns = chosen.flatMap((item) => {
         const turn = item.command && item.command !== "research" ? astroCommandTurn(item.command, windowId) : null;
         return turn ? [[`## The person ran /${item.name} (${item.title})`, turn.prompt, ...turn.context]] : [];
@@ -331,7 +336,16 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
     [],
   );
 
-  const empty = <EmptyChat windowId={windowId} onPrompt={(prompt) => send(prompt)} />;
+  const empty = (
+    <EmptyChat
+      windowId={windowId}
+      onPrompt={(prompt) => send(prompt)}
+      onCommand={(command, title) => {
+        const known = ASTRO_COMMANDS.find((c) => c.command === command);
+        send("", [{ id: chatItemId("skill"), kind: "skill", name: known?.name ?? command, title: known?.title ?? title, command }]);
+      }}
+    />
+  );
 
   return (
     <View style={{ flex: 1 }} onFocus={() => setComposerFocused(windowId)} onBlur={() => setComposerFocused(null)}>
@@ -433,6 +447,7 @@ async function showPanelMenu(
     ...(conversationId ? [{ id: "clear", title: "Clear Chat" }] : []),
     { separator: true as const },
     { id: "skills", title: "Skills…" },
+    { id: "apps", title: "Connected Apps…" },
   ]);
   switch (choice) {
     case "tab":
@@ -447,29 +462,57 @@ async function showPanelMenu(
       return void clear();
     case "skills":
       return openSkillsPage(windowId);
+    case "apps":
+      return openInternalPage("apps", windowId);
   }
 }
 
-function EmptyChat({ windowId, onPrompt }: { windowId: string; onPrompt: (prompt: string) => void }) {
+function EmptyChat({ windowId, onPrompt, onCommand }: { windowId: string; onPrompt: (prompt: string) => void; onCommand: (command: AstroCommand, title: string) => void }) {
   const theme = useTheme();
-  const url = useBrowser((s) => {
+  const tab = useBrowser((s) => {
     const id = activeTabId(s, windowId);
-    return id ? (s.tabs[id]?.url ?? "") : "";
+    return id ? s.tabs[id] : undefined;
   });
+  const url = tab?.url ?? "";
   const currentTab = useWindowChat(windowId, (c) => c.currentTab);
+  const events = useCalendar((s) => s.events);
+  const now = useNow(60_000);
+  const [welcome, setWelcome] = useState<WelcomeSuggestion[]>([]);
   const video = /youtube\.com\/(watch|shorts)|youtu\.be\//.test(url);
   const onPage = currentTab && /^(https?|file):/.test(url);
-  const prompts = PROMPT_ACTIONS.filter((p) => (onPage ? p.when === "page" || (video && p.when === "video") : false)).slice(0, 4);
+  const prompts = PROMPT_ACTIONS.filter((p) => (onPage ? p.when === "page" || (video && p.when === "video") : false)).slice(0, 3);
+  const commands = useMemo(() => proactiveCommands(now, events, { briefDoneToday: briefDoneToday(now) }), [now, events]);
+  const context = welcomeContext(onPage && tab ? { title: tab.customTitle || tab.title, url } : null);
+  useEffect(() => {
+    let live = true;
+    const timer = setTimeout(
+      () =>
+        void welcomeSuggestions(context, 3)
+          .then((list) => live && setWelcome(list))
+          .catch(() => live && setWelcome([])),
+      250,
+    );
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [context]);
+  const row = (key: string, title: string, icon: string, onPress: () => void) => (
+    <Pressable key={key} accessibilityRole="button" onPress={onPress} style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 }}>
+      <Symbol name={icon} size={11} color={theme.textSecondary} style={{ width: 14, height: 14 }} />
+      <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: theme.textSecondary }}>
+        {title}
+      </Text>
+    </Pressable>
+  );
   return (
-    <View style={{ flex: 1, justifyContent: "flex-end", paddingHorizontal: 16, paddingBottom: 12, gap: 6 }}>
+    <View style={{ flex: 1, justifyContent: "flex-end", paddingHorizontal: 16, paddingBottom: 12, gap: 2 }}>
       <Text style={{ fontSize: 20, fontWeight: "600", color: theme.textPrimary, marginBottom: 8 }}>
         {onPage ? "Ask about this tab" : "What's on your mind?"}
       </Text>
-      {prompts.map((p) => (
-        <Text key={p.id} accessibilityRole="button" onPress={() => onPrompt(p.prompt)} style={{ fontSize: 13, color: theme.textSecondary, paddingVertical: 6 }}>
-          {p.title}
-        </Text>
-      ))}
+      {commands.map((c) => row(c.key, c.title, c.command === "brief" ? "sun.max" : c.command === "prep" ? "person.2" : "text.badge.checkmark", () => onCommand(c.command, c.title)))}
+      {prompts.map((p) => row(p.id, p.title, "sparkles", () => onPrompt(p.prompt)))}
+      {welcome.slice(0, Math.max(1, 5 - commands.length - prompts.length)).map((w) => row(w.key, w.title, "lightbulb", () => onPrompt(w.prompt)))}
     </View>
   );
 }

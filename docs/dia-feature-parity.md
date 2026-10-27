@@ -428,8 +428,8 @@ Everything in this section is deferred on purpose.
 | PDF (OCR) / DOCX / PPTX / XLSX / Google Sheets reading | ✓ | ⏸ | |
 | Tables, charts, code blocks (syntax highlight) in chat | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): Markdown tables, code blocks highlighted in 17 languages, and the charts Alia's `canvas` tool makes, on Bloom's chart cards as Alia draws them |
 | Promoted prompts (summarize, ELI5, quiz me, proofread, review code, citations) | ✓ | 🟡 | Windows and Linux, with Chat: command-bar actions Summarize This Page, Summarize This Video, Explain Like I'm 5, Quiz Me, Proofread, Review Code (code hosts), Find Citations; each opens Chat with its prompt and the page |
-| Proactive suggestions | ✓ | ⏸ | |
-| `/research` deep research | ✓ | ⏸ | |
+| Proactive suggestions | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Suggestions): a new chat offers Prepare for "…" before a meeting, Recap "…" after one and Start My Day in the morning (Nilo), the tab's prompts, and Alia's welcome suggestions ranked for the tab |
+| `/research` deep research | ✓ | 🟡 | `/research` in the composer or the command bar sends the turn with `deepResearch: true`: Alia's deep research, its steps and sources in the reply (`docs/ai.md` › Skills) |
 | Content safety (sensitive sites, org DLP) | ✓ | ⏸ | |
 | On‑device ML (router, skills classifier, embeddings via MLX) | ✓ | ⏸ | the router is rules, not a model (row above); no skills classifier or embeddings |
 | New Chat agent runtime (bundled Claude Code agent server) | ✓ | ⏸ | |
@@ -454,14 +454,14 @@ own sign-ins instead.
 
 | Feature | Dia | Astro | Gap |
 |---|---|---|---|
-| Apps hub (connect, per‑tool account, request an app) | ✓ | ⏸ | |
-| Gmail, Google Calendar, Drive | ✓ | ⏸ | Drive live folder done (§3) |
-| Slack | ✓ | ⏸ | |
-| Notion, Confluence, Jira (Atlassian), Linear, Trello | ✓ | ⏸ | Notion / Confluence live folders done (§3) |
-| GitHub, Figma, Canva | ✓ | ⏸ | GitHub live folder done (§3) |
+| Apps hub (connect, per‑tool account, request an app) | ✓ | 🟡 | `astro://apps` (`docs/ai.md` › Connected apps), on Alia's connections: connect, accounts per app (Add Account, Disconnect, Reconnect), Oxy apps built in; "request an app" is Alia's More Connectors page |
+| Gmail, Google Calendar, Drive | ✓ | 🟡 | through Alia: Gmail (channel account), Google Calendar and Drive (OAuth integrations); Drive live folder done (§3) |
+| Slack | ✓ | 🟡 | Alia's Slack connector takes a bot token, set up in Alia (Set Up in Alia…) |
+| Notion, Confluence, Jira (Atlassian), Linear, Trello | ✓ | 🟡 | Notion and Linear through Alia's remote MCP connectors (OAuth finished by Astro); no Confluence, Jira or Trello in Alia; Notion / Confluence live folders done (§3) |
+| GitHub, Figma, Canva | ✓ | 🟡 | GitHub through Alia's remote MCP connector; no Figma or Canva in Alia; GitHub live folder done (§3) |
 | Outlook, Teams, SharePoint | ✓ | ⏸ | |
 | Zoom, Loom, Granola, Amplitude, Salesforce, LinkedIn | ✓ | ⏸ | |
-| Write actions with approval ("Always allow for this chat") | ✓ | ⏸ | |
+| Write actions with approval ("Always allow for this chat") | ✓ | ⛔ | Alia runs app tools under the person's authority and never asks (Alia ADR 0020 §3, no approval events); Astro asks (Allow, Always Allow in This Chat) only for its own tab tools. Needs the owner's decision on that ADR |
 | Live Calendar pinned‑tab hover, next‑meeting alerts, one‑click join | ✓ | 🟡 | from Nilo only (owner's decision, 2026-10-24), through Astro's Oxy account (`@oxy.so/services`; Settings › Oxy Account, row "Account" in §22): it reads Nilo's `/calendar`, and edits made in Nilo show within a second through Nilo's live `database:changed` socket, with the 5-minute refresh as the fallback; the system calendars (EventKit, Evolution Data Server, Windows' appointment store) are no longer read. Works on Windows and Linux; on macOS the Oxy dialog isn't mounted yet (the SDK needs Reanimated 4, which needs the New Architecture; the Mac app runs the Legacy one), so the pane says sign-in isn't available there yet. Alerts as notifications and in-window |
 
 ## 12. Bookmarks

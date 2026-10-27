@@ -11,6 +11,7 @@ import { BloomThemeProvider } from "@oxy.so/bloom/theme";
 import { ArtifactPage } from "../../../browser/src/components/artifacts/ArtifactPage";
 import { registerInternalPage } from "../../../browser/src/components/pages/registry";
 import { forgetSkills, refreshSkills } from "../../../browser/src/ai/skills/skills";
+import { startOAuthReturns } from "../../../browser/src/ai/apps/oauthReturn";
 import { ChatPanel } from "../../../browser/src/components/chat/ChatPanel";
 import { tabSlotKey, useChatSlots, windowSlotKey } from "../../../browser/src/components/chat/ChatSlots";
 import { fileItems, pastedLink } from "../../../browser/src/components/chat/files";
@@ -50,6 +51,7 @@ function AliaApiBridge() {
   const api = useAliaApi();
   const account = useOxySession((s) => s.account?.id ?? null);
   useEffect(() => registerAliaApi(api), [api]);
+  useEffect(() => startOAuthReturns(), []);
   useEffect(() => {
     forgetSkills();
     if (account) void refreshSkills({ force: true });

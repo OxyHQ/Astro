@@ -272,6 +272,44 @@ the conversation Alia stores, so an artifact tab reopens from its address after 
 - Decks and dashboards need Alia **#915** (the canvas tool's `deck` and `dashboard` types, validated, and the SDK
   drawing them in the Alia app). Until it ships, Alia can make reports, tables and code; Astro draws all five.
 
+### Connected apps
+
+`astro://apps` (`components/pages/AppsPage.tsx`, `ai/apps/apps.ts`): the apps Chat can use, through Alia's own
+connections, so a connection made in Astro works in the Alia app and back.
+
+| App | Alia | How it connects |
+| --- | --- | --- |
+| Inbox, Nilo and the other Oxy apps | first party (`oxy_<app>__*` tools) | nothing to connect: the page says so |
+| Gmail | channel account (`POST /accounts/gmail/connect`, `GET /accounts`, `DELETE /accounts/:id`) | Google's consent in a tab; Alia's callback finishes it |
+| Google Calendar, Google Drive | OAuth integrations (`GET /integrations/:service/oauth-url`, `POST /integrations/:service/complete`) | consent in a tab, finished by Astro (below) |
+| Notion, GitHub, Linear | remote MCP connectors (`POST /mcp/install { registryId }`, `POST /mcp/:id/oauth/start`, `POST /mcp/oauth/complete`) | the same |
+| Slack, and Alia's other connectors | stdio MCP servers that take a token | **Set Up in Alia…** opens `alia.onl/settings/connectors` |
+
+- **Finishing OAuth.** Alia's callbacks hand the code to its web app (`alia.onl/settings/integrations?…int_oauth_code`,
+  `…/settings/connectors?…mcp_oauth_code`), which finishes with the person's session. Astro watches its tabs for those
+  addresses while a connect it started is pending (15 min, `ai/apps/oauthReturn.ts`), finishes the link itself with the
+  Oxy session (Alia checks the state was issued to that person), and goes back to the Apps tab with "Connected". Only
+  `https://alia.onl` matches.
+- Each app lists its accounts (Gmail and Google can have several: **Add Account**), each with **Disconnect**; a
+  connector that lost its sign-in says so and offers **Reconnect**. An integration Alia hasn't configured reads "Not
+  available yet".
+- These routes (`/skills`, `/integrations`, `/mcp`, `/accounts`, `/suggestions`) are Alia's own, outside `/v1`: they
+  answer Alia's origins only to a browser, and Astro reaches them through the engine (`astroAccountFetch`, no Origin).
+- **Write actions with approval** (Dia's "Always allow for this chat") aren't possible for these apps: Alia runs every
+  tool under the person's authority and asks for nothing (Alia ADR 0020 §3: no approval events). Astro asks only for
+  its own host tools (open and close tabs, read a tab).
+- Entry points: the command bar's Connect Apps, the panel's ⋯ › Connected Apps….
+
+### Suggestions
+
+A new chat offers, above the composer (`ai/work/suggestions.ts`):
+
+- **Proactive commands** from the calendar: *Prepare for "…"* when a meeting starts within the hour, *Recap "…"* within
+  90 minutes after one ends, and *Start My Day* before noon until it has run that day (`ai/work/briefDay.ts`).
+- The tab's prompts (Summarize This Page, Explain Like I'm 5, Quiz Me…).
+- Alia's welcome suggestions (`POST /suggestions/welcome`), ranked for the tab: its title, host and description go as
+  `clientContext` (4 KB), which Alia matches against each suggestion's tags.
+
 ### macOS
 
 The shared code (`ai/chat`, `components/chat`) is platform-neutral. What macOS lacks: the Oxy SDK provider (the app is on
@@ -285,11 +323,13 @@ window), and a streaming `fetch` (the SDK's `streamFetch`; Expo's `expo/fetch` s
 - `npm test` in `apps/browser`: `ai/chat/chat.test.mjs` (state, asks, context chips, personalization carry-over, pasted
   links, mentions, the turn context), `components/chat/highlight.test.mjs`, `components/chat/charts.test.mjs`,
   `ai/skills/skills.test.mjs` (slugs, the `/` list, `/name` parsing, the Alia routes the shelf calls),
-  `ai/work/brief.test.mjs` (brief, prep, recap) and `ai/artifacts/artifacts.test.mjs` (canvas results to artifacts,
-  versions, addresses, the revision request, exports).
+  `ai/work/brief.test.mjs` (brief, prep, recap), `ai/artifacts/artifacts.test.mjs` (canvas results to artifacts,
+  versions, addresses, the revision request, exports), `ai/apps/apps.test.mjs` (the apps list, connecting, finishing
+  OAuth once and only after a connect) and `ai/work/suggestions.test.mjs`.
 - A Windows or Linux build against a local stack: `ASTRO_OXY_API_URL`, `ASTRO_NILO_API_URL`, `ASTRO_ALIA_API_URL` and
   `ASTRO_KAANA_URL` move together (`apps/webui/vite.config.ts` refuses a mix, so a local session never reaches a
-  production origin; point one you don't run at a closed port such as `http://127.0.0.1:9`). `globalThis.astro.chat` is the chat store and `astro.oxy` the session.
+  production origin; point one you don't run at a closed port such as `http://127.0.0.1:9`). `globalThis.astro.chat` is the chat store and `astro.oxy` the session;
+  `astro.skills`, `astro.apps` and `astro.artifacts` are the stores above.
   Launch it with `--host-resolver-rules="MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.alia.onl ~NOTFOUND,
   MAP kaana.ai ~NOTFOUND"` so nothing can reach production.
 - Keys and the context menu are tested with real input on a private Xvfb (XTest): a CDP key event never reaches the
