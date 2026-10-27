@@ -1,10 +1,25 @@
-import { Symbol } from "@astro-browser/shell";
+import { Button } from "@oxy.so/bloom/button";
+import { ButtonGroup, ButtonGroupItem } from "@oxy.so/bloom/button-group";
+import { Card } from "@oxy.so/bloom/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@oxy.so/bloom/dropdown-menu";
+import { EmptyState } from "@oxy.so/bloom/empty-state";
+import { RiArrowLeftSLine } from "@oxy.so/bloom/icons/RiArrowLeftSLine";
+import { RiArrowRightSLine } from "@oxy.so/bloom/icons/RiArrowRightSLine";
+import { RiChat3Line } from "@oxy.so/bloom/icons/RiChat3Line";
+import { RiDownloadLine } from "@oxy.so/bloom/icons/RiDownloadLine";
+import { RiFileTextLine } from "@oxy.so/bloom/icons/RiFileTextLine";
+import { RiPlayLine } from "@oxy.so/bloom/icons/RiPlayLine";
+import { RiShare2Line } from "@oxy.so/bloom/icons/RiShare2Line";
+import { RiSparklingLine } from "@oxy.so/bloom/icons/RiSparklingLine";
+import { Loading } from "@oxy.so/bloom/loading";
+import { Textarea } from "@oxy.so/bloom/textarea";
+import { useTheme } from "@oxy.so/bloom/theme";
+import { Text } from "@oxy.so/bloom/typography";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { alia, aliaErrorMessage, useAliaReady } from "../../ai/alia/api";
 import {
   artifactUrl,
-  KIND_ICON,
   KIND_LABEL,
   parseArtifactUrl,
   rememberArtifacts,
@@ -15,12 +30,11 @@ import {
   type StoredArtifact,
 } from "../../ai/artifacts/artifacts";
 import { openChat } from "../../ai/chatEntry";
-import { useTheme } from "../../lib/theme";
 import { signInWithOxy, useOxySession } from "../../oxy/session";
 import { useBrowser } from "../../store/browser";
-import { Button, useFormColors } from "../settings/controls";
 import { tabDestination } from "../pages/urls";
 import { ArtifactBodyView, Presenter } from "./ArtifactView";
+import { KIND_GLYPH } from "./glyphs";
 import {
   copyArtifactImage,
   copyArtifactMarkdown,
@@ -48,8 +62,7 @@ export function loadConversationArtifacts(conversationId: string): Promise<void>
 let commentSeq = 0;
 
 export function ArtifactPage({ tabId }: { tabId: string }) {
-  const theme = useTheme();
-  const colors = useFormColors();
+  const { colors } = useTheme();
   const url = useBrowser((s) => (s.tabs[tabId] ? tabDestination(s.tabs[tabId]!) : ""));
   const windowId = useBrowser((s) => s.tabs[tabId]?.windowId ?? "");
   const where = parseArtifactUrl(url);
@@ -115,12 +128,13 @@ export function ArtifactPage({ tabId }: { tabId: string }) {
   if (!ready)
     return (
       <Centered title={available ? "Sign in with Oxy to open this artifact" : "Artifacts aren't available on this Mac yet"}>
-        {available && <Button title="Sign In with Oxy…" kind="primary" onPress={() => void signInWithOxy()} />}
+        {available ? { label: "Sign In with Oxy…", onPress: () => void signInWithOxy() } : undefined}
       </Centered>
     );
-  if (!artifact) return error ? <Centered title={error} /> : <ActivityIndicator style={{ marginTop: 80 }} />;
+  if (!artifact) return error ? <Centered title={error} /> : <Loading variant="spinner" style={{ marginTop: 80 }} />;
 
   const index = versions.indexOf(artifact);
+  const Glyph = KIND_GLYPH[artifact.body.kind];
   const openLink = (link: string) => useBrowser.getState().newTab(windowId, { url: link });
   const showVersion = (v: StoredArtifact | undefined) => v && useBrowser.getState().navigate(tabId, artifactUrl(v.conversationId, v.id));
   const run = async (work: () => Promise<unknown> | unknown, done: string) => {
@@ -153,68 +167,80 @@ export function ArtifactPage({ tabId }: { tabId: string }) {
     setNote(`Sent ${comments.length === 1 ? "your comment" : `${comments.length} comments`} to Chat. The new version opens here when it's ready.`);
   };
 
-  const exportMenu = async () => {
-    const { showMenu } = await import("@astro-browser/shell");
-    const dom = exportsAvailable();
-    const choice = await showMenu([
-      { id: "pdf", title: "Save as PDF…" },
-      ...(dom
-        ? [
-            { id: "png", title: "Save as Image" },
-            { id: "copyImage", title: "Copy as Image" },
-            { id: "html", title: "Save as Web Page" },
-            { id: "md", title: "Save as Markdown" },
-          ]
-        : []),
-      { id: "copyMd", title: "Copy as Markdown" },
-    ]);
-    switch (choice) {
-      case "pdf":
-        return void run(() => printArtifact(windowId, artifact), "Opened it for printing: choose Save as PDF.");
-      case "png":
-        return void run(() => saveArtifactImage(artifact), "Saved to Downloads.");
-      case "copyImage":
-        return void run(() => copyArtifactImage(artifact), "Copied as an image.");
-      case "html":
-        return void run(() => saveArtifactHtml(artifact), "Saved to Downloads.");
-      case "md":
-        return void run(() => saveArtifactMarkdown(artifact), "Saved to Downloads.");
-      case "copyMd":
-        return void run(() => copyArtifactMarkdown(artifact), "Copied as Markdown.");
-    }
-  };
-
+  const dom = exportsAvailable();
   return (
     <View ref={rootRef} style={{ flex: 1 }}>
       <View style={{ height: 56, flexDirection: "row", alignItems: "center", paddingHorizontal: 20, gap: 10 }}>
-        <Symbol name={KIND_ICON[artifact.body.kind]} size={14} color={theme.icon} style={{ width: 18, height: 18 }} />
+        <Glyph width={18} height={18} fill={colors.icon} />
         <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: "600", color: theme.textPrimary }}>
+          <Text variant="body-semibold" numberOfLines={1}>
             {artifact.title}
           </Text>
-          <Text style={{ fontSize: 11.5, color: theme.textSecondary }}>
+          <Text variant="caption-1-regular" style={{ color: colors.textSecondary }}>
             {KIND_LABEL[artifact.body.kind]}
             {versions.length > 1 ? ` · Version ${index + 1} of ${versions.length}` : ""}
           </Text>
         </View>
         {versions.length > 1 && (
-          <View style={{ flexDirection: "row", gap: 2 }}>
-            <IconAction icon="chevron.left" label="Previous Version" disabled={index <= 0} onPress={() => showVersion(versions[index - 1])} />
-            <IconAction icon="chevron.right" label="Next Version" disabled={index >= versions.length - 1} onPress={() => showVersion(versions[index + 1])} />
-          </View>
+          <ButtonGroup>
+            <ButtonGroupItem iconOnly leadingIcon={RiArrowLeftSLine} accessibilityLabel="Previous Version" disabled={index <= 0} onPress={() => showVersion(versions[index - 1])} />
+            <ButtonGroupItem
+              iconOnly
+              leadingIcon={RiArrowRightSLine}
+              accessibilityLabel="Next Version"
+              disabled={index >= versions.length - 1}
+              onPress={() => showVersion(versions[index + 1])}
+            />
+          </ButtonGroup>
         )}
-        {artifact.body.kind === "deck" && <Button title="Present" icon="play.fill" onPress={() => setPresenting(0)} />}
-        <Button title={comments.length ? `Comments (${comments.length})` : "Comment"} icon="bubble.left" onPress={() => setPanel((p) => !p)} />
+        {artifact.body.kind === "deck" && (
+          <Button appearance="outline" tone="neutral" size="sm" leadingIcon={RiPlayLine} onPress={() => setPresenting(0)}>
+            Present
+          </Button>
+        )}
+        <Button appearance="outline" tone="neutral" size="sm" leadingIcon={RiChat3Line} onPress={() => setPanel((p) => !p)}>
+          {comments.length ? `Comments (${comments.length})` : "Comment"}
+        </Button>
         <Button
-          title="Open in Chat"
-          icon="sparkles"
+          appearance="outline"
+          tone="neutral"
+          size="sm"
+          leadingIcon={RiSparklingLine}
           onPress={() => openChat({ windowId, prompt: "", source: "artifact", conversationId: artifact.conversationId })}
-        />
-        <Button title="Share" icon="square.and.arrow.up" onPress={() => void run(() => shareConversationLink(artifact.conversationId), "Link copied. It opens this chat on alia.onl for 7 days.")} />
-        <Button title="Export" icon="arrow.down.doc" onPress={() => void exportMenu()} />
+        >
+          Open in Chat
+        </Button>
+        <Button
+          appearance="outline"
+          tone="neutral"
+          size="sm"
+          leadingIcon={RiShare2Line}
+          onPress={() => void run(() => shareConversationLink(artifact.conversationId), "Link copied. It opens this chat on alia.onl for 7 days.")}
+        >
+          Share
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild label="Export" style={{ alignSelf: "center" }}>
+            <Button appearance="outline" tone="neutral" size="sm" leadingIcon={RiDownloadLine}>
+              Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onPress={() => void run(() => printArtifact(windowId, artifact), "Opened it for printing: choose Save as PDF.")}>Save as PDF…</DropdownMenuItem>
+            {dom ? (
+              <>
+                <DropdownMenuItem onPress={() => void run(() => saveArtifactImage(artifact), "Saved to Downloads.")}>Save as Image</DropdownMenuItem>
+                <DropdownMenuItem onPress={() => void run(() => copyArtifactImage(artifact), "Copied as an image.")}>Copy as Image</DropdownMenuItem>
+                <DropdownMenuItem onPress={() => void run(() => saveArtifactHtml(artifact), "Saved to Downloads.")}>Save as Web Page</DropdownMenuItem>
+                <DropdownMenuItem onPress={() => void run(() => saveArtifactMarkdown(artifact), "Saved to Downloads.")}>Save as Markdown</DropdownMenuItem>
+              </>
+            ) : null}
+            <DropdownMenuItem onPress={() => void run(() => copyArtifactMarkdown(artifact), "Copied as Markdown.")}>Copy as Markdown</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </View>
       {note ? (
-        <Text style={{ paddingHorizontal: 20, paddingBottom: 6, fontSize: 12.5, color: theme.accent }} onPress={() => setNote(null)}>
+        <Text variant="body-2-medium" style={{ paddingHorizontal: 20, paddingBottom: 6, color: colors.primary }} onPress={() => setNote(null)}>
           {note}
         </Text>
       ) : null}
@@ -225,85 +251,74 @@ export function ArtifactPage({ tabId }: { tabId: string }) {
           </View>
         </ScrollView>
         {(panel || composing !== null) && (
-          <View style={{ width: 300, borderLeftWidth: StyleSheet.hairlineWidth * 2, borderColor: colors.separator, padding: 14, gap: 10 }}>
-            <Text style={{ fontSize: 13, fontWeight: "600", color: theme.textPrimary }}>Comments</Text>
-            <Text style={{ fontSize: 12, color: theme.textSecondary }}>Select text to comment on it. Alia applies them all at once in a new version.</Text>
+          <View style={{ width: 300, borderLeftWidth: 1, borderColor: colors.borderLight, padding: 14, gap: 10 }}>
+            <Text variant="body-semibold">Comments</Text>
+            <Text variant="caption-1-regular" style={{ color: colors.textSecondary }}>
+              Select text to comment on it. Alia applies them all at once in a new version.
+            </Text>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: 8 }}>
               {comments.map((c) => (
-                <View key={c.id} style={{ padding: 10, borderRadius: 10, backgroundColor: colors.group, gap: 4 }}>
+                <Card key={c.id} appearance="subtle" style={{ padding: 10 }} contentStyle={{ gap: 4 }}>
                   {c.quote ? (
-                    <Text numberOfLines={3} style={{ fontSize: 12, fontStyle: "italic", color: theme.textSecondary }}>
+                    <Text variant="caption-1-regular" numberOfLines={3} style={{ fontStyle: "italic", color: colors.textSecondary }}>
                       “{c.quote}”
                     </Text>
                   ) : null}
-                  <Text style={{ fontSize: 13, color: theme.textPrimary }}>{c.text}</Text>
-                  <Text accessibilityRole="button" onPress={() => setComments((all) => all.filter((x) => x.id !== c.id))} style={{ fontSize: 12, color: theme.accent }}>
-                    Remove
-                  </Text>
-                </View>
-              ))}
-              {composing !== null || panel ? (
-                <View style={{ gap: 6 }}>
-                  {composing ? (
-                    <Text numberOfLines={3} style={{ fontSize: 12, fontStyle: "italic", color: theme.textSecondary }}>
-                      “{composing}”
-                    </Text>
-                  ) : null}
-                  <TextInput
-                    value={draft}
-                    onChangeText={setDraft}
-                    placeholder={composing ? "Your comment" : "A comment on the whole thing"}
-                    placeholderTextColor={theme.textTertiary}
-                    multiline
-                    autoFocus={composing !== null}
-                    enableFocusRing={false}
-                    style={{
-                      minHeight: 64,
-                      padding: 8,
-                      borderRadius: 8,
-                      fontSize: 13,
-                      color: theme.textPrimary,
-                      backgroundColor: colors.field,
-                      borderWidth: StyleSheet.hairlineWidth * 2,
-                      borderColor: colors.fieldBorder,
-                      textAlignVertical: "top",
-                    }}
-                  />
-                  <View style={{ flexDirection: "row", gap: 6, justifyContent: "flex-end" }}>
-                    {composing !== null && <Button title="Cancel" onPress={() => (setComposing(null), setDraft(""))} />}
-                    <Button title="Add Comment" disabled={!draft.trim()} onPress={addComment} />
+                  <Text variant="body-2-regular">{c.text}</Text>
+                  <View style={{ flexDirection: "row" }}>
+                    <Button appearance="plain" tone="accent" size="xs" onPress={() => setComments((all) => all.filter((x) => x.id !== c.id))}>
+                      Remove
+                    </Button>
                   </View>
+                </Card>
+              ))}
+              <View style={{ gap: 6 }}>
+                {composing ? (
+                  <Text variant="caption-1-regular" numberOfLines={3} style={{ fontStyle: "italic", color: colors.textSecondary }}>
+                    “{composing}”
+                  </Text>
+                ) : null}
+                <Textarea
+                  label={composing ? "Your comment" : "A comment on the whole thing"}
+                  placeholder={composing ? "Your comment" : "A comment on the whole thing"}
+                  value={draft}
+                  onValueChange={setDraft}
+                  rows={3}
+                  autoFocus={composing !== null}
+                />
+                <View style={{ flexDirection: "row", gap: 6, justifyContent: "flex-end" }}>
+                  {composing !== null && (
+                    <Button appearance="outline" tone="neutral" size="sm" onPress={() => (setComposing(null), setDraft(""))}>
+                      Cancel
+                    </Button>
+                  )}
+                  <Button appearance="subtle" tone="neutral" size="sm" disabled={!draft.trim()} onPress={addComment}>
+                    Add Comment
+                  </Button>
                 </View>
-              ) : null}
+              </View>
             </ScrollView>
-            <Button title={revising ? "Revising…" : `Apply ${comments.length || ""} Comment${comments.length === 1 ? "" : "s"}`.replace("  ", " ")} kind="primary" disabled={!comments.length || !!revising} onPress={applyComments} />
+            <Button appearance="solid" tone="accent" size="sm" loading={!!revising} disabled={!comments.length || !!revising} onPress={applyComments}>
+              {revising ? "Revising…" : `Apply ${comments.length || ""} Comment${comments.length === 1 ? "" : "s"}`.replace("  ", " ")}
+            </Button>
           </View>
         )}
       </View>
       {quote && composing === null && (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            setComposing(quote.text);
-            setPanel(true);
-          }}
-          style={{
-            position: "absolute",
-            left: Math.max(8, quote.x - 48),
-            top: Math.max(8, quote.y - 36),
-            height: 28,
-            paddingHorizontal: 10,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 5,
-            borderRadius: 8,
-            backgroundColor: theme.dark ? "#2f2c31" : "#FFFFFF",
-            boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
-          }}
-        >
-          <Symbol name="bubble.left" size={11} color={theme.icon} style={{ width: 14, height: 14 }} />
-          <Text style={{ fontSize: 12.5, fontWeight: "600", color: theme.textPrimary }}>Comment</Text>
-        </Pressable>
+        <View style={{ position: "absolute", left: Math.max(8, quote.x - 48), top: Math.max(8, quote.y - 40) }}>
+          <Button
+            appearance="solid"
+            tone="neutral"
+            size="sm"
+            leadingIcon={RiChat3Line}
+            onPress={() => {
+              setComposing(quote.text);
+              setPanel(true);
+            }}
+          >
+            Comment
+          </Button>
+        </View>
       )}
       {presenting !== null && artifact.body.kind === "deck" && (
         <Presenter slides={artifact.body.slides} start={presenting} onClose={() => setPresenting(null)} onLink={openLink} />
@@ -312,28 +327,10 @@ export function ArtifactPage({ tabId }: { tabId: string }) {
   );
 }
 
-function IconAction({ icon, label, onPress, disabled }: { icon: string; label: string; onPress: () => void; disabled?: boolean }) {
-  const theme = useTheme();
+function Centered({ title, children }: { title: string; children?: { label: string; onPress: () => void } }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      disabled={disabled}
-      onPress={onPress}
-      style={{ width: 26, height: 26, alignItems: "center", justifyContent: "center", opacity: disabled ? 0.35 : 1 }}
-    >
-      <Symbol name={icon} size={12} color={theme.icon} style={{ width: 16, height: 16 }} />
-    </Pressable>
-  );
-}
-
-function Centered({ title, children }: { title: string; children?: React.ReactNode }) {
-  const theme = useTheme();
-  return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingBottom: 80 }}>
-      <Symbol name="doc.text" size={28} color={theme.textTertiary} style={{ width: 40, height: 40 }} />
-      <Text style={{ fontSize: 15, fontWeight: "500", color: theme.textSecondary, textAlign: "center", maxWidth: 420 }}>{title}</Text>
-      {children}
+    <View style={{ flex: 1, justifyContent: "center", paddingBottom: 80 }}>
+      <EmptyState icon={RiFileTextLine} title={title} {...(children ? { action: children } : {})} />
     </View>
   );
 }

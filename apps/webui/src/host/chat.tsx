@@ -1,17 +1,23 @@
 import { AliaRuntimeProvider, useAliaApi } from "@alia.onl/sdk/runtime";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { createPortal } from "react-dom";
-import { Pressable, Text, View } from "react-native";
+import { ButtonGroup, ButtonGroupItem } from "@oxy.so/bloom/button-group";
+import { EmptyState } from "@oxy.so/bloom/empty-state";
+import { RiCloseLine } from "@oxy.so/bloom/icons/RiCloseLine";
+import { RiSparklingLine } from "@oxy.so/bloom/icons/RiSparklingLine";
+import { View } from "react-native";
 import { closeChat, isChatTabUrl, openChatFromEntry } from "../../../browser/src/ai/chat/actions";
-import { IconButton } from "../../../browser/src/components/primitives";
 import { addChatContext, chatItemId, useChat } from "../../../browser/src/ai/chat/state";
 import { registerChatOpener } from "../../../browser/src/ai/chatEntry";
 import { registerAliaApi } from "../../../browser/src/ai/alia/api";
 import { BloomThemeProvider } from "@oxy.so/bloom/theme";
 import { ArtifactPage } from "../../../browser/src/components/artifacts/ArtifactPage";
+import { AppsPage } from "../../../browser/src/components/pages/AppsPage";
+import { SkillsPage } from "../../../browser/src/components/pages/SkillsPage";
 import { registerInternalPage } from "../../../browser/src/components/pages/registry";
 import { forgetSkills, refreshSkills } from "../../../browser/src/ai/skills/skills";
 import { startOAuthReturns } from "../../../browser/src/ai/apps/oauthReturn";
+import { ChatFrame } from "../../../browser/src/components/chat/ChatFrame";
 import { ChatPanel } from "../../../browser/src/components/chat/ChatPanel";
 import { tabSlotKey, useChatSlots, windowSlotKey } from "../../../browser/src/components/chat/ChatSlots";
 import { fileItems, pastedLink } from "../../../browser/src/components/chat/files";
@@ -24,16 +30,20 @@ import { AreaCapture } from "./areaCapture";
 import { engineStreamFetch } from "./fetch";
 import { usePageWindowId } from "./windows";
 
-function ThemedArtifactPage({ tabId }: { tabId: string }) {
-  const theme = useTheme();
-  return (
-    <BloomThemeProvider mode={theme.dark ? "dark" : "light"}>
-      <ArtifactPage tabId={tabId} />
-    </BloomThemeProvider>
-  );
+function themed(Page: ComponentType<{ tabId: string }>) {
+  return function ThemedPage({ tabId }: { tabId: string }) {
+    const theme = useTheme();
+    return (
+      <BloomThemeProvider mode={theme.dark ? "dark" : "light"}>
+        <Page tabId={tabId} />
+      </BloomThemeProvider>
+    );
+  };
 }
 
-registerInternalPage("artifact", ThemedArtifactPage);
+registerInternalPage("artifact", themed(ArtifactPage));
+registerInternalPage("skills", themed(SkillsPage));
+registerInternalPage("apps", themed(AppsPage));
 
 export function ChatHost({ aliaURL }: { aliaURL: string }) {
   const windowId = usePageWindowId();
@@ -132,7 +142,9 @@ function WindowChat({ windowId }: { windowId: string }) {
   return createPortal(
     <WindowContext.Provider value={windowId}>
       <ThemeScope>
-        <SignedInChat windowId={windowId} inTab={inTab} />
+        <ChatFrame windowId={windowId} inTab={inTab}>
+          <SignedInChat windowId={windowId} inTab={inTab} />
+        </ChatFrame>
       </ThemeScope>
     </WindowContext.Provider>,
     container,
@@ -148,31 +160,21 @@ function SignedInChat({ windowId, inTab }: { windowId: string; inTab: boolean })
 }
 
 function SignInToChat({ windowId, inTab }: { windowId: string; inTab: boolean }) {
-  const theme = useTheme();
   return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 12 }}>
+    <View style={{ flex: 1, justifyContent: "center" }}>
       {!inTab && (
-        <IconButton
-          icon="xmark"
-          size={12}
-          weight="medium"
-          box={28}
-          tooltip="Close Chat"
-          onPress={() => closeChat(windowId)}
-          style={{ position: "absolute", top: 8, right: 6 }}
-        />
+        <ButtonGroup size="sm" accessibilityLabel="Chat" style={{ position: "absolute", top: 8, right: 6 }}>
+          <ButtonGroupItem iconOnly leadingIcon={RiCloseLine} accessibilityLabel="Close Chat" onPress={() => closeChat(windowId)} />
+        </ButtonGroup>
       )}
-      <Text style={{ fontSize: 17, fontWeight: "600", color: theme.textPrimary, textAlign: "center" }}>Chat with Alia</Text>
-      <Text style={{ fontSize: 13, lineHeight: 19, color: theme.textSecondary, textAlign: "center" }}>
-        Ask about the page you're on, your tabs and files, or anything else. Chat uses your Oxy account.
-      </Text>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => void signInWithOxy()}
-        style={{ marginTop: 4, paddingHorizontal: 14, height: 32, borderRadius: 8, justifyContent: "center", backgroundColor: theme.accent }}
-      >
-        <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF" }}>Sign In with Oxy…</Text>
-      </Pressable>
+      <EmptyState
+        variant="compact"
+        media="circle"
+        icon={RiSparklingLine}
+        title="Chat with Alia"
+        description="Ask about the page you're on, your tabs and files, or anything else. Chat uses your Oxy account."
+        action={{ label: "Sign In with Oxy…", onPress: () => void signInWithOxy() }}
+      />
     </View>
   );
 }

@@ -1,9 +1,33 @@
 import { AliaRuntimeProvider, useConversationThread, type AliaRuntimeHost, type AliaTurnRequest } from "@alia.onl/sdk/runtime";
 import type { Message } from "@alia.onl/sdk/model";
 import { getTextFromContent } from "@alia.onl/sdk/content";
+import { useDeleteConversation } from "@alia.onl/sdk/runtime";
+import { AiChatContainer } from "@oxy.so/bloom/ai-chat";
+import { AppShell } from "@oxy.so/bloom/app-shell";
+import { ButtonGroup, ButtonGroupItem } from "@oxy.so/bloom/button-group";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@oxy.so/bloom/dropdown-menu";
+import { EmptyState, type EmptyStateSuggestion } from "@oxy.so/bloom/empty-state";
+import { RiAddLine } from "@oxy.so/bloom/icons/RiAddLine";
+import { RiCheckboxCircleLine } from "@oxy.so/bloom/icons/RiCheckboxCircleLine";
+import { RiCloseLine } from "@oxy.so/bloom/icons/RiCloseLine";
+import { RiHistoryLine } from "@oxy.so/bloom/icons/RiHistoryLine";
+import { RiLightbulbLine } from "@oxy.so/bloom/icons/RiLightbulbLine";
+import { RiMoreFill } from "@oxy.so/bloom/icons/RiMoreFill";
+import { RiSparklingLine } from "@oxy.so/bloom/icons/RiSparklingLine";
+import { RiSunLine } from "@oxy.so/bloom/icons/RiSunLine";
+import { RiTeamLine } from "@oxy.so/bloom/icons/RiTeamLine";
+import { RiChat3Line } from "@oxy.so/bloom/icons/RiChat3Line";
+import { RiGlobalLine } from "@oxy.so/bloom/icons/RiGlobalLine";
+import { PageHeader } from "@oxy.so/bloom/page-header";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PanResponder, Pressable, Text, View, type TextInput } from "react-native";
-import { Symbol } from "@astro-browser/shell";
+import { PanResponder, View, type TextInput } from "react-native";
 import { closeChat, newChat, openChatTab, setChatPlacement, setComposerFocused, showChatConversation, toggleChatHistory } from "../../ai/chat/actions";
 import { buildTurnContext } from "../../ai/chat/clientContext";
 import { astroHostTools } from "../../ai/chat/hostTools";
@@ -27,12 +51,10 @@ import { openInternalPage, openSkillsPage } from "../pages/urls";
 import { artifactOfTool, rememberArtifacts, rememberLiveArtifact, type Artifact } from "../../ai/artifacts/artifacts";
 import { openArtifactTab } from "../artifacts/open";
 import { webviews } from "../../lib/webviews";
-import { layout, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { activeTabId } from "../../store/model";
-import { IconButton } from "../primitives";
 import { ChatComposer, type ComposerAction } from "./ChatComposer";
-import { ChatHistory, ASTRO_APP } from "./ChatHistory";
+import { ChatHistory, ASTRO_APP, deleteAllChats, useChatList } from "./ChatHistory";
 import { moveFloatingChat } from "./ChatSlots";
 import { captureFullPage, startAreaCapture } from "./capture";
 import { ChatThreadView, type ThreadActions } from "./ChatThread";
@@ -56,7 +78,7 @@ type SdkAttachment = { id: string; uri: string; type: "image" | "document"; name
 let pendingSeq = 0;
 
 const TOOLBAR_GLYPH_CENTER = 21.2;
-const HEADER_CENTER_SHIFT = 2 * TOOLBAR_GLYPH_CENTER - layout.toolbarHeight;
+const PAGE_HEADER_COMPACT_CENTER = 18.4;
 
 const researchTurns = new Set<string>();
 
@@ -114,7 +136,6 @@ function quoteOf(items: ChatContextItem[]): string {
 const ONE_SHOT = new Set<ChatContextItem["kind"]>(["file", "screenshot", "selection", "link", "skill"]);
 
 function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelProps) {
-  const theme = useTheme();
   const conversationId = useWindowChat(windowId, (c) => c.conversationId);
   const history = useWindowChat(windowId, (c) => c.history);
   const placement = useWindowChat(windowId, (c) => c.placement);
@@ -347,68 +368,94 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
     />
   );
 
+  const cancelEdit = () => {
+    setEditing(null);
+    updateWindowChat(windowId, { draft: "" });
+  };
+
+  const header = (
+    <View {...(placement === "floating" && !inTab ? dragHeader.panHandlers : {})} style={{ paddingTop: TOOLBAR_GLYPH_CENTER - PAGE_HEADER_COMPACT_CENTER }}>
+      <PageHeader
+        density="compact"
+        safeArea={false}
+        titleAlign="start"
+        headingLevel={2}
+        title={history ? "Chats" : title}
+        actions={
+          <ButtonGroup size="sm" accessibilityLabel="Chat">
+            <ButtonGroupItem iconOnly leadingIcon={RiAddLine} accessibilityLabel="New Chat" onPress={() => newChat(windowId)} />
+            <ButtonGroupItem
+              iconOnly
+              leadingIcon={RiHistoryLine}
+              accessibilityLabel="Chat History"
+              checked={history}
+              onPress={() => toggleChatHistory(windowId)}
+            />
+            <PanelMenu
+              windowId={windowId}
+              inTab={inTab}
+              placement={placement}
+              conversationId={conversationId}
+              personal={personal}
+              personalizationSupported={personalizationSupported}
+              history={history}
+              clear={thread.clearConversation}
+            />
+            {!inTab && <ButtonGroupItem iconOnly leadingIcon={RiCloseLine} accessibilityLabel="Close Chat" onPress={() => closeChat(windowId)} />}
+          </ButtonGroup>
+        }
+      />
+    </View>
+  );
+
+  const composer = history ? undefined : (
+    <ChatComposer
+      windowId={windowId}
+      busy={busy}
+      disabled={false}
+      powerLevel={powerLevel}
+      personalization={personalizationSupported ? personal : null}
+      inputRef={inputRef}
+      onSubmit={submit}
+      onStop={() => thread.stopGeneration()}
+      onAction={(action) => void onAction(action)}
+      onPickMention={onPickMention}
+      onPowerLevel={(level) => useBrowser.getState().updateSettings({ chatPowerLevel: level })}
+      editing={!!editing}
+      onCancelEdit={cancelEdit}
+      question={<ToolApprovals windowId={windowId} />}
+    />
+  );
+
   return (
     <View style={{ flex: 1 }} onFocus={() => setComposerFocused(windowId)} onBlur={() => setComposerFocused(null)}>
-      <View
-        {...(placement === "floating" && !inTab ? dragHeader.panHandlers : {})}
-        style={{ height: layout.toolbarHeight, paddingTop: HEADER_CENTER_SHIFT, flexDirection: "row", alignItems: "center", paddingLeft: 14, paddingRight: 6, gap: 2 }}
-      >
-        <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, fontWeight: "600", color: theme.textPrimary }}>
-          {history ? "Chats" : title}
-        </Text>
-        <IconButton icon="plus" size={13} box={28} tooltip="New Chat" onPress={() => newChat(windowId)} />
-        <IconButton icon="clock" size={13} box={28} tooltip="Chat History" onPress={() => toggleChatHistory(windowId)} />
-        <IconButton
-          icon="ellipsis"
-          size={13}
-          box={28}
-          tooltip="More"
-          onPress={() => void showPanelMenu(windowId, inTab, placement, conversationId, personal, personalizationSupported, thread.clearConversation)}
-        />
-        {!inTab && <IconButton icon="xmark" size={12} weight="medium" box={28} tooltip="Close Chat" onPress={() => closeChat(windowId)} />}
-      </View>
-      {history ? (
-        <ChatHistory current={conversationId} onOpen={(id) => showChatConversation(windowId, id)} />
-      ) : (
-        <>
-          <View style={{ flex: 1, width: "100%", maxWidth: inTab ? 820 : undefined, alignSelf: "center" }}>
-            {thread.conversationLoading ? null : (
-              <ChatThreadView messages={thread.messages} isLoading={thread.isLoading} failedTurn={thread.failedTurn} actions={actions} empty={empty} />
-            )}
-          </View>
-          {editing && (
-            <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingBottom: 4, gap: 8 }}>
-              <Text style={{ flex: 1, fontSize: 12, color: theme.textSecondary }}>Editing your message</Text>
-              <Text
-                accessibilityRole="button"
-                onPress={() => {
-                  setEditing(null);
-                  updateWindowChat(windowId, { draft: "" });
-                }}
-                style={{ fontSize: 12, color: theme.accent }}
-              >
-                Cancel
-              </Text>
-            </View>
-          )}
-          <View style={{ width: "100%", maxWidth: inTab ? 820 : undefined, alignSelf: "center" }}>
-            <ToolApprovals windowId={windowId} />
-            <ChatComposer
-              windowId={windowId}
-              busy={busy}
-              disabled={false}
-              powerLevel={powerLevel}
-              personalization={personalizationSupported ? personal : null}
-              inputRef={inputRef}
-              onSubmit={submit}
-              onStop={() => thread.stopGeneration()}
-              onAction={(action) => void onAction(action)}
-              onPickMention={onPickMention}
-              onPowerLevel={(level) => useBrowser.getState().updateSettings({ chatPowerLevel: level })}
-            />
-          </View>
-        </>
-      )}
+      <AppShell
+        gutter={0}
+        safeArea={false}
+        contentMaxWidth="none"
+        style={{ flex: 1, backgroundColor: "transparent" }}
+        panelLayout={{
+          mode: "split",
+          flow: "bounded",
+          activePanel: "chat",
+          panels: [
+            {
+              id: "chat",
+              appearance: "plain",
+              scroll: "content",
+              content: (
+                <AiChatContainer surface={false} header={header} composer={composer}>
+                  {history ? (
+                    <ChatHistory current={conversationId} onOpen={(id) => showChatConversation(windowId, id)} onNewChat={() => newChat(windowId)} />
+                  ) : thread.conversationLoading ? null : (
+                    <ChatThreadView messages={thread.messages} isLoading={thread.isLoading} failedTurn={thread.failedTurn} actions={actions} empty={empty} />
+                  )}
+                </AiChatContainer>
+              ),
+            },
+          ],
+        }}
+      />
     </View>
   );
 }
@@ -428,47 +475,61 @@ async function screenshotActiveTab(windowId: string) {
   }));
 }
 
-async function showPanelMenu(
-  windowId: string,
-  inTab: boolean,
-  placement: "sidebar" | "floating",
-  conversationId: string | null,
-  personal: boolean,
-  personalizationSupported: boolean,
-  clear: () => Promise<boolean>,
-) {
-  const { showMenu } = await import("@astro-browser/shell");
-  const choice = await showMenu([
-    ...(inTab ? [] : [{ id: "tab", title: "Open Chat in Tab" }]),
-    ...(inTab || placement === "floating" ? [{ id: "sidebar", title: "Show Chat in Sidebar" }] : []),
-    ...(inTab || placement === "sidebar" ? [{ id: "floating", title: "Show Chat as Floating Window" }] : []),
-    { separator: true as const },
-    ...(personalizationSupported && conversationId ? [{ id: "personal", title: "Personalization for This Chat", checked: personal }] : []),
-    ...(conversationId ? [{ id: "clear", title: "Clear Chat" }] : []),
-    { separator: true as const },
-    { id: "skills", title: "Skills…" },
-    { id: "apps", title: "Connected Apps…" },
-  ]);
-  switch (choice) {
-    case "tab":
-      return openChatTab(windowId);
-    case "sidebar":
-    case "floating":
-      return setChatPlacement(windowId, choice);
-    case "personal":
-      if (conversationId) setPersonalizationOff(conversationId, personal);
-      return;
-    case "clear":
-      return void clear();
-    case "skills":
-      return openSkillsPage(windowId);
-    case "apps":
-      return openInternalPage("apps", windowId);
-  }
+function PanelMenu({
+  windowId,
+  inTab,
+  placement,
+  conversationId,
+  personal,
+  personalizationSupported,
+  history,
+  clear,
+}: {
+  windowId: string;
+  inTab: boolean;
+  placement: "sidebar" | "floating";
+  conversationId: string | null;
+  personal: boolean;
+  personalizationSupported: boolean;
+  history: boolean;
+  clear: () => Promise<boolean>;
+}) {
+  const { all } = useChatList();
+  const { mutateAsync: remove } = useDeleteConversation();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild label="More">
+        <ButtonGroupItem iconOnly leadingIcon={RiMoreFill} accessibilityLabel="More" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {!inTab && <DropdownMenuItem onPress={() => openChatTab(windowId)}>Open Chat in Tab</DropdownMenuItem>}
+        {(inTab || placement === "floating") && <DropdownMenuItem onPress={() => setChatPlacement(windowId, "sidebar")}>Show Chat in Sidebar</DropdownMenuItem>}
+        {(inTab || placement === "sidebar") && (
+          <DropdownMenuItem onPress={() => setChatPlacement(windowId, "floating")}>Show Chat as Floating Window</DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        {personalizationSupported && conversationId && (
+          <DropdownMenuCheckboxItem checked={personal} onCheckedChange={() => setPersonalizationOff(conversationId, personal)}>
+            Personalization for This Chat
+          </DropdownMenuCheckboxItem>
+        )}
+        {conversationId && !history && <DropdownMenuItem onPress={() => void clear()}>Clear Chat</DropdownMenuItem>}
+        {history && all.length > 0 && (
+          <DropdownMenuItem tone="danger" onPress={() => void deleteAllChats(all, remove)}>
+            Delete All Chats…
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onPress={() => openSkillsPage(windowId)}>Skills…</DropdownMenuItem>
+        <DropdownMenuItem onPress={() => openInternalPage("apps", windowId)}>Connected Apps…</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
+const COMMAND_ICON = { brief: RiSunLine, prep: RiTeamLine, recap: RiCheckboxCircleLine, research: RiSparklingLine } as const;
+
 function EmptyChat({ windowId, onPrompt, onCommand }: { windowId: string; onPrompt: (prompt: string) => void; onCommand: (command: AstroCommand, title: string) => void }) {
-  const theme = useTheme();
   const tab = useBrowser((s) => {
     const id = activeTabId(s, windowId);
     return id ? s.tabs[id] : undefined;
@@ -497,25 +558,24 @@ function EmptyChat({ windowId, onPrompt, onCommand }: { windowId: string; onProm
       clearTimeout(timer);
     };
   }, [context]);
-  const row = (key: string, title: string, icon: string, onPress: () => void) => (
-    <Pressable key={key} accessibilityRole="button" onPress={onPress} style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 }}>
-      <Symbol name={icon} size={11} color={theme.textSecondary} style={{ width: 14, height: 14 }} />
-      <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: theme.textSecondary }}>
-        {title}
-      </Text>
-    </Pressable>
-  );
+  const suggestions: EmptyStateSuggestion[] = [
+    ...commands.map((c) => ({ id: c.key, label: c.title, icon: COMMAND_ICON[c.command], onPress: () => onCommand(c.command, c.title) })),
+    ...prompts.map((p) => ({ id: p.id, label: p.title, icon: RiSparklingLine, onPress: () => onPrompt(p.prompt) })),
+    ...welcome
+      .slice(0, Math.max(1, 5 - commands.length - prompts.length))
+      .map((w) => ({ id: w.key, label: w.title, icon: RiLightbulbLine, onPress: () => onPrompt(w.prompt) })),
+  ];
   return (
-    <View style={{ flex: 1, justifyContent: "flex-end", paddingHorizontal: 16, paddingBottom: 12, gap: 2 }}>
-      <Text style={{ fontSize: 20, fontWeight: "600", color: theme.textPrimary, marginBottom: 8 }}>
-        {onPage ? "Ask about this tab" : "What's on your mind?"}
-      </Text>
-      {commands.map((c) => row(c.key, c.title, c.command === "brief" ? "sun.max" : c.command === "prep" ? "person.2" : "text.badge.checkmark", () => onCommand(c.command, c.title)))}
-      {prompts.map((p) => row(p.id, p.title, "sparkles", () => onPrompt(p.prompt)))}
-      {welcome.slice(0, Math.max(1, 5 - commands.length - prompts.length)).map((w) => row(w.key, w.title, "lightbulb", () => onPrompt(w.prompt)))}
+    <View style={{ flex: 1, justifyContent: "center", paddingHorizontal: 16 }}>
+      <EmptyState
+        variant="compact"
+        icon={onPage ? RiGlobalLine : RiChat3Line}
+        title={onPage ? "Ask about this tab" : "What's on your mind?"}
+        suggestions={suggestions}
+        suggestionsLabel="Suggestions"
+      />
     </View>
   );
 }
-
 
 export { personalizationOff };

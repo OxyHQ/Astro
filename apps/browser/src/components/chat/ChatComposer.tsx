@@ -1,17 +1,26 @@
+import { ComposerBanner, SuggestionList, type ChatComposerSuggestion } from "@oxy.so/bloom/chat-composer";
+import { Chip, ChipRow } from "@oxy.so/bloom/chip";
+import { ComposerLoader } from "@oxy.so/bloom/composer-loader";
 import { ComposerPill, type ComposerPanelAddMenuGroup, type ComposerPanelAttachment } from "@oxy.so/bloom/composer-panel";
 import { RiAtLine } from "@oxy.so/bloom/icons/RiAtLine";
 import { RiAttachment2 } from "@oxy.so/bloom/icons/RiAttachment2";
 import { RiCameraLine } from "@oxy.so/bloom/icons/RiCameraLine";
-import { RiFileImageLine } from "@oxy.so/bloom/icons/RiFileImageLine";
+import { RiCheckboxCircleLine } from "@oxy.so/bloom/icons/RiCheckboxCircleLine";
 import { RiCropLine } from "@oxy.so/bloom/icons/RiCropLine";
+import { RiDoubleQuotesL } from "@oxy.so/bloom/icons/RiDoubleQuotesL";
+import { RiFileImageLine } from "@oxy.so/bloom/icons/RiFileImageLine";
 import { RiGlobalLine } from "@oxy.so/bloom/icons/RiGlobalLine";
+import { RiSearchLine } from "@oxy.so/bloom/icons/RiSearchLine";
+import { RiSparklingLine } from "@oxy.so/bloom/icons/RiSparklingLine";
+import { RiStackLine } from "@oxy.so/bloom/icons/RiStackLine";
+import { RiSunLine } from "@oxy.so/bloom/icons/RiSunLine";
+import { RiTeamLine } from "@oxy.so/bloom/icons/RiTeamLine";
 import { RiUserLine } from "@oxy.so/bloom/icons/RiUserLine";
-import { Symbol } from "@astro-browser/shell";
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Pressable, ScrollView, Text, TextInput, View, type TextInputKeyPressEvent } from "react-native";
+import { Text } from "@oxy.so/bloom/typography";
+import { useEffect, useMemo, useState, type ReactNode, type RefObject } from "react";
+import { View, type TextInput, type TextInputKeyPressEvent } from "react-native";
 import { addChatContext, chatItemId, removeChatContext, updateWindowChat, useWindowChat, type ChatContextItem } from "../../ai/chat/state";
-import { refreshSkills, SLASH, slashCandidates, useSkills, type SlashCandidate } from "../../ai/skills/skills";
-import { useTheme } from "../../lib/theme";
+import { refreshSkills, SLASH, slashCandidates, useSkills, type AstroCommand, type SlashCandidate } from "../../ai/skills/skills";
 import { useBrowser } from "../../store/browser";
 import { activeTabId } from "../../store/model";
 import { Favicon } from "../primitives";
@@ -35,6 +44,9 @@ export function ChatComposer({
   onAction,
   onPickMention,
   onPowerLevel,
+  editing,
+  onCancelEdit,
+  question,
 }: {
   windowId: string;
   busy: boolean;
@@ -47,6 +59,9 @@ export function ChatComposer({
   onAction: (action: ComposerAction) => void;
   onPickMention: (candidate: MentionCandidate) => void;
   onPowerLevel: (level: string) => void;
+  editing: boolean;
+  onCancelEdit: () => void;
+  question?: ReactNode;
 }) {
   const draft = useWindowChat(windowId, (c) => c.draft);
   const context = useWindowChat(windowId, (c) => c.context);
@@ -140,39 +155,87 @@ export function ChatComposer({
     }
   };
 
+  const listing = query !== null && candidates.length > 0 ? "mention" : slashQuery !== null && skills.length > 0 ? "command" : null;
+  const suggestions = useMemo<ChatComposerSuggestion[]>(
+    () => (listing === "mention" ? candidates.map(mentionSuggestion) : listing === "command" ? skills.map(slashSuggestion) : []),
+    [listing, candidates, skills],
+  );
+
   return (
-    <View style={{ gap: 6, paddingHorizontal: 10, paddingBottom: 10 }}>
-      {query !== null && candidates.length > 0 && <MentionList candidates={candidates} highlight={highlight} onPick={pick} />}
-      {slashQuery !== null && skills.length > 0 && <SlashList candidates={skills} highlight={highlight} onPick={pickSkill} />}
+    <View style={{ gap: 8 }}>
+      {question}
+      {editing && <ComposerBanner kind="edit" title="Editing your message" preview={draft} onClose={onCancelEdit} closeLabel="Cancel editing" />}
+      {listing && (
+        <SuggestionList
+          kind={listing}
+          header={listing === "command" ? "Skills" : undefined}
+          suggestions={suggestions}
+          activeIndex={Math.min(highlight, suggestions.length - 1)}
+          onActiveIndexChange={setHighlight}
+          onSelectSuggestion={(_, index) => {
+            if (listing === "mention") {
+              const chosen = candidates[index];
+              if (chosen) pick(chosen);
+            } else {
+              const chosen = skills[index];
+              if (chosen) pickSkill(chosen);
+            }
+          }}
+          maxHeight={listing === "command" ? 300 : 248}
+        />
+      )}
       <ContextChips windowId={windowId} />
-      <ComposerPill
-        value={draft}
-        onValueChange={(value) => updateWindowChat(windowId, { draft: value })}
-        onSubmit={(value) => {
-          if (query !== null && candidates.length) return;
-          if (slashQuery !== null && skills.length) return;
-          onSubmit(value);
-        }}
-        onStop={onStop}
-        busy={busy}
-        disabled={disabled}
-        placeholder={onWebTab ? "Ask about this tab, or anything" : "Ask anything"}
-        compactPlaceholder="Ask anything"
-        addMenu={addMenu}
-        onAddMenuSelect={(id) => onAction(id as ComposerAction)}
-        permissions={POWER_LEVEL_OPTIONS}
-        permission={powerLevel}
-        onPermissionChange={onPowerLevel}
-        showVoice={false}
-        attachments={attachments}
-        onRemoveAttachment={(id) => removeChatContext(windowId, id)}
-        maxLines={10}
-        onKeyPress={onKeyPress}
-        inputRef={inputRef as never}
-        labels={{ permissions: "Power Level", permissionMode: "Power level" }}
-      />
+      <ComposerLoader active={busy}>
+        <ComposerPill
+          surface={false}
+          frosted={busy}
+          value={draft}
+          onValueChange={(value) => updateWindowChat(windowId, { draft: value })}
+          onSubmit={(value) => {
+            if (listing) return;
+            onSubmit(value);
+          }}
+          onStop={onStop}
+          busy={busy}
+          disabled={disabled}
+          placeholder={onWebTab ? "Ask about this tab, or anything" : "Ask anything"}
+          compactPlaceholder="Ask anything"
+          addMenu={addMenu}
+          onAddMenuSelect={(id) => onAction(id as ComposerAction)}
+          permissions={POWER_LEVEL_OPTIONS}
+          permission={powerLevel}
+          onPermissionChange={onPowerLevel}
+          showVoice={false}
+          attachments={attachments}
+          onRemoveAttachment={(id) => removeChatContext(windowId, id)}
+          maxLines={10}
+          onKeyPress={onKeyPress}
+          inputRef={inputRef as never}
+          labels={{ permissions: "Power Level", permissionMode: "Power level" }}
+        />
+      </ComposerLoader>
     </View>
   );
+}
+
+const COMMAND_ICONS: Record<AstroCommand, typeof RiSearchLine> = {
+  research: RiSearchLine,
+  brief: RiSunLine,
+  prep: RiTeamLine,
+  recap: RiCheckboxCircleLine,
+};
+
+function mentionSuggestion(candidate: MentionCandidate): ChatComposerSuggestion {
+  if (candidate.kind === "group") return { id: candidate.key, label: candidate.title, description: `${candidate.count} tabs`, icon: RiStackLine };
+  return { id: candidate.key, label: candidate.title, leading: <Favicon url={candidate.url} favicon={candidate.favicon} size={16} /> };
+}
+
+function slashSuggestion(candidate: SlashCandidate): ChatComposerSuggestion {
+  const title = candidate.title && candidate.title !== candidate.name ? candidate.title : undefined;
+  const base = { id: candidate.key, label: `/${candidate.name}`, description: candidate.description, ...(title ? { handle: title } : {}) };
+  if (candidate.kind === "command") return { ...base, icon: COMMAND_ICONS[candidate.command] };
+  const emoji = candidate.icon && !/^[a-z.]+$/i.test(candidate.icon) ? candidate.icon : null;
+  return emoji ? { ...base, leading: <Text variant="body-medium">{emoji}</Text> } : { ...base, icon: RiSparklingLine };
 }
 
 function kindOf(mime: string, name: string): ComposerPanelAttachment["kind"] {
@@ -196,128 +259,7 @@ function useSlashCandidates(query: string | null): SlashCandidate[] {
   return useMemo(() => (query === null ? [] : slashCandidates(installed, query)), [installed, query]);
 }
 
-function SlashList({ candidates, highlight, onPick }: { candidates: SlashCandidate[]; highlight: number; onPick: (candidate: SlashCandidate) => void }) {
-  const theme = useTheme();
-  return (
-    <View
-      style={{
-        maxHeight: 300,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: theme.dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
-        backgroundColor: theme.dark ? "rgba(36,34,35,0.98)" : "rgba(255,255,255,0.98)",
-        boxShadow: theme.dark ? "0 10px 30px rgba(0,0,0,0.5)" : "0 10px 30px rgba(0,0,0,0.12)",
-        overflow: "hidden",
-      }}
-    >
-      <Text style={{ fontSize: 11, fontWeight: "600", color: theme.textSecondary, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 2 }}>Skills</Text>
-      <ScrollView contentContainerStyle={{ padding: 4 }} keyboardShouldPersistTaps="always">
-        {candidates.map((candidate, i) => (
-          <Pressable
-            key={candidate.key}
-            accessibilityRole="button"
-            accessibilityLabel={`/${candidate.name}`}
-            onPress={() => onPick(candidate)}
-            style={{
-              minHeight: 40,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 8,
-              backgroundColor: i === highlight ? (theme.dark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.06)") : undefined,
-            }}
-          >
-            <SkillGlyph candidate={candidate} />
-            <View style={{ flex: 1, gap: 1 }}>
-              <Text numberOfLines={1} style={{ fontSize: 13, color: theme.textPrimary }}>
-                <Text style={{ fontWeight: "600" }}>/{candidate.name}</Text>
-                {candidate.title && candidate.title !== candidate.name ? <Text style={{ color: theme.textSecondary }}>{`  ${candidate.title}`}</Text> : null}
-              </Text>
-              <Text numberOfLines={1} style={{ fontSize: 11, color: theme.textSecondary }}>
-                {candidate.description}
-              </Text>
-            </View>
-            {candidate.kind === "skill" && candidate.auto && <Text style={{ fontSize: 11, color: theme.textTertiary }}>Auto</Text>}
-          </Pressable>
-        ))}
-      </ScrollView>
-    </View>
-  );
-}
-
-function SkillGlyph({ candidate }: { candidate: SlashCandidate }) {
-  const theme = useTheme();
-  const emoji = candidate.kind === "skill" && candidate.icon && !/^[a-z.]+$/i.test(candidate.icon) ? candidate.icon : null;
-  return (
-    <View
-      style={{
-        width: 24,
-        height: 24,
-        borderRadius: 7,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: theme.dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-      }}
-    >
-      {emoji ? (
-        <Text style={{ fontSize: 13 }}>{emoji}</Text>
-      ) : (
-        <Symbol name={candidate.kind === "command" ? candidate.icon : "sparkles"} size={11} color={theme.icon} style={{ width: 14, height: 14 }} />
-      )}
-    </View>
-  );
-}
-
-function MentionList({ candidates, highlight, onPick }: { candidates: MentionCandidate[]; highlight: number; onPick: (candidate: MentionCandidate) => void }) {
-  const theme = useTheme();
-  return (
-    <View
-      style={{
-        maxHeight: 248,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: theme.dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
-        backgroundColor: theme.dark ? "rgba(36,34,35,0.98)" : "rgba(255,255,255,0.98)",
-        boxShadow: theme.dark ? "0 10px 30px rgba(0,0,0,0.5)" : "0 10px 30px rgba(0,0,0,0.12)",
-        overflow: "hidden",
-      }}
-    >
-      <ScrollView contentContainerStyle={{ padding: 4 }} keyboardShouldPersistTaps="always">
-        {candidates.map((candidate, i) => (
-          <Pressable
-            key={candidate.key}
-            accessibilityRole="button"
-            onPress={() => onPick(candidate)}
-            style={{
-              height: 32,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 8,
-              paddingHorizontal: 8,
-              borderRadius: 8,
-              backgroundColor: i === highlight ? (theme.dark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.06)") : undefined,
-            }}
-          >
-            {candidate.kind === "group" ? (
-              <Symbol name="square.stack" size={12} color={theme.icon} style={{ width: 16, height: 16 }} />
-            ) : (
-              <Favicon url={candidate.url} favicon={candidate.favicon} size={16} />
-            )}
-            <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, color: theme.textPrimary }}>
-              {candidate.title}
-            </Text>
-            {candidate.kind === "group" && <Text style={{ fontSize: 12, color: theme.textSecondary }}>{candidate.count} tabs</Text>}
-          </Pressable>
-        ))}
-      </ScrollView>
-    </View>
-  );
-}
-
 function ContextChips({ windowId }: { windowId: string }) {
-  const theme = useTheme();
   const context = useWindowChat(windowId, (c) => c.context);
   const currentTab = useWindowChat(windowId, (c) => c.currentTab);
   const activeId = useBrowser((s) => activeTabId(s, windowId));
@@ -326,9 +268,9 @@ function ContextChips({ windowId }: { windowId: string }) {
   const chips = context.filter((item) => item.kind !== "file" && item.kind !== "screenshot");
   if (!showCurrent && !chips.length) return null;
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 2 }}>
+    <ChipRow accessibilityLabel="Context" gap={6}>
       {showCurrent && active && (
-        <Chip
+        <ContextChip
           icon={<Favicon url={active.url} favicon={active.favicon} size={12} />}
           label={active.customTitle || active.title || active.url}
           hint="Current tab"
@@ -336,30 +278,30 @@ function ContextChips({ windowId }: { windowId: string }) {
         />
       )}
       {chips.map((item) => (
-        <Chip
+        <ContextChip
           key={item.id}
-          icon={chipIcon(item, theme.icon)}
+          icon={chipIcon(item)}
           label={chipLabel(item)}
           {...(item.kind === "skill" ? { hint: item.title } : {})}
           onRemove={() => removeChatContext(windowId, item.id)}
         />
       ))}
-    </ScrollView>
+    </ChipRow>
   );
 }
 
-function chipIcon(item: ChatContextItem, color: string) {
+function chipIcon(item: ChatContextItem): ReactNode {
   switch (item.kind) {
     case "tab":
       return <Favicon url={item.url} favicon={item.favicon} size={12} />;
     case "group":
-      return <Symbol name="square.stack" size={10} color={color} style={{ width: 12, height: 12 }} />;
+      return <RiStackLine />;
     case "selection":
-      return <Symbol name="text.alignleft" size={10} color={color} style={{ width: 12, height: 12 }} />;
+      return <RiDoubleQuotesL />;
     case "link":
       return <Favicon url={item.url} size={12} />;
     case "skill":
-      return <Symbol name="sparkles" size={10} color={color} style={{ width: 12, height: 12 }} />;
+      return <RiSparklingLine />;
     default:
       return null;
   }
@@ -382,35 +324,18 @@ function chipLabel(item: ChatContextItem): string {
   }
 }
 
-function Chip({ icon, label, hint, onRemove }: { icon: React.ReactNode; label: string; hint?: string; onRemove: () => void }) {
-  const theme = useTheme();
+function ContextChip({ icon, label, hint, onRemove }: { icon: ReactNode; label: string; hint?: string; onRemove: () => void }) {
   return (
-    <View
-      tooltip={hint}
-      style={{
-        height: 24,
-        maxWidth: 220,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 5,
-        paddingLeft: 7,
-        paddingRight: 3,
-        borderRadius: 8,
-        backgroundColor: theme.dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-      }}
+    <Chip
+      size="sm"
+      variant="subtle"
+      startIcon={icon}
+      onClose={onRemove}
+      closeLabel={`Remove ${label}`}
+      accessibilityLabel={hint ? `${hint}: ${label}` : label}
+      style={{ maxWidth: 220 }}
     >
-      {icon}
-      <Text numberOfLines={1} style={{ fontSize: 12, color: theme.textPrimary, flexShrink: 1 }}>
-        {label}
-      </Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Remove ${label}`}
-        onPress={onRemove}
-        style={{ width: 18, height: 18, alignItems: "center", justifyContent: "center", borderRadius: 5 }}
-      >
-        <Symbol name="xmark" size={8} weight="semibold" color={theme.textSecondary} style={{ width: 12, height: 12 }} />
-      </Pressable>
-    </View>
+      {label}
+    </Chip>
   );
 }

@@ -1,6 +1,24 @@
-import { copyText, Symbol } from "@astro-browser/shell";
+import { Button } from "@oxy.so/bloom/button";
+import { Card } from "@oxy.so/bloom/card";
+import { Chip } from "@oxy.so/bloom/chip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@oxy.so/bloom/dropdown-menu";
+import { EmptyState } from "@oxy.so/bloom/empty-state";
+import { RiAddLine } from "@oxy.so/bloom/icons/RiAddLine";
+import { RiArrowLeftSLine } from "@oxy.so/bloom/icons/RiArrowLeftSLine";
+import { RiLinkM } from "@oxy.so/bloom/icons/RiLinkM";
+import { RiMagicLine } from "@oxy.so/bloom/icons/RiMagicLine";
+import { RiMoreFill } from "@oxy.so/bloom/icons/RiMoreFill";
+import { RiSparklingLine } from "@oxy.so/bloom/icons/RiSparklingLine";
+import { Loading } from "@oxy.so/bloom/loading";
+import { SegmentedControl, SegmentedControlItem, SegmentedControlItemText } from "@oxy.so/bloom/segmented-control";
+import { Switch } from "@oxy.so/bloom/switch";
+import { TextField, TextFieldHint, TextFieldInput, TextFieldLabel } from "@oxy.so/bloom/text-field";
+import { Textarea } from "@oxy.so/bloom/textarea";
+import { useTheme } from "@oxy.so/bloom/theme";
+import { Text } from "@oxy.so/bloom/typography";
+import { copyText } from "@astro-browser/shell";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { aliaErrorMessage, useAliaReady } from "../../ai/alia/api";
 import { openChatWithSkill } from "../../ai/pagePrompts";
 import {
@@ -22,11 +40,10 @@ import {
   type InstalledSkill,
   type Skill,
 } from "../../ai/skills/skills";
-import { useTheme } from "../../lib/theme";
-import { signInWithOxy, useOxySession } from "../../oxy/session";
+import { useOxySession } from "../../oxy/session";
 import { useBrowser } from "../../store/browser";
-import { Button, Toggle, useFormColors } from "../settings/controls";
-import { EmptyState, PAGE_WIDTH, PageHeader } from "./PageLayout";
+import { AiPageHeader, Hint, PAGE_COLUMN, SignedOutState } from "./AiPageChrome";
+import { PAGE_WIDTH } from "./PageLayout";
 import { internalQuery, tabDestination } from "./urls";
 
 type View_ = { kind: "yours" } | { kind: "gallery" } | { kind: "builder"; editing: Skill | null; prompt: string };
@@ -53,8 +70,14 @@ export function SkillsPage({ tabId }: { tabId: string }) {
   if (!ready)
     return (
       <View style={{ flex: 1 }}>
-        <PageHeader title="Skills" query="" onQuery={() => {}} placeholder="Search skills" />
-        <SignedOut available={available} />
+        <AiPageHeader title="Skills" query="" onQuery={() => {}} placeholder="Search skills" />
+        <SignedOutState
+          icon={RiSparklingLine}
+          available={available}
+          title="Sign in with Oxy to use skills"
+          unavailable="Skills aren't available on this Mac yet"
+          description="Skills are saved prompts and step-by-step instructions you run with / in Chat or the command bar. They live in your Alia account."
+        />
       </View>
     );
 
@@ -63,22 +86,26 @@ export function SkillsPage({ tabId }: { tabId: string }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <PageHeader
+      <AiPageHeader
         title="Skills"
         query={query}
         onQuery={setQuery}
         placeholder={view.kind === "gallery" ? "Search the gallery" : "Search your skills"}
-        actions={<Button title="New Skill" kind="primary" icon="plus" onPress={() => setView({ kind: "builder", editing: null, prompt: "" })} />}
+        actions={
+          <Button appearance="solid" tone="accent" size="sm" leadingIcon={RiAddLine} onPress={() => setView({ kind: "builder", editing: null, prompt: "" })}>
+            New Skill
+          </Button>
+        }
       />
-      <View style={{ alignItems: "center" }}>
-        <Segments
-          value={view.kind}
-          options={[
-            { value: "yours", title: "Your Skills" },
-            { value: "gallery", title: "Gallery" },
-          ]}
-          onChange={(v) => setView({ kind: v as "yours" | "gallery" })}
-        />
+      <View style={{ alignSelf: "center", marginBottom: 12 }}>
+        <SegmentedControl label="Skills" type="tabs" value={view.kind} onValueChange={(v: string) => setView({ kind: v as "yours" | "gallery" })}>
+          <SegmentedControlItem value="yours">
+            <SegmentedControlItemText>Your Skills</SegmentedControlItemText>
+          </SegmentedControlItem>
+          <SegmentedControlItem value="gallery">
+            <SegmentedControlItemText>Gallery</SegmentedControlItemText>
+          </SegmentedControlItem>
+        </SegmentedControl>
       </View>
       {view.kind === "yours" ? (
         <YourSkills query={query} windowId={windowId} onEdit={(skill) => setView({ kind: "builder", editing: skill, prompt: "" })} onGallery={() => setView({ kind: "gallery" })} />
@@ -89,85 +116,40 @@ export function SkillsPage({ tabId }: { tabId: string }) {
   );
 }
 
-function SignedOut({ available }: { available: boolean }) {
-  const theme = useTheme();
-  return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingBottom: 80 }}>
-      <Symbol name="sparkles" size={28} color={theme.textTertiary} style={{ width: 40, height: 40 }} />
-      <Text style={{ fontSize: 15, fontWeight: "500", color: theme.textSecondary }}>{available ? "Sign in with Oxy to use skills" : "Skills aren't available on this Mac yet"}</Text>
-      <Text style={{ fontSize: 13, color: theme.textTertiary, textAlign: "center", maxWidth: 380 }}>
-        Skills are saved prompts and step-by-step instructions you run with / in Chat or the command bar. They live in your Alia account.
-      </Text>
-      {available && <Button title="Sign In with Oxy…" kind="primary" onPress={() => void signInWithOxy()} />}
-    </View>
-  );
-}
-
-function Segments({ value, options, onChange }: { value: string; options: { value: string; title: string }[]; onChange: (value: string) => void }) {
-  const theme = useTheme();
-  const colors = useFormColors();
-  return (
-    <View style={{ flexDirection: "row", padding: 2, borderRadius: 8, backgroundColor: colors.control, gap: 2, marginBottom: 8 }}>
-      {options.map((o) => {
-        const on = o.value === value;
-        return (
-          <Pressable
-            key={o.value}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            onPress={() => onChange(o.value)}
-            style={{ paddingHorizontal: 14, height: 24, borderRadius: 6, justifyContent: "center", backgroundColor: on ? (theme.dark ? "rgba(255,255,255,0.14)" : "#FFFFFF") : undefined }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: on ? "600" : "400", color: on ? theme.textPrimary : theme.textSecondary }}>{o.title}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 const matchesSkill = (q: string, k: Skill) => !q || `${k.name} ${k.displayName} ${k.description} ${k.tags.join(" ")}`.toLowerCase().includes(q.toLowerCase());
 
-function Glyph({ skill, size = 32 }: { skill: Pick<Skill, "icon" | "color">; size?: number }) {
-  const theme = useTheme();
-  const emoji = skill.icon && !/^[a-z0-9.]+$/i.test(skill.icon) ? skill.icon : null;
+const emojiOf = (skill: Pick<Skill, "icon">) => (skill.icon && !/^[a-z0-9.]+$/i.test(skill.icon) ? skill.icon : null);
+
+function SkillMark({ skill, size = 32 }: { skill: Pick<Skill, "icon">; size?: number }) {
+  const { colors } = useTheme();
+  const emoji = emojiOf(skill);
   return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size * 0.28,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: theme.dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-      }}
-    >
-      {emoji ? <Text style={{ fontSize: size * 0.5 }}>{emoji}</Text> : <Symbol name="sparkles" size={size * 0.4} color={theme.icon} style={{ width: size * 0.5, height: size * 0.5 }} />}
+    <View style={{ width: size, height: size, borderRadius: size * 0.28, alignItems: "center", justifyContent: "center", backgroundColor: colors.backgroundTertiary }}>
+      {emoji ? <Text style={{ fontSize: size * 0.5, lineHeight: size * 0.7 }}>{emoji}</Text> : <RiSparklingLine width={size * 0.5} height={size * 0.5} fill={colors.icon} />}
     </View>
   );
 }
 
 function YourSkills({ query, windowId, onEdit, onGallery }: { query: string; windowId: string; onEdit: (skill: Skill) => void; onGallery: () => void }) {
-  const theme = useTheme();
   const installed = useSkills((s) => s.installed);
   const loading = useSkills((s) => s.loading && !s.loadedAt);
   const error = useSkills((s) => s.error);
   const me = useOxySession((s) => s.account?.id ?? null);
   const shown = installed.filter((k) => matchesSkill(query, k));
-  if (loading) return <ActivityIndicator style={{ marginTop: 40 }} />;
+  if (loading) return <Loading variant="spinner" style={{ marginTop: 40 }} />;
   if (!shown.length)
     return (
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, justifyContent: "center", paddingBottom: 80 }}>
         <EmptyState
-          icon={<Symbol name="sparkles" size={28} color={theme.textTertiary} style={{ width: 40, height: 40 }} />}
+          icon={RiSparklingLine}
           title={query ? "No skills match" : (error ?? "You haven't added any skills")}
-          subtitle={query ? undefined : "Write your own with New Skill, or add one from the Gallery. Type / in Chat or the command bar to run one."}
+          {...(query
+            ? {}
+            : {
+                description: "Write your own with New Skill, or add one from the Gallery. Type / in Chat or the command bar to run one.",
+                action: { label: "Browse the Gallery", onPress: onGallery },
+              })}
         />
-        {!query && (
-          <View style={{ alignItems: "center", marginTop: -60 }}>
-            <Button title="Browse the Gallery" onPress={onGallery} />
-          </View>
-        )}
       </View>
     );
   return (
@@ -179,27 +161,8 @@ function YourSkills({ query, windowId, onEdit, onGallery }: { query: string; win
   );
 }
 
-function Card({ children }: { children: React.ReactNode }) {
-  const colors = useFormColors();
-  return (
-    <View
-      style={{
-        width: PAGE_WIDTH - 32,
-        maxWidth: "100%",
-        borderRadius: 12,
-        padding: 14,
-        backgroundColor: colors.group,
-        borderWidth: StyleSheet.hairlineWidth * 2,
-        borderColor: colors.groupBorder,
-      }}
-    >
-      {children}
-    </View>
-  );
-}
-
 function InstalledRow({ skill, mine, windowId, onEdit }: { skill: InstalledSkill; mine: boolean; windowId: string; onEdit: () => void }) {
-  const theme = useTheme();
+  const { colors } = useTheme();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const act = async (work: () => Promise<unknown>, done?: string) => {
@@ -214,80 +177,94 @@ function InstalledRow({ skill, mine, windowId, onEdit }: { skill: InstalledSkill
       setBusy(false);
     }
   };
-  const menu = async () => {
-    const { showMenu } = await import("@astro-browser/shell");
-    const choice = await showMenu([
-      { id: "try", title: "Try in Chat" },
-      ...(mine && skill.source === "authored" ? [{ id: "edit", title: "Edit…" }] : []),
-      ...(mine ? [{ id: "publish", title: skill.visibility === "public" ? "Unpublish from Gallery" : "Publish to Gallery" }] : []),
-      ...(skill.visibility === "public" ? [{ id: "link", title: "Copy Link" }] : []),
-      { separator: true as const },
-      { id: "remove", title: "Remove from Your Skills" },
-      ...(mine ? [{ id: "delete", title: "Delete Skill" }] : []),
-    ]);
-    switch (choice) {
-      case "try":
-        return void openChatWithSkill(windowId, "", { name: skill.name, title: skill.displayName || skill.name });
-      case "edit":
-        return onEdit();
-      case "publish":
-        return void act(() => publishSkill(skill._id, skill.visibility !== "public"), skill.visibility === "public" ? "Unpublished." : "Published to the Gallery. Anyone with the link can add it.");
-      case "link":
-        void copyText(skillShareUrl(skill));
-        return setNote("Link copied.");
-      case "remove":
-        return void act(() => uninstallSkill(skill._id));
-      case "delete":
-        return void act(() => deleteSkill(skill._id));
-    }
-  };
+  const published = skill.visibility === "public";
   return (
-    <Card>
+    <Card border="hairline" style={[PAGE_COLUMN, { padding: 14 }]}>
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
-        <Glyph skill={skill} />
+        <SkillMark skill={skill} />
         <View style={{ flex: 1, gap: 3 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={{ fontSize: 14, fontWeight: "600", color: theme.textPrimary }}>{skill.displayName || skill.name}</Text>
-            <Text style={{ fontSize: 12, color: theme.textSecondary }}>/{skill.name}</Text>
-            {skill.visibility === "public" && mine && <Badge text="Published" />}
-            {skill.source === "builtin" && <Badge text="Alia" />}
+            <Text variant="body-semibold">{skill.displayName || skill.name}</Text>
+            <Text variant="body-2-regular" style={{ color: colors.textSecondary }}>
+              /{skill.name}
+            </Text>
+            {published && mine && <Chip size="sm">Published</Chip>}
+            {skill.source === "builtin" && <Chip size="sm">Alia</Chip>}
           </View>
-          <Text numberOfLines={2} style={{ fontSize: 12.5, lineHeight: 17, color: theme.textSecondary }}>
+          <Text variant="body-2-regular" numberOfLines={2} style={{ color: colors.textSecondary }}>
             {skill.description}
           </Text>
-          {note ? <Text style={{ fontSize: 12, color: theme.accent, marginTop: 2 }}>{note}</Text> : null}
+          {note ? (
+            <Text variant="caption-1-medium" style={{ color: colors.primary, marginTop: 2 }}>
+              {note}
+            </Text>
+          ) : null}
         </View>
-        <View style={{ alignItems: "flex-end", gap: 8 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <View tooltip="Alia may use this skill on her own when a request matches it" style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <Text style={{ fontSize: 12, color: theme.textSecondary }}>Automatic</Text>
-              <Toggle value={skill.autoInvoke} disabled={busy || !skill.enabled} onChange={(v) => void act(() => setSkillInstall(skill._id, { autoInvoke: v }))} />
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <Hint label="Alia may use this skill on her own when a request matches it">
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text variant="caption-1-medium" style={{ color: colors.textSecondary }}>
+                Automatic
+              </Text>
+              <Switch
+                size="sm"
+                accessibilityLabel="Automatic"
+                checked={skill.autoInvoke}
+                disabled={busy || !skill.enabled}
+                onCheckedChange={(v) => void act(() => setSkillInstall(skill._id, { autoInvoke: v }))}
+              />
             </View>
-            <View tooltip="Off, the skill isn't offered anywhere" style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-              <Text style={{ fontSize: 12, color: theme.textSecondary }}>On</Text>
-              <Toggle value={skill.enabled} disabled={busy} onChange={(v) => void act(() => setSkillInstall(skill._id, { enabled: v }))} />
+          </Hint>
+          <Hint label="Off, the skill isn't offered anywhere">
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text variant="caption-1-medium" style={{ color: colors.textSecondary }}>
+                On
+              </Text>
+              <Switch size="sm" accessibilityLabel="On" checked={skill.enabled} disabled={busy} onCheckedChange={(v) => void act(() => setSkillInstall(skill._id, { enabled: v }))} />
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="More" onPress={() => void menu()} style={{ width: 24, height: 24, alignItems: "center", justifyContent: "center" }}>
-              <Symbol name="ellipsis" size={13} color={theme.icon} style={{ width: 16, height: 16 }} />
-            </Pressable>
-          </View>
+          </Hint>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild label="More" style={{ alignSelf: "center" }}>
+              <Button appearance="plain" tone="neutral" size="sm" iconOnly leadingIcon={RiMoreFill} accessibilityLabel="More" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onPress={() => void openChatWithSkill(windowId, "", { name: skill.name, title: skill.displayName || skill.name })}>Try in Chat</DropdownMenuItem>
+              {mine && skill.source === "authored" ? <DropdownMenuItem onPress={onEdit}>Edit…</DropdownMenuItem> : null}
+              {mine ? (
+                <DropdownMenuItem
+                  onPress={() =>
+                    void act(() => publishSkill(skill._id, !published), published ? "Unpublished." : "Published to the Gallery. Anyone with the link can add it.")
+                  }
+                >
+                  {published ? "Unpublish from Gallery" : "Publish to Gallery"}
+                </DropdownMenuItem>
+              ) : null}
+              {published ? (
+                <DropdownMenuItem
+                  onPress={() => {
+                    void copyText(skillShareUrl(skill));
+                    setNote("Link copied.");
+                  }}
+                >
+                  Copy Link
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onPress={() => void act(() => uninstallSkill(skill._id))}>Remove from Your Skills</DropdownMenuItem>
+              {mine ? (
+                <DropdownMenuItem tone="danger" onPress={() => void act(() => deleteSkill(skill._id))}>
+                  Delete Skill
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </View>
       </View>
     </Card>
   );
 }
 
-function Badge({ text }: { text: string }) {
-  const theme = useTheme();
-  return (
-    <View style={{ paddingHorizontal: 6, height: 17, borderRadius: 5, justifyContent: "center", backgroundColor: theme.dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)" }}>
-      <Text style={{ fontSize: 10.5, fontWeight: "600", color: theme.textSecondary }}>{text}</Text>
-    </View>
-  );
-}
-
 function Gallery({ query, windowId }: { query: string; windowId: string }) {
-  const theme = useTheme();
   const installed = useSkills((s) => s.installed);
   const [list, setList] = useState<Skill[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -306,12 +283,16 @@ function Gallery({ query, windowId }: { query: string; windowId: string }) {
     };
   }, [query]);
   const have = useMemo(() => new Set(installed.map((k) => k._id)), [installed]);
-  if (error) return <EmptyState title={error} />;
-  if (!list) return <ActivityIndicator style={{ marginTop: 40 }} />;
-  if (!list.length) return <EmptyState icon={<Symbol name="sparkles" size={28} color={theme.textTertiary} style={{ width: 40, height: 40 }} />} title="No skills match" />;
+  if (error || (list && !list.length))
+    return (
+      <View style={{ flex: 1, justifyContent: "center", paddingBottom: 80 }}>
+        <EmptyState icon={RiSparklingLine} title={error ?? "No skills match"} />
+      </View>
+    );
+  if (!list) return <Loading variant="spinner" style={{ marginTop: 40 }} />;
   return (
     <ScrollView contentContainerStyle={{ alignItems: "center", paddingTop: 4, paddingBottom: 40 }}>
-      <View style={{ width: PAGE_WIDTH - 32, maxWidth: "100%", flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+      <View style={[PAGE_COLUMN, { flexDirection: "row", flexWrap: "wrap", gap: 10 }]}>
         {list.map((skill) => (
           <GalleryCard key={skill._id} skill={skill} installed={have.has(skill._id)} windowId={windowId} />
         ))}
@@ -321,8 +302,7 @@ function Gallery({ query, windowId }: { query: string; windowId: string }) {
 }
 
 function GalleryCard({ skill, installed, windowId }: { skill: Skill; installed: boolean; windowId: string }) {
-  const theme = useTheme();
-  const colors = useFormColors();
+  const { colors } = useTheme();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const add = async () => {
@@ -337,106 +317,67 @@ function GalleryCard({ skill, installed, windowId }: { skill: Skill; installed: 
     }
   };
   return (
-    <View
-      style={{
-        width: (PAGE_WIDTH - 32 - 20) / 3,
-        minHeight: 150,
-        borderRadius: 12,
-        padding: 12,
-        gap: 6,
-        backgroundColor: colors.group,
-        borderWidth: StyleSheet.hairlineWidth * 2,
-        borderColor: colors.groupBorder,
-      }}
-    >
+    <Card border="hairline" style={{ width: (PAGE_WIDTH - 32 - 20) / 3, minHeight: 150, padding: 12 }} contentStyle={{ flex: 1, gap: 6 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Glyph skill={skill} size={28} />
+        <SkillMark skill={skill} size={28} />
         <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: "600", color: theme.textPrimary }}>
+          <Text variant="body-semibold" numberOfLines={1}>
             {skill.displayName || skill.name}
           </Text>
-          <Text numberOfLines={1} style={{ fontSize: 11.5, color: theme.textSecondary }}>
+          <Text variant="caption-1-regular" numberOfLines={1} style={{ color: colors.textSecondary }}>
             /{skill.name}
             {skill.publisher ? ` · ${skill.publisher}` : skill.source === "builtin" ? " · Alia" : ""}
           </Text>
         </View>
       </View>
-      <Text numberOfLines={4} style={{ flex: 1, fontSize: 12, lineHeight: 16, color: theme.textSecondary }}>
+      <Text variant="body-2-regular" numberOfLines={4} style={{ flex: 1, color: colors.textSecondary }}>
         {skill.description}
       </Text>
-      {error ? <Text style={{ fontSize: 11.5, color: colors.destructive }}>{error}</Text> : null}
+      {error ? (
+        <Text variant="caption-1-medium" style={{ color: colors.error }}>
+          {error}
+        </Text>
+      ) : null}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         {installed ? (
-          <Button title="Try" onPress={() => void openChatWithSkill(windowId, "", { name: skill.name, title: skill.displayName || skill.name })} />
+          <Button size="sm" appearance="subtle" tone="neutral" onPress={() => void openChatWithSkill(windowId, "", { name: skill.name, title: skill.displayName || skill.name })}>
+            Try
+          </Button>
         ) : (
-          <Button title={busy ? "Adding…" : "Add"} kind="primary" disabled={busy} onPress={() => void add()} />
+          <Button size="sm" appearance="solid" tone="accent" loading={busy} disabled={busy} onPress={() => void add()}>
+            {busy ? "Adding…" : "Add"}
+          </Button>
         )}
-        <Text style={{ flex: 1, textAlign: "right", fontSize: 11, color: theme.textTertiary }}>{skill.installCount ? `${skill.installCount} added` : ""}</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Copy Link"
-          onPress={() => void copyText(skillShareUrl(skill))}
-          style={{ width: 22, height: 22, alignItems: "center", justifyContent: "center" }}
-        >
-          <Symbol name="link" size={11} color={theme.icon} style={{ width: 14, height: 14 }} />
-        </Pressable>
+        <Text variant="caption-1-regular" style={{ flex: 1, textAlign: "right", color: colors.textTertiary }}>
+          {skill.installCount ? `${skill.installCount} added` : ""}
+        </Text>
+        <Button size="sm" appearance="plain" tone="neutral" iconOnly leadingIcon={RiLinkM} accessibilityLabel="Copy Link" onPress={() => void copyText(skillShareUrl(skill))} />
       </View>
-    </View>
+    </Card>
   );
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  const theme = useTheme();
   return (
-    <View style={{ gap: 5 }}>
-      <Text style={{ fontSize: 12.5, fontWeight: "600", color: theme.textPrimary }}>{label}</Text>
+    <View>
+      <TextFieldLabel>{label}</TextFieldLabel>
       {children}
-      {hint ? <Text style={{ fontSize: 11.5, color: theme.textSecondary }}>{hint}</Text> : null}
+      {hint ? <TextFieldHint>{hint}</TextFieldHint> : null}
     </View>
-  );
-}
-
-function Input({ value, onChange, placeholder, lines = 1, mono }: { value: string; onChange: (v: string) => void; placeholder?: string; lines?: number; mono?: boolean }) {
-  const theme = useTheme();
-  const colors = useFormColors();
-  return (
-    <TextInput
-      value={value}
-      onChangeText={onChange}
-      placeholder={placeholder}
-      placeholderTextColor={theme.textTertiary}
-      selectionColor={theme.selection}
-      multiline={lines > 1}
-      numberOfLines={lines}
-      enableFocusRing={false}
-      style={{
-        minHeight: lines > 1 ? lines * 18 + 14 : 28,
-        paddingHorizontal: 9,
-        paddingVertical: lines > 1 ? 7 : 0,
-        borderRadius: 7,
-        fontSize: 13,
-        lineHeight: lines > 1 ? 18 : undefined,
-        fontFamily: mono ? "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" : undefined,
-        color: theme.textPrimary,
-        backgroundColor: colors.field,
-        borderWidth: StyleSheet.hairlineWidth * 2,
-        borderColor: colors.fieldBorder,
-        textAlignVertical: lines > 1 ? "top" : "center",
-      }}
-    />
   );
 }
 
 export const SKILL_TEMPLATE = "1. \n2. \n3. ";
 
+const MONO = "var(--bloom-font-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+
 function SkillBuilder({ editing, prompt, onDone, windowId }: { editing: Skill | null; prompt: string; onDone: () => void; windowId: string }) {
-  const theme = useTheme();
-  const colors = useFormColors();
+  const { colors } = useTheme();
   const [idea, setIdea] = useState(prompt);
   const [displayName, setDisplayName] = useState(editing?.displayName ?? "");
   const [name, setName] = useState(editing?.name ?? "");
   const [nameTouched, setNameTouched] = useState(!!editing);
-  const [icon, setIcon] = useState(editing?.icon && !/^[a-z0-9.]+$/i.test(editing.icon) ? editing.icon : "");
+  const [icon, setIcon] = useState(editing ? (emojiOf(editing) ?? "") : "");
   const [description, setDescription] = useState(editing?.description ?? "");
   const [body, setBody] = useState(prompt ? prompt : "");
   const [drafting, setDrafting] = useState(false);
@@ -498,65 +439,84 @@ function SkillBuilder({ editing, prompt, onDone, windowId }: { editing: Skill | 
     <ScrollView contentContainerStyle={{ alignItems: "center", paddingTop: 20, paddingBottom: 60 }}>
       <View style={{ width: 640, maxWidth: "100%", paddingHorizontal: 16, gap: 18 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onDone} style={{ width: 26, height: 26, alignItems: "center", justifyContent: "center" }}>
-            <Symbol name="chevron.left" size={13} color={theme.icon} style={{ width: 16, height: 16 }} />
-          </Pressable>
-          <Text style={{ fontSize: 22, fontWeight: "600", color: theme.textPrimary }}>{editing ? `Edit /${editing.name}` : "New Skill"}</Text>
+          <Button appearance="plain" tone="neutral" size="sm" iconOnly leadingIcon={RiArrowLeftSLine} accessibilityLabel="Back" onPress={onDone} />
+          <Text variant="title-2-semibold">{editing ? `Edit /${editing.name}` : "New Skill"}</Text>
         </View>
         {!editing && (
-          <View style={{ gap: 8, padding: 12, borderRadius: 12, backgroundColor: colors.group, borderWidth: StyleSheet.hairlineWidth * 2, borderColor: colors.groupBorder }}>
-            <Text style={{ fontSize: 13, fontWeight: "600", color: theme.textPrimary }}>Describe it, and Alia writes it</Text>
-            <Input value={idea} onChange={setIdea} placeholder="e.g. Turn a job posting into a tailored cover letter, asking me for my résumé first" lines={3} />
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Button title={drafting ? "Writing…" : "Write It for Me"} icon="wand.and.stars" disabled={drafting} onPress={() => void draft()} />
-              {drafting && <ActivityIndicator size="small" />}
+          <Card border="hairline" style={{ padding: 12 }} contentStyle={{ gap: 8 }}>
+            <Textarea
+              label="Describe it, and Alia writes it"
+              value={idea}
+              onValueChange={setIdea}
+              placeholder="e.g. Turn a job posting into a tailored cover letter, asking me for my résumé first"
+              rows={3}
+            />
+            <View style={{ flexDirection: "row" }}>
+              <Button appearance="subtle" tone="neutral" size="sm" leadingIcon={RiMagicLine} loading={drafting} disabled={drafting} onPress={() => void draft()}>
+                {drafting ? "Writing…" : "Write It for Me"}
+              </Button>
             </View>
-          </View>
+          </Card>
         )}
         <View style={{ flexDirection: "row", gap: 12 }}>
           <View style={{ width: 70 }}>
             <Field label="Icon">
-              <Input value={icon} onChange={(v) => setIcon([...v].slice(-2).join(""))} placeholder="✨" />
+              <TextFieldInput label="Icon" placeholder="✨" value={icon} onValueChange={(v) => setIcon([...v].slice(-2).join(""))} />
             </Field>
           </View>
           <View style={{ flex: 1 }}>
             <Field label="Name">
-              <Input value={displayName} onChange={setDisplayName} placeholder="Cover Letter" />
+              <TextFieldInput label="Name" placeholder="Cover Letter" value={displayName} onValueChange={setDisplayName} />
             </Field>
           </View>
           <View style={{ flex: 1 }}>
-            <Field label="Command" hint={editing ? "A skill's command can't change." : undefined}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text style={{ fontSize: 13, color: theme.textSecondary, marginRight: 3 }}>/</Text>
-                <View style={{ flex: 1 }}>
-                  {editing ? (
-                    <Text style={{ fontSize: 13, color: theme.textPrimary, lineHeight: 28 }}>{editing.name}</Text>
-                  ) : (
-                    <Input
-                      value={slug}
-                      onChange={(v) => {
-                        setNameTouched(true);
-                        setName(skillName(v) + (v.endsWith("-") || v.endsWith(" ") ? "-" : ""));
-                      }}
-                      placeholder="cover-letter"
-                    />
-                  )}
-                </View>
-              </View>
+            <Field label="Command" {...(editing ? { hint: "A skill's command can't change." } : {})}>
+              <TextField disabled={!!editing} leadingAddon={<Text style={{ color: colors.textSecondary, paddingLeft: 6 }}>/</Text>}>
+                <TextFieldInput
+                  label="Command"
+                  placeholder="cover-letter"
+                  value={editing ? editing.name : slug}
+                  onValueChange={(v) => {
+                    setNameTouched(true);
+                    setName(skillName(v) + (v.endsWith("-") || v.endsWith(" ") ? "-" : ""));
+                  }}
+                />
+              </TextField>
             </Field>
           </View>
         </View>
-        <Field label="When to use it" hint="What it does and when. Alia matches requests against this, so use the words you'd say.">
-          <Input value={description} onChange={setDescription} placeholder="Writes a cover letter for a job posting. Use when I ask for a cover letter or am on a job listing." lines={3} />
-        </Field>
-        <Field label="Instructions" hint="The steps Alia follows. A skill can take several steps: read the page, ask a question, search, then write.">
-          <Input value={body} onChange={setBody} placeholder={SKILL_TEMPLATE} lines={14} mono />
-        </Field>
-        {error ? <Text style={{ fontSize: 12.5, color: colors.destructive }}>{error}</Text> : null}
+        <Textarea
+          label="When to use it"
+          hint="What it does and when. Alia matches requests against this, so use the words you'd say."
+          value={description}
+          onValueChange={setDescription}
+          placeholder="Writes a cover letter for a job posting. Use when I ask for a cover letter or am on a job listing."
+          rows={3}
+        />
+        <Textarea
+          label="Instructions"
+          hint="The steps Alia follows. A skill can take several steps: read the page, ask a question, search, then write."
+          value={body}
+          onValueChange={setBody}
+          placeholder={SKILL_TEMPLATE}
+          rows={14}
+          inputStyle={{ fontFamily: MONO, fontSize: 13 }}
+        />
+        {error ? (
+          <Text variant="body-2-medium" style={{ color: colors.error }}>
+            {error}
+          </Text>
+        ) : null}
         <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
-          <Button title="Cancel" onPress={onDone} />
-          <Button title="Save and Try" disabled={saving || !!problem} onPress={() => void save(true)} />
-          <Button title={saving ? "Saving…" : editing ? "Save" : "Create Skill"} kind="primary" disabled={saving || !!problem} onPress={() => void save(false)} />
+          <Button appearance="outline" tone="neutral" size="sm" onPress={onDone}>
+            Cancel
+          </Button>
+          <Button appearance="subtle" tone="neutral" size="sm" disabled={saving || !!problem} onPress={() => void save(true)}>
+            Save and Try
+          </Button>
+          <Button appearance="solid" tone="accent" size="sm" loading={saving} disabled={saving || !!problem} onPress={() => void save(false)}>
+            {saving ? "Saving…" : editing ? "Save" : "Create Skill"}
+          </Button>
         </View>
       </View>
     </ScrollView>

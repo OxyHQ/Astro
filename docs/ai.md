@@ -114,8 +114,14 @@ While nothing is registered, the bar shows no Chat row and no prompt actions, an
 Chat is a conversation, so it goes through Alia: `Astro -> Alia (api.alia.onl/v1) -> Oxy -> Kaana`. Astro is an Alia
 embedding host like Homiio or Mercaria (Alia `docs/agent-embedding.md`): it uses `@alia.onl/sdk`'s data layer
 (`@alia.onl/sdk/runtime` and `/model`: the turn stream, Stop through `POST /v1/chat/turns/:id/cancel`, edit, regenerate,
-retry, conversations) and draws the conversation itself with Bloom (`AiChatUserMessage`, `AiChatAssistantMessage`,
-`AgentThinking`, `Markdown`, `CodeBlock`, `ComposerPill`). It names itself `app: "astro"`, so its conversations are labelled
+retry, conversations) and draws the conversation itself with Bloom's own chat components: the panel is an `AppShell`
+bounded panel holding `AiChatContainer` (`PageHeader` with a `ButtonGroup` and a `DropdownMenu`, `AiChatThread`, the
+composer in its `PageFooter`) on a `Surface`; turns are `AiChatUserMessage` / `AiChatAssistantMessage` with
+`AgentThinking`, `AgentLogToolCalls`, `Markdown`, `CodeBlock`, chart cards and `Chip`s; the composer is `ComposerPill` in a
+`ComposerLoader`, with `SuggestionList` for @-mentions and `/`, `ChipRow` context chips, `ComposerBanner` while editing and
+`Questionnaire` for tool approvals; history is `AgentChatHistory`, the empty chat an `EmptyState` with suggestions. Where
+Bloom lacked something, it was added there (Bloom 15.54.0: `AgentChatHistory` search, sections, paging and
+`framed={false}`; `Questionnaire` `detail` and `footer={false}`), never drawn in Astro. It names itself `app: "astro"`, so its conversations are labelled
 and its history lists only them. Astro never names a model: the composer's level picker sends Alia's power levels
 (`auto` … `ultra`, the SDK's `POWER_LEVELS`; saved as `chatPowerLevel`).
 
@@ -127,7 +133,7 @@ and its history lists only them. Astro never names a model: the composer's level
 | What the model is told about the browser (the turn's `clientContext`) | `ai/chat/clientContext.ts`, `ai/chat/pageContext.ts` |
 | Tools Astro performs for Alia (host tools) and their approvals | `ai/chat/hostTools.ts`, `components/chat/ToolApproval.tsx` |
 | The panel: header, thread, composer, history | `components/chat/` (`ChatPanel`, `ChatThread`, `ChatComposer`, `ChatHistory`, `ChatCode`) |
-| Where the panel shows: sidebar, floating, tab | `components/chat/ChatSlots.tsx` (`ChatSidebar`, `ChatFloating` in `App.tsx`; `ChatTabSlot` for `astro://chat`) |
+| Where the panel shows: sidebar, floating, tab | `components/chat/ChatSlots.tsx` (`ChatSidebar`, `ChatFloating` in `App.tsx`; `ChatTabSlot` for `astro://chat`): geometry and motion only; the material is `components/chat/ChatFrame.tsx`, a Bloom `Surface` that keeps one tree in every placement, so moving never remounts the panel |
 | The SDK's provider and the portal (Windows, Linux) | `apps/webui/src/host/chat.tsx`, mounted inside `OxyRoot` by `OxyLayer` |
 | Streaming over the engine | `apps/webui/src/host/fetch.ts` `engineStreamFetch` → `astroAccountStream` (`ac_account_fetch.cc`) |
 | Ask in the page's context menu | `apps/webui/src/host/selectionMenu.ts` → `astroSelectionMenu` (`ac_selection_menu.cc`; the hook in `RenderViewContextMenu`, `engine/astrocore/apply.sh`) |
@@ -177,7 +183,7 @@ and Linux; under the search item, as Chrome lists its own). It opens where it wa
   Alia's own app draws them. Stop keeps what
   arrived and offers Resume; every reply has Copy and Regenerate; your messages have Edit; a failed turn says why with
   Try Again. ⋯ › Clear Chat empties it.
-- **History.** 🕘 lists your Astro chats by day, with search (title and last message), Delete on hover and Clear All.
+- **History.** 🕘 lists your Astro chats by day, with search (title and last message), Delete in each row's ⋯ menu and ⋯ › Delete All Chats…, loading older chats as you scroll.
 - **Tools** (Alia host tools, `host_astro__*`): `open_tabs` (asks first for more than one), `switch_to_tab`,
   `close_tabs` (asks first) and `read_tab` (asks first for a tab you haven't shared; Alia waits for its answer within
   the turn, up to 45 s). The question docks above the composer: Don't Allow, Always Allow in This Chat, Allow. Alia

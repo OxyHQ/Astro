@@ -4,7 +4,7 @@ import { create } from "zustand";
 import { isChatTabUrl } from "../../ai/chat/actions";
 import { useWindowChat } from "../../ai/chat/state";
 import { activeTabId } from "../../store/model";
-import { layout, useTheme } from "../../lib/theme";
+import { layout } from "../../lib/theme";
 import { DOCK_SPRING, springConfig } from "../layout/dockMotion";
 import { useBrowser } from "../../store/browser";
 import { useWindowId } from "../../store/hooks";
@@ -61,7 +61,6 @@ const clampWidth = (w: number) => Math.min(CHAT_MAX_WIDTH, Math.max(CHAT_MIN_WID
 
 export function ChatSidebar() {
   const windowId = useWindowId();
-  const theme = useTheme();
   const inTab = useChatTabActive(windowId);
   const open = useWindowChat(windowId, (c) => c.open && c.placement === "sidebar") && !inTab;
   const savedWidth = useBrowser((s) => s.settings.chatWidth ?? CHAT_DEFAULT_WIDTH);
@@ -114,9 +113,7 @@ export function ChatSidebar() {
   return (
     <Animated.View style={{ width: appear.interpolate({ inputRange: [0, 1], outputRange: [0, room] }), overflow: "hidden" }}>
       <Animated.View style={{ position: "absolute", top: 0, bottom: 0, left: room - width, width }}>
-        <View style={{ flex: 1, borderRadius: layout.cardRadius, overflow: "hidden", backgroundColor: theme.card }}>
-          <View ref={slot as never} style={{ flex: 1 }} />
-        </View>
+        <View ref={slot as never} style={{ flex: 1 }} />
         <View
           {...responder.panHandlers}
           onDoubleClick={() => useBrowser.getState().updateSettings({ chatWidth: CHAT_DEFAULT_WIDTH })}
@@ -150,7 +147,6 @@ export function moveFloatingChat(dx: number, dy: number, done: boolean) {
 
 export function ChatFloating({ area }: { area: { width: number; height: number } }) {
   const windowId = useWindowId();
-  const theme = useTheme();
   const inTab = useChatTabActive(windowId);
   const open = useWindowChat(windowId, (c) => c.open && c.placement === "floating") && !inTab;
   const saved = useBrowser((s) => s.settings.chatFloatingFrame);
@@ -192,19 +188,7 @@ export function ChatFloating({ area }: { area: { width: number; height: number }
         transform: [{ scale: appear.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) }],
       }}
     >
-      <View
-        style={{
-          flex: 1,
-          borderRadius: 14,
-          overflow: "hidden",
-          backgroundColor: theme.dark ? "rgba(30,28,29,0.97)" : "rgba(252,251,252,0.98)",
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: theme.dark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.12)",
-          boxShadow: theme.dark ? "0 18px 48px rgba(0,0,0,0.55)" : "0 18px 48px rgba(0,0,0,0.18)",
-        }}
-      >
-        <View ref={slot as never} style={{ flex: 1 }} />
-      </View>
+      <View ref={slot as never} style={{ flex: 1 }} />
     </Animated.View>
   );
 }

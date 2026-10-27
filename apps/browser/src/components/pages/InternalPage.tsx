@@ -8,8 +8,6 @@ import { BookmarksPage } from "./BookmarksPage";
 import { ChatTabSlot } from "../chat/ChatSlots";
 import { DownloadsPage } from "./DownloadsPage";
 import { HistoryPage } from "./HistoryPage";
-import { SkillsPage } from "./SkillsPage";
-import { AppsPage } from "./AppsPage";
 import { useRegisteredPages } from "./registry";
 import { INTERNAL_PAGES, internalPageOf, internalQuery, tabDestination } from "./urls";
 
@@ -38,8 +36,8 @@ export function InternalPage({ tabId }: { tabId: string }) {
       {page === "bookmarks" && <BookmarksPage key={bookmarkProfile} tabId={tabId} profileId={bookmarkProfile} />}
       {page === "downloads" && <DownloadsPage tabId={tabId} />}
       {page === "chat" && <ChatTabSlot tabId={tabId} />}
-      {page === "skills" && <SkillsPage tabId={tabId} />}
-      {page === "apps" && <AppsPage tabId={tabId} />}
+      {page === "skills" && <RegisteredPage id="skills" tabId={tabId} />}
+      {page === "apps" && <RegisteredPage id="apps" tabId={tabId} />}
       {page === "artifact" && <RegisteredPage id="artifact" tabId={tabId} />}
     </View>
   );

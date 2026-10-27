@@ -1,16 +1,19 @@
 import { getImagesFromContent, getTextFromContent } from "@alia.onl/sdk/content";
 import { englishCopy, extractSources, toolLabel, turnLifecycle, type FailedTurn, type Message, type ToolInvocation } from "@alia.onl/sdk/model";
+import { AgentLogToolCall, AgentLogToolCalls } from "@oxy.so/bloom/agent-log";
 import { AgentThinking } from "@oxy.so/bloom/agent-thinking";
-import { AiChatAssistantMessage, AiChatUserMessage, type AiChatTurnAction } from "@oxy.so/bloom/ai-chat";
+import { AiChatAssistantMessage, AiChatMessageLine, AiChatThread, AiChatUserMessage, type AiChatTurnAction } from "@oxy.so/bloom/ai-chat";
+import { Button } from "@oxy.so/bloom/button";
+import { Chip, ChipRow } from "@oxy.so/bloom/chip";
+import { RiSparklingLine } from "@oxy.so/bloom/icons/RiSparklingLine";
 import { RiArrowGoForwardLine } from "@oxy.so/bloom/icons/RiArrowGoForwardLine";
 import { RiEditLine } from "@oxy.so/bloom/icons/RiEditLine";
 import { RiMagicLine } from "@oxy.so/bloom/icons/RiMagicLine";
 import { RiRefreshLine } from "@oxy.so/bloom/icons/RiRefreshLine";
 import { Markdown } from "@oxy.so/bloom/markdown";
-import { copyText, Symbol } from "@astro-browser/shell";
-import { memo, useMemo, useRef, type ReactNode } from "react";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
-import { useTheme } from "../../lib/theme";
+import { copyText } from "@astro-browser/shell";
+import { memo, useMemo, type ReactNode } from "react";
+import { Image, View } from "react-native";
 import { Favicon } from "../primitives";
 import { ChatChart } from "./ChatChart";
 import { renderCodeBlock } from "./ChatCode";
@@ -54,58 +57,38 @@ const stepLabel = (name: string) => {
 };
 
 function ToolSteps({ tools }: { tools: ToolInvocation[] }) {
-  const theme = useTheme();
   if (!tools.length) return null;
   return (
-    <View style={{ gap: 4 }}>
+    <AgentLogToolCalls accessibilityLabel="Steps">
       {tools.map((tool) => (
-        <View key={tool.toolCallId} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: RUNNING.has(tool.state) ? theme.accent : theme.textSecondary }} />
-          <Text numberOfLines={1} style={{ fontSize: 12, color: theme.textSecondary, flexShrink: 1 }}>
-            {stepLabel(tool.toolName)}
-            {RUNNING.has(tool.state) ? "…" : ""}
-          </Text>
-        </View>
+        <AgentLogToolCall key={tool.toolCallId} name={tool.toolName} label={stepLabel(tool.toolName)} status={RUNNING.has(tool.state) ? "running" : "done"} />
       ))}
-    </View>
+    </AgentLogToolCalls>
   );
 }
 
 function Sources({ tools, openLink }: { tools: ToolInvocation[]; openLink: (url: string) => void }) {
-  const theme = useTheme();
   const sources = useMemo(() => extractSources(tools).slice(0, 8), [tools]);
   if (!sources.length) return null;
   return (
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+    <ChipRow accessibilityLabel="Sources" gap={6}>
       {sources.map((source) => (
-        <Pressable
+        <Chip
           key={source.url}
-          onPress={() => openLink(source.url)}
-          accessibilityRole="link"
+          size="sm"
+          variant="outlined"
+          startIcon={<Favicon url={source.url} size={12} />}
           accessibilityLabel={source.title || source.domain}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 5,
-            maxWidth: 200,
-            height: 24,
-            paddingHorizontal: 7,
-            borderRadius: 8,
-            backgroundColor: theme.dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)",
-          }}
+          onPress={() => openLink(source.url)}
         >
-          <Favicon url={source.url} size={12} />
-          <Text numberOfLines={1} style={{ fontSize: 12, color: theme.textPrimary, flexShrink: 1 }}>
-            {source.domain || source.title}
-          </Text>
-        </Pressable>
+          {source.domain || source.title}
+        </Chip>
       ))}
-    </View>
+    </ChipRow>
   );
 }
 
 const UserTurn = memo(function UserTurn({ message, actions, busy }: { message: Message; actions: ThreadActions; busy: boolean }) {
-  const theme = useTheme();
   const text = textOf(message);
   const images = getImagesFromContent(message.content as never);
   const files = filesOf(message);
@@ -114,21 +97,21 @@ const UserTurn = memo(function UserTurn({ message, actions, busy }: { message: M
     turnActions.push({ key: "skill", label: "Save as Skill", icon: RiMagicLine, onPress: () => actions.saveAsSkill?.(message) });
   return (
     <AiChatUserMessage animate={!!message.unsaved} actions={turnActions}>
-      <View style={{ gap: 6 }}>
-        {images.length > 0 && (
+      {images.length > 0 && (
+        <AiChatMessageLine block>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
             {images.map((uri, i) => (
               <Image key={i} source={{ uri }} style={{ width: 72, height: 72, borderRadius: 8 }} />
             ))}
           </View>
-        )}
-        {files.map((name) => (
-          <Text key={name} numberOfLines={1} style={{ fontSize: 12, color: theme.textSecondary }}>
-            {name}
-          </Text>
-        ))}
-        {text ? <UserText text={text} /> : null}
-      </View>
+        </AiChatMessageLine>
+      )}
+      {files.map((name) => (
+        <AiChatMessageLine key={name} tone="secondary">
+          {name}
+        </AiChatMessageLine>
+      ))}
+      {text ? <UserText text={text} /> : null}
     </AiChatUserMessage>
   );
 });
@@ -136,36 +119,26 @@ const UserTurn = memo(function UserTurn({ message, actions, busy }: { message: M
 const LEADING_SKILLS = /^((?:\/[a-z0-9][a-z0-9-]*\s*)+)([\s\S]*)$/;
 
 function UserText({ text }: { text: string }) {
-  const theme = useTheme();
   const quoted = text.lastIndexOf("\n\n");
   const tail = quoted >= 0 ? text.slice(quoted + 2) : text;
   const m = LEADING_SKILLS.exec(tail);
-  if (!m) return <Text selectable style={{ fontSize: 14, lineHeight: 20, color: theme.textPrimary }}>{text}</Text>;
+  if (!m) return <AiChatMessageLine>{text}</AiChatMessageLine>;
   const names = m[1]!.trim().split(/\s+/);
+  const rest = m[2]!.trim();
   return (
-    <View style={{ gap: 6 }}>
-      {quoted >= 0 && (
-        <Text selectable style={{ fontSize: 14, lineHeight: 20, color: theme.textPrimary }}>
-          {text.slice(0, quoted)}
-        </Text>
-      )}
-      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
-        {names.map((name, i) => (
-          <View
-            key={`${name}-${i}`}
-            style={{ flexDirection: "row", alignItems: "center", gap: 4, height: 22, paddingHorizontal: 7, borderRadius: 7, backgroundColor: theme.dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)" }}
-          >
-            <Symbol name="sparkles" size={10} color={theme.icon} style={{ width: 12, height: 12 }} />
-            <Text style={{ fontSize: 12.5, fontWeight: "600", color: theme.textPrimary }}>{name}</Text>
-          </View>
-        ))}
-        {m[2]!.trim() ? (
-          <Text selectable style={{ fontSize: 14, lineHeight: 20, color: theme.textPrimary }}>
-            {m[2]!.trim()}
-          </Text>
-        ) : null}
-      </View>
-    </View>
+    <>
+      {quoted >= 0 && <AiChatMessageLine>{text.slice(0, quoted)}</AiChatMessageLine>}
+      <AiChatMessageLine block>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+          {names.map((name, i) => (
+            <Chip key={`${name}-${i}`} size="sm" variant="subtle" startIcon={<RiSparklingLine />}>
+              {name}
+            </Chip>
+          ))}
+        </View>
+      </AiChatMessageLine>
+      {rest ? <AiChatMessageLine>{rest}</AiChatMessageLine> : null}
+    </>
   );
 }
 
@@ -182,7 +155,6 @@ const AssistantTurn = memo(function AssistantTurn({
   last: boolean;
   failedTurn: FailedTurn | null;
 }) {
-  const theme = useTheme();
   const text = textOf(message);
   const lifecycle = turnLifecycle(message, { isLoading, isLastAssistant: last, failedTurn });
   const live = lifecycle === "running" || lifecycle === "queued";
@@ -218,11 +190,7 @@ const AssistantTurn = memo(function AssistantTurn({
           tone="subtle"
           defaultOpen={false}
         >
-          {thinking ? (
-            <Text selectable style={{ fontSize: 13, lineHeight: 19, color: theme.textSecondary }}>
-              {thinking}
-            </Text>
-          ) : null}
+          {thinking ? <AiChatMessageLine tone="secondary">{thinking}</AiChatMessageLine> : null}
         </AgentThinking>
       )}
       {steps.length > 0 && <ToolSteps tools={steps} />}
@@ -238,27 +206,34 @@ const AssistantTurn = memo(function AssistantTurn({
         <ArtifactCard key={artifact.id} artifact={artifact} onOpen={() => actions.openArtifact?.(artifact)} />
       ))}
       <Sources tools={tools} openLink={actions.openLink} />
-      {lifecycle === "cancelled" && <Text style={{ fontSize: 12, color: theme.textSecondary }}>Stopped</Text>}
+      {lifecycle === "cancelled" && (
+        <AiChatMessageLine tone="secondary" selectable={false}>
+          Stopped
+        </AiChatMessageLine>
+      )}
       {failed && <FailedRow failedTurn={failedTurn} onRetry={actions.retry} />}
     </AiChatAssistantMessage>
   );
 });
 
 function FailedRow({ failedTurn, onRetry }: { failedTurn: FailedTurn | null; onRetry: () => void }) {
-  const theme = useTheme();
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-      <Text style={{ fontSize: 13, color: theme.textSecondary, flexShrink: 1 }}>
-        {failedTurn?.detail || (failedTurn?.partial ? "The answer was cut short." : "Alia couldn't answer that.")}
-      </Text>
-      {failedTurn?.retryable !== false && (
-        <Pressable accessibilityRole="button" onPress={onRetry}>
-          <Text style={{ fontSize: 13, fontWeight: "600", color: theme.accent }}>Try Again</Text>
-        </Pressable>
-      )}
-    </View>
+    <AiChatMessageLine block>
+      <View accessibilityRole="alert" style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+        <AiChatMessageLine tone="secondary" selectable={false} style={{ flexShrink: 1 }}>
+          {failedTurn?.detail || (failedTurn?.partial ? "The answer was cut short." : "Alia couldn't answer that.")}
+        </AiChatMessageLine>
+        {failedTurn?.retryable !== false && (
+          <Button size="sm" appearance="subtle" tone="accent" onPress={onRetry}>
+            Try Again
+          </Button>
+        )}
+      </View>
+    </AiChatMessageLine>
   );
 }
+
+const AT_BOTTOM = 48;
 
 export function ChatThreadView({
   messages,
@@ -271,14 +246,14 @@ export function ChatThreadView({
   isLoading: boolean;
   failedTurn: FailedTurn | null;
   actions: ThreadActions;
-  empty: React.ReactNode;
+  empty: ReactNode;
 }) {
   const shown = messages.filter((m) => m.role !== "system");
   const lastAssistant = [...shown].reverse().find((m) => m.role === "assistant");
   const orphan = failedTurn && !shown.some((m) => m.id === failedTurn.anchorMessageId && m.role === "assistant");
-  if (!shown.length) return <View style={{ flex: 1 }}>{empty}</View>;
+  if (!shown.length) return <>{empty}</>;
   return (
-    <FollowingScroll>
+    <AiChatThread followThreshold={AT_BOTTOM}>
       {shown.map((message) =>
         message.role === "user" ? (
           <View key={message.id} style={{ gap: 8 }}>
@@ -289,30 +264,6 @@ export function ChatThreadView({
           <AssistantTurn key={message.id} message={message} actions={actions} isLoading={isLoading} last={message === lastAssistant} failedTurn={failedTurn} />
         ),
       )}
-    </FollowingScroll>
-  );
-}
-
-const AT_BOTTOM = 48;
-
-function FollowingScroll({ children }: { children: ReactNode }) {
-  const ref = useRef<ScrollView>(null);
-  const atBottom = useRef(true);
-  return (
-    <ScrollView
-      ref={ref}
-      style={{ flex: 1 }}
-      contentContainerStyle={{ minHeight: "100%", justifyContent: "flex-end", paddingHorizontal: 14, paddingTop: 8, paddingBottom: 12, gap: 14 }}
-      scrollEventThrottle={32}
-      onScroll={(e) => {
-        const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-        atBottom.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - AT_BOTTOM;
-      }}
-      onContentSizeChange={() => {
-        if (atBottom.current) ref.current?.scrollToEnd({ animated: false });
-      }}
-    >
-      {children}
-    </ScrollView>
+    </AiChatThread>
   );
 }
