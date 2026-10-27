@@ -9,7 +9,8 @@ import { RiUserLine } from "@oxy.so/bloom/icons/RiUserLine";
 import { Symbol } from "@astro-browser/shell";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Pressable, ScrollView, Text, TextInput, View, type TextInputKeyPressEvent } from "react-native";
-import { removeChatContext, updateWindowChat, useWindowChat, type ChatContextItem } from "../../ai/chat/state";
+import { addChatContext, chatItemId, removeChatContext, updateWindowChat, useWindowChat, type ChatContextItem } from "../../ai/chat/state";
+import { refreshSkills, SLASH, slashCandidates, useSkills, type SlashCandidate } from "../../ai/skills/skills";
 import { useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { activeTabId } from "../../store/model";
@@ -57,8 +58,14 @@ export function ChatComposer({
   const mention = MENTION.exec(draft);
   const query = mention?.[2] ?? null;
   const candidates = useMentionCandidates(windowId, query);
+  const slash = query === null ? SLASH.exec(draft) : null;
+  const slashQuery = slash?.[2] ?? null;
+  const skills = useSlashCandidates(slashQuery);
   const [highlight, setHighlight] = useState(0);
-  useEffect(() => setHighlight(0), [query]);
+  useEffect(() => setHighlight(0), [query, slashQuery]);
+  useEffect(() => {
+    if (slashQuery !== null) void refreshSkills();
+  }, [slashQuery !== null]);
 
   const attachments: ComposerPanelAttachment[] = context.flatMap((item): ComposerPanelAttachment[] => {
     if (item.kind === "file")
@@ -95,7 +102,29 @@ export function ChatComposer({
     onPickMention(candidate);
   };
 
+  const pickSkill = (candidate: SlashCandidate) => {
+    updateWindowChat(windowId, { draft: draft.replace(SLASH, (_, lead: string) => lead) });
+    addChatContext(windowId, [
+      { id: chatItemId("skill"), kind: "skill", name: candidate.name, title: candidate.title, ...(candidate.kind === "command" ? { command: candidate.command } : {}) },
+    ]);
+  };
+
   const onKeyPress = (event: TextInputKeyPressEvent) => {
+    if (slashQuery !== null && skills.length) {
+      const key = event.nativeEvent.key;
+      if (key === "ArrowDown" || key === "ArrowUp") {
+        event.preventDefault();
+        setHighlight((i) => (i + (key === "ArrowDown" ? 1 : skills.length - 1)) % skills.length);
+      } else if (key === "Enter" || key === "Tab") {
+        event.preventDefault();
+        const chosen = skills[Math.min(highlight, skills.length - 1)];
+        if (chosen) pickSkill(chosen);
+      } else if (key === "Escape") {
+        event.preventDefault();
+        updateWindowChat(windowId, { draft: draft.replace(/\/[a-z0-9-]*$/, "") });
+      }
+      return;
+    }
     if (!candidates.length || query === null) return;
     const key = event.nativeEvent.key;
     if (key === "ArrowDown" || key === "ArrowUp") {
@@ -114,12 +143,14 @@ export function ChatComposer({
   return (
     <View style={{ gap: 6, paddingHorizontal: 10, paddingBottom: 10 }}>
       {query !== null && candidates.length > 0 && <MentionList candidates={candidates} highlight={highlight} onPick={pick} />}
+      {slashQuery !== null && skills.length > 0 && <SlashList candidates={skills} highlight={highlight} onPick={pickSkill} />}
       <ContextChips windowId={windowId} />
       <ComposerPill
         value={draft}
         onValueChange={(value) => updateWindowChat(windowId, { draft: value })}
         onSubmit={(value) => {
           if (query !== null && candidates.length) return;
+          if (slashQuery !== null && skills.length) return;
           onSubmit(value);
         }}
         onStop={onStop}
@@ -158,6 +189,85 @@ function useMentionCandidates(windowId: string, query: string | null): MentionCa
   const groups = useBrowser((s) => s.groups);
   const order = useBrowser((s) => s.windows[windowId]?.tabIds);
   return useMemo(() => (query === null ? [] : mentionCandidates(useBrowser.getState(), windowId, query)), [tabs, groups, order, windowId, query]);
+}
+
+function useSlashCandidates(query: string | null): SlashCandidate[] {
+  const installed = useSkills((s) => s.installed);
+  return useMemo(() => (query === null ? [] : slashCandidates(installed, query)), [installed, query]);
+}
+
+function SlashList({ candidates, highlight, onPick }: { candidates: SlashCandidate[]; highlight: number; onPick: (candidate: SlashCandidate) => void }) {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        maxHeight: 300,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: theme.dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+        backgroundColor: theme.dark ? "rgba(36,34,35,0.98)" : "rgba(255,255,255,0.98)",
+        boxShadow: theme.dark ? "0 10px 30px rgba(0,0,0,0.5)" : "0 10px 30px rgba(0,0,0,0.12)",
+        overflow: "hidden",
+      }}
+    >
+      <Text style={{ fontSize: 11, fontWeight: "600", color: theme.textSecondary, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 2 }}>Skills</Text>
+      <ScrollView contentContainerStyle={{ padding: 4 }} keyboardShouldPersistTaps="always">
+        {candidates.map((candidate, i) => (
+          <Pressable
+            key={candidate.key}
+            accessibilityRole="button"
+            accessibilityLabel={`/${candidate.name}`}
+            onPress={() => onPick(candidate)}
+            style={{
+              minHeight: 40,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: 8,
+              backgroundColor: i === highlight ? (theme.dark ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.06)") : undefined,
+            }}
+          >
+            <SkillGlyph candidate={candidate} />
+            <View style={{ flex: 1, gap: 1 }}>
+              <Text numberOfLines={1} style={{ fontSize: 13, color: theme.textPrimary }}>
+                <Text style={{ fontWeight: "600" }}>/{candidate.name}</Text>
+                {candidate.title && candidate.title !== candidate.name ? <Text style={{ color: theme.textSecondary }}>{`  ${candidate.title}`}</Text> : null}
+              </Text>
+              <Text numberOfLines={1} style={{ fontSize: 11, color: theme.textSecondary }}>
+                {candidate.description}
+              </Text>
+            </View>
+            {candidate.kind === "skill" && candidate.auto && <Text style={{ fontSize: 11, color: theme.textTertiary }}>Auto</Text>}
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function SkillGlyph({ candidate }: { candidate: SlashCandidate }) {
+  const theme = useTheme();
+  const emoji = candidate.kind === "skill" && candidate.icon && !/^[a-z.]+$/i.test(candidate.icon) ? candidate.icon : null;
+  return (
+    <View
+      style={{
+        width: 24,
+        height: 24,
+        borderRadius: 7,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: theme.dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+      }}
+    >
+      {emoji ? (
+        <Text style={{ fontSize: 13 }}>{emoji}</Text>
+      ) : (
+        <Symbol name={candidate.kind === "command" ? candidate.icon : "sparkles"} size={11} color={theme.icon} style={{ width: 14, height: 14 }} />
+      )}
+    </View>
+  );
 }
 
 function MentionList({ candidates, highlight, onPick }: { candidates: MentionCandidate[]; highlight: number; onPick: (candidate: MentionCandidate) => void }) {
@@ -226,7 +336,13 @@ function ContextChips({ windowId }: { windowId: string }) {
         />
       )}
       {chips.map((item) => (
-        <Chip key={item.id} icon={chipIcon(item, theme.icon)} label={chipLabel(item)} onRemove={() => removeChatContext(windowId, item.id)} />
+        <Chip
+          key={item.id}
+          icon={chipIcon(item, theme.icon)}
+          label={chipLabel(item)}
+          {...(item.kind === "skill" ? { hint: item.title } : {})}
+          onRemove={() => removeChatContext(windowId, item.id)}
+        />
       ))}
     </ScrollView>
   );
@@ -242,6 +358,8 @@ function chipIcon(item: ChatContextItem, color: string) {
       return <Symbol name="text.alignleft" size={10} color={color} style={{ width: 12, height: 12 }} />;
     case "link":
       return <Favicon url={item.url} size={12} />;
+    case "skill":
+      return <Symbol name="sparkles" size={10} color={color} style={{ width: 12, height: 12 }} />;
     default:
       return null;
   }
@@ -257,6 +375,8 @@ function chipLabel(item: ChatContextItem): string {
       return `“${item.text.replace(/\s+/g, " ").slice(0, 60)}${item.text.length > 60 ? "…" : ""}”`;
     case "link":
       return item.url.replace(/^https?:\/\/(www\.)?/, "");
+    case "skill":
+      return `/${item.name}`;
     default:
       return "";
   }

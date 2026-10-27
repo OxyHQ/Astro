@@ -111,9 +111,10 @@ export function openChatFromEntry(entry: ChatEntry) {
   const context: ChatContextItem[] = entry.page
     ? [{ id: chatItemId("tab"), kind: "tab", tabId: entry.page.tabId, title: entry.page.title, url: entry.page.url, favicon: tab?.favicon ?? null }]
     : [];
+  if (entry.skill) context.push({ id: chatItemId("skill"), kind: "skill", ...entry.skill });
   askInChat(entry.windowId, entry.prompt, {
-    send: entry.prompt.trim().length > 0,
-    fresh: entry.source !== "promptAction",
+    send: entry.prompt.trim().length > 0 || !!entry.skill,
+    fresh: entry.source !== "promptAction" && entry.source !== "suggestion",
     context,
     ...(entry.page?.transcript ? { transcript: entry.page.transcript } : {}),
     ...(entry.page?.summary ? { summary: entry.page.summary } : {}),

@@ -17,6 +17,9 @@ import {
   type ChatContextItem,
 } from "../../ai/chat/state";
 import { PROMPT_ACTIONS } from "../../ai/oneShotPrompts";
+import { parseSlash, refreshSkills, useSkills } from "../../ai/skills/skills";
+import { astroCommandTurn } from "../../ai/work/gather";
+import { openSkillsPage } from "../pages/urls";
 import { webviews } from "../../lib/webviews";
 import { layout, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
@@ -35,7 +38,7 @@ import { powerLevelOf } from "./powerLevels";
 export type ChatPanelProps = { windowId: string; inTab: boolean; personalizationSupported: boolean; faviconUrl?: (url: string) => string | null };
 
 type Pending =
-  | { kind: "send"; id: number; text: string; attachments: SdkAttachment[] }
+  | { kind: "send"; id: number; text: string; attachments: SdkAttachment[]; skills: string[]; research: boolean }
   | { kind: "regenerate"; id: number; messageId: string }
   | { kind: "edit"; id: number; messageId: string; text: string }
   | { kind: "retry"; id: number };
@@ -49,13 +52,21 @@ let pendingSeq = 0;
 const TOOLBAR_GLYPH_CENTER = 21.2;
 const HEADER_CENTER_SHIFT = 2 * TOOLBAR_GLYPH_CENTER - layout.toolbarHeight;
 
+const researchTurns = new Set<string>();
+
 export function ChatPanel(props: ChatPanelProps) {
   const { windowId } = props;
   const host = useMemo<AliaRuntimeHost>(
     () => ({
       openConversation: (id) => showChatConversation(windowId, id),
+      onTurnEnd: () => void researchTurns.delete(windowId),
       closeConversation: () => newChat(windowId),
-      turnRequest: (): AliaTurnRequest => (personalizationOff(windowChat(windowId).conversationId) ? { personalization: false } : {}),
+      turnRequest: (): AliaTurnRequest => {
+        const request: AliaTurnRequest = {};
+        if (researchTurns.delete(windowId)) request.deepResearch = true;
+        if (personalizationOff(windowChat(windowId).conversationId)) request.personalization = false;
+        return request;
+      },
       ...(props.faviconUrl ? { faviconUrl: props.faviconUrl } : {}),
     }),
     [windowId, props.faviconUrl],
@@ -88,7 +99,7 @@ function quoteOf(items: ChatContextItem[]): string {
   return parts.join("\n\n");
 }
 
-const ONE_SHOT = new Set<ChatContextItem["kind"]>(["file", "screenshot", "selection", "link"]);
+const ONE_SHOT = new Set<ChatContextItem["kind"]>(["file", "screenshot", "selection", "link", "skill"]);
 
 function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelProps) {
   const theme = useTheme();
@@ -112,16 +123,20 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
   const title = thread.conversation?.title && thread.messages.length ? thread.conversation.title : "New Chat";
 
   useEffect(() => {
+    void refreshSkills();
+  }, []);
+
+  useEffect(() => {
     if (!focusRequest) return;
     const timer = setTimeout(() => inputRef.current?.focus(), 30);
     return () => clearTimeout(timer);
   }, [focusRequest]);
 
   const prepare = useCallback(
-    async (next: PendingInput) => {
+    async (next: PendingInput, extra: string[] = []) => {
       setPreparing(true);
       try {
-        const context = await buildTurnContext(windowId);
+        const context = await buildTurnContext(windowId, extra);
         setClientContext(context.text);
         setPending({ ...next, id: ++pendingSeq } as Pending);
       } finally {
@@ -135,10 +150,13 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
     if (!pending) return;
     setPending(null);
     switch (pending.kind) {
-      case "send":
-        if (thread.conversationId) void thread.sendMessage(pending.text, pending.attachments);
-        else void thread.createNewConversation(pending.text, pending.attachments);
+      case "send": {
+        const options = pending.skills.length ? { skillNames: pending.skills } : undefined;
+        if (pending.research) researchTurns.add(windowId);
+        if (thread.conversationId) void thread.sendMessage(pending.text, pending.attachments, options);
+        else void thread.createNewConversation(pending.text, pending.attachments, options);
         return;
+      }
       case "regenerate":
         return void thread.regenerateMessage(pending.messageId);
       case "edit":
@@ -151,13 +169,37 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
   const send = useCallback(
     (raw: string, extra: ChatContextItem[] = []) => {
       const chat = windowChat(windowId);
-      const items = [...chat.context, ...extra];
+      const typed = parseSlash(raw, useSkills.getState().installed);
+      const slashItem: ChatContextItem[] = typed
+        ? [
+            {
+              id: chatItemId("skill"),
+              kind: "skill",
+              name: typed.candidate.name,
+              title: typed.candidate.title,
+              ...(typed.candidate.kind === "command" ? { command: typed.candidate.command } : {}),
+            },
+          ]
+        : [];
+      const items = [...chat.context, ...extra, ...slashItem];
+      const words = typed ? typed.rest : raw.trim();
+      const chosen = items.flatMap((item) => (item.kind === "skill" ? [item] : []));
+      const skills = chosen.filter((item) => !item.command).map((item) => item.name);
+      const research = chosen.some((item) => item.command === "research");
+      const turns = chosen.flatMap((item) => {
+        const turn = item.command && item.command !== "research" ? astroCommandTurn(item.command, windowId) : null;
+        return turn ? [[`## The person ran /${item.name} (${item.title})`, turn.prompt, ...turn.context]] : [];
+      });
+      const asked = [chosen.map((item) => `/${item.name}`).join(" "), words].filter(Boolean).join(" ");
       const quote = quoteOf(items);
-      const text = [quote, raw.trim()].filter(Boolean).join("\n\n");
+      const text = [quote, asked].filter(Boolean).join("\n\n");
       const attachments = attachmentsOf(items);
       if (!text && !attachments.length) return;
       updateWindowChat(windowId, (c) => ({ draft: "", context: c.context.filter((item) => !ONE_SHOT.has(item.kind)), history: false }));
-      void prepare({ kind: "send", text, attachments });
+      void prepare(
+        { kind: "send", text, attachments, skills, research },
+        turns.flat(),
+      );
     },
     [windowId, prepare],
   );
@@ -179,8 +221,7 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       ask.summary && page?.kind === "tab"
         ? [{ id: chatItemId("selection"), kind: "selection", tabId: page.tabId, title: `Summary of ${page.title}`, url: page.url, text: ask.summary }]
         : [];
-    const timer = setTimeout(() => send(ask.text, summary), 0);
-    return () => clearTimeout(timer);
+    send(ask.text, summary);
   }, [ask]);
 
   const actions: ThreadActions = useMemo(
@@ -198,6 +239,7 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       regenerate: (message: Message) => void prepare({ kind: "regenerate", messageId: message.id }),
       resume: () => send("Continue from where you stopped."),
       retry: () => void prepare({ kind: "retry" }),
+      saveAsSkill: (message: Message) => openSkillsPage(windowId, "new", getTextFromContent(message.content as never)),
     }),
     [windowId, prepare, send],
   );
@@ -372,6 +414,8 @@ async function showPanelMenu(
     { separator: true as const },
     ...(personalizationSupported && conversationId ? [{ id: "personal", title: "Personalization for This Chat", checked: personal }] : []),
     ...(conversationId ? [{ id: "clear", title: "Clear Chat" }] : []),
+    { separator: true as const },
+    { id: "skills", title: "Skills…" },
   ]);
   switch (choice) {
     case "tab":
@@ -384,6 +428,8 @@ async function showPanelMenu(
       return;
     case "clear":
       return void clear();
+    case "skills":
+      return openSkillsPage(windowId);
   }
 }
 

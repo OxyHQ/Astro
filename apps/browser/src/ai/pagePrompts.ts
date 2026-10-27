@@ -3,7 +3,7 @@ import { webviews } from "../lib/webviews";
 import { signInWithOxy } from "../oxy/session";
 import { useBrowser } from "../store/browser";
 import { activeTab, isIncognitoProfile } from "../store/model";
-import { chatAvailable, openChat, type ChatPageContext } from "./chatEntry";
+import { chatAvailable, openChat, type ChatEntrySkill, type ChatPageContext } from "./chatEntry";
 import { oneShot, oneShotReady, oneShotSignedIn } from "./inference";
 import { promptActionsFor, PROMPT_ACTIONS, transcriptText, VIDEO_SUMMARY_INSTRUCTIONS, videoSummaryInput, youtubeVideoId, type PromptAction } from "./oneShotPrompts";
 import { transcriptScript, type TranscriptResult } from "./youtubeTranscript";
@@ -94,6 +94,11 @@ export async function runPromptAction(id: string, windowId: string): Promise<voi
 export function openChatWithQuery(windowId: string, prompt: string): boolean {
   const tab = activeTab(useBrowser.getState(), windowId);
   return openChat({ windowId, prompt, source: "commandBar", ...(tab?.url && /^https?:/i.test(tab.url) ? { page: pageContext(tab.id) } : {}) });
+}
+
+export function openChatWithSkill(windowId: string, prompt: string, skill: ChatEntrySkill): boolean {
+  const tab = activeTab(useBrowser.getState(), windowId);
+  return openChat({ windowId, prompt, source: "skill", skill, ...(tab?.url && /^https?:/i.test(tab.url) ? { page: pageContext(tab.id) } : {}) });
 }
 
 export function startVideoSummaries(): () => void {

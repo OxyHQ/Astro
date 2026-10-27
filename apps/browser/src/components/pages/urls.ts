@@ -3,13 +3,14 @@ import { useBrowser } from "../../store/browser";
 import { activeTabId, resolveWindowId, viewTabIds } from "../../store/model";
 import type { Tab } from "../../store/types";
 
-type InternalPageId = "history" | "bookmarks" | "downloads" | "chat";
+type InternalPageId = "history" | "bookmarks" | "downloads" | "chat" | "skills";
 
 export const INTERNAL_PAGES: Record<InternalPageId, { title: string }> = {
   history: { title: "History" },
   bookmarks: { title: "Bookmarks" },
   downloads: { title: "Downloads" },
   chat: { title: "Chat" },
+  skills: { title: "Skills" },
 };
 
 const SCHEME = "astro://";
@@ -50,4 +51,17 @@ export function openInternalPage(page: InternalPageId, windowId?: string | null,
   const active = activeTabId(s, id);
   if (active && !s.tabs[active]!.url && !options.background) return s.navigate(active, url);
   s.newTab(id, { url, background: options.background });
+}
+
+export function openSkillsPage(windowId: string | null, route: "yours" | "gallery" | "new" = "yours", prompt = "") {
+  const s = useBrowser.getState();
+  const id = resolveWindowId(s, windowId);
+  if (!id) return;
+  const url = `${SCHEME}skills${route === "yours" ? "" : `/${route}`}${prompt ? `?q=${encodeURIComponent(prompt)}` : ""}`;
+  const existing = viewTabIds(s, id).find((t) => internalPageOf(tabDestination(s.tabs[t]!)) === "skills");
+  if (existing) {
+    s.navigate(existing, url);
+    return s.activate(existing);
+  }
+  s.newTab(id, { url });
 }

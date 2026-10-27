@@ -50,7 +50,7 @@ function tabSummary(tabId: string): string {
   return `- [${tab.id}] ${tab.customTitle || tab.title || "(untitled)"} — ${tab.url || "New Tab"}`;
 }
 
-export async function buildTurnContext(windowId: string): Promise<TurnContext> {
+export async function buildTurnContext(windowId: string, extra: string[] = []): Promise<TurnContext> {
   const chat = windowChat(windowId);
   const s = useBrowser.getState();
   const currentTabId = chat.currentTab ? (activeTabId(s, windowId) ?? null) : null;
@@ -82,6 +82,8 @@ export async function buildTurnContext(windowId: string): Promise<TurnContext> {
   });
 
   for (const item of items) sections.push(...attachedItem(item));
+
+  sections.push(...extra);
 
   const listed = viewTabIds(s, windowId).slice(0, LISTED_TABS).map(tabSummary).filter(Boolean);
   if (listed.length)

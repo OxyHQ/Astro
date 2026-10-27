@@ -193,6 +193,48 @@ original surface: host tools declared `awaitsResult`, whose action carries the `
 per-turn `personalization: false`. Alia #914 made the SDK's raw TypeScript type-check under Astro's
 `noUncheckedIndexedAccess`.
 
+### Skills
+
+A skill is Alia's: an [Agent Skill](https://agentskills.io) in the person's Alia account (Alia `docs/skills.mdx`), so
+the same skills run in Astro, the Alia app and any other client. Astro draws them and sends them; Alia stores, versions
+and runs them.
+
+| What | Alia | Astro |
+| --- | --- | --- |
+| Your skills (the shelf) | `GET /skills/installed`; `PATCH /skills/:id/install { enabled, autoInvoke }`; `DELETE …/install` | `astro://skills`, rows with **On** and **Automatic** |
+| Gallery | `GET /skills?query=` (public skills: Alia's built-ins, the registry, and what people publish); `POST /skills/:id/install` | `astro://skills/gallery`: search, **Add**, **Try**, copy link |
+| Skill Builder | `POST /skills/generate` (a draft `SKILL.md` from a sentence, saves nothing); `POST /skills`; `POST /skills/:id/versions` | `astro://skills/new`: describe it and **Write It for Me**, or write the name, `/command`, when to use it and the steps; **Save and Try** |
+| Publish and share | `PATCH /skills/:id { visibility: "public" }` puts it in everyone's Gallery; the link is `https://alia.onl/skills/<id>` | the row's ⋯ › Publish to Gallery, Copy Link |
+| Running one | the turn's `skillIds` (the SDK's `skillNames`): its instructions are prepended for that message | `/` in the composer, or a message that starts with `/name` |
+
+- **`/` in the composer** lists your enabled skills, then Astro's own commands, filtered as you type (↑↓, ↩ or Tab picks,
+  Esc closes). The pick becomes a chip above the composer; the message is sent with `skillNames: [name]` and the chip goes
+  with it. Sending a chip with no text runs the skill on what's attached (the tab you're on, by default).
+- **The command bar**: typing `/` lists the same rows (`/name — Title`); `/name words` runs it on the words with the
+  current tab attached (`components/omnibox/chatRoute.ts` `slashBarRows`). The bar also has Skills, New Skill and Skills
+  Gallery.
+- **Automatic** (Dia's auto-fire) is the install's `autoInvoke`: Alia lists the skill in the turn's skill index and the
+  model loads it (`loadSkill`) when a request matches its description, without the `/`. Off, the skill runs only when
+  chosen.
+- **Multi-step**: a skill's instructions are steps the model follows in one turn with its tools (read the page, search,
+  ask, write); the builder's placeholder is a numbered list.
+- **Save as Skill** on a message you sent opens the builder with it as the description and the steps.
+- Signed out, the page offers Sign in with Oxy and `/` lists nothing. The pages call Alia through `ai/alia/api.ts`, the
+  SDK's `useAliaApi()` (the person's Oxy session, its refresh and 401 replay), registered by `apps/webui/src/host/chat.tsx`
+  so a page outside the SDK's provider can use it.
+
+**Astro's commands** sit in the same list. They aren't Alia skills: they add what Astro knows to the turn's context.
+
+| Command | Sends |
+| --- | --- |
+| `/research` | the message with `deepResearch: true` (Alia's deep research: many searches, a sourced report) |
+| `/start-my-day` | **Start My Day**: today's meetings from Nilo (`live/calendar.ts`), pinned and open tabs, yesterday's pages; asks for the schedule, what needs you (Alia reaches Inbox and the other Oxy apps herself), where you left off and headlines |
+| `/prep` | the next meeting (title, time, place, link, organizer, guests, description) and pages from the last two weeks whose title or address shares its words or guests |
+| `/recap` | the last meeting and the pages you visited during it (5 min before to 10 min after) |
+
+The builders are pure (`ai/work/brief.ts`, tests in `brief.test.mjs`); `ai/work/gather.ts` reads the stores. Without a
+calendar in Astro, the context says so and asks Alia to read it with her own calendar tools.
+
 ### macOS
 
 The shared code (`ai/chat`, `components/chat`) is platform-neutral. What macOS lacks: the Oxy SDK provider (the app is on
@@ -204,7 +246,9 @@ window), and a streaming `fetch` (the SDK's `streamFetch`; Expo's `expo/fetch` s
 ### Testing it
 
 - `npm test` in `apps/browser`: `ai/chat/chat.test.mjs` (state, asks, context chips, personalization carry-over, pasted
-  links, mentions, the turn context), `components/chat/highlight.test.mjs` and `components/chat/charts.test.mjs`.
+  links, mentions, the turn context), `components/chat/highlight.test.mjs`, `components/chat/charts.test.mjs`,
+  `ai/skills/skills.test.mjs` (slugs, the `/` list, `/name` parsing, the Alia routes the shelf calls) and
+  `ai/work/brief.test.mjs` (brief, prep, recap).
 - A Windows or Linux build against a local stack: `ASTRO_OXY_API_URL`, `ASTRO_NILO_API_URL`, `ASTRO_ALIA_API_URL` and
   `ASTRO_KAANA_URL` move together (`apps/webui/vite.config.ts` refuses a mix, so a local session never reaches a
   production origin; point one you don't run at a closed port such as `http://127.0.0.1:9`). `globalThis.astro.chat` is the chat store and `astro.oxy` the session.

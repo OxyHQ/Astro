@@ -18,7 +18,8 @@ import { defaultSearchEngine, searchEngines } from "../../store/settings";
 import type { Bookmarks, HistoryEntry } from "../../store/types";
 import { currentBarActions } from "./actions";
 import { useBangs } from "./bangs";
-import { promptBarActions, useChatRoute } from "./chatRoute";
+import { promptBarActions, skillsBarActions, slashBarRows, useChatRoute } from "./chatRoute";
+import { refreshSkills, useSkills } from "../../ai/skills/skills";
 import { historyHosts, knownHosts } from "./knownHosts";
 
 const NO_HISTORY: HistoryEntry[] = [];
@@ -101,6 +102,11 @@ export function useSuggestions({
   const preference = useBrowser((s) => s.settings.commandBarPreference);
   const suggestionsOn = useBrowser((s) => s.settings.searchSuggestions);
   const chat = useChatRoute(windowId);
+  const skills = useSkills((s) => s.installed);
+  const slashing = !!chat && !scope && /^\/[a-z0-9-]*(\s|$)/.test(text.trimStart());
+  useEffect(() => {
+    if (slashing && !chat?.signIn) void refreshSkills();
+  }, [slashing]);
 
   const tabs = useMemo(() => Object.values(allTabs).filter((t) => t.profileId === profileId), [allTabs, profileId]);
   const bookmarkRows = useMemo(() => profileBookmarks(bookmarks, bookmarkProfile), [bookmarks, bookmarkProfile]);
@@ -141,11 +147,16 @@ export function useSuggestions({
 
   return useMemo(() => {
     if (!active || !query) return EMPTY;
+    const slashRows = slashing && chat ? slashBarRows(text, chat.signIn) : [];
+    if (slashRows.length) {
+      const rest = buildSuggestions(text, source, { engine, preference, remote: remoteList, currentTabId, currentUrl, scope, preventInline: true, bangs });
+      return { items: [...slashRows, ...rest.items.filter((row) => row.kind === "search")].slice(0, 8), completion: "" };
+    }
     return buildSuggestions(text, source, {
       engine,
       preference,
       remote: remoteList,
-      actions: chat ? [...currentBarActions(windowId), ...promptBarActions(windowId, chat.signIn)] : currentBarActions(windowId),
+      actions: chat ? [...currentBarActions(windowId), ...promptBarActions(windowId, chat.signIn), ...skillsBarActions(chat.signIn)] : currentBarActions(windowId),
       currentTabId,
       currentUrl,
       scope,
@@ -153,5 +164,5 @@ export function useSuggestions({
       bangs,
       chat,
     });
-  }, [active, text, query, source, engine, preference, remoteList, windowId, currentTabId, currentUrl, scope, preventInline, bangs, chat]);
+  }, [active, text, query, source, engine, preference, remoteList, windowId, currentTabId, currentUrl, scope, preventInline, bangs, chat, slashing, skills]);
 }

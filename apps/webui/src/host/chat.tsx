@@ -1,4 +1,4 @@
-import { AliaRuntimeProvider } from "@alia.onl/sdk/runtime";
+import { AliaRuntimeProvider, useAliaApi } from "@alia.onl/sdk/runtime";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Pressable, Text, View } from "react-native";
@@ -6,6 +6,8 @@ import { closeChat, isChatTabUrl, openChatFromEntry } from "../../../browser/src
 import { IconButton } from "../../../browser/src/components/primitives";
 import { addChatContext, chatItemId, useChat } from "../../../browser/src/ai/chat/state";
 import { registerChatOpener } from "../../../browser/src/ai/chatEntry";
+import { registerAliaApi } from "../../../browser/src/ai/alia/api";
+import { forgetSkills, refreshSkills } from "../../../browser/src/ai/skills/skills";
 import { ChatPanel } from "../../../browser/src/components/chat/ChatPanel";
 import { tabSlotKey, useChatSlots, windowSlotKey } from "../../../browser/src/components/chat/ChatSlots";
 import { fileItems, pastedLink } from "../../../browser/src/components/chat/files";
@@ -23,10 +25,22 @@ export function ChatHost({ aliaURL }: { aliaURL: string }) {
   useEffect(() => registerChatOpener(openChatFromEntry), []);
   return (
     <AliaRuntimeProvider apiUrl={aliaURL} streamFetch={engineStreamFetch as typeof fetch} app="astro">
+      <AliaApiBridge />
       <AreaCapture />
       {windowId ? <WindowChat key={windowId} windowId={windowId} /> : null}
     </AliaRuntimeProvider>
   );
+}
+
+function AliaApiBridge() {
+  const api = useAliaApi();
+  const account = useOxySession((s) => s.account?.id ?? null);
+  useEffect(() => registerAliaApi(api), [api]);
+  useEffect(() => {
+    forgetSkills();
+    if (account) void refreshSkills({ force: true });
+  }, [account, api]);
+  return null;
 }
 
 function useContainer(windowId: string): HTMLDivElement {

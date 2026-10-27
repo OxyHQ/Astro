@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { AstroCommand } from "../skills/skills";
 
 export type ChatPlacement = "sidebar" | "floating";
 
@@ -10,7 +11,8 @@ export type ChatContextItem =
   | { id: string; kind: "selection"; tabId: string; title: string; url: string; text: string }
   | { id: string; kind: "file"; name: string; mime: string; uri: string; size: number }
   | { id: string; kind: "screenshot"; tabId: string; title: string; url: string; uri: string }
-  | { id: string; kind: "link"; url: string };
+  | { id: string; kind: "link"; url: string }
+  | { id: string; kind: "skill"; name: string; title: string; command?: AstroCommand };
 
 export type ChatAsk = {
   id: number;
@@ -83,7 +85,7 @@ export const chatItemId = (prefix: string) => `${prefix}-${Date.now().toString(3
 export function addChatContext(windowId: string, items: ChatContextItem[]) {
   updateWindowChat(windowId, (chat) => {
     const keyOf = (item: ChatContextItem) =>
-      item.kind === "tab" ? `tab:${item.tabId}` : item.kind === "group" ? `group:${item.groupId}` : item.kind === "link" ? `link:${item.url}` : item.id;
+      item.kind === "tab" ? `tab:${item.tabId}` : item.kind === "group" ? `group:${item.groupId}` : item.kind === "link" ? `link:${item.url}` : item.kind === "skill" ? `skill:${item.name}` : item.id;
     const seen = new Set(chat.context.map(keyOf));
     return { context: [...chat.context, ...items.filter((item) => !seen.has(keyOf(item)) && seen.add(keyOf(item)))] };
   });

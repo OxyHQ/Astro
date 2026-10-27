@@ -7,6 +7,7 @@ import { BookmarksPage } from "./BookmarksPage";
 import { ChatTabSlot } from "../chat/ChatSlots";
 import { DownloadsPage } from "./DownloadsPage";
 import { HistoryPage } from "./HistoryPage";
+import { SkillsPage } from "./SkillsPage";
 import { INTERNAL_PAGES, internalPageOf, internalQuery, tabDestination } from "./urls";
 
 export function InternalPage({ tabId }: { tabId: string }) {
@@ -34,6 +35,7 @@ export function InternalPage({ tabId }: { tabId: string }) {
       {page === "bookmarks" && <BookmarksPage key={bookmarkProfile} tabId={tabId} profileId={bookmarkProfile} />}
       {page === "downloads" && <DownloadsPage tabId={tabId} />}
       {page === "chat" && <ChatTabSlot tabId={tabId} />}
+      {page === "skills" && <SkillsPage tabId={tabId} />}
     </View>
   );
 }

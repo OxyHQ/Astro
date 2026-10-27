@@ -438,12 +438,12 @@ Everything in this section is deferred on purpose.
 ## 10. AI — Skills, artifacts, work features
 | Feature | Dia | Astro | Gap |
 |---|---|---|---|
-| Skills (/name, auto‑fire, multi‑step) | ✓ | ⏸ | |
-| Skill Builder, Skills Gallery, share/publish, packs | ✓ | ⏸ | |
+| Skills (/name, auto‑fire, multi‑step) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Skills): Alia's skills, `/` in the composer and the command bar (`/name words`), a chip sent as the turn's `skillIds`; **Automatic** is Alia's `autoInvoke` (the model loads a matching skill itself); multi-step is the skill's steps in one turn; Astro's `/research`, `/start-my-day`, `/prep`, `/recap`. macOS waits for the Oxy SDK |
+| Skill Builder, Skills Gallery, share/publish, packs | ✓ | 🟡 | `astro://skills`: your skills (On, Automatic, edit, publish, copy link, remove), the Gallery (Alia's public skills: search, Add, Try), the builder (Alia drafts it from a sentence, or write it; Save and Try), Save as Skill on a sent message. No packs: Alia has no bundles of skills |
 | Artifacts: reports, decks, dashboards; share link / PDF / image / `.diaart` | ✓ | ⏸ | |
 | Reports with inline comments → batched edits | ✓ | ⏸ | |
-| Morning Brief ("Start My Day") | ✓ | ⏸ | |
-| Meeting prep / recap | ✓ | ⏸ | |
+| Morning Brief ("Start My Day") | ✓ | 🟡 | `/start-my-day` (`docs/ai.md` › Skills): today's Nilo meetings, pinned and open tabs and yesterday's pages, with Alia reaching Inbox and the other Oxy apps for what needs you |
+| Meeting prep / recap | ✓ | 🟡 | `/prep` (the next meeting, its guests and description, related pages from history) and `/recap` (the last meeting and the pages used during it) |
 | Home surface / Task list / missions | ✓ (flagged) | ⏸ | |
 | Tidy Downloads (AI renames files, undo) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › One-shot features); macOS waits for the Oxy SDK (New Architecture), and production for Oxy's session lane (OxyHQ/oxy#2006, ADR 0050): a download that finishes gets a clear name (extension kept) through Chrome's own rename (`ac_downloads_rename`: file and history together), with the shimmer; ↶ on the row and Restore Original Name undo it |
 | AI rename of pinned tabs | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › One-shot features); macOS waits for the Oxy SDK (New Architecture), and production for Oxy's session lane (OxyHQ/oxy#2006, ADR 0050): pinning a tab whose title you haven't changed gives it a 1–3 word title ("(3) Inbox - ana@… - Gmail" → Inbox) with the shimmer; Reset Name restores it |

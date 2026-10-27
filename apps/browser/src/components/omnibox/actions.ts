@@ -1,6 +1,7 @@
 import type { CommandAction } from "@astro-browser/core";
 import type { BrowserCommand } from "@astro-browser/shell";
 import { isPromptActionId, runPromptAction } from "../../ai/pagePrompts";
+import { isSkillsActionId, isSlashActionId, runSkillsAction, runSlashAction } from "./chatRoute";
 import { runCommand } from "../../lib/commands";
 import { isBookmarked } from "../../store/bookmarks";
 import { useBrowser, type BrowserState } from "../../store/browser";
@@ -117,6 +118,8 @@ export function barActions(s: BrowserState, windowId: string): CommandAction[] {
 
 export function runBarAction(id: string, windowId: string) {
   if (isPromptActionId(id)) return void runPromptAction(id, windowId);
+  if (isSlashActionId(id)) return void runSlashAction(id, windowId);
+  if (isSkillsActionId(id)) return runSkillsAction(id, windowId);
   const i = id.indexOf(":");
   const command = (i < 0 ? id : id.slice(0, i)) as BrowserCommand;
   const arg = i < 0 ? null : id.slice(i + 1);

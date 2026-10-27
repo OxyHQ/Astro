@@ -4,9 +4,10 @@ import { AgentThinking } from "@oxy.so/bloom/agent-thinking";
 import { AiChatAssistantMessage, AiChatUserMessage, type AiChatTurnAction } from "@oxy.so/bloom/ai-chat";
 import { RiArrowGoForwardLine } from "@oxy.so/bloom/icons/RiArrowGoForwardLine";
 import { RiEditLine } from "@oxy.so/bloom/icons/RiEditLine";
+import { RiMagicLine } from "@oxy.so/bloom/icons/RiMagicLine";
 import { RiRefreshLine } from "@oxy.so/bloom/icons/RiRefreshLine";
 import { Markdown } from "@oxy.so/bloom/markdown";
-import { copyText } from "@astro-browser/shell";
+import { copyText, Symbol } from "@astro-browser/shell";
 import { memo, useMemo, useRef, type ReactNode } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useTheme } from "../../lib/theme";
@@ -21,6 +22,7 @@ export type ThreadActions = {
   regenerate: (message: Message) => void;
   resume: () => void;
   retry: () => void;
+  saveAsSkill?: (message: Message) => void;
 };
 
 const textOf = (message: Message) => getTextFromContent(message.content as never);
@@ -105,6 +107,8 @@ const UserTurn = memo(function UserTurn({ message, actions, busy }: { message: M
   const images = getImagesFromContent(message.content as never);
   const files = filesOf(message);
   const turnActions: AiChatTurnAction[] = [{ key: "edit", label: "Edit", icon: RiEditLine, onPress: () => actions.edit(message), disabled: busy }];
+  if (actions.saveAsSkill && text.trim().length >= 10)
+    turnActions.push({ key: "skill", label: "Save as Skill", icon: RiMagicLine, onPress: () => actions.saveAsSkill?.(message) });
   return (
     <AiChatUserMessage animate={!!message.unsaved} actions={turnActions}>
       <View style={{ gap: 6 }}>
@@ -120,15 +124,47 @@ const UserTurn = memo(function UserTurn({ message, actions, busy }: { message: M
             {name}
           </Text>
         ))}
-        {text ? (
-          <Text selectable style={{ fontSize: 14, lineHeight: 20, color: theme.textPrimary }}>
-            {text}
-          </Text>
-        ) : null}
+        {text ? <UserText text={text} /> : null}
       </View>
     </AiChatUserMessage>
   );
 });
+
+const LEADING_SKILLS = /^((?:\/[a-z0-9][a-z0-9-]*\s*)+)([\s\S]*)$/;
+
+function UserText({ text }: { text: string }) {
+  const theme = useTheme();
+  const quoted = text.lastIndexOf("\n\n");
+  const tail = quoted >= 0 ? text.slice(quoted + 2) : text;
+  const m = LEADING_SKILLS.exec(tail);
+  if (!m) return <Text selectable style={{ fontSize: 14, lineHeight: 20, color: theme.textPrimary }}>{text}</Text>;
+  const names = m[1]!.trim().split(/\s+/);
+  return (
+    <View style={{ gap: 6 }}>
+      {quoted >= 0 && (
+        <Text selectable style={{ fontSize: 14, lineHeight: 20, color: theme.textPrimary }}>
+          {text.slice(0, quoted)}
+        </Text>
+      )}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+        {names.map((name, i) => (
+          <View
+            key={`${name}-${i}`}
+            style={{ flexDirection: "row", alignItems: "center", gap: 4, height: 22, paddingHorizontal: 7, borderRadius: 7, backgroundColor: theme.dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)" }}
+          >
+            <Symbol name="sparkles" size={10} color={theme.icon} style={{ width: 12, height: 12 }} />
+            <Text style={{ fontSize: 12.5, fontWeight: "600", color: theme.textPrimary }}>{name}</Text>
+          </View>
+        ))}
+        {m[2]!.trim() ? (
+          <Text selectable style={{ fontSize: 14, lineHeight: 20, color: theme.textPrimary }}>
+            {m[2]!.trim()}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
 
 const AssistantTurn = memo(function AssistantTurn({
   message,
