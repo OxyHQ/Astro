@@ -17,7 +17,7 @@ export HELIUM_DIR="$CB/helium"
 # The platform the engine is built for: this host's. Helium's platform series and our output dir follow it.
 # AC_TARGET_PLATFORM=windows cross-builds Windows from a Linux host (docs/engine-build.md › "Windows").
 case "$(uname -s)/${AC_TARGET_PLATFORM:-}" in
-  Darwin/) export AC_PLATFORM=macos AC_TARGET_OS=mac AC_TARGET_CPU=arm64 ;;
+  Darwin/) export AC_PLATFORM=macos AC_TARGET_OS=mac AC_TARGET_CPU=${AC_MAC_TARGET_CPU:-arm64} ;;
   Linux/) export AC_PLATFORM=linux AC_TARGET_OS=linux AC_TARGET_CPU=x64 ;;
   Linux/windows) export AC_PLATFORM=windows AC_TARGET_OS=win AC_TARGET_CPU=x64 ;;
   *) echo "env.sh: the engine builds on macOS and Linux, and Windows from Linux, not $(uname -s)/${AC_TARGET_PLATFORM:-}" >&2; return 64 2>/dev/null || exit 64 ;;
