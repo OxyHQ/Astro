@@ -166,6 +166,7 @@ export default defineConfig({
     extensions: [".web.tsx", ".web.ts", ".web.js", ".tsx", ".ts", ".mjs", ".js", ".jsx", ".json"],
     alias: [
       { find: /^react-native\/Libraries\/Animated\/useAnimatedProps$/, replacement: `${reactNativeWeb}/dist/vendor/react-native/Animated/useAnimatedProps.js` },
+      { find: /^react-native\/Libraries\/Core\/RawEventEmitter$/, replacement: `${shims}rawEventEmitter.ts` },
       { find: /^react-native(-macos)?$/, replacement: `${shims}react-native.tsx` },
       { find: /^expo-blur$/, replacement: `${shims}expo-blur.tsx` },
       { find: /^@astro-browser\/(shell|astrocore|shaders|sync|import)$/, replacement: `${shims}$1.tsx` },

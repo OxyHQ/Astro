@@ -1,4 +1,4 @@
-import { NativeModules } from "react-native";
+import { requireOptionalNativeModule } from "expo-modules-core";
 import { useBrowser, type BrowserState } from "../store/browser";
 import { activeTabId } from "../store/model";
 import { appInfo, capture, isSharing, useTelemetry } from "./client";
@@ -11,7 +11,7 @@ type NativeTiming = {
   drain(): [key: string, kind: string, at: number][];
 };
 
-const native = NativeModules.ACFieldTiming as NativeTiming | undefined;
+const native = requireOptionalNativeModule<NativeTiming>("ACFieldTiming") ?? undefined;
 
 let on = false;
 

@@ -3,6 +3,7 @@ import AppKit
 public enum WindowHost {
   public static var makeWindow: (() -> NSWindow)?
   public static var makeContentView: ((_ windowId: String) -> NSView)?
+  public static var surfacePresenter: (() -> AnyObject?)?
 }
 
 final class WindowManager: NSObject, NSWindowDelegate {
@@ -163,17 +164,13 @@ final class WindowManager: NSObject, NSWindowDelegate {
       CATransaction.flush()
       waiting.forEach { $0() }
     }
-    observer = NotificationCenter.default.addObserver(forName: Notification.Name("RCTContentDidAppearNotification"), object: root, queue: .main) {
-      _ in reveal()
-    }
+    observer = whenContentAppears(in: root) { _ in reveal() }
     DispatchQueue.main.asyncAfter(deadline: .now() + Self.revealTimeout, execute: reveal)
   }
 
   private func noteFirstContent(id: String, root: NSView) {
     if let old = firstContentObservers.removeValue(forKey: id) { NotificationCenter.default.removeObserver(old) }
-    firstContentObservers[id] = NotificationCenter.default.addObserver(
-      forName: Notification.Name("RCTContentDidAppearNotification"), object: root, queue: .main
-    ) { [weak self] _ in
+    firstContentObservers[id] = whenContentAppears(in: root) { [weak self] _ in
       guard let self else { return }
       if let observer = self.firstContentObservers.removeValue(forKey: id) { NotificationCenter.default.removeObserver(observer) }
       guard self.windows[id] != nil else { return }
@@ -461,15 +458,33 @@ final class WindowManager: NSObject, NSWindowDelegate {
     relayoutRoot(window)
   }
 
+  private static let contentDidAppear = Notification.Name("RCTContentDidAppearNotification")
+  private static let reactRootClass: AnyClass? = NSClassFromString("RCTRootComponentView")
+
+  private func whenContentAppears(in root: NSView, _ body: @escaping (NSView) -> Void) -> NSObjectProtocol {
+    NotificationCenter.default.addObserver(forName: Self.contentDidAppear, object: nil, queue: .main) { [weak root] note in
+      guard let root, let content = note.object as? NSView, content.isDescendant(of: root) else { return }
+      body(content)
+    }
+  }
+
+  private static func reactContent(of root: NSView) -> NSView? {
+    guard let reactRootClass else { return nil }
+    for surface in root.subviews {
+      if let content = surface.subviews.first(where: { $0.isKind(of: reactRootClass) }) { return content }
+    }
+    return nil
+  }
+
   private var contentSizers: [String: NSObjectProtocol] = [:]
 
-  private func keepContentSized(id: String, root: NSView) {
+  private func keepContentSized(id: String, root: NSView, content: NSView? = nil) {
     if let old = contentSizers.removeValue(forKey: id) { NotificationCenter.default.removeObserver(old) }
-    guard let content = root.subviews.first(where: { NSStringFromClass(type(of: $0)).hasSuffix("RootContentView") }) else { return }
+    guard let content = content ?? Self.reactContent(of: root) else { return }
     content.postsFrameChangedNotifications = true
     contentSizers[id] = NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: content, queue: .main) {
       [weak root, weak content] _ in
-      guard let root, let content, content.superview === root, root.window != nil, !root.bounds.isEmpty,
+      guard let root, let content, content.isDescendant(of: root), root.window != nil, !root.bounds.isEmpty,
         content.frame.size != root.bounds.size
       else { return }
       root.needsLayout = true
@@ -481,10 +496,9 @@ final class WindowManager: NSObject, NSWindowDelegate {
 
   private func keepContentSizedAcrossReloads(id: String, root: NSView) {
     keepContentSized(id: id, root: root)
-    contentReloads[id] = NotificationCenter.default.addObserver(forName: Notification.Name("RCTContentDidAppearNotification"), object: root, queue: .main) {
-      [weak self, weak root] _ in
+    contentReloads[id] = whenContentAppears(in: root) { [weak self, weak root] content in
       guard let self, let root, self.contentReloads[id] != nil else { return }
-      self.keepContentSized(id: id, root: root)
+      self.keepContentSized(id: id, root: root, content: content)
     }
   }
 

@@ -7,7 +7,6 @@ import { closesWindow, engineProfile, isIncognitoProfile, resolveWindowId } from
 import { leavesEmptyWindow } from "../store/newTabBar";
 import { engineIdOf, sharingProfiles } from "../store/profiles";
 import { DEVICE } from "./device";
-import { applyHeldReports } from "./nativeEvents";
 import { webviews } from "./webviews";
 import { closeWindowDialog } from "./windowClose";
 
@@ -39,7 +38,6 @@ export async function closeTab(tabId: string) {
     const { confirmed, suppressed } = await confirm({ ...closeWindowDialog(w.id), suppression: "Don’t ask me again", windowId: w.id });
     if (suppressed) store().updateSettings({ warnBeforeClosingLastTab: false });
     if (!confirmed) return;
-    applyHeldReports();
   }
   store().closeTab(tabId);
 }

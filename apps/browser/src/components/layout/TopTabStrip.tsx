@@ -1,6 +1,6 @@
-import { APP_MENU_BUTTON_ROOM, ContextMenuArea, FadeLabel, raiseView, setTrafficLightsCenter, Surface, Symbol, WindowDragRegion } from "@astro-browser/shell";
+import { APP_MENU_BUTTON_ROOM, ContextMenuArea, FadeLabel, setTrafficLightsCenter, Surface, Symbol, WindowDragRegion } from "@astro-browser/shell";
 import { createContext, Fragment, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, findNodeHandle, PanResponder, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { Animated, Easing, PanResponder, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { closeTab, toggleMute } from "../../lib/actions";
 import { hex, layout, ThemeScope, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
@@ -357,7 +357,6 @@ type StripDrag = {
   range?: [number, number] | ((grab: number) => [number, number]);
   drop?: (dx: number, ids: string[]) => boolean;
   cross?: Cross;
-  levels?: number;
   local?: boolean;
 };
 
@@ -369,6 +368,8 @@ type Strip = { dock: Dock | null; top: DragGeometry; chip: number; grow: Animate
 const CELL_STEP = PINNED_CELL + PINNED_SPACING;
 const dockWidth = (cells: number) => cells * CELL_STEP - PINNED_SPACING;
 const DockContext = createContext<Strip | null>(null);
+const StripRaise = createContext<((raised: boolean) => void) | null>(null);
+const RAISED_Z = 10;
 
 const growTargets = new WeakMap<Animated.Value, number>();
 function growDock(grow: Animated.Value, to: number) {
@@ -523,11 +524,14 @@ function useStripDrag(item: StripDrag) {
     setCrossed(on);
   };
   const owns = useRef(false);
-  const raised = useRef<number | null>(null);
+  const raiseAncestor = useContext(StripRaise);
+  const ancestor = useRef(raiseAncestor);
+  ancestor.current = raiseAncestor;
+  const raised = useRef<((raised: boolean) => void) | null>(null);
   const raise = (on: boolean) => {
-    const tag = on ? findNodeHandle(view.current) : raised.current;
-    raiseView(tag, latest.current.levels ?? (latest.current.groupId ? 1 : 0), on);
-    raised.current = on ? tag : null;
+    raised.current?.(false);
+    raised.current = on ? ancestor.current : null;
+    raised.current?.(true);
   };
   const reset = () => {
     owns.current = false;
@@ -577,6 +581,7 @@ function useStripDrag(item: StripDrag) {
   useEffect(
     () => () => {
       settle.current?.land();
+      raise(false);
       if (!owns.current) return;
       if (drag.current.crossed) latest.current.cross?.clear();
       settleRoom(latest.current.geometry);
@@ -955,8 +960,9 @@ function PinnedDock({ tabIds }: { tabIds: string[] }) {
   const geometry = strip.dock!.geometry;
   const width = dockWidth(tabIds.length);
   const box = useMemo(() => Animated.add(strip.grow, width), [strip.grow, width]);
+  const [raised, setRaised] = useState(false);
   return (
-    <View style={{ marginTop: ITEM_TOP, marginRight: DOCK_GAP - GAP, zIndex: 2, width, height: ITEM_HEIGHT, flexDirection: "row", alignItems: "center" }}>
+    <View style={{ marginTop: ITEM_TOP, marginRight: DOCK_GAP - GAP, zIndex: raised ? RAISED_Z : 2, width, height: ITEM_HEIGHT, flexDirection: "row", alignItems: "center" }}>
       <Animated.View
         pointerEvents="none"
         style={{
@@ -972,11 +978,13 @@ function PinnedDock({ tabIds }: { tabIds: string[] }) {
           backgroundColor: theme.pinnedResting,
         }}
       />
-      <View style={{ flexDirection: "row", gap: PINNED_SPACING }}>
-        {tabIds.map((id, i) => (
-          <PinnedCell key={id} tabId={id} geometry={geometry} from={i} />
-        ))}
-      </View>
+      <StripRaise.Provider value={setRaised}>
+        <View style={{ flexDirection: "row", gap: PINNED_SPACING }}>
+          {tabIds.map((id, i) => (
+            <PinnedCell key={id} tabId={id} geometry={geometry} from={i} />
+          ))}
+        </View>
+      </StripRaise.Provider>
     </View>
   );
 }
@@ -1031,7 +1039,6 @@ function PinnedCell({ tabId, geometry, from }: { tabId: string; geometry: DragGe
     gap: PINNED_SPACING,
     range,
     cross: dock ? pinOut(() => latestStrip.current, from) : undefined,
-    levels: 2,
   });
   if (!tab) return null;
   return (
@@ -1225,6 +1232,7 @@ function GroupMember({
   useEffect(() => {
     Animated.timing(shownValue, { toValue: shown ? 1 : 0, duration: TUCK_FADE_MS, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
   }, [shown]);
+  const [raised, setRaised] = useState(false);
   const left = useMemo(() => open.interpolate({ inputRange: [0, 1], outputRange: [start, start + offset] }), [start, offset]);
   const opacity = useMemo(
     () =>
@@ -1236,12 +1244,17 @@ function GroupMember({
     [],
   );
   return (
-    <Animated.View pointerEvents={interactive ? "box-none" : "none"} style={{ position: "absolute", top: 0, left, width, height: TOP_STRIP_HEIGHT, opacity, zIndex: shown ? 2 : 1 }}>
-      {member.kind === "split" ? (
-        <SplitChip tabIds={member.tabIds} width={width} geometry={geometry} from={from} group={member.group} />
-      ) : (
-        <DraggableChip tabId={member.id} width={width} geometry={geometry} from={from} group={member.group} tuck={tuck} out={out} />
-      )}
+    <Animated.View
+      pointerEvents={interactive ? "box-none" : "none"}
+      style={{ position: "absolute", top: 0, left, width, height: TOP_STRIP_HEIGHT, opacity, zIndex: raised ? RAISED_Z : shown ? 2 : 1 }}
+    >
+      <StripRaise.Provider value={setRaised}>
+        {member.kind === "split" ? (
+          <SplitChip tabIds={member.tabIds} width={width} geometry={geometry} from={from} group={member.group} />
+        ) : (
+          <DraggableChip tabId={member.id} width={width} geometry={geometry} from={from} group={member.group} tuck={tuck} out={out} />
+        )}
+      </StripRaise.Provider>
     </Animated.View>
   );
 }

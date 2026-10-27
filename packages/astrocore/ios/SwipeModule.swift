@@ -74,6 +74,7 @@ final class SwipeArea: ExpoView, ACSwipeTarget {
   @objc var isPager = false
   private(set) var pager: ACPager?
   private var pagerWidth: CGFloat = 0
+  private var appliedPagerConfig: NSDictionary?
 
   @objc var hasNativePager: Bool { pager != nil }
 
@@ -94,12 +95,21 @@ final class SwipeArea: ExpoView, ACSwipeTarget {
     onSwipe(event)
   }
 
+  func emitPagerPosition(_ position: Double) {
+    let body: [String: Any] = ["position": position]
+    onPagerPosition(body)
+    ACSwipe.notifyAnimatedEvent("onPagerPosition", view: self, body: body)
+  }
+
   @objc(pagerInput:distance:direction:timestamp:)
   func pagerInput(_ phase: String, distance: CGFloat, direction: Int32, timestamp: TimeInterval) {
     pager?.input(from: self, phase: phase, distance: Double(distance), direction: Int(direction), timestamp: timestamp)
   }
 
   func configurePager(_ value: [String: Any]?) {
+    let config = value.map { NSDictionary(dictionary: $0) }
+    if config == appliedPagerConfig { return }
+    appliedPagerConfig = config
     guard let value, let key = value["key"] as? String else {
       let old = pager
       pager = nil
@@ -224,7 +234,7 @@ final class ACPager {
 
   func attach(_ area: SwipeArea) {
     areas.add(area)
-    if configured { area.onPagerPosition(["position": position]) }
+    if configured { area.emitPagerPosition(position) }
   }
 
   func detach(_ area: SwipeArea) {
@@ -519,7 +529,7 @@ final class ACPager {
   private func emitPosition() {
     let area = phase == .tracking ? drag.area : nil
     let all = areas.allObjects
-    (area ?? all.first { $0.window != nil } ?? all.first)?.onPagerPosition(["position": position])
+    (area ?? all.first { $0.window != nil } ?? all.first)?.emitPagerPosition(position)
   }
 
   private func emitState(_ name: String) {

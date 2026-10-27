@@ -1,6 +1,6 @@
 import { toAppUrl, toEngineUrl } from "@astro-browser/core";
 import { requireNativeViewManager } from "expo-modules-core";
-import { forwardRef, useImperativeHandle, useRef } from "react";
+import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { findNodeHandle, type NativeSyntheticEvent, type ViewProps } from "react-native";
 import type { ExternalAppRequest } from "./externalApps";
 import type { FaviconImage } from "./favicons";
@@ -275,6 +275,14 @@ type NativeEvents = {
   onPreferredSize: { width: number; height: number };
 };
 type Handlers = keyof NativeEvents;
+export type WebViewEventName = Handlers;
+export type WebViewEventDelivery = (event: WebViewEventName, run: () => void) => void;
+
+let deliver: WebViewEventDelivery = (_event, run) => run();
+
+export function deliverWebViewEvents(delivery: WebViewEventDelivery) {
+  deliver = delivery;
+}
 type NativeProps = Omit<WebViewProps, Handlers> & { [K in Handlers]?: Evt<NativeEvents[K]> };
 
 const unwrap: { [K in Handlers]: (e: NativeEvents[K]) => Parameters<NonNullable<WebViewProps[K]>> } = {
@@ -334,6 +342,10 @@ const isViewMissing = (error: unknown) =>
 
 export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(props, ref) {
   const native = useRef<NativeHandle>(null);
+  const committed = useRef(props);
+  useLayoutEffect(() => {
+    committed.current = props;
+  });
   useImperativeHandle(ref, () => {
     const call = async <T,>(fallback: T, fn: (view: NativeHandle) => Promise<T>): Promise<T> => {
       for (let attempt = 0; ; attempt++) {
@@ -405,10 +417,14 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       nativeProps[key] = typeof value === "string" ? toEngineUrl(value) : value;
       continue;
     }
-    const map = unwrap[key as Handlers] as ((e: unknown) => unknown[]) | undefined;
+    const event = key as Handlers;
+    const map = unwrap[event] as ((e: unknown) => unknown[]) | undefined;
     nativeProps[key] =
       map && typeof value === "function"
-        ? (e: NativeSyntheticEvent<unknown>) => (value as (...args: unknown[]) => void)(...map(e.nativeEvent))
+        ? (e: NativeSyntheticEvent<unknown>) => {
+            const args = map(e.nativeEvent);
+            deliver(event, () => (committed.current[event] as ((...a: unknown[]) => void) | undefined)?.(...args));
+          }
         : value;
   }
 

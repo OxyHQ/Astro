@@ -12,8 +12,8 @@ public class DockSelectionModule: Module {
     }
 
     View(DockSelection.self) {
-      Prop("image") { (view: DockSelection, v: String?) in view.source = IconSource(uri: v, emoji: view.source?.emoji) }
-      Prop("emoji") { (view: DockSelection, v: String?) in view.source = IconSource(uri: view.source?.uri, emoji: v) }
+      Prop("image") { (view: DockSelection, v: String?) in view.image = v }
+      Prop("emoji") { (view: DockSelection, v: String?) in view.emoji = v }
       Prop("theme") { (view: DockSelection, v: String?) in view.kind = v ?? "" }
       Prop("fill") { (view: DockSelection, hex: String?) in view.fill = hex.flatMap(NSColor.init(hex:)) }
       Prop("stroke") { (view: DockSelection, hex: String?) in view.stroke = hex.flatMap(NSColor.init(hex:)) }
@@ -239,14 +239,16 @@ private enum TemplateIcon {
 }
 
 final class DockSelection: ExpoView {
-  var source: IconSource? { didSet { if source != oldValue { apply() } } }
-  var kind = "" { didSet { apply() } }
-  var fill: NSColor? { didSet { apply() } }
-  var stroke: NSColor? { didSet { apply() } }
-  var cornerRadius: Double = 10 { didSet { apply() } }
-  var strokeWidth: Double = 3 { didSet { apply() } }
-  var dark = true { didSet { apply() } }
-  var iconSize: Double = 16 { didSet { apply() } }
+  var image: String? { didSet { if image != oldValue { source = IconSource(uri: image, emoji: emoji) } } }
+  var emoji: String? { didSet { if emoji != oldValue { source = IconSource(uri: image, emoji: emoji) } } }
+  private var source: IconSource? { didSet { if source != oldValue { apply() } } }
+  var kind = "" { didSet { if kind != oldValue { apply() } } }
+  var fill: NSColor? { didSet { if fill != oldValue { apply() } } }
+  var stroke: NSColor? { didSet { if stroke != oldValue { apply() } } }
+  var cornerRadius: Double = 10 { didSet { if cornerRadius != oldValue { apply() } } }
+  var strokeWidth: Double = 3 { didSet { if strokeWidth != oldValue { apply() } } }
+  var dark = true { didSet { if dark != oldValue { apply() } } }
+  var iconSize: Double = 16 { didSet { if iconSize != oldValue { apply() } } }
   var glass = false { didSet { if glass != oldValue { apply() } } }
 
   private let tile = CALayer()

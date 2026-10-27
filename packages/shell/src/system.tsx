@@ -1,6 +1,6 @@
 import { requireNativeModule, requireNativeViewManager, requireOptionalNativeModule } from "expo-modules-core";
 import { forwardRef, type Ref } from "react";
-import { NativeModules, View, type ViewProps } from "react-native";
+import { View, type ViewProps } from "react-native";
 
 export type MenuShortcut = {
   id: string;
@@ -78,7 +78,7 @@ type NativeFileDropAreaProps = ViewProps & {
   onDropUpdate?: (e: { nativeEvent: DropUpdate }) => void;
 };
 
-const fileDropBuilt = !!NativeModules.NativeUnimoduleProxy?.viewManagersMetadata?.AstroFileDrop;
+const fileDropBuilt = !!(globalThis as { expo?: { getViewConfig?: (name: string) => unknown } }).expo?.getViewConfig?.("AstroFileDrop");
 const NativeFileDropArea = fileDropBuilt ? requireNativeViewManager<NativeFileDropAreaProps>("AstroFileDrop") : null;
 
 function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {

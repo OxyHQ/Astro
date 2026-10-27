@@ -288,7 +288,7 @@ public class AppModule: Module {
     AsyncFunction("devSetPointer") { (windowId: String, x: Double, y: Double, on: Bool) -> Bool in
       #if DEBUG
       let select = NSSelectorFromString("astro_setPointerOverride:")
-      guard let view = NSClassFromString("RCTView"), (view as AnyObject).responds(to: select) else { return false }
+      guard let view = NSClassFromString("RCTViewComponentView"), (view as AnyObject).responds(to: select) else { return false }
       guard on else {
         _ = (view as AnyObject).perform(select, with: nil)
         return true
@@ -332,7 +332,7 @@ public class AppModule: Module {
     AsyncFunction("devHoverStats") { (reset: Bool) -> [String: Any] in
       #if DEBUG
       let select = NSSelectorFromString("astro_hoverStats:")
-      guard let view = NSClassFromString("RCTView"), (view as AnyObject).responds(to: select) else { return [:] }
+      guard let view = NSClassFromString("RCTViewComponentView"), (view as AnyObject).responds(to: select) else { return [:] }
       return ((view as AnyObject).perform(select, with: NSNumber(value: reset))?.takeUnretainedValue() as? [String: Any]) ?? [:]
       #else
       return [:]
@@ -342,7 +342,7 @@ public class AppModule: Module {
     AsyncFunction("devSetMouseButtons") { (pressed: Int) -> Bool in
       #if DEBUG
       let select = NSSelectorFromString("astro_setButtonsOverride:")
-      guard let view = NSClassFromString("RCTView"), (view as AnyObject).responds(to: select) else { return false }
+      guard let view = NSClassFromString("RCTViewComponentView"), (view as AnyObject).responds(to: select) else { return false }
       _ = (view as AnyObject).perform(select, with: pressed < 0 ? nil : NSNumber(value: pressed > 0))
       return true
       #else

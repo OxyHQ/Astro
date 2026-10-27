@@ -22,6 +22,9 @@ final class AppDelegate: ExpoAppDelegate {
       (factory?.rootViewFactory as? ExpoReactRootViewFactory)?.superView(
         withModuleName: "main", initialProperties: ["windowId": windowId], launchOptions: nil) ?? NSView()
     }
+    WindowHost.surfacePresenter = { [weak factory] in
+      (factory?.rootViewFactory.value(forKey: "reactHost") as? NSObject)?.value(forKey: "surfacePresenter") as AnyObject?
+    }
     factory.rootViewFactory.initializeReactHost(launchOptions: nil)
 
     super.applicationDidFinishLaunching(notification)
@@ -77,10 +80,6 @@ final class AppDelegate: ExpoAppDelegate {
 }
 
 final class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
-  override func sourceURL(for bridge: RCTBridge) -> URL? {
-    bridge.bundleURL ?? bundleURL()
-  }
-
   override func bundleURL() -> URL? {
     #if DEBUG
     if let location = ProcessInfo.processInfo.environment["ASTRO_JS_LOCATION"], !location.isEmpty {
