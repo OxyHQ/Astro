@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { AstroCommand } from "./skills/skills";
 
-export type ChatEntrySource = "commandBar" | "promptAction" | "videoSummary" | "skill" | "calendar" | "suggestion";
+export type ChatEntrySource = "commandBar" | "promptAction" | "videoSummary" | "skill" | "calendar" | "suggestion" | "artifact";
 
 export type ChatEntrySkill = { name: string; title: string; command?: AstroCommand };
 
@@ -19,6 +19,8 @@ export type ChatEntry = {
   source: ChatEntrySource;
   page?: ChatPageContext;
   skill?: ChatEntrySkill;
+  conversationId?: string;
+  context?: string[];
 };
 
 export type ChatOpener = (entry: ChatEntry) => void;

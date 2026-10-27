@@ -440,8 +440,8 @@ Everything in this section is deferred on purpose.
 |---|---|---|---|
 | Skills (/name, auto‑fire, multi‑step) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Skills): Alia's skills, `/` in the composer and the command bar (`/name words`), a chip sent as the turn's `skillIds`; **Automatic** is Alia's `autoInvoke` (the model loads a matching skill itself); multi-step is the skill's steps in one turn; Astro's `/research`, `/start-my-day`, `/prep`, `/recap`. macOS waits for the Oxy SDK |
 | Skill Builder, Skills Gallery, share/publish, packs | ✓ | 🟡 | `astro://skills`: your skills (On, Automatic, edit, publish, copy link, remove), the Gallery (Alia's public skills: search, Add, Try), the builder (Alia drafts it from a sentence, or write it; Save and Try), Save as Skill on a sent message. No packs: Alia has no bundles of skills |
-| Artifacts: reports, decks, dashboards; share link / PDF / image / `.diaart` | ✓ | ⏸ | |
-| Reports with inline comments → batched edits | ✓ | ⏸ | |
+| Artifacts: reports, decks, dashboards; share link / PDF / image / `.diaart` | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Artifacts): Alia's canvas results open in their own tab (`astro://artifact`), from a card in the reply or by themselves; decks present full-page; versions; Share copies Alia's link to the chat (the shared page shows text only); Save as PDF (print), Save/Copy as Image, Save as Web Page (the `.diaart` counterpart), Markdown. Decks and dashboards wait on Alia #915 |
+| Reports with inline comments → batched edits | ✓ | 🟡 | select text › Comment, or a comment on the whole; Apply Comments sends them as one turn with the current version, and the tab moves to the new version |
 | Morning Brief ("Start My Day") | ✓ | 🟡 | `/start-my-day` (`docs/ai.md` › Skills): today's Nilo meetings, pinned and open tabs and yesterday's pages, with Alia reaching Inbox and the other Oxy apps for what needs you |
 | Meeting prep / recap | ✓ | 🟡 | `/prep` (the next meeting, its guests and description, related pages from history) and `/recap` (the last meeting and the pages used during it) |
 | Home surface / Task list / missions | ✓ (flagged) | ⏸ | |

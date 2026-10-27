@@ -20,6 +20,8 @@ import { PROMPT_ACTIONS } from "../../ai/oneShotPrompts";
 import { parseSlash, refreshSkills, useSkills } from "../../ai/skills/skills";
 import { astroCommandTurn } from "../../ai/work/gather";
 import { openSkillsPage } from "../pages/urls";
+import { artifactOfTool, rememberArtifacts, rememberLiveArtifact, type Artifact } from "../../ai/artifacts/artifacts";
+import { openArtifactTab } from "../artifacts/open";
 import { webviews } from "../../lib/webviews";
 import { layout, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
@@ -60,6 +62,12 @@ export function ChatPanel(props: ChatPanelProps) {
     () => ({
       openConversation: (id) => showChatConversation(windowId, id),
       onTurnEnd: () => void researchTurns.delete(windowId),
+      onToolResult: ({ toolCallId, name, output }) => {
+        const conversationId = windowChat(windowId).conversationId;
+        const artifact = name ? artifactOfTool({ toolCallId, toolName: name, state: "result", result: output }) : null;
+        if (!artifact || !conversationId) return;
+        openArtifactTab(windowId, rememberLiveArtifact(conversationId, artifact), { background: false });
+      },
       closeConversation: () => newChat(windowId),
       turnRequest: (): AliaTurnRequest => {
         const request: AliaTurnRequest = {};
@@ -127,6 +135,10 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
   }, []);
 
   useEffect(() => {
+    if (thread.conversationId && !thread.conversationLoading) rememberArtifacts(thread.conversationId, thread.messages);
+  }, [thread.messages, thread.conversationId, thread.conversationLoading]);
+
+  useEffect(() => {
     if (!focusRequest) return;
     const timer = setTimeout(() => inputRef.current?.focus(), 30);
     return () => clearTimeout(timer);
@@ -167,7 +179,7 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
   }, [pending]);
 
   const send = useCallback(
-    (raw: string, extra: ChatContextItem[] = []) => {
+    (raw: string, extra: ChatContextItem[] = [], extraContext: string[] = []) => {
       const chat = windowChat(windowId);
       const typed = parseSlash(raw, useSkills.getState().installed);
       const slashItem: ChatContextItem[] = typed
@@ -198,7 +210,7 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       updateWindowChat(windowId, (c) => ({ draft: "", context: c.context.filter((item) => !ONE_SHOT.has(item.kind)), history: false }));
       void prepare(
         { kind: "send", text, attachments, skills, research },
-        turns.flat(),
+        [...turns.flat(), ...extraContext],
       );
     },
     [windowId, prepare],
@@ -206,6 +218,7 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
 
   useEffect(() => {
     if (!ask) return;
+    if (ask.conversationId && (thread.conversationId !== ask.conversationId || thread.conversationLoading)) return;
     updateWindowChat(windowId, { ask: null });
     if (ask.fresh && windowChat(windowId).conversationId) newChat(windowId);
     const tabItems = ask.context.filter((item) => item.kind !== "tab" || item.tabId !== activeTabId(useBrowser.getState(), windowId));
@@ -221,8 +234,8 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       ask.summary && page?.kind === "tab"
         ? [{ id: chatItemId("selection"), kind: "selection", tabId: page.tabId, title: `Summary of ${page.title}`, url: page.url, text: ask.summary }]
         : [];
-    send(ask.text, summary);
-  }, [ask]);
+    send(ask.text, summary, ask.extra ?? []);
+  }, [ask, thread.conversationId, thread.conversationLoading]);
 
   const actions: ThreadActions = useMemo(
     () => ({
@@ -239,6 +252,10 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       regenerate: (message: Message) => void prepare({ kind: "regenerate", messageId: message.id }),
       resume: () => send("Continue from where you stopped."),
       retry: () => void prepare({ kind: "retry" }),
+      openArtifact: (artifact: Artifact) => {
+        const conversationId = windowChat(windowId).conversationId;
+        if (conversationId) openArtifactTab(windowId, { ...artifact, conversationId });
+      },
       saveAsSkill: (message: Message) => openSkillsPage(windowId, "new", getTextFromContent(message.content as never)),
     }),
     [windowId, prepare, send],

@@ -22,6 +22,8 @@ export type ChatAsk = {
   context: ChatContextItem[];
   transcript?: string;
   summary?: string;
+  conversationId?: string;
+  extra?: string[];
 };
 
 export type ChatFrame = { x: number; y: number; width: number; height: number };

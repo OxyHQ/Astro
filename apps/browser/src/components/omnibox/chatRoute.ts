@@ -6,7 +6,6 @@ import { ASTRO_COMMANDS, slashCandidates, useSkills, type SlashCandidate } from 
 import { ON_MAC } from "../../lib/device";
 import { signInWithOxy, useOxySession } from "../../oxy/session";
 import { useBrowser } from "../../store/browser";
-import { openSkillsPage } from "../pages/urls";
 
 export function useChatRoute(windowId: string): { signIn: boolean } | null {
   const on = useBrowser((s) => s.settings.aiCommandBarChat !== false && !s.windows[windowId]?.incognito);
@@ -38,7 +37,7 @@ export const isSkillsActionId = (id: string) => id.startsWith("astroSkills:");
 
 export function runSkillsAction(id: string, windowId: string) {
   const route = id.slice("astroSkills:".length) as "yours" | "new" | "gallery";
-  openSkillsPage(windowId, route);
+  void import("../pages/urls").then(({ openSkillsPage }) => openSkillsPage(windowId, route));
 }
 
 export const forcesChat = (keys: { metaKey?: boolean; altKey?: boolean; ctrlKey?: boolean }) =>

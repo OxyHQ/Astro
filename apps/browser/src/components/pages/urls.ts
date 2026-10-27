@@ -3,7 +3,7 @@ import { useBrowser } from "../../store/browser";
 import { activeTabId, resolveWindowId, viewTabIds } from "../../store/model";
 import type { Tab } from "../../store/types";
 
-type InternalPageId = "history" | "bookmarks" | "downloads" | "chat" | "skills";
+type InternalPageId = "history" | "bookmarks" | "downloads" | "chat" | "skills" | "artifact";
 
 export const INTERNAL_PAGES: Record<InternalPageId, { title: string }> = {
   history: { title: "History" },
@@ -11,6 +11,7 @@ export const INTERNAL_PAGES: Record<InternalPageId, { title: string }> = {
   downloads: { title: "Downloads" },
   chat: { title: "Chat" },
   skills: { title: "Skills" },
+  artifact: { title: "Artifact" },
 };
 
 const SCHEME = "astro://";

@@ -7,6 +7,9 @@ import { IconButton } from "../../../browser/src/components/primitives";
 import { addChatContext, chatItemId, useChat } from "../../../browser/src/ai/chat/state";
 import { registerChatOpener } from "../../../browser/src/ai/chatEntry";
 import { registerAliaApi } from "../../../browser/src/ai/alia/api";
+import { BloomThemeProvider } from "@oxy.so/bloom/theme";
+import { ArtifactPage } from "../../../browser/src/components/artifacts/ArtifactPage";
+import { registerInternalPage } from "../../../browser/src/components/pages/registry";
 import { forgetSkills, refreshSkills } from "../../../browser/src/ai/skills/skills";
 import { ChatPanel } from "../../../browser/src/components/chat/ChatPanel";
 import { tabSlotKey, useChatSlots, windowSlotKey } from "../../../browser/src/components/chat/ChatSlots";
@@ -19,6 +22,17 @@ import { activeTabId } from "../../../browser/src/store/model";
 import { AreaCapture } from "./areaCapture";
 import { engineStreamFetch } from "./fetch";
 import { usePageWindowId } from "./windows";
+
+function ThemedArtifactPage({ tabId }: { tabId: string }) {
+  const theme = useTheme();
+  return (
+    <BloomThemeProvider mode={theme.dark ? "dark" : "light"}>
+      <ArtifactPage tabId={tabId} />
+    </BloomThemeProvider>
+  );
+}
+
+registerInternalPage("artifact", ThemedArtifactPage);
 
 export function ChatHost({ aliaURL }: { aliaURL: string }) {
   const windowId = usePageWindowId();

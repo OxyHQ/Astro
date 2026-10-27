@@ -86,7 +86,10 @@ export function askInChat(windowId: string, text: string, options: Partial<Omit<
   const ask: ChatAsk = { id: ++nextAsk, text, send: options.send ?? true, fresh: options.fresh ?? false, context: options.context ?? [] };
   if (options.transcript) ask.transcript = options.transcript;
   if (options.summary) ask.summary = options.summary;
+  if (options.conversationId) ask.conversationId = options.conversationId;
+  if (options.extra?.length) ask.extra = options.extra;
   updateWindowChat(windowId, (chat) => ({
+    ...(options.conversationId ? { conversationId: options.conversationId } : {}),
     open: true,
     placement: chat.open ? chat.placement : useBrowser.getState().settings.chatPlacement,
     history: false,
@@ -114,7 +117,9 @@ export function openChatFromEntry(entry: ChatEntry) {
   if (entry.skill) context.push({ id: chatItemId("skill"), kind: "skill", ...entry.skill });
   askInChat(entry.windowId, entry.prompt, {
     send: entry.prompt.trim().length > 0 || !!entry.skill,
-    fresh: entry.source !== "promptAction" && entry.source !== "suggestion",
+    fresh: !entry.conversationId && entry.source !== "promptAction" && entry.source !== "suggestion",
+    ...(entry.conversationId ? { conversationId: entry.conversationId } : {}),
+    ...(entry.context?.length ? { extra: entry.context } : {}),
     context,
     ...(entry.page?.transcript ? { transcript: entry.page.transcript } : {}),
     ...(entry.page?.summary ? { summary: entry.page.summary } : {}),

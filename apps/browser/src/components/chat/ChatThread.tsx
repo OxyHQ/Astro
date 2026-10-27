@@ -15,6 +15,8 @@ import { Favicon } from "../primitives";
 import { ChatChart } from "./ChatChart";
 import { renderCodeBlock } from "./ChatCode";
 import { chartsOf, isChartTool } from "./charts";
+import { artifactsOfTools, type Artifact } from "../../ai/artifacts/artifacts";
+import { ArtifactCard } from "../artifacts/ArtifactCard";
 
 export type ThreadActions = {
   openLink: (url: string) => void;
@@ -23,6 +25,7 @@ export type ThreadActions = {
   resume: () => void;
   retry: () => void;
   saveAsSkill?: (message: Message) => void;
+  openArtifact?: (artifact: Artifact) => void;
 };
 
 const textOf = (message: Message) => getTextFromContent(message.content as never);
@@ -186,6 +189,7 @@ const AssistantTurn = memo(function AssistantTurn({
   const tools = message.toolInvocations ?? [];
   const charts = useMemo(() => chartsOf(tools), [tools]);
   const steps = useMemo(() => tools.filter((tool) => !isChartTool(tool)), [tools]);
+  const made = useMemo(() => (actions.openArtifact ? artifactsOfTools(tools) : []), [tools, actions.openArtifact]);
   const thinking = message.thinking?.trim() ?? "";
   const failed = lifecycle === "failed";
   const turnActions: AiChatTurnAction[] = [];
@@ -229,6 +233,9 @@ const AssistantTurn = memo(function AssistantTurn({
       ) : null}
       {charts.map((chart) => (
         <ChatChart key={chart.id} chart={chart} />
+      ))}
+      {made.map((artifact) => (
+        <ArtifactCard key={artifact.id} artifact={artifact} onOpen={() => actions.openArtifact?.(artifact)} />
       ))}
       <Sources tools={tools} openLink={actions.openLink} />
       {lifecycle === "cancelled" && <Text style={{ fontSize: 12, color: theme.textSecondary }}>Stopped</Text>}

@@ -235,6 +235,43 @@ and runs them.
 The builders are pure (`ai/work/brief.ts`, tests in `brief.test.mjs`); `ai/work/gather.ts` reads the stores. Without a
 calendar in Astro, the context says so and asks Alia to read it with her own calendar tools.
 
+### Artifacts
+
+An artifact is what Alia's `canvas` tool drew in a reply (Alia `docs/integrations.mdx` › The canvas), or a file
+`generateFile` wrote: a **report** (`markdown`, or `artifact` without a language), a **deck** (`deck`), a **dashboard**
+(`dashboard`), a **table** or **code**. Charts stay in the thread. Astro keeps no copy: the tool call's result is in
+the conversation Alia stores, so an artifact tab reopens from its address after a restart.
+
+| What | Where |
+| --- | --- |
+| Reading tool results into artifacts, versions, the revision request, Markdown | `ai/artifacts/artifacts.ts` (tests: `artifacts.test.mjs`) |
+| The standalone page (exports, print) | `ai/artifacts/html.ts` |
+| The card in the reply, the tab, the drawing of each kind | `components/artifacts/` (`ArtifactCard`, `ArtifactPage`, `ArtifactView`) |
+| Exports, share | `components/artifacts/exports.ts` |
+
+- **Opening.** A card under the reply (kind, title, size) opens it; a new one opens by itself when it arrives (the SDK's
+  `onToolResult`). The tab is `astro://artifact?c=<conversation>&id=<tool call>`. Without it in memory (a restart), the
+  page reads the conversation (`GET /v1/conversations/:id`) and takes the canvas results from its messages. The tab
+  page is registered by the webui's Chat host (`components/pages/registry.ts`), inside Bloom's theme; macOS shows that
+  Chat isn't available there yet.
+- **Kinds.** A report is Bloom's Markdown; a deck is 16:9 slides with their notes and **Present** (one slide at a time,
+  ← →, Esc); a dashboard is stat tiles, charts (bar, line, pie), tables and notes; a table and code are drawn as such.
+- **Versions.** A later canvas call in the same chat with the same kind and title is a new version: the header says
+  "Version 2 of 3" with ‹ ›, and a tab showing the old one moves to the new one.
+- **Comments → batched edits.** Select text and **Comment**, or comment on the whole thing; the panel keeps them
+  until **Apply Comments**, which sends one turn to that chat: the numbered comments with their quotes as the message,
+  and the current version (its canvas data) with what to do in the turn's context: call the canvas again, same type and
+  title, change nothing else. The tab moves to the new version when it arrives.
+- **Share** mints Alia's link to the chat (`POST /v1/conversations/:id/share`, 7 days, `https://alia.onl/shared/<token>`)
+  and copies it. Alia's shared page shows the conversation's text, never tool results, so the artifact itself isn't
+  on it.
+- **Export**: Save as PDF… (the artifact as a standalone page in a new tab, then the tab's Print; on Linux that is the
+  system dialog's Print to File), Save as Image and Copy as Image (the page drawn through an SVG `foreignObject` onto a
+  canvas at 2×, 900 pt wide), Save as Web Page (one self-contained `.html`, the counterpart of Dia's `.diaart`), Save
+  as Markdown and Copy as Markdown. Saves go through Chrome's downloads, so they land in Downloads and the Downloads list.
+- Decks and dashboards need Alia **#915** (the canvas tool's `deck` and `dashboard` types, validated, and the SDK
+  drawing them in the Alia app). Until it ships, Alia can make reports, tables and code; Astro draws all five.
+
 ### macOS
 
 The shared code (`ai/chat`, `components/chat`) is platform-neutral. What macOS lacks: the Oxy SDK provider (the app is on
@@ -247,8 +284,9 @@ window), and a streaming `fetch` (the SDK's `streamFetch`; Expo's `expo/fetch` s
 
 - `npm test` in `apps/browser`: `ai/chat/chat.test.mjs` (state, asks, context chips, personalization carry-over, pasted
   links, mentions, the turn context), `components/chat/highlight.test.mjs`, `components/chat/charts.test.mjs`,
-  `ai/skills/skills.test.mjs` (slugs, the `/` list, `/name` parsing, the Alia routes the shelf calls) and
-  `ai/work/brief.test.mjs` (brief, prep, recap).
+  `ai/skills/skills.test.mjs` (slugs, the `/` list, `/name` parsing, the Alia routes the shelf calls),
+  `ai/work/brief.test.mjs` (brief, prep, recap) and `ai/artifacts/artifacts.test.mjs` (canvas results to artifacts,
+  versions, addresses, the revision request, exports).
 - A Windows or Linux build against a local stack: `ASTRO_OXY_API_URL`, `ASTRO_NILO_API_URL`, `ASTRO_ALIA_API_URL` and
   `ASTRO_KAANA_URL` move together (`apps/webui/vite.config.ts` refuses a mix, so a local session never reaches a
   production origin; point one you don't run at a closed port such as `http://127.0.0.1:9`). `globalThis.astro.chat` is the chat store and `astro.oxy` the session.
