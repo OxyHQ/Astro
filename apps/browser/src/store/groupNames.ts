@@ -4,9 +4,13 @@ type Member = Pick<Tab, "url" | "title">;
 
 const SEPARATORS = [" / ", " | ", " - ", " — ", " – ", " · ", " • ", " :: "];
 
+const isAddress = (hostname: string) => /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.startsWith("[");
+const isAddressHost = (host: string) => isAddress(host.replace(/:\d+$/, ""));
+
 const hostOf = (url: string) => {
   try {
-    return new URL(url).hostname.replace(/^www\./, "");
+    const { hostname, host } = new URL(url);
+    return isAddress(hostname) ? host : hostname.replace(/^www\./, "");
   } catch {
     return "";
   }
@@ -15,6 +19,7 @@ const hostOf = (url: string) => {
 const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 function hostLabel(host: string): string {
+  if (isAddressHost(host)) return host;
   const parts = host.split(".").filter(Boolean);
   if (parts.length < 2) return parts[0] ?? "";
   const second = parts.at(-2)!;
@@ -22,6 +27,7 @@ function hostLabel(host: string): string {
 }
 
 const tidyHost = (host: string) => {
+  if (isAddressHost(host)) return host;
   const label = hostLabel(host);
   return label ? label[0]!.toUpperCase() + label.slice(1) : "";
 };
