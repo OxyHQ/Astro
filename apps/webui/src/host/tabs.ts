@@ -62,6 +62,7 @@ export type TabState = {
   canGoBack: boolean;
   canGoForward: boolean;
   themeColor: string | null;
+  downloaded?: boolean;
 };
 
 export type ForeignTab = { id: string; url: string };
@@ -89,6 +90,8 @@ export class ChromiumTab implements EngineTab {
   private frame: HTMLIFrameElement | null = null;
   private listeners = new Set<(state: TabState) => void>();
   private active = false;
+  private gone = false;
+  private blankAfterDownload = false;
   onClosed: (() => void) | null = null;
   onActivatedByEngine: (() => void) | null = null;
   state: TabState;
@@ -107,6 +110,7 @@ export class ChromiumTab implements EngineTab {
     this.state = toState(data, false, false, null);
     void watchTab(id, (kind, payload) => {
       if (kind === "theme") this.setTheme((payload.color as string | null) ?? null);
+      if (kind === "downloadNavigation" && !payload.committedUrl) this.blankAfterDownload = true;
     }).then(({ snapshot, stop }) => {
       this.stopWatching = stop;
       if (snapshot) this.setTheme(snapshot.themeColor);
@@ -120,13 +124,18 @@ export class ChromiumTab implements EngineTab {
     return () => void this.listeners.delete(listener);
   }
 
+  markGone() {
+    this.gone = true;
+  }
+
   async update(data: TabData) {
     const activated = data.isActive && !this.active;
     this.active = data.isActive;
     if (activated && this.hub.requestedActive !== this.id && !this.hub.settlingHandOff()) this.onActivatedByEngine?.();
     if (activated) this.hub.onActivated?.();
     const [{ canGoBack }, { canGoForward }] = await Promise.all([this.guest.canGoBack(), this.guest.canGoForward()]);
-    this.state = toState(data, canGoBack, canGoForward, this.state.themeColor);
+    if (!isBlank(data.url)) this.blankAfterDownload = false;
+    this.state = { ...toState(data, canGoBack, canGoForward, this.state.themeColor), downloaded: this.blankAfterDownload };
     for (const listener of this.listeners) listener(this.state);
   }
 
@@ -139,9 +148,10 @@ export class ChromiumTab implements EngineTab {
   async attach(frame: HTMLIFrameElement) {
     this.frame = frame;
     const guestId = await this.guestId;
-    if (this.frame !== frame) return;
-    while (!frame.contentWindow) await new Promise((resolve) => setTimeout(resolve, 16));
-    chrome.browser.attachIframeGuest(guestId, frame.contentWindow);
+    while (this.frame === frame && !this.gone && !frame.contentWindow) await new Promise((resolve) => setTimeout(resolve, 16));
+    const contentWindow = frame.contentWindow;
+    if (this.frame !== frame || this.gone || !contentWindow) return;
+    chrome.browser.attachIframeGuest(guestId, contentWindow);
   }
 
   detach(frame: HTMLIFrameElement) {
@@ -261,6 +271,7 @@ export class TabHub {
           this.spare = this.spare.filter((tab) => tab.id !== id);
           const tab = this.tabs.get(id);
           this.tabs.delete(id);
+          tab?.markGone();
           if (tab) setTimeout(() => tab.onClosed?.(), CLOSED_TAB_SETTLE_MS);
         }
       },

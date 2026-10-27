@@ -272,7 +272,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       opening.onClosed = () => latest.current.onWindowClose?.();
       opening.onActivatedByEngine = () => latest.current.onActivateRequest?.({ reason: "engine" });
       stopListening = opening.listen((state) => {
-        latest.current.onNavigationChange?.(navigationState(state, page));
+        if (!state.downloaded) latest.current.onNavigationChange?.(navigationState(state, page));
         if (state.isLoading !== lastLoading) {
           lastLoading = state.isLoading;
           latest.current.onProgress?.(state.isLoading ? 0.3 : 1);

@@ -336,7 +336,7 @@ inert function that returns `null`. Each gap was then tried in a hidden instance
 | 9 | An extension's action shortcut showed nothing | `onActionShortcut` | Fixed |
 | 10 | Site Controls never said how many requests were blocked | `onContentBlocked` | Fixed |
 | 11 | Clicking into a split pane didn't make it the active one | `onPageFocus` | Fixed |
-| 12 | A link that downloads left a blank tab | `onDownloadNavigation` | Fixed |
+| 12 | A link that downloads left a blank tab; a new tab opened on a download could crash the window's interface, and one typed into a blank tab showed about:blank | `onDownloadNavigation` | Fixed: Chromium closes a tab opened on a download, as on macOS, and a guest that goes before its page attaches it is a failed attach instead of a killed renderer (`chromium-astro-guest-gone.patch`); a tab kept after a download shows the New Tab page, as `ContentCard`'s macOS rule says |
 | 13 | Esc didn't cancel a sidebar drag | `setDragEscapeCapture` | Fixed |
 | 14 | Popovers and the switcher didn't react to switching apps | `resignActive` | Fixed |
 | 15 | The tab switcher took the row under a pointer that hadn't moved | `switcherPointerMoved` | Fixed |
