@@ -4,8 +4,9 @@
 #
 #   scripts/ci/macos-runner-prep.sh [--free-disk]
 #
-# --free-disk deletes the Android SDK, the iOS simulator runtimes and every other Xcode, in the background; wait for
-# it with `scripts/ci/macos-runner-prep.sh --wait-free` before the space is needed.
+# --free-disk deletes the Android SDK, the iOS simulator runtimes and every other Xcode, in the background.
+# `scripts/ci/macos-runner-prep.sh --wait-free [GB]` waits (15 minutes at most) until that's done or GB (default 150)
+# are free.
 set -euo pipefail
 
 xcode=${AC_CI_XCODE:-/Applications/Xcode_26.3.app}
@@ -14,12 +15,15 @@ marker=${RUNNER_TEMP:-/tmp}/ac-free-disk
 case "${1:-}" in
   -h | --help) awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"; exit 0 ;;
   --wait-free)
-    for _ in $(seq 1 120); do
-      [[ -f "$marker.done" ]] && { df -h / | tail -1; exit 0; }
+    want_gb=${2:-150}
+    for _ in $(seq 1 180); do
+      avail_gb=$(df -g / | awk 'NR == 2 { print $4 }')
+      if [[ -f "$marker.done" ]] || ((avail_gb >= want_gb)); then df -h / | tail -1; exit 0; fi
       sleep 5
     done
-    echo "macos-runner-prep: freeing disk didn't finish in 10 minutes" >&2
-    exit 1
+    echo "::warning::only ${avail_gb} GB free after 15 minutes of freeing disk"
+    df -h / | tail -1
+    exit 0
     ;;
   "" | --free-disk) ;;
   *) echo "macos-runner-prep: unknown option $1" >&2; exit 64 ;;
@@ -50,8 +54,8 @@ done
 if [[ "${1:-}" == --free-disk ]]; then
   rm -f "$marker.done"
   (
-    sudo rm -rf "$HOME/Library/Android" /usr/local/share/android-sdk 2>/dev/null
-    xcrun simctl runtime delete all >/dev/null 2>&1 || true
+    date; sudo rm -rf "$HOME/Library/Android" /usr/local/share/android-sdk 2>/dev/null; date
+    "$bin/timeout" 180 xcrun simctl runtime delete all || true
     sudo rm -rf "$HOME/Library/Developer/CoreSimulator" 2>/dev/null
     for other in /Applications/Xcode_*.app; do
       [[ -L "$other" || "$(cd "$other" && pwd -P)" == "$(cd "$xcode" && pwd -P)" ]] && continue

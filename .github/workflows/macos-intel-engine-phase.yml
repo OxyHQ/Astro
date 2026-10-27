@@ -54,6 +54,7 @@ jobs:
           run-id: ${{ inputs.state_run }}
           github-token: ${{ github.token }}
       - name: Wait for disk
+        if: inputs.state_run != ''
         run: scripts/ci/macos-runner-prep.sh --wait-free
       - name: Unpack the tree
         if: inputs.state_run != ''
@@ -61,6 +62,9 @@ jobs:
       - name: Sync, patch and configure Chromium
         if: inputs.state_run == ''
         run: scripts/ci/macos-engine-prepare.sh
+      - name: Wait for disk
+        if: inputs.state_run == ''
+        run: scripts/ci/macos-runner-prep.sh --wait-free
       - name: Build
         id: build
         run: scripts/ci/macos-engine-build.sh --deadline $((AC_CI_START + 300 * 60))
