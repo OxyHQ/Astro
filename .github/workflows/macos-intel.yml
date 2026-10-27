@@ -9,9 +9,11 @@ permissions:
   contents: read
   actions: read
 
+# A push while the engine builds queues behind it instead of cancelling a day of compiling; the queued run then reuses
+# the engine if engine/ didn't change.
 concurrency:
   group: macos-intel-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 defaults:
   run:
@@ -133,10 +135,12 @@ jobs:
       needs.engine_3.outputs.status == 'finished' || needs.engine_4.outputs.status == 'finished' ||
       needs.engine_5.outputs.status == 'finished' || needs.engine_6.outputs.status == 'finished' ||
       needs.engine_7.outputs.status == 'finished' || needs.engine_8.outputs.status == 'finished')
-    runs-on: macos-15-intel
+    # The app needs the macOS 27 SDK (Xcode 27 runs only on Apple silicon); it still builds x86_64.
+    runs-on: xcode-27
     timeout-minutes: 120
     env:
       HOMEBREW_NO_AUTO_UPDATE: "1"
+      AC_CI_XCODE: /Applications/Xcode_27.1.app
     steps:
       - uses: actions/checkout@v4
         with:

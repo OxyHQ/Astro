@@ -82,12 +82,12 @@ group "Sign ad hoc"
 sign() { codesign --force --timestamp=none --sign - "$@"; }
 fw="$app/Contents/Frameworks/Chromium Framework.framework"
 fwv="$(cd "$fw/Versions/Current" && pwd -P)"
-for lib in "$fwv"/Libraries/*.dylib; do sign "$lib"; done
-for helper in "$fwv"/Helpers/*.app "$fwv"/Helpers/chrome_crashpad_handler "$fwv"/Helpers/app_mode_loader "$fwv"/Helpers/web_app_shortcut_copier; do
-  [[ -e "$helper" ]] && sign "$helper"
+for code in "$fwv"/Libraries/*.dylib "$fwv"/Helpers/*.app "$fwv"/Helpers/chrome_crashpad_handler "$fwv"/Helpers/app_mode_loader \
+  "$fwv"/Helpers/web_app_shortcut_copier; do
+  if [[ -e "$code" ]]; then sign "$code"; fi
 done
 sign "$fw"
-[[ -d "$app/Contents/Frameworks/hermes.framework" ]] && sign "$app/Contents/Frameworks/hermes.framework"
+if [[ -d "$app/Contents/Frameworks/hermes.framework" ]]; then sign "$app/Contents/Frameworks/hermes.framework"; fi
 sign "$app"
 codesign --verify --deep --strict "$app"
 while IFS= read -r -d '' code; do
@@ -106,7 +106,7 @@ ditto "$app" "$staging/Astro.app"
 ln -s /Applications "$staging/Applications"
 cp "$root/scripts/dmg/background.tiff" "$staging/.background.tiff"
 cp "$root/scripts/dmg/DS_Store" "$staging/.DS_Store"
-[[ -f "$app/Contents/Resources/AppIcon.icns" ]] && cp "$app/Contents/Resources/AppIcon.icns" "$staging/.VolumeIcon.icns"
+if [[ -f "$app/Contents/Resources/AppIcon.icns" ]]; then cp "$app/Contents/Resources/AppIcon.icns" "$staging/.VolumeIcon.icns"; fi
 mkdir -p "$staging/.fseventsd" && touch "$staging/.fseventsd/no_log"
 dmg_rw="$out/dmg-rw.dmg" dmg_mnt="$out/dmg-mnt"
 rm -rf "$dmg_rw" "$dmg_mnt" && mkdir "$dmg_mnt"
