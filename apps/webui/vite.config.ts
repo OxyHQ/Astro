@@ -20,6 +20,19 @@ const appBuild = (() => {
   }
 })();
 
+const PRODUCTION_ORIGINS = {
+  ASTRO_OXY_API_URL: "https://api.oxy.so",
+  ASTRO_NILO_API_URL: "https://api.nilo.so",
+  ASTRO_ALIA_API_URL: "https://api.alia.onl",
+  ASTRO_KAANA_URL: "https://kaana.ai",
+};
+const stackOrigins = Object.keys(PRODUCTION_ORIGINS) as (keyof typeof PRODUCTION_ORIGINS)[];
+const isProduction = (name: keyof typeof PRODUCTION_ORIGINS) => !process.env[name] || new URL(process.env[name]!).origin === PRODUCTION_ORIGINS[name];
+if (stackOrigins.some(isProduction) && !stackOrigins.every(isProduction))
+  throw new Error(
+    `apps/webui: ${stackOrigins.join(", ")} must all point at production or all at another stack, so a session from one stack never reaches another's origin. Set: ${stackOrigins.filter(isProduction).join(", ")}.`,
+  );
+
 export default defineConfig({
   ...demo,
   root: fileURLToPath(new URL(".", import.meta.url)),
@@ -32,6 +45,9 @@ export default defineConfig({
     __ASTRO_UPDATE_INTERVAL__: JSON.stringify(updateInterval),
     __ASTRO_OXY_API_URL__: JSON.stringify(process.env.ASTRO_OXY_API_URL ?? ""),
     __ASTRO_NILO_API_URL__: JSON.stringify(process.env.ASTRO_NILO_API_URL ?? ""),
+    __ASTRO_ALIA_API_URL__: JSON.stringify(process.env.ASTRO_ALIA_API_URL ?? ""),
+    __ASTRO_KAANA_URL__: JSON.stringify(process.env.ASTRO_KAANA_URL ?? ""),
+    "process.env.EXPO_PUBLIC_ALIA_API_URL": "undefined",
     __ASTRO_OXY_CLIENT_ID__: JSON.stringify(process.env.ASTRO_OXY_CLIENT_ID ?? ""),
     __ASTRO_FEEDBACK_URL__: JSON.stringify(plistValue("ACFeedbackURL")),
     __ASTRO_FEEDBACK_EMAIL__: JSON.stringify(plistValue("ACFeedbackEmail")),

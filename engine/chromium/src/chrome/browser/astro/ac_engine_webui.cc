@@ -234,6 +234,7 @@ constexpr char kHostEventListener[] = "astro-host-event";
 constexpr char kWindowKeyListener[] = "astro-window-key";
 constexpr char kWindowEventListener[] = "astro-window-event";
 constexpr char kImportEventListener[] = "astro-import-event";
+constexpr char kAccountStreamListener[] = "astro-account-stream";
 constexpr char kProfileTabPrefix[] = "p:";
 constexpr char kExtensionViewPrefix[] = "x:";
 constexpr char kUblockDirSwitch[] = "astro-ublock-dir";
@@ -361,6 +362,14 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroAccountFetch",
         base::BindRepeating(&EngineWebUIHandler::HandleAccountFetch,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroAccountStream",
+        base::BindRepeating(&EngineWebUIHandler::HandleAccountStream,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroAccountStreamCancel",
+        base::BindRepeating(&EngineWebUIHandler::HandleAccountStreamCancel,
                             base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroPref", base::BindRepeating(&EngineWebUIHandler::HandlePref,
@@ -1336,10 +1345,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     if (args.size() != 5) {
       return;
     }
-    if (!account_fetcher_) {
-      account_fetcher_ = std::make_unique<AccountFetcher>(profile_);
-    }
-    account_fetcher_->Fetch(
+    Accounts().Fetch(
         args[1], args[2], args[3], args[4],
         base::BindOnce(&EngineWebUIHandler::AccountFetched,
                        weak_factory_.GetWeakPtr(), args[0].Clone()));
@@ -1348,6 +1354,39 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
   void AccountFetched(base::Value callback_id, base::Value result) {
     if (IsJavascriptAllowed()) {
       ResolveJavascriptCallback(callback_id, result);
+    }
+  }
+
+  AccountFetcher& Accounts() {
+    if (!account_fetcher_) {
+      account_fetcher_ = std::make_unique<AccountFetcher>(profile_);
+    }
+    return *account_fetcher_;
+  }
+
+  void HandleAccountStream(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 6 || !args[1].is_int()) {
+      return;
+    }
+    Accounts().Stream(
+        args[1].GetInt(), args[2], args[3], args[4], args[5],
+        base::BindOnce(&EngineWebUIHandler::AccountFetched,
+                       weak_factory_.GetWeakPtr(), args[0].Clone()),
+        base::BindRepeating(&EngineWebUIHandler::AccountStreamEvent,
+                            weak_factory_.GetWeakPtr()));
+  }
+
+  void HandleAccountStreamCancel(const base::ListValue& args) {
+    if (args.size() == 1 && args[0].is_int() && account_fetcher_) {
+      account_fetcher_->CancelStream(args[0].GetInt());
+    }
+  }
+
+  void AccountStreamEvent(int stream_id, base::Value event) {
+    if (IsJavascriptAllowed()) {
+      FireWebUIListener(kAccountStreamListener, base::Value(stream_id),
+                        std::move(event));
     }
   }
 

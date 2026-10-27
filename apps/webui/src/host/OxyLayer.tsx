@@ -4,6 +4,7 @@ import { AUTH_STATE_STORAGE_KEY } from "@oxy.so/core/session";
 import { useEffect, useState } from "react";
 import { OxyRoot, type OxyEndpoints } from "../../../browser/src/oxy/OxyRoot";
 import { useBrowser } from "../../../browser/src/store/browser";
+import { ChatHost } from "./chat";
 
 const SETTLE_MS = 250;
 
@@ -25,12 +26,14 @@ function useSessionFromOtherPages(): number {
   return generation;
 }
 
-export default function OxyLayer(endpoints: OxyEndpoints) {
+export default function OxyLayer(endpoints: OxyEndpoints & { aliaURL: string }) {
   const dark = useBrowser((s) => s.ui.appDark);
   const generation = useSessionFromOtherPages();
   return (
     <BloomThemeProvider mode={dark ? "dark" : "light"}>
-      <OxyRoot key={generation} {...endpoints} />
+      <OxyRoot key={generation} {...endpoints}>
+        <ChatHost aliaURL={endpoints.aliaURL} />
+      </OxyRoot>
     </BloomThemeProvider>
   );
 }

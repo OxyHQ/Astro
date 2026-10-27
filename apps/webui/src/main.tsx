@@ -13,6 +13,9 @@ import { flushPersistence, startPersistence } from "../../browser/src/lib/persis
 import { startTabPages } from "../../browser/src/lib/tabPages";
 import { startUserScripts } from "../../browser/src/lib/userScripts";
 import { setStoreBatching, useBrowser } from "../../browser/src/store/browser";
+import { useChat } from "../../browser/src/ai/chat/state";
+import { useChatEntry } from "../../browser/src/ai/chatEntry";
+import { useOxySession } from "../../browser/src/oxy/session";
 import { emitCommand, loadDocuments } from "./shims/shell";
 import { OverlayHost } from "../../demo/src/shims/web/overlays";
 import "../../demo/src/shims/web/motion/shortcuts";
@@ -42,7 +45,7 @@ startDragPreview();
 startTabDragShare();
 setStoreBatching(unstable_batchedUpdates);
 
-Object.assign(globalThis, { astro: { store: useBrowser, emitCommand, oneShot: oneShotDebug } });
+Object.assign(globalThis, { astro: { store: useBrowser, emitCommand, oneShot: oneShotDebug, chat: useChat, chatEntry: useChatEntry, oxy: useOxySession } });
 
 const startPage = () =>
   startWindows(

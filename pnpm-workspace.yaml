@@ -10,6 +10,7 @@ nodeLinker: hoisted
 autoInstallPeers: false
 
 patchedDependencies:
+  '@alia.onl/sdk@22.1.1': patches/@alia.onl__sdk@22.1.1.patch
   expo-constants@18.0.14: patches/expo-constants@18.0.14.patch
   expo-modules-core@3.0.30: patches/expo-modules-core@3.0.30.patch
   react-native-macos@0.81.9: patches/react-native-macos@0.81.9.patch
@@ -18,6 +19,7 @@ allowBuilds:
   esbuild: false
 
 minimumReleaseAgeExclude:
+  - '@alia.onl/sdk@22.1.1'
   - '@oxy.so/bloom@15.49.0'
   - '@oxy.so/contracts@6.0.0'
   - '@oxy.so/core@7.1.0 || 7.2.0'

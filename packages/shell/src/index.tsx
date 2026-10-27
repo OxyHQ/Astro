@@ -32,6 +32,8 @@ export type BrowserCommand =
   | "toggleSidebar"
   | "openSplitPane"
   | "useSelectionForFind"
+  | "toggleChat"
+  | "focusChat"
   | "findAndReplace"
   | "jumpToSelection"
   | "focusNextPane"

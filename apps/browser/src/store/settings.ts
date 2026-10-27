@@ -49,6 +49,10 @@ export type Settings = {
   showSidebarButton: boolean;
   batterySaverWhen: BatterySaverWhen;
   extensionSidePanelWidth: number;
+  chatPlacement: "sidebar" | "floating";
+  chatWidth: number;
+  chatFloatingFrame: [number, number, number, number] | null;
+  chatPowerLevel: string;
 
   showFullUrl: boolean;
   allowJavaScriptFromAppleEvents: boolean;
@@ -109,6 +113,10 @@ export const DEFAULT_SETTINGS: Settings = {
   showSidebarButton: true,
   batterySaverWhen: "lowBattery",
   extensionSidePanelWidth: 360,
+  chatPlacement: "sidebar",
+  chatWidth: 400,
+  chatFloatingFrame: null,
+  chatPowerLevel: "auto",
   showFullUrl: false,
   allowJavaScriptFromAppleEvents: false,
   cliControl: false,

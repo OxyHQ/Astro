@@ -7,6 +7,7 @@ import { BookmarkDialog } from "./components/bookmarks/BookmarkDialog";
 import { EditBookmarkDialog } from "./components/bookmarks/EditBookmarkDialog";
 import { ExtensionOverlays } from "./components/extensions/ExtensionOverlays";
 import { ExtensionSidePanel } from "./components/extensions/SidePanel";
+import { ChatFloating, ChatSidebar } from "./components/chat/ChatSlots";
 import { DownloadMagnet, DownloadsPopover } from "./components/Downloads";
 import { UtilityWindow } from "./components/settings/UtilityWindow";
 import { isUtilityWindowId } from "./components/settings/windows";
@@ -52,16 +53,18 @@ function BrowserWindow() {
   const topTabs = useTabLayout() === "top";
   const showStrip = useBrowser((s) => topTabs && !!s.windows[windowId]?.sidebarOpen);
   const fullscreen = !!useFullscreenTab(windowId);
-  const [width, setWidth] = useState(0);
+  const [area, setArea] = useState({ width: 0, height: 0 });
+  const width = area.width;
   const card = (
     <>
       <ContentCard />
+      {!fullscreen && <ChatSidebar />}
       {!fullscreen && <ExtensionSidePanel />}
     </>
   );
 
   return (
-    <View style={{ flex: 1, flexDirection: "row" }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <View style={{ flex: 1, flexDirection: "row" }} onLayout={(e) => setArea({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
       <WindowBackdrop vibrancy {...theme.backdrop} colors={theme.windowTint} grainOpacity={theme.grain} style={StyleSheet.absoluteFill} />
       <WindowProfile />
       <ProfileTint />
@@ -82,6 +85,7 @@ function BrowserWindow() {
         </View>
       )}
       {topTabs && !showStrip && <TopStripPeek windowWidth={width} enabled={!fullscreen} />}
+      {!fullscreen && <ChatFloating area={area} />}
       <CommandPanel windowWidth={width} />
       <DownloadsPopover />
       <ExtensionOverlays />

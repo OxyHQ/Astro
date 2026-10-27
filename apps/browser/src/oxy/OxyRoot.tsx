@@ -1,7 +1,7 @@
 import { APP_COLOR_PRESETS, type AppColorName } from "@oxy.so/bloom/color-presets";
 import { getNormalizedUserHandle, type OxyServices, type User } from "@oxy.so/core";
 import { OxyProvider, useAuth } from "@oxy.so/services";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useOxySession, type OxyAccount } from "./session";
 
 export type OxyEndpoints = { baseURL: string; clientId: string; niloURL: string };
@@ -86,10 +86,11 @@ function OxySessionBridge({ niloURL }: { niloURL: string }) {
   return null;
 }
 
-export function OxyRoot({ baseURL, clientId, niloURL }: OxyEndpoints) {
+export function OxyRoot({ baseURL, clientId, niloURL, children }: OxyEndpoints & { children?: ReactNode }) {
   return (
     <OxyProvider baseURL={baseURL} clientId={clientId}>
       <OxySessionBridge niloURL={niloURL} />
+      {children}
     </OxyProvider>
   );
 }

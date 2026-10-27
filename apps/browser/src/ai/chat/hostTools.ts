@@ -1,0 +1,164 @@
+import type { AliaHostAction, AliaHostOutcome, AliaHostToolDefinition, AliaHostTools } from "@alia.onl/sdk/runtime";
+import { create } from "zustand";
+import { closeTab } from "../../lib/actions";
+import { useBrowser } from "../../store/browser";
+import { activeTabId, viewTabIds } from "../../store/model";
+import { AWAITED_HOST_TOOLS } from "./features";
+import { readPage } from "./pageContext";
+import { windowChat } from "./state";
+
+type Definition = AliaHostToolDefinition & { awaitsResult?: boolean };
+type Outcome = AliaHostOutcome & { result?: unknown };
+
+export type ApprovalKind = "open" | "close" | "read";
+
+export type Approval = {
+  id: string;
+  windowId: string;
+  kind: ApprovalKind;
+  tabs: { tabId?: string; title: string; url: string }[];
+};
+
+type Approvals = { pending: Approval[]; allowed: Record<string, ApprovalKind[]> };
+
+export const useApprovals = create<Approvals>()(() => ({ pending: [], allowed: {} }));
+
+const answers = new Map<string, (choice: "allow" | "always" | "deny") => void>();
+
+export function answerApproval(id: string, choice: "allow" | "always" | "deny") {
+  const answer = answers.get(id);
+  answers.delete(id);
+  useApprovals.setState((s) => ({ pending: s.pending.filter((a) => a.id !== id) }));
+  answer?.(choice);
+}
+
+export function dropApprovals(windowId: string) {
+  for (const approval of useApprovals.getState().pending.filter((a) => a.windowId === windowId)) answerApproval(approval.id, "deny");
+}
+
+function approve(windowId: string, kind: ApprovalKind, tabs: Approval["tabs"], conversation: string | null): Promise<boolean> {
+  const key = conversation ?? `window:${windowId}`;
+  if (useApprovals.getState().allowed[key]?.includes(kind)) return Promise.resolve(true);
+  const id = `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  return new Promise((resolve) => {
+    answers.set(id, (choice) => {
+      if (choice === "always") useApprovals.setState((s) => ({ allowed: { ...s.allowed, [key]: [...(s.allowed[key] ?? []), kind] } }));
+      resolve(choice !== "deny");
+    });
+    useApprovals.setState((s) => ({ pending: [...s.pending, { id, windowId, kind, tabs }] }));
+  });
+}
+
+const TAB_IDS = { type: "array", items: { type: "string" }, minItems: 1, maxItems: 20, description: "Tab ids from the list of open tabs." };
+
+const DEFINITIONS: Definition[] = [
+  {
+    name: "open_tabs",
+    description:
+      "Open one or more web pages in new tabs of the person's browser window, next to the tab they are on. The person is asked first when more than one tab would open.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        urls: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 10, description: "Absolute http(s) URLs." },
+        background: { type: "boolean", description: "Open without switching to the new tab." },
+      },
+      required: ["urls"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "switch_to_tab",
+    description: "Show one of the person's open tabs, by its id from the list of open tabs.",
+    inputSchema: { type: "object", properties: { tabId: { type: "string" } }, required: ["tabId"], additionalProperties: false },
+  },
+  {
+    name: "close_tabs",
+    description: "Close some of the person's open tabs, by their ids from the list of open tabs. The person is asked to confirm first.",
+    inputSchema: { type: "object", properties: { tabIds: TAB_IDS }, required: ["tabIds"], additionalProperties: false },
+  },
+];
+
+const READ_TAB: Definition = {
+  name: "read_tab",
+  description:
+    "Read the text of one of the person's open tabs (its title, address, selected text, video position and page text), by its id from the list of open tabs. The person is asked first for a tab they haven't shared.",
+  inputSchema: { type: "object", properties: { tabId: { type: "string" } }, required: ["tabId"], additionalProperties: false },
+  awaitsResult: true,
+};
+
+const isWebUrl = (url: unknown): url is string => typeof url === "string" && /^https?:\/\//i.test(url);
+const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []);
+
+function windowTab(windowId: string, tabId: unknown) {
+  const s = useBrowser.getState();
+  return typeof tabId === "string" && viewTabIds(s, windowId).includes(tabId) ? s.tabs[tabId] : undefined;
+}
+
+const describe = (tab: { id: string; title: string; customTitle: string | null; url: string }) => ({
+  tabId: tab.id,
+  title: tab.customTitle || tab.title || tab.url,
+  url: tab.url,
+});
+
+async function run(windowId: string, action: AliaHostAction): Promise<Outcome> {
+  const conversation = windowChat(windowId).conversationId;
+  const input = action.input ?? {};
+  switch (action.name) {
+    case "open_tabs": {
+      const urls = strings(input.urls).filter(isWebUrl).slice(0, 10);
+      if (!urls.length) return { outcome: "rejected", detail: "No http(s) URL to open." };
+      if (
+        urls.length > 1 &&
+        !(await approve(
+          windowId,
+          "open",
+          urls.map((url) => ({ title: url, url })),
+          conversation,
+        ))
+      )
+        return { outcome: "rejected", detail: "The person declined." };
+      const s = useBrowser.getState();
+      const opener = activeTabId(s, windowId);
+      let last: string | undefined;
+      for (const url of urls) last = useBrowser.getState().newTab(windowId, { url, background: true, ...(opener ? { openerId: opener } : {}) });
+      if (last && input.background !== true) useBrowser.getState().activate(last);
+      return { outcome: "applied", detail: `Opened ${urls.length} tab${urls.length > 1 ? "s" : ""}.` };
+    }
+    case "switch_to_tab": {
+      const tab = windowTab(windowId, input.tabId);
+      if (!tab) return { outcome: "stale", detail: "That tab isn't open in this window any more." };
+      useBrowser.getState().activate(tab.id);
+      return { outcome: "applied", detail: `Showing “${tab.customTitle || tab.title}”.` };
+    }
+    case "close_tabs": {
+      const tabs = strings(input.tabIds).flatMap((id) => {
+        const tab = windowTab(windowId, id);
+        return tab ? [tab] : [];
+      });
+      if (!tabs.length) return { outcome: "stale", detail: "None of those tabs is open in this window." };
+      if (!(await approve(windowId, "close", tabs.map(describe), conversation))) return { outcome: "rejected", detail: "The person declined." };
+      for (const tab of tabs) if (useBrowser.getState().tabs[tab.id]) closeTab(tab.id);
+      return { outcome: "applied", detail: `Closed ${tabs.length} tab${tabs.length > 1 ? "s" : ""}.` };
+    }
+    case "read_tab": {
+      const tab = windowTab(windowId, input.tabId);
+      if (!tab) return { outcome: "stale", detail: "That tab isn't open in this window any more." };
+      const chat = windowChat(windowId);
+      const shared =
+        (chat.currentTab && activeTabId(useBrowser.getState(), windowId) === tab.id) ||
+        chat.context.some((item) => (item.kind === "tab" && item.tabId === tab.id) || (item.kind === "group" && item.tabs.some((t) => t.tabId === tab.id)));
+      if (!shared && !(await approve(windowId, "read", [describe(tab)], conversation))) return { outcome: "rejected", detail: "The person declined." };
+      const page = await readPage(tab.id);
+      if (!page) return { outcome: "failed", detail: "The tab couldn't be read." };
+      return { outcome: "inline", detail: `Read “${page.title}”.`, result: page };
+    }
+  }
+  return { outcome: "rejected", detail: `Unknown tool ${action.name}.` };
+}
+
+export function astroHostTools(windowId: string): AliaHostTools {
+  return {
+    definitions: AWAITED_HOST_TOOLS ? [...DEFINITIONS, READ_TAB] : DEFINITIONS,
+    execute: (action) => run(windowId, action),
+  };
+}

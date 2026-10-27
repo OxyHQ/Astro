@@ -3,12 +3,13 @@ import { useBrowser } from "../../store/browser";
 import { activeTabId, resolveWindowId, viewTabIds } from "../../store/model";
 import type { Tab } from "../../store/types";
 
-type InternalPageId = "history" | "bookmarks" | "downloads";
+type InternalPageId = "history" | "bookmarks" | "downloads" | "chat";
 
 export const INTERNAL_PAGES: Record<InternalPageId, { title: string }> = {
   history: { title: "History" },
   bookmarks: { title: "Bookmarks" },
   downloads: { title: "Downloads" },
+  chat: { title: "Chat" },
 };
 
 const SCHEME = "astro://";

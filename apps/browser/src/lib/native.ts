@@ -180,7 +180,7 @@ const WINDOW_COMMANDS = [
   ...PAGE_COMMANDS, "focusCommandBar", "closeTab", "closeAllTabs", "back", "forward", "nextTab", "previousTab", "togglePin",
   "duplicateTab", "moveTabToProfile", "moveTabToWindow", "toggleSidebar", "downloads", "mergeAllWindows", "switchProfile",
   "nextProfile", "previousProfile", "openBookmark", "selectTab", "selectLastTab", "moveTabDown", "moveTabUp", "closeTabGroup",
-  "openProfileMenu",
+  "openProfileMenu", "toggleChat", "focusChat",
 ];
 
 function menuBookmarks(b: Bookmarks, folderId: string, depth = 0): MenuBookmark[] {

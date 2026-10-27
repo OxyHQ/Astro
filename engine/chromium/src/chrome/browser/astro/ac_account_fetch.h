@@ -27,6 +27,7 @@ namespace astro {
 class AccountFetcher : public network::mojom::TrustedURLLoaderHeaderClient {
  public:
   using Done = base::OnceCallback<void(base::Value)>;
+  using StreamEvent = base::RepeatingCallback<void(int, base::Value)>;
 
   explicit AccountFetcher(Profile* profile);
   AccountFetcher(const AccountFetcher&) = delete;
@@ -39,7 +40,18 @@ class AccountFetcher : public network::mojom::TrustedURLLoaderHeaderClient {
              const base::Value& body,
              Done done);
 
+  void Stream(int stream_id,
+              const base::Value& url,
+              const base::Value& method,
+              const base::Value& headers,
+              const base::Value& body,
+              Done started,
+              StreamEvent event);
+  void CancelStream(int stream_id);
+
  private:
+  class StreamLoad;
+
   void OnLoaderCreated(
       int32_t request_id,
       mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver)
@@ -50,7 +62,12 @@ class AccountFetcher : public network::mojom::TrustedURLLoaderHeaderClient {
       override;
 
   network::mojom::URLLoaderFactory* Factory();
+  std::unique_ptr<network::SimpleURLLoader> Loader(const base::Value& url,
+                                                   const base::Value& method,
+                                                   const base::Value& headers,
+                                                   const base::Value& body);
   void Fetched(int id, Done done, std::optional<std::string> body);
+  void StreamEnded(int stream_id);
 
   raw_ptr<Profile> profile_;
   mojo::Remote<network::mojom::URLLoaderFactory> factory_;
@@ -58,6 +75,7 @@ class AccountFetcher : public network::mojom::TrustedURLLoaderHeaderClient {
       this};
   mojo::UniqueReceiverSet<network::mojom::TrustedHeaderClient> loaders_;
   std::map<int, std::unique_ptr<network::SimpleURLLoader>> fetches_;
+  std::map<int, std::unique_ptr<StreamLoad>> streams_;
   int next_fetch_ = 0;
   base::WeakPtrFactory<AccountFetcher> weak_factory_{this};
 };

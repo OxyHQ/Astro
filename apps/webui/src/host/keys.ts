@@ -1,3 +1,4 @@
+import { useOxySession } from "../../../browser/src/oxy/session";
 import { useBrowser } from "../../../browser/src/store/browser";
 import { handleQuitShortcut, keyDown, keyUp, onKeyCaptureChange, shortcutCombos, takeKeysFromEngine } from "../../../demo/src/shims/web/motion/shortcuts";
 import { requestQuit } from "../shims/shell";
@@ -35,6 +36,9 @@ export async function startEngineKeys() {
   push();
   useBrowser.subscribe((state, prev) => {
     if (state.settings.shortcuts !== prev.settings.shortcuts || state.profileOrder !== prev.profileOrder) push();
+  });
+  useOxySession.subscribe((state, prev) => {
+    if (state.available !== prev.available) push();
   });
   onKeyCaptureChange((capturing) => chrome.send("astroKeyCapture", [capturing]));
   const cr = await loadCr();
