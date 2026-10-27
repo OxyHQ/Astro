@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { useOxySession } from "../oxy/session";
-import { KAANA_URL, kaanaRespond } from "./kaana";
+import { KAANA_URL, KaanaRefusal, kaanaRespond, kaanaSessionBearer, type KaanaResponsesRequest } from "./kaana";
 
 export type OneShotFeature = "groupName" | "pinnedTitle" | "downloadName" | "videoSummary";
 
@@ -69,8 +69,22 @@ const endpoint = () => testEndpoint?.url ?? KAANA_URL;
 const bearer = (): string | null => {
   if (testEndpoint) return testEndpoint.bearer;
   const s = useOxySession.getState();
-  return s.account ? (s.sessionBearer?.() ?? null) : null;
+  const token = s.account && s.clientId ? (s.sessionBearer?.() ?? null) : null;
+  return token && s.clientId ? kaanaSessionBearer(s.clientId, token) : null;
 };
+
+async function respondOnce(request: KaanaResponsesRequest, signal: AbortSignal | undefined) {
+  const sent = bearer();
+  if (!sent) return null;
+  const options = signal ? { signal } : {};
+  try {
+    return await kaanaRespond(endpoint(), sent, request, options);
+  } catch (error) {
+    const fresh = bearer();
+    if (!(error instanceof KaanaRefusal) || error.code !== "authentication_failed" || !fresh || fresh === sent) throw error;
+    return kaanaRespond(endpoint(), fresh, request, options);
+  }
+}
 
 export const oneShotSignedIn = () => !!useOxySession.getState().account;
 
@@ -80,7 +94,7 @@ export function oneShotReady(): boolean {
 }
 
 export const useOneShotReady = () => {
-  const signedIn = useOxySession((s) => (!!s.account && !!s.sessionBearer) || !!testEndpoint);
+  const signedIn = useOxySession((s) => (!!s.account && !!s.sessionBearer && !!s.clientId) || !!testEndpoint);
   const stopped = useOneShotStatus((s) => !!s.stoppedFor);
   return signedIn && !stopped;
 };
@@ -143,11 +157,7 @@ export async function oneShot(feature: OneShotFeature, request: OneShotRequest):
   if (!release) return null;
   const started = Date.now();
   try {
-    const token = bearer();
-    if (!token) return null;
-    const answer = await kaanaRespond(
-      endpoint(),
-      token,
+    const answer = await respondOnce(
       {
         model: ONE_SHOT_POWER_LEVEL,
         input: [
@@ -157,8 +167,9 @@ export async function oneShot(feature: OneShotFeature, request: OneShotRequest):
         maxOutputTokens: request.maxOutputTokens,
         labels: { app: "astro", feature },
       },
-      request.signal ? { signal: request.signal } : {},
+      request.signal,
     );
+    if (!answer) return null;
     record({
       feature,
       at: started,

@@ -75,7 +75,7 @@ function fakeKaana(reply) {
 const json = (status, body, headers = {}) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
 
 function signIn() {
-  useOxySession.setState({ account: { id: "u1", name: "Ana", handle: "ana", email: null, avatar: null, color: null }, sessionBearer: () => "session-token" });
+  useOxySession.setState({ account: { id: "u1", name: "Ana", handle: "ana", email: null, avatar: null, color: null }, sessionBearer: () => "session-token", clientId: "oxy_dk_astro" });
   useOneShotStatus.setState({ stoppedFor: null, pausedUntil: 0, calls: [] }, false);
 }
 
@@ -104,7 +104,7 @@ test("a one-shot request goes to kaana.ai at the instant level with the session'
   assert.equal(text, '{"name":"Recipes","emoji":"🍝"}');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, "https://kaana.ai/v1/responses");
-  assert.equal(calls[0].init.headers.Authorization, "Bearer session-token");
+  assert.equal(calls[0].init.headers.Authorization, "Bearer oxy_session:oxy_dk_astro:session-token");
   assert.deepEqual(calls[0].body, {
     model: "instant",
     input: [
@@ -168,4 +168,23 @@ test("the transcript page script parses and keeps its regular expressions", asyn
   assert.ok(script.includes(String.raw`replace(/\s+/g, ' ')`));
   assert.ok(script.includes(String.raw`replace(/\n/g, ' ')`));
   assert.ok(script.includes('"dQw4w9WgXcQ"'));
+});
+
+test("a refused session is retried once, only with a token the SDK has since refreshed", async () => {
+  let token = "old";
+  useOxySession.setState({ account: { id: "u1", name: "Ana", handle: "ana", email: null, avatar: null, color: null }, sessionBearer: () => token, clientId: "oxy_dk_astro" });
+  useOneShotStatus.setState({ stoppedFor: null, pausedUntil: 0, calls: [] });
+  const calls = fakeKaana((n) => {
+    if (n === 1) {
+      token = "new";
+      return json(401, { code: "authentication_failed", message: "expired", requestId: "r1", retryable: false });
+    }
+    return json(200, { output: [{ role: "assistant", content: [{ type: "text", text: "ok" }] }] });
+  });
+  assert.equal(await oneShot("pinnedTitle", { instructions: "s", input: "i", maxOutputTokens: 24 }), "ok");
+  assert.deepEqual(calls.map((c) => c.init.headers.Authorization), ["Bearer oxy_session:oxy_dk_astro:old", "Bearer oxy_session:oxy_dk_astro:new"]);
+  const again = fakeKaana(() => json(401, { code: "authentication_failed", message: "revoked", requestId: "r2", retryable: false }));
+  assert.equal(await oneShot("pinnedTitle", { instructions: "s", input: "i", maxOutputTokens: 24 }), null);
+  assert.equal(again.length, 1);
+  assert.equal(useOneShotStatus.getState().stoppedFor, "authentication_failed");
 });

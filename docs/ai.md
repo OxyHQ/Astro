@@ -19,8 +19,9 @@ so today the AI runs on Windows and Linux; the shared code needs nothing else on
 ## One-shot features
 
 Bounded requests with no conversation state. One client, `ai/inference.ts` `oneShot(feature, { instructions, input,
-maxOutputTokens })`: `POST https://kaana.ai/v1/responses` with the Oxy session's access token as the bearer, read on every
-request, and the body `{ model: "instant", input, maxOutputTokens, labels: { app: "astro", feature } }` (`ai/kaana.ts`;
+maxOutputTokens })`: `POST https://kaana.ai/v1/responses` with `Authorization: Bearer oxy_session:<Astro's public client id>:<the Oxy
+session's access token>` (Kaana forwards only the bearer to Oxy, so the client id rides in it; the token is read on every
+request), and the body `{ model: "instant", input, maxOutputTokens, labels: { app: "astro", feature } }` (`ai/kaana.ts`;
 Kaana's schema is strict, so the level goes in `model`, never `routingProfile`). At most two requests in flight.
 
 What it does with a refusal (it never retries):
@@ -85,12 +86,15 @@ While nothing is registered, the bar shows no Chat row and no prompt actions, an
 
 ## Production status
 
-- Oxy can't serve these requests yet. The Oxy edge accepts no user session; the session lane on the Kaana grant API,
-  with Astro's terms (`astro-kaana-session`: `responses`, `instant` only, 8 000 input and 512 output tokens, USD 0.004 a
-  request, 200 a person and 10 000 a day), is draft PR OxyHQ/oxy#2006 with ADR 0050, waiting on the owner. Astro is
-  `first_party`, so its session is Oxy's shared device session (ADR 0029), which names no application; ADR 0050 lists
-  how it could name Astro. Until then Kaana answers `permission_denied`, Astro stops the features for the session and
-  Settings says so.
+- The session lane on the Kaana grant API, with Astro's terms (`astro-kaana-session`: `responses`, `instant` only, 8 000
+  input and 512 output tokens, USD 0.004 a request, 200 a person and 10 000 an application a UTC day, paid by Astro's
+  owner), is OxyHQ/oxy#2006 with ADR 0050, option (b): Astro's session is Oxy's shared device session (ADR 0029), which
+  names no application, so the bearer carries Astro's public client id and Oxy accepts it only for an application with
+  reviewed `product_session` terms. Until it is deployed Kaana refuses the request, Astro stops the features for the
+  session and Settings says so.
+- Refusals: `authentication_failed` (401) is retried once, and only with a token the SDK has refreshed since; a second
+  one stops the features. `quota_exceeded` (200 a person a day) and `rate_limited` pause them; everything else in the
+  table above.
 - On Windows and Linux the interface reaches `kaana.ai` through the engine's `astroFetch` (no cookies);
   `ac_account_fetch.cc` should list `kaana.ai` with the other account hosts.
 

@@ -57,7 +57,7 @@ function useAvatar(oxyServices: OxyServices, user: User | null, ready: boolean):
   return fileId && loaded?.fileId === fileId ? loaded.image : null;
 }
 
-function OxySessionBridge({ niloURL }: { niloURL: string }) {
+function OxySessionBridge({ niloURL, clientId }: { niloURL: string; clientId: string }) {
   const { user, isAuthResolved, canUsePrivateApi, signIn, signOut, oxyServices, showBottomSheet } = useAuth();
   const nilo = useMemo(() => oxyServices.createLinkedClient({ baseURL: niloURL }), [oxyServices, niloURL]);
   const sessionBearer = useMemo(() => () => oxyServices.session.accessToken, [oxyServices]);
@@ -68,19 +68,20 @@ function OxySessionBridge({ niloURL }: { niloURL: string }) {
       niloFetch: nilo.fetch,
       niloSocket: { url: niloURL, token: () => nilo.getAccessToken(niloURL) },
       sessionBearer,
+      clientId,
       openSignIn: async () => {
         await signIn();
       },
       openAccountDialog: () => showBottomSheet?.("ManageAccount"),
       closeSession: signOut,
     });
-  }, [nilo, niloURL, sessionBearer, signIn, signOut, showBottomSheet]);
+  }, [nilo, niloURL, sessionBearer, clientId, signIn, signOut, showBottomSheet]);
   useEffect(() => {
     useOxySession.setState({ resolved: isAuthResolved, account: canUsePrivateApi && user ? accountOf(user, avatar) : null });
   }, [isAuthResolved, canUsePrivateApi, user, avatar]);
   useEffect(
     () => () =>
-      useOxySession.setState({ resolved: false, account: null, niloFetch: null, niloSocket: null, sessionBearer: null, openSignIn: null, openAccountDialog: null, closeSession: null }),
+      useOxySession.setState({ resolved: false, account: null, niloFetch: null, niloSocket: null, sessionBearer: null, clientId: null, openSignIn: null, openAccountDialog: null, closeSession: null }),
     [],
   );
   return null;
@@ -89,7 +90,7 @@ function OxySessionBridge({ niloURL }: { niloURL: string }) {
 export function OxyRoot({ baseURL, clientId, niloURL, children }: OxyEndpoints & { children?: ReactNode }) {
   return (
     <OxyProvider baseURL={baseURL} clientId={clientId}>
-      <OxySessionBridge niloURL={niloURL} />
+      <OxySessionBridge niloURL={niloURL} clientId={clientId} />
       {children}
     </OxyProvider>
   );

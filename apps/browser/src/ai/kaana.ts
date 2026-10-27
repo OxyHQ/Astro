@@ -85,3 +85,5 @@ export async function kaanaRespond(
     latencyMs: typeof top?.latencyMs === "number" ? top.latencyMs : null,
   };
 }
+
+export const kaanaSessionBearer = (clientId: string, accessToken: string) => `oxy_session:${clientId}:${accessToken}`;
