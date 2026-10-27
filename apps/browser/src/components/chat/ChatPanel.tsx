@@ -204,7 +204,7 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       const research = chosen.some((item) => item.command === "research");
       for (const item of chosen) if (item.command) noteCommandSent(item.command);
       const turns = chosen.flatMap((item) => {
-        const turn = item.command && item.command !== "research" ? astroCommandTurn(item.command, windowId) : null;
+        const turn = item.command && item.command !== "research" ? astroCommandTurn(item.command, windowId, item.occurrence) : null;
         return turn ? [[`## The person ran /${item.name} (${item.title})`, turn.prompt, ...turn.context]] : [];
       });
       const asked = [chosen.map((item) => `/${item.name}`).join(" "), words].filter(Boolean).join(" ");

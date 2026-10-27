@@ -12,7 +12,7 @@ export type ChatContextItem =
   | { id: string; kind: "file"; name: string; mime: string; uri: string; size: number }
   | { id: string; kind: "screenshot"; tabId: string; title: string; url: string; uri: string }
   | { id: string; kind: "link"; url: string }
-  | { id: string; kind: "skill"; name: string; title: string; command?: AstroCommand };
+  | { id: string; kind: "skill"; name: string; title: string; command?: AstroCommand; occurrence?: string };
 
 export type ChatAsk = {
   id: number;

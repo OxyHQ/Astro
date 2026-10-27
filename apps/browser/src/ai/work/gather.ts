@@ -2,7 +2,7 @@ import { useCalendar } from "../../live/calendar";
 import { useBrowser } from "../../store/browser";
 import { isIncognitoProfile, viewTabIds } from "../../store/model";
 import type { AstroCommand } from "../skills/skills";
-import { commandTurn, type BriefInput, type BriefPage, type CommandTurn } from "./brief";
+import { commandTurn, meetingPrep, meetingRecap, type BriefInput, type BriefPage, type CommandTurn } from "./brief";
 
 const web = (url: string) => /^https?:/i.test(url);
 
@@ -24,6 +24,10 @@ export function briefInput(windowId: string, now = Date.now()): BriefInput {
   };
 }
 
-export function astroCommandTurn(command: AstroCommand, windowId: string): CommandTurn | null {
-  return commandTurn(command, briefInput(windowId));
+export function astroCommandTurn(command: AstroCommand, windowId: string, occurrence?: string): CommandTurn | null {
+  const input = briefInput(windowId);
+  const event = occurrence ? input.events.find((e) => e.occurrence === occurrence) : undefined;
+  if (event && command === "prep") return meetingPrep(input, event);
+  if (event && command === "recap") return meetingRecap(input, event);
+  return commandTurn(command, input);
 }

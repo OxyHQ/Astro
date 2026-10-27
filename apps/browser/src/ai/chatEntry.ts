@@ -3,7 +3,7 @@ import type { AstroCommand } from "./skills/skills";
 
 export type ChatEntrySource = "commandBar" | "promptAction" | "videoSummary" | "skill" | "calendar" | "suggestion" | "artifact";
 
-export type ChatEntrySkill = { name: string; title: string; command?: AstroCommand };
+export type ChatEntrySkill = { name: string; title: string; command?: AstroCommand; occurrence?: string };
 
 export type ChatPageContext = {
   tabId: string;

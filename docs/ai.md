@@ -232,6 +232,10 @@ and runs them.
 | `/prep` | the next meeting (title, time, place, link, organizer, guests, description) and pages from the last two weeks whose title or address shares its words or guests |
 | `/recap` | the last meeting and the pages you visited during it (5 min before to 10 min after) |
 
+The calendar runs them for one meeting: hovering a meeting in the Live Calendar card shows **Prep** (or **Recap** once
+it's over), and the next-meeting alert has **Prepare with Chat**; both send the command with that meeting's occurrence
+instead of the next or last one.
+
 The builders are pure (`ai/work/brief.ts`, tests in `brief.test.mjs`); `ai/work/gather.ts` reads the stores. Without a
 calendar in Astro, the context says so and asks Alia to read it with her own calendar tools.
 
