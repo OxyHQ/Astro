@@ -3,12 +3,8 @@ import { create } from "zustand";
 import { closeTab } from "../../lib/actions";
 import { useBrowser } from "../../store/browser";
 import { activeTabId, viewTabIds } from "../../store/model";
-import { AWAITED_HOST_TOOLS } from "./features";
 import { readPage } from "./pageContext";
 import { windowChat } from "./state";
-
-type Definition = AliaHostToolDefinition & { awaitsResult?: boolean };
-type Outcome = AliaHostOutcome & { result?: unknown };
 
 export type ApprovalKind = "open" | "close" | "read";
 
@@ -51,7 +47,7 @@ function approve(windowId: string, kind: ApprovalKind, tabs: Approval["tabs"], c
 
 const TAB_IDS = { type: "array", items: { type: "string" }, minItems: 1, maxItems: 20, description: "Tab ids from the list of open tabs." };
 
-const DEFINITIONS: Definition[] = [
+const DEFINITIONS: AliaHostToolDefinition[] = [
   {
     name: "open_tabs",
     description:
@@ -78,7 +74,7 @@ const DEFINITIONS: Definition[] = [
   },
 ];
 
-const READ_TAB: Definition = {
+const READ_TAB: AliaHostToolDefinition = {
   name: "read_tab",
   description:
     "Read the text of one of the person's open tabs (its title, address, selected text, video position and page text), by its id from the list of open tabs. The person is asked first for a tab they haven't shared.",
@@ -100,7 +96,7 @@ const describe = (tab: { id: string; title: string; customTitle: string | null; 
   url: tab.url,
 });
 
-async function run(windowId: string, action: AliaHostAction): Promise<Outcome> {
+async function run(windowId: string, action: AliaHostAction): Promise<AliaHostOutcome> {
   const conversation = windowChat(windowId).conversationId;
   const input = action.input ?? {};
   switch (action.name) {
@@ -158,7 +154,7 @@ async function run(windowId: string, action: AliaHostAction): Promise<Outcome> {
 
 export function astroHostTools(windowId: string): AliaHostTools {
   return {
-    definitions: AWAITED_HOST_TOOLS ? [...DEFINITIONS, READ_TAB] : DEFINITIONS,
+    definitions: [...DEFINITIONS, READ_TAB],
     execute: (action) => run(windowId, action),
   };
 }

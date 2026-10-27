@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PanResponder, Text, View, type TextInput } from "react-native";
 import { closeChat, newChat, openChatTab, setChatPlacement, setComposerFocused, showChatConversation, toggleChatHistory } from "../../ai/chat/actions";
 import { buildTurnContext } from "../../ai/chat/clientContext";
-import { PERSONALIZATION_SWITCH } from "../../ai/chat/features";
 import { astroHostTools } from "../../ai/chat/hostTools";
 import {
   personalizationOff,
@@ -56,10 +55,7 @@ export function ChatPanel(props: ChatPanelProps) {
     () => ({
       openConversation: (id) => showChatConversation(windowId, id),
       closeConversation: () => newChat(windowId),
-      turnRequest: (): AliaTurnRequest => {
-        const off: AliaTurnRequest & { personalization?: false } = { personalization: false };
-        return PERSONALIZATION_SWITCH && personalizationOff(windowChat(windowId).conversationId) ? off : {};
-      },
+      turnRequest: (): AliaTurnRequest => (personalizationOff(windowChat(windowId).conversationId) ? { personalization: false } : {}),
       ...(props.faviconUrl ? { faviconUrl: props.faviconUrl } : {}),
     }),
     [windowId, props.faviconUrl],

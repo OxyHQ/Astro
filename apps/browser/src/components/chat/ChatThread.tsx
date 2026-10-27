@@ -36,6 +36,18 @@ function filesOf(message: Message): string[] {
 
 const RUNNING = new Set(["partial-call", "call"]);
 
+const HOST_STEPS: Record<string, string> = {
+  read_tab: "Reading a tab",
+  open_tabs: "Opening tabs",
+  switch_to_tab: "Switching tabs",
+  close_tabs: "Closing tabs",
+};
+
+const stepLabel = (name: string) => {
+  const host = /^host_astro__(\w+)$/.exec(name)?.[1];
+  return host ? (HOST_STEPS[host] ?? host.replace(/_/g, " ")) : toolLabel(name, englishCopy);
+};
+
 function ToolSteps({ tools }: { tools: ToolInvocation[] }) {
   const theme = useTheme();
   if (!tools.length) return null;
@@ -45,7 +57,7 @@ function ToolSteps({ tools }: { tools: ToolInvocation[] }) {
         <View key={tool.toolCallId} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: RUNNING.has(tool.state) ? theme.accent : theme.textSecondary }} />
           <Text numberOfLines={1} style={{ fontSize: 12, color: theme.textSecondary, flexShrink: 1 }}>
-            {toolLabel(tool.toolName, englishCopy)}
+            {stepLabel(tool.toolName)}
             {RUNNING.has(tool.state) ? "…" : ""}
           </Text>
         </View>

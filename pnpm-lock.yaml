@@ -5,7 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@alia.onl/sdk@22.1.1': 3b576c2ff38f612a87686a78850fc3cc32988f1ab14bbbbc4eb18da7900a38b2
   expo-constants@18.0.14: a5c4c4d37484de084292ab5f4a845e8e7f2c8326fe1446011f9df4acd1d1c217
   expo-modules-core@3.0.30: 5f48aa2efe76019102a9f3ff13bd20eb292b079f344df6820b4c6d0d36a0e955
   react-native-macos@0.81.9: f9b2340824b9e8e14d2c403217361618c452a59ebe7c35ebd617465afd21ba0c
@@ -24,8 +23,8 @@ importers:
   apps/browser:
     dependencies:
       '@alia.onl/sdk':
-        specifier: ^22.1.1
-        version: 22.1.1(patch_hash=3b576c2ff38f612a87686a78850fc3cc32988f1ab14bbbbc4eb18da7900a38b2)(c13986a4fe0f6fe403aac47384372bfc)
+        specifier: ^22.2.0
+        version: 22.2.0(c13986a4fe0f6fe403aac47384372bfc)
       '@astro-browser/astrocore':
         specifier: workspace:*
         version: link:../../packages/astrocore
@@ -218,8 +217,8 @@ importers:
   apps/webui:
     dependencies:
       '@alia.onl/sdk':
-        specifier: ^22.1.1
-        version: 22.1.1(patch_hash=3b576c2ff38f612a87686a78850fc3cc32988f1ab14bbbbc4eb18da7900a38b2)(c13986a4fe0f6fe403aac47384372bfc)
+        specifier: ^22.2.0
+        version: 22.2.0(c13986a4fe0f6fe403aac47384372bfc)
       '@astro-browser/astrocore':
         specifier: workspace:*
         version: link:../../packages/astrocore
@@ -340,8 +339,8 @@ packages:
       graphql:
         optional: true
 
-  '@alia.onl/sdk@22.1.1':
-    resolution: {integrity: sha512-Sdz56mlxsVTBLiXMWLvLUj+z/90U7ChgvrZsQI8Ar25+2Sa0BILRFUySxrVQgqHMKJJiQezUQz2ijHB3WRu/9w==}
+  '@alia.onl/sdk@22.2.0':
+    resolution: {integrity: sha512-fxm10SKkY6Ew5Frx8qBqLW+j6neV4KvRiJJILTiwh7EhAeTZcqCMiDPEApJPV9gPt3SVOQJnlxp0/K+1wNx14g==}
     peerDependencies:
       '@expo/vector-icons': ^15.1.1
       '@oxy.so/bloom': '>=15.10.1'
@@ -4768,7 +4767,7 @@ snapshots:
 
   '@0no-co/graphql.web@1.3.4': {}
 
-  '@alia.onl/sdk@22.1.1(patch_hash=3b576c2ff38f612a87686a78850fc3cc32988f1ab14bbbbc4eb18da7900a38b2)(c13986a4fe0f6fe403aac47384372bfc)':
+  '@alia.onl/sdk@22.2.0(c13986a4fe0f6fe403aac47384372bfc)':
     dependencies:
       '@expo/vector-icons': 15.1.1(expo-font@14.0.12(expo@54.0.37(@babel/core@7.29.7)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)(typescript@5.9.3))(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4))(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)
       '@oxy.so/bloom': 15.49.0(8d144850a0f0a8e8e74a1ce4fc10efa9)

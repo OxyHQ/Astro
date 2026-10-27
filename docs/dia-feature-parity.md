@@ -23,12 +23,12 @@ Legend: **✅** done · **🧪** built, but the deciding test needs the user pre
 
 | ✅ done | 🧪 needs the user | 🟡 partial | ❌ missing | ⛔ blocked | ⏸ deferred (AI) | — n/a |
 |---|---|---|---|---|---|---|
-| 230 | 1 | 22 | 0 | 1 | 39 | 14 |
+| 230 | 1 | 23 | 0 | 1 | 38 | 14 |
 
-Of the 254 rows that count (not ⏸ or —), 230 are done (91 %), 231 with the one 🧪 row (Cast). Two 🟡 rows are
+Of the 255 rows that count (not ⏸ or —), 230 are done (90 %), 231 with the one 🧪 row (Cast). Two 🟡 rows are
 passkeys (iCloud Keychain waits on Apple) and the Dia sidebar import (profiles, open and pinned tabs come through
-Dia's AppleScript; custom names, colours, spaces and folders don't); the other 20 are AI, built on Windows
-and Linux and waiting on macOS: 13 are Chat (§8–§9, `docs/ai.md` › Chat; a few pieces wait on Alia #913) and 7 the one-shot features and the command bar's router (`docs/ai.md` › One-shot features; production waits on OxyHQ/oxy#2006). Keyboard shortcuts: every Dia and Chrome
+Dia's AppleScript; custom names, colours, spaces and folders don't); the other 21 are AI, built on Windows
+and Linux and waiting on macOS: 14 are Chat (§8–§9, `docs/ai.md` › Chat) and 7 the one-shot features and the command bar's router (`docs/ai.md` › One-shot features; production waits on OxyHQ/oxy#2006). Keyboard shortcuts: every Dia and Chrome
 shortcut is bound (Dia's where they clash) except Chat on macOS and a few for Chrome's own hidden UI. Menus: all ten exist and match.
 
 The summary before this recount (304 rows, 207 ✅, 9 🟡, 7 ⛔) didn't match its tables, which held 307 rows: 211 ✅,
@@ -43,7 +43,7 @@ What changed since the last audit, in rows (mostly the migration):
   summaries, promoted prompts, the router and ⌃⌘↩), on Windows and Linux; AI form autofill stays ⏸ as Chat's.
 - Since, Chat (2026-10-27): 13 rows ⏸ → 🟡 in §8 and §9 (panel, context, mentions and attachments, Ask on Page,
   screenshot, power levels and live thinking, history, edit/retry/stop, tab tools, web tools, rendering, Ask, pasted
-  links), on Windows and Linux; Personalization stays ⏸ until Alia #913.
+  links), on Windows and Linux; then Personalization's per-chat switch and reading tabs, with Alia #913 and SDK 22.2 (⏸ → 🟡).
 - Now done: extensions (Chrome's real `chrome.tabs`, actions, commands, per-profile, Web Store installs through
   Chrome's own flow) and the Extensions menu, Chrome's password manager with our save prompt, card and address
   storage, H.264/AAC, the close-tabs wording in the top strip. Better but still partial: moving a tab between
@@ -414,13 +414,13 @@ Everything in this section is deferred on purpose.
 | Screen capture → ask (region / full page) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): Screenshot of This Tab, Capture Area… (drag a rectangle over the dimmed page) and Screenshot of Full Page (scrolled and stitched: Webium's guest tabs can't be resized for DevTools' full-size capture) |
 | Streaming dictation | ✓ | ⏸ | |
 | Model picker / reasoning effort / "Skip" thinking; live thinking UI | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): Alia's power levels (`auto` … `ultra`; never model names, Oxy's rule), live reasoning in a collapsible Thought process. No "Skip" |
-| Personalization (tone, writing, coding), per‑chat off switch | ✓ | ⏸ | the per-chat switch is built behind `PERSONALIZATION_SWITCH`, waiting on Alia #913 (`personalization: false`) and SDK 22.2 |
+| Personalization (tone, writing, coding), per‑chat off switch | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): the per-chat off switch (Alia reads and writes no memory for that chat). Tone, writing and coding preferences are Alia's account settings, not offered in Astro |
 | Memory (browsing memory, knowledge graph) | ✓ in 1.49 · **retired in 1.50** | — | |
 | History search by date/title/URL; search past chats & artifacts | ✓ | ⏸ | (the History page's own search is done, §13) |
 | Import ChatGPT memories | ✓ (moot after 1.50) | — | |
 | Chat history panel (search, delete, clear all) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): Astro's chats by day, search, delete, Clear All |
 | Edit / retry / stop & resume / auto‑compaction | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): edit, regenerate, Try Again, Stop (Alia's turn cancel) then Resume; compaction is Alia's (it trims old turns to fit) |
-| Tab tools (open / read / close tabs with confirmation) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): open, switch to and close tabs, with Allow / Always Allow in This Chat / Don't Allow. Read waits on Alia #913 (host tools that answer within the turn) |
+| Tab tools (open / read / close tabs with confirmation) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): open, switch to and close tabs, with Allow / Always Allow in This Chat / Don't Allow; read a tab within the turn (asks first for a tab you haven't shared) |
 | Web search + fetch tools | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): Alia's own web search and page reader, shown as steps and source chips |
 | AI form autofill (preview + approve) | ✓ | ⏸ | Chat's, not a one-shot feature: Dia fills forms from the conversation's context with page tools and an approval step (`docs/ai.md` › Chat) |
 | Computer use / agentic actions | ✓ | ⏸ | |

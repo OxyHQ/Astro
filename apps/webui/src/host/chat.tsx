@@ -4,7 +4,6 @@ import { createPortal } from "react-dom";
 import { Pressable, Text, View } from "react-native";
 import { closeChat, isChatTabUrl, openChatFromEntry } from "../../../browser/src/ai/chat/actions";
 import { IconButton } from "../../../browser/src/components/primitives";
-import { PERSONALIZATION_SWITCH } from "../../../browser/src/ai/chat/features";
 import { addChatContext, chatItemId, useChat } from "../../../browser/src/ai/chat/state";
 import { registerChatOpener } from "../../../browser/src/ai/chatEntry";
 import { ChatPanel } from "../../../browser/src/components/chat/ChatPanel";
@@ -115,7 +114,7 @@ function SignedInChat({ windowId, inTab }: { windowId: string; inTab: boolean })
   const account = useOxySession((s) => s.account);
   if (!resolved) return null;
   if (!account) return <SignInToChat windowId={windowId} inTab={inTab} />;
-  return <ChatPanel key={account.id} windowId={windowId} inTab={inTab} personalizationSupported={PERSONALIZATION_SWITCH} />;
+  return <ChatPanel key={account.id} windowId={windowId} inTab={inTab} personalizationSupported />;
 }
 
 function SignInToChat({ windowId, inTab }: { windowId: string; inTab: boolean }) {

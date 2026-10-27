@@ -179,19 +179,19 @@ and Linux; under the search item, as Chrome lists its own). It opens where it wa
   Try Again. ⋯ › Clear Chat empties it.
 - **History.** 🕘 lists your Astro chats by day, with search (title and last message), Delete on hover and Clear All.
 - **Tools** (Alia host tools, `host_astro__*`): `open_tabs` (asks first for more than one), `switch_to_tab`,
-  `close_tabs` (asks first). The question docks above the composer: Don't Allow, Always Allow in This Chat, Allow.
-  Alia performs web search and page fetching itself. `read_tab` (asks first for a tab you haven't shared) needs host tools
-  that answer within the turn (below).
+  `close_tabs` (asks first) and `read_tab` (asks first for a tab you haven't shared; Alia waits for its answer within
+  the turn, up to 45 s). The question docks above the composer: Don't Allow, Always Allow in This Chat, Allow. Alia
+  performs web search and page fetching itself.
+- **Personalization.** ⋯ › Personalization for This Chat (and + › Personalization on a new chat) turns it off for one
+  conversation: its turns carry `personalization: false`, so Alia reads and writes no memory for them.
 
-### Waiting on Alia
+### Alia's side
 
-Alia PR **OxyHQ/Alia#913** adds what Chat still needs, on Alia's side: host tools that answer within the same turn
-(`awaitsResult`, `POST /v1/chat/turns/:turnId/host-results`, 45 s) and a per-turn `personalization: false` (no memory
-read or written), with SDK 22.2.0. Astro's side is written: `read_tab` and the per-chat Personalization switch (+ menu
-and ⋯) are behind `AWAITED_HOST_TOOLS` and `PERSONALIZATION_SWITCH` in `ai/chat/features.ts`. Once #913 is merged,
-migration 0109 has run and every API replica has it: bump `@alia.onl/sdk` to 22.2, drop
-`patches/@alia.onl__sdk@22.1.1.patch` (Alia **#914** makes the SDK type-check under `noUncheckedIndexedAccess`, which is
-all the patch does), turn both flags on, and drop the `& { awaitsResult?; result? }` widenings in `hostTools.ts`.
+Alia (#913, SDK 22.2.0, in production since 2026-10-27) carries the two contracts Chat needed beyond the SDK's
+original surface: host tools declared `awaitsResult`, whose action carries the `turnId` and whose answer the SDK posts to
+`POST /v1/chat/turns/:turnId/host-results` (≤ 100 000 characters, 45 s, held in Postgres across replicas), and the
+per-turn `personalization: false`. Alia #914 made the SDK's raw TypeScript type-check under Astro's
+`noUncheckedIndexedAccess`.
 
 ### macOS
 
