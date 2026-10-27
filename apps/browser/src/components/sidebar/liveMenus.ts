@@ -1,7 +1,7 @@
 import { cleanUrl, markdownLink } from "@astro-browser/core";
 import { copyText, prompt, showMenu, type MenuItem } from "@astro-browser/shell";
 import { closeTab } from "../../lib/actions";
-import { calendarConnected, connectCalendar, setCalendarHidden, useCalendar } from "../../live/calendar";
+import { calendarConnected, connectCalendar, openNiloCalendarSubscriptions, setCalendarHidden, useCalendar } from "../../live/calendar";
 import { deleteLiveFolder, newLiveFolder, openLiveItem, refreshFolder, statusText } from "../../live/engine";
 import { ALERT_LEADS } from "../../live/meetings";
 import { SOURCES } from "../../live/sources";
@@ -124,7 +124,8 @@ export function calendarMenuItem(): MenuItem {
   const settings = live().calendar;
   const { calendars } = useCalendar.getState();
   const owned = calendars.filter((c) => c.owned);
-  const others = calendars.filter((c) => !c.owned);
+  const subscribed = calendars.filter((c) => c.subscribed);
+  const others = calendars.filter((c) => !c.owned && !c.subscribed);
   const hidden = new Set(settings.hiddenCalendarIds);
   const calendarItems = (list: typeof calendars): MenuItem[] => list.map((c) => ({ id: `cal:toggle:${c.id}`, title: c.title, swatch: c.color, checked: !hidden.has(c.id) }));
   return {
@@ -147,8 +148,10 @@ export function calendarMenuItem(): MenuItem {
         children: [
           ...(owned.length ? [{ id: "cal:h1", title: "My Calendars", enabled: false }, ...calendarItems(owned)] : []),
           ...(others.length ? [sep, { id: "cal:h2", title: "Other Calendars", enabled: false }, ...calendarItems(others)] : []),
+          ...(subscribed.length ? [sep, { id: "cal:h3", title: "Subscribed Calendars", enabled: false }, ...calendarItems(subscribed)] : []),
         ],
       },
+      ...(calendarConnected() ? [{ id: "cal:subscribe", title: "Add Google, Outlook or iCloud Calendar…", symbol: "calendar.badge.plus" }] : []),
       sep,
       { id: "cal:settings", title: "Calendar Settings…", symbol: "gearshape" },
     ],
@@ -165,6 +168,7 @@ export function runCalendarMenu(choice: string): boolean {
   else if (choice.startsWith("cal:toggle:")) {
     const id = choice.slice(11);
     setCalendarHidden(id, !settings.hiddenCalendarIds.includes(id));
-  } else if (choice === "cal:settings") openSettings("calendar");
+  } else if (choice === "cal:subscribe") openNiloCalendarSubscriptions();
+  else if (choice === "cal:settings") openSettings("calendar");
   return true;
 }

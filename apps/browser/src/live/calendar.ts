@@ -1,13 +1,24 @@
-import { launchEnvironment, readDocument } from "@astro-browser/shell";
+import { focusWindow, launchEnvironment, readDocument } from "@astro-browser/shell";
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { everySlowly } from "../lib/slowTimers";
 import { signInWithOxy, useOxySession } from "../oxy/session";
+import { useBrowser } from "../store/browser";
 import type { CalendarEvent, CalendarInfo } from "./meetings";
 import { niloCalendars, niloEvents } from "./nilo";
 import { setNiloRooms, startNiloLive } from "./niloLive";
 import { toCalendarEvent, toCalendarInfo } from "./niloCalendar";
 import { live, updateCalendarSettings, useLive } from "./store";
+
+export const NILO_CALENDAR_SUBSCRIPTIONS_URL = "https://nilo.so/settings/calendars";
+
+export function openNiloCalendarSubscriptions() {
+  const s = useBrowser.getState();
+  const windowId = s.ui.focusOrder.find((id) => s.windows[id] && !s.windows[id]!.incognito) ?? s.windowOrder.find((id) => !s.windows[id]!.incognito) ?? null;
+  if (!windowId) return;
+  s.newTab(windowId, { url: NILO_CALENDAR_SUBSCRIPTIONS_URL });
+  void focusWindow(windowId);
+}
 
 export type CalendarAccess = "unavailable" | "pending" | "signedOut" | "connected" | "fixture";
 

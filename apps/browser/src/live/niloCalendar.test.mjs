@@ -6,8 +6,15 @@ const calendar = { id: "c1", workspaceId: "w1", name: "Calendar", isDefault: tru
 const base = { id: "e1", rowId: "r1", calendarId: "c1", title: "Standup", allDay: false, start: "2026-10-24T09:00:00Z", end: "2026-10-24T09:15:00Z", location: null, url: "https://meet.example/x", description: null, color: null, seriesStart: null };
 
 test("a calendar keeps its id and name and is owned by its owner", () => {
-  assert.deepEqual(toCalendarInfo(calendar), { id: "c1", title: "Calendar", color: "#337EA9", account: "Oxy", owned: true });
+  assert.deepEqual(toCalendarInfo(calendar), { id: "c1", title: "Calendar", color: "#337EA9", account: "Oxy", owned: true, subscribed: false });
   assert.equal(toCalendarInfo({ ...calendar, role: "editor" }).owned, false);
+});
+
+test("Nilo's admin of a private calendar is its owner, and a subscribed calendar is never mine", () => {
+  assert.equal(toCalendarInfo({ ...calendar, role: "admin" }).owned, true);
+  const feed = toCalendarInfo({ ...calendar, role: "viewer", subscribed: true });
+  assert.equal(feed.owned, false);
+  assert.equal(feed.subscribed, true);
 });
 
 test("a timed event keeps its instants and its meeting link", () => {

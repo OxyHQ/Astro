@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 import { useTheme } from "../../../lib/theme";
-import { connectCalendar, setCalendarHidden, useCalendar, type CalendarAccess } from "../../../live/calendar";
+import { connectCalendar, openNiloCalendarSubscriptions, setCalendarHidden, useCalendar, type CalendarAccess } from "../../../live/calendar";
 import { ALERT_LEADS, type CalendarInfo } from "../../../live/meetings";
 import { useOxySession, type OxyAccount } from "../../../oxy/session";
 import { updateCalendarSettings, useLive } from "../../../live/store";
@@ -17,7 +17,8 @@ export function CalendarPane() {
   const go = useSettingsNav((s) => s.go);
   const connected = access === "connected" || access === "fixture";
   const owned = calendars.filter((c) => c.owned);
-  const others = calendars.filter((c) => !c.owned);
+  const subscribed = calendars.filter((c) => c.subscribed);
+  const others = calendars.filter((c) => !c.owned && !c.subscribed);
 
   return (
     <View>
@@ -30,6 +31,11 @@ export function CalendarPane() {
           {access === "signedOut" ? <Button title="Sign In with Oxy…" kind="primary" onPress={() => void connectCalendar()} /> : null}
           {access !== "fixture" ? <Button title="Oxy Account…" onPress={() => go("account")} /> : null}
         </Row>
+        {access === "connected" ? (
+          <Row title="Google, Outlook or iCloud calendar" description="Subscribe to it in Nilo with its secret iCal address. Nilo keeps it up to date, read-only.">
+            <Button title="Add Calendar…" onPress={openNiloCalendarSubscriptions} />
+          </Row>
+        ) : null}
       </Group>
 
       <SectionHeader title="Meeting alerts" />
@@ -74,6 +80,7 @@ export function CalendarPane() {
           <Group>
             {owned.length ? <CalendarList title="My Calendars" calendars={owned} hidden={settings.hiddenCalendarIds} /> : null}
             {others.length ? <CalendarList title="Other Calendars" calendars={others} hidden={settings.hiddenCalendarIds} /> : null}
+            {subscribed.length ? <CalendarList title="Subscribed Calendars" calendars={subscribed} hidden={settings.hiddenCalendarIds} /> : null}
           </Group>
         </>
       ) : connected ? (
@@ -109,7 +116,7 @@ function CalendarList({ title, calendars, hidden }: { title: string; calendars: 
           key={c.id}
           icon={<View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: c.color }} />}
           title={<Checkbox value={!hidden.includes(c.id)} onChange={(v) => setCalendarHidden(c.id, !v)} label={c.title} />}
-          description={c.account}
+          description={c.subscribed ? `${c.account} · subscribed, read-only` : c.account}
         />
       ))}
     </View>

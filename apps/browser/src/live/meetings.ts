@@ -4,6 +4,7 @@ export type CalendarInfo = {
   color: string;
   account: string;
   owned: boolean;
+  subscribed?: boolean;
 };
 
 export type CalendarParticipant = { name: string; email: string; status: "accepted" | "declined" | "tentative" | "pending"; me: boolean };

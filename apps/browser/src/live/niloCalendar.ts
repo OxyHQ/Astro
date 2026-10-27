@@ -8,6 +8,7 @@ export type NiloCalendar = {
   name: string;
   isDefault: boolean;
   role: "viewer" | "commenter" | "editor" | "admin" | "owner";
+  subscribed?: boolean;
   colors: { id: string; name: string; color: NiloColor }[];
 };
 
@@ -49,7 +50,8 @@ export function toCalendarInfo(calendar: NiloCalendar): CalendarInfo {
     title: calendar.name,
     color: calendarColor(calendar),
     account: ACCOUNT,
-    owned: calendar.role === "owner",
+    owned: !calendar.subscribed && (calendar.role === "owner" || calendar.role === "admin"),
+    subscribed: !!calendar.subscribed,
   };
 }
 
