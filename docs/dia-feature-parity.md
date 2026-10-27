@@ -23,14 +23,13 @@ Legend: **✅** done · **🧪** built, but the deciding test needs the user pre
 
 | ✅ done | 🧪 needs the user | 🟡 partial | ❌ missing | ⛔ blocked | ⏸ deferred (AI) | — n/a |
 |---|---|---|---|---|---|---|
-| 230 | 1 | 9 | 0 | 1 | 52 | 14 |
+| 230 | 1 | 22 | 0 | 1 | 39 | 14 |
 
-Of the 241 rows that count (not ⏸ or —), 230 are done (95 %), 231 with the one 🧪 row (Cast). Two 🟡 rows are
+Of the 254 rows that count (not ⏸ or —), 230 are done (91 %), 231 with the one 🧪 row (Cast). Two 🟡 rows are
 passkeys (iCloud Keychain waits on Apple) and the Dia sidebar import (profiles, open and pinned tabs come through
-Dia's AppleScript; custom names, colours, spaces and folders don't); the other 7 are the one-shot AI features and the command bar's
-router, built on Windows and Linux and waiting on macOS (`docs/ai.md` › One-shot features; production waits on
-OxyHQ/oxy#2006). Keyboard shortcuts: every Dia and Chrome
-shortcut is bound (Dia's where they clash) except Chat (⏸) and a few for Chrome's own hidden UI. Menus: all ten exist and match.
+Dia's AppleScript; custom names, colours, spaces and folders don't); the other 20 are AI, built on Windows
+and Linux and waiting on macOS: 13 are Chat (§8–§9, `docs/ai.md` › Chat; a few pieces wait on Alia #913) and 7 the one-shot features and the command bar's router (`docs/ai.md` › One-shot features; production waits on OxyHQ/oxy#2006). Keyboard shortcuts: every Dia and Chrome
+shortcut is bound (Dia's where they clash) except Chat on macOS and a few for Chrome's own hidden UI. Menus: all ten exist and match.
 
 The summary before this recount (304 rows, 207 ✅, 9 🟡, 7 ⛔) didn't match its tables, which held 307 rows: 211 ✅,
 7 🟡, 8 ⛔ (its 🟡 count included the View and Help menu rows, which sit outside §1–§25).
@@ -42,6 +41,9 @@ Passwords / Autofill / Extensions panes (§22).
 What changed since the last audit, in rows (mostly the migration):
 - Since, one-shot AI (2026-10-27): 7 rows ⏸ → 🟡 (group names and emoji, pinned titles, Tidy Downloads, YouTube
   summaries, promoted prompts, the router and ⌃⌘↩), on Windows and Linux; AI form autofill stays ⏸ as Chat's.
+- Since, Chat (2026-10-27): 13 rows ⏸ → 🟡 in §8 and §9 (panel, context, mentions and attachments, Ask on Page,
+  screenshot, power levels and live thinking, history, edit/retry/stop, tab tools, web tools, rendering, Ask, pasted
+  links), on Windows and Linux; Personalization stays ⏸ until Alia #913.
 - Now done: extensions (Chrome's real `chrome.tabs`, actions, commands, per-profile, Web Store installs through
   Chrome's own flow) and the Extensions menu, Chrome's password manager with our save prompt, card and address
   storage, H.264/AAC, the close-tabs wording in the top strip. Better but still partial: moving a tab between
@@ -371,7 +373,7 @@ string doesn't matter. Afterwards: `kill %1` for the server, quit the app, `rm -
 | Mic / dictation button | ✓ (streaming, hold‑to‑speak) | ⏸ | the button (tooltip "Dictate") starts macOS dictation in the bar (done); what's left, Dia's streaming hold-to-speak transcription, is its AI voice input (⏸) |
 | Paste and Go / Paste and Search | ✓ | ✅ | bar and URL right-click menus; strips trackers |
 | ⌘V right after ⌘T / ⌘L / ⌘F | ✓ | ✅ | 2026-10-22, a Discord report ("sometimes I have to hit ⌘V twice"). The first ⌘V after a shortcut that moves focus off a page went to the old page while the new field was still mounting. Now ⌘T, ⌘L and ⌘F take focus off the page at once, and Cut/Copy/Paste/Select All wait for the field the command opens (≤ 400 ms) and land there, or are dropped with a beep, never into the old page. Escape or ⌘W closing the command bar gives the page its focus back. Not covered (unchanged): ⌘1–9, the tab switcher and profile switch (docs/known-issues/paste-focus-handoff.md). Verified: shortcuts-test (paste/copy/cut/select-all at +0–80 ms, idle and busy JS; abandon and race cases) |
-| Paste URLs as attachments | ✓ | ⏸ | |
+| Paste URLs as attachments | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): a pasted URL in the composer becomes a link chip |
 | New tab opens the command bar (Arc's; opt-in) | — (Arc ✓) | ✅ | 2026-10-21, a Discord request. Settings › Tabs › New tab opens: New Tab Page (default, unchanged) or Command Bar. With Command Bar, ⌘T, File › New Tab, the sidebar's + New Tab and its menu, a double-click on the empty sidebar and the top strip's + open the command bar centred over the page (the New Tab box's width, 22% down the card); no tab, engine tab or history entry exists until a pick. A URL, search or history pick makes one selected tab at the top of the list, outside the source group or split; an open tab switches; a command just runs; an empty Enter does nothing. ⌥⌘T in a group sends the pick into the group; ⌥-click + stays Split. Esc gives the page back its field and caret; ⌘T again, a click outside, ⌘W (it only dismisses the bar), another window taking focus and the app going to the background dismiss it and drop the draft. Closing the last tab keeps the window as an empty card; ⌘N and that empty card show the bar once and Esc keeps it down; a pick there fills the window. A restored launch and a link from another app show no bar and add no spare tab. Little Astro and private windows' last tab keep today's rules. Policies the owner may flip after checking Arc sit in `NEW_TAB_BAR_POLICY` (`store/newTabBar.ts`); Arc's flow and the evidence: the sprint's `arc-cmdbar-flow.md`. `store/newTabBar.test.mjs` and a hidden instance (engine tabs counted before opening, after cancelling and after a pick, setting on and off) |
 
 ## 8. Navigation & page tools
@@ -390,7 +392,7 @@ string doesn't matter. Afterwards: `kill %1` for the server, quit the app, `rm -
 | Zoom ⌘+ / ⌘- / ⌘0 | ✓ | ✅ | Chrome's per-host zoom per profile (`HostZoomMap`, Chrome's steps); Settings › Privacy lists and resets levels. Away from 100% the address field (toolbar or sidebar) shows Chrome's magnifier (+ or −), which opens − / + / Reset. ⌘-scroll zooms with a wheel mouse or a Magic Mouse and scrolls with a trackpad (the scroll's HID sender; `apps/browser/scripts/zoom-scroll-test.mjs`). Pinch zoom is reported by the page script but unused |
 | Translate page / Never translate this site | ✓ | ✅ | on the Mac's own models (Apple's Translation framework, macOS 26; nothing leaves the Mac), not Chrome's Translate, whose Google servers domain substitution removed. Dia's UX from its 1.50.1 binary: a translate button by the address when the page isn't in one of your languages (click: translate / back to the original); Site Controls' "Translate to <language>", "Choose Another Language…" and "Never Translate This Site" (per profile); toasts "Translated to %@", "Translated back to %@", "Translation error (%@)", with progress while a long first pass runs. A paragraph translates as one text and each text node gets its part back, so links and styles stay (a language with another word order is cut in proportion); what's near the viewport first, the rest as you scroll; text the page adds later too; Show Original restores the text exactly. Checked on German and Japanese Wikipedia. macOS 14–15: no Translation framework, so no button |
 | Selected‑text popover (Search) | ✓ | ✅ | Search bar over a mouse selection (default engine, new tab next to the page); page menu "Search <engine> for “…”". Both follow the keys held (Chrome's): ⌘ behind, ⇧⌘ in front, ⇧ a new window, ⌥ a split. The menu's keys come from the event that picked the item (CEF gives Chrome's page menu commands no event flags) |
-| Selected‑text popover / context menu (Ask) | ✓ | ⏸ | hidden until Chat exists (`kChatEnabled` in ACClient.mm) |
+| Selected‑text popover / context menu (Ask) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): the selection popover's Ask. No context-menu entry yet (Chromium's menu needs an engine hook on Windows and Linux) |
 | Clean link copy (trackers stripped), Copy URL as Markdown ⌥⇧⌘C | ✓ | ✅ | every Copy URL / Copy Link (as Markdown) strips trackers |
 | Quote link / "Super Copy" (text fragment link) | ✓ | ✅ | ⇧⌘C with a selection: Dia's toast with Copy Quote Link; page menu "Copy Link to Highlight" (Chrome's item, run by core/textFragment.ts for Dia's toast and clean link) |
 | JS alert / confirm / prompt dialogs | ✓ | ✅ | Chrome's tab-modal dialogs, centred over the page area (or the focused split pane); `alert()` and HTTP auth verified (ledger 26); `beforeunload` untested. Chrome's styling, not Dia's |
@@ -405,26 +407,26 @@ Everything in this section is deferred on purpose.
 
 | Feature | Dia | Astro | Gap |
 |---|---|---|---|
-| Chat ⌘E (sidebar / floating / tab), Focus Chat ⌃⌘E | ✓ | ⏸ | |
-| Current page as context | ✓ | ⏸ | |
-| @‑mention tabs / tab groups; attach files, screenshots, selection | ✓ | ⏸ | |
-| Ask on Page (selection, video timestamps, charts, iframes, shadow DOM) | ✓ | ⏸ | |
-| Screen capture → ask (region / full page) | ✓ | ⏸ | |
+| Chat ⌘E (sidebar / floating / tab), Focus Chat ⌃⌘E | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): ⌘E/Ctrl+E, ⌃⌘E, the toolbar's ✦; sidebar (320–640, resizable), floating (draggable) and `astro://chat` tab, moving without interrupting a reply. Not yet matched by numbers against a Dia capture |
+| Current page as context | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): the current tab, re-read each turn (title, URL, readable text, selection, language), removable chip |
+| @‑mention tabs / tab groups; attach files, screenshots, selection | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): @ tabs and groups, files (picker, drop, paste), screenshot of the tab, selection. Document uploads go through Oxy Files and weren't exercised against a real Oxy |
+| Ask on Page (selection, video timestamps, charts, iframes, shadow DOM) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): selection, video position, YouTube transcript with timestamps, open shadow roots, same-origin iframes. Charts (canvas/SVG data) aren't read |
+| Screen capture → ask (region / full page) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): the visible tab; no region or full-page capture |
 | Streaming dictation | ✓ | ⏸ | |
-| Model picker / reasoning effort / "Skip" thinking; live thinking UI | ✓ | ⏸ | |
-| Personalization (tone, writing, coding), per‑chat off switch | ✓ | ⏸ | |
+| Model picker / reasoning effort / "Skip" thinking; live thinking UI | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): Alia's power levels (`auto` … `ultra`; never model names, Oxy's rule), live reasoning in a collapsible Thought process. No "Skip" |
+| Personalization (tone, writing, coding), per‑chat off switch | ✓ | ⏸ | the per-chat switch is built behind `PERSONALIZATION_SWITCH`, waiting on Alia #913 (`personalization: false`) and SDK 22.2 |
 | Memory (browsing memory, knowledge graph) | ✓ in 1.49 · **retired in 1.50** | — | |
 | History search by date/title/URL; search past chats & artifacts | ✓ | ⏸ | (the History page's own search is done, §13) |
 | Import ChatGPT memories | ✓ (moot after 1.50) | — | |
-| Chat history panel (search, delete, clear all) | ✓ | ⏸ | |
-| Edit / retry / stop & resume / auto‑compaction | ✓ | ⏸ | |
-| Tab tools (open / read / close tabs with confirmation) | ✓ | ⏸ | |
-| Web search + fetch tools | ✓ | ⏸ | |
+| Chat history panel (search, delete, clear all) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): Astro's chats by day, search, delete, Clear All |
+| Edit / retry / stop & resume / auto‑compaction | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): edit, regenerate, Try Again, Stop (Alia's turn cancel) then Resume; compaction is Alia's (it trims old turns to fit) |
+| Tab tools (open / read / close tabs with confirmation) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): open, switch to and close tabs, with Allow / Always Allow in This Chat / Don't Allow. Read waits on Alia #913 (host tools that answer within the turn) |
+| Web search + fetch tools | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): Alia's own web search and page reader, shown as steps and source chips |
 | AI form autofill (preview + approve) | ✓ | ⏸ | Chat's, not a one-shot feature: Dia fills forms from the conversation's context with page tools and an approval step (`docs/ai.md` › Chat) |
 | Computer use / agentic actions | ✓ | ⏸ | |
 | YouTube transcript Q&A, pre‑generated summaries | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › One-shot features); macOS waits for the Oxy SDK (New Architecture), and production for Oxy's session lane (OxyHQ/oxy#2006, ADR 0050): a video watched for 4 s gets its transcript from the page (caption track, else YouTube's own transcript panel opened invisibly) and a summary with timestamps; Summarize This Video opens Chat with both. Q&A is Chat's |
 | PDF (OCR) / DOCX / PPTX / XLSX / Google Sheets reading | ✓ | ⏸ | |
-| Tables, charts, code blocks (syntax highlight) in chat | ✓ | ⏸ | |
+| Tables, charts, code blocks (syntax highlight) in chat | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): Markdown tables, code blocks highlighted in 17 languages. No charts |
 | Promoted prompts (summarize, ELI5, quiz me, proofread, review code, citations) | ✓ | 🟡 | Windows and Linux, with Chat: command-bar actions Summarize This Page, Summarize This Video, Explain Like I'm 5, Quiz Me, Proofread, Review Code (code hosts), Find Citations; each opens Chat with its prompt and the page |
 | Proactive suggestions | ✓ | ⏸ | |
 | `/research` deep research | ✓ | ⏸ | |
@@ -699,7 +701,7 @@ Chrome; n/t = not pressed there by the test (clipboard and window-level AppKit i
 | Downloads | ⇧⌘J | ⇧⌘J, ⌥⌘L | ⇧⌘J (+ hidden ⌥⌘L) | ✓ ✓ ✓ ✓ | ✅ |
 | Switch to Profile 1–9 / profile menu | ⌃1–⌃9 / profile switcher | ⇧⌘M profile menu | ⌃1–⌃9, ⇧⌘M (hidden) | ✓ ✓ ✓ ✓; switches: checked | ✅ ⇧⌘M new |
 | Send Feedback | — | ⌥⇧⌘I | ⌥⇧⌘I (Help menu) | ✓ ✓ ✓ ✓ | ✅ new |
-| Chat / Focus Chat / bar → Chat | ⌘E / ⌃⌘E / ⌃⌘↩ | — | — (no AI; ⌘E is Use Selection for Find) | — | ⏸ |
+| Chat / Focus Chat / bar → Chat | ⌘E / ⌃⌘E / ⌃⌘↩ | — | Windows and Linux: Ctrl+E (View › Chat), Ctrl+Win+E, Ctrl+Alt+Enter in the command bar; macOS keeps ⌘E for Use Selection for Find until Chat runs there | n/t | 🟡 |
 | Home | — | ⇧⌘H | — (no home page: a New Tab is ⌘T) | — | — |
 | Focus toolbars / inactive dialogs, reading mode | — | ⌥⌘↑/↓ (Dia's are tab alternates), ⌥⇧⌘A, ⌥⌘R | — (Chrome's hidden UI; ⌥⌘↑/↓ go to Dia's) | — | — |
 | Focus next / previous tab group | — | ⌃⌘X / ⌃⌘Z | — (groups aren't focusable rows) | — | — |

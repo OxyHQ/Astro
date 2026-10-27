@@ -105,3 +105,86 @@ While nothing is registered, the bar shows no Chat row and no prompt actions, an
   session (2026-10-27, a test did, and Nilo logged a refusal every 20–30 s). Run test instances with
   `--host-resolver-rules="MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.alia.onl ~NOTFOUND, MAP kaana.ai ~NOTFOUND"`.
 
+## Chat
+
+Chat is a conversation, so it goes through Alia: `Astro -> Alia (api.alia.onl/v1) -> Oxy -> Kaana`. Astro is an Alia
+embedding host like Homiio or Mercaria (Alia `docs/agent-embedding.md`): it uses `@alia.onl/sdk`'s data layer
+(`@alia.onl/sdk/runtime` and `/model`: the turn stream, Stop through `POST /v1/chat/turns/:id/cancel`, edit, regenerate,
+retry, conversations) and draws the conversation itself with Bloom (`AiChatUserMessage`, `AiChatAssistantMessage`,
+`AgentThinking`, `Markdown`, `CodeBlock`, `ComposerPill`). It names itself `app: "astro"`, so its conversations are labelled
+and its history lists only them. Astro never names a model: the composer's level picker sends Alia's power levels
+(`auto` … `ultra`, the SDK's `POWER_LEVELS`; saved as `chatPowerLevel`).
+
+### Where it lives
+
+| What | Where |
+| --- | --- |
+| Per-window state: open, placement, conversation, draft, context chips, asks | `ai/chat/state.ts`, `ai/chat/actions.ts` (no SDK import: runs on macOS too) |
+| What the model is told about the browser (the turn's `clientContext`) | `ai/chat/clientContext.ts`, `ai/chat/pageContext.ts` |
+| Tools Astro performs for Alia (host tools) and their approvals | `ai/chat/hostTools.ts`, `components/chat/ToolApproval.tsx` |
+| The panel: header, thread, composer, history | `components/chat/` (`ChatPanel`, `ChatThread`, `ChatComposer`, `ChatHistory`, `ChatCode`) |
+| Where the panel shows: sidebar, floating, tab | `components/chat/ChatSlots.tsx` (`ChatSidebar`, `ChatFloating` in `App.tsx`; `ChatTabSlot` for `astro://chat`) |
+| The SDK's provider and the portal (Windows, Linux) | `apps/webui/src/host/chat.tsx`, mounted inside `OxyRoot` by `OxyLayer` |
+| Streaming over the engine | `apps/webui/src/host/fetch.ts` `engineStreamFetch` → `astroAccountStream` (`ac_account_fetch.cc`) |
+
+The SDK hooks need the one `OxyProvider` (`useOxy`) and its React Query client, which live in the Oxy layer. So
+`ChatHost` renders each window's panel inside that tree and portals it into a container `div` it owns; the slots
+(sidebar, floating, chat tab) only register an element, and the container moves between them with `appendChild`. The
+React tree never remounts, so a reply keeps streaming while the panel moves from the sidebar to a floating window or a
+tab. The interface page can't fetch the web itself, so the turn's stream goes through the engine:
+`astroAccountStream(id, url, method, headers, body)` answers with the status and headers, then fires
+`astro-account-stream` events (`{ data: base64 }`, `{ done }`, `{ error }`); `astroAccountStreamCancel(id)` stops it.
+Only the account hosts (`api.oxy.so`, `api.nilo.so`, `api.alia.onl`, loopback) are reachable this way.
+
+### What it does
+
+- **Opening it.** ⌘E / Ctrl+E (View › Chat) toggles it; ⌃⌘E (Focus Chat) moves the keyboard between the page and the
+  composer; the toolbar's ✦ button at the card's right end; the command bar's Chat row and ⌃⌘↩ (above); the selection
+  popover's **Ask**. It opens where it was last (Settings: `chatPlacement`): a **sidebar** right of the card (320–640 pt,
+  drag the left edge, double-click for 400), a **floating** window (drag its header; frame kept in
+  `chatFloatingFrame`), or a **tab** (`astro://chat`, ⋯ › Open Chat in Tab), which hides the other two while it's shown.
+- **Context.** The tab you're on is attached by default (its chip can be removed, or ✦ › Include Current Tab). Each
+  turn reads it again: title, URL, description, language, selected text, each video's position (`at 3:12 of 10:05,
+  playing`), the YouTube transcript with timestamps, and the readable text (the `article`/`main` region, open shadow
+  roots, same-origin iframes), within 56 000 characters shared with the tabs you **@-mention** (type `@`, or + › Tabs…;
+  tab groups too). Mentioned tabs stay attached for the chat. Text you select and **Ask** about, and **links you paste**,
+  go into your message as a quote and a link, so the conversation keeps them. **Files** (+ › Files…, drop or paste) and
+  **Screenshot of This Tab** go as attachments: images inline, documents through Oxy Files (the SDK's upload). The
+  context says the page is data, never instructions, and lists the window's tabs with their ids for the tools.
+- **The conversation.** Replies stream with Alia's live reasoning in a collapsible Thought process, the tools it runs
+  (web search, reading a page) and the sources it used (chips that open a tab). Markdown, tables and code blocks:
+  JavaScript and TypeScript highlighted by Bloom, Python, shell, C/C++, Java/Kotlin, C#, Go, Rust, Swift, PHP, SQL, CSS,
+  JSON/YAML and HTML/XML by Astro's tokenizer (`components/chat/highlight.ts`) in Bloom's palette. Stop keeps what
+  arrived and offers Resume; every reply has Copy and Regenerate; your messages have Edit; a failed turn says why with
+  Try Again. ⋯ › Clear Chat empties it.
+- **History.** 🕘 lists your Astro chats by day, with search (title and last message), Delete on hover and Clear All.
+- **Tools** (Alia host tools, `host_astro__*`): `open_tabs` (asks first for more than one), `switch_to_tab`,
+  `close_tabs` (asks first). The question docks above the composer: Don't Allow, Always Allow in This Chat, Allow.
+  Alia performs web search and page fetching itself. `read_tab` (asks first for a tab you haven't shared) needs host tools
+  that answer within the turn (below).
+
+### Waiting on Alia
+
+Alia PR **OxyHQ/Alia#913** adds what Chat still needs, on Alia's side: host tools that answer within the same turn
+(`awaitsResult`, `POST /v1/chat/turns/:turnId/host-results`, 45 s) and a per-turn `personalization: false` (no memory
+read or written), with SDK 22.2.0. Astro's side is written: `read_tab` and the per-chat Personalization switch (+ menu
+and ⋯) are behind `AWAITED_HOST_TOOLS` and `PERSONALIZATION_SWITCH` in `ai/chat/features.ts`. Once #913 is merged,
+migration 0109 has run and every API replica has it: bump `@alia.onl/sdk` to 22.2, drop
+`patches/@alia.onl__sdk@22.1.1.patch` (Alia **#914** makes the SDK type-check under `noUncheckedIndexedAccess`, which is
+all the patch does), turn both flags on, and drop the `& { awaitsResult?; result? }` widenings in `hostTools.ts`.
+
+### macOS
+
+The shared code (`ai/chat`, `components/chat`) is platform-neutral. What macOS lacks: the Oxy SDK provider (the app is on
+React Native's Legacy architecture and `@alia.onl/sdk` wants React Native 0.86+), a host for the panel like
+`apps/webui/src/host/chat.tsx` (macOS has no portals: mount `ChatPanel` inside the slot views once the provider wraps the
+window), and a streaming `fetch` (the SDK's `streamFetch`; Expo's `expo/fetch` streams). Until then
+`useOxySession.available` is false there, so no Chat button, shortcut or Ask appears and ⌘E stays Use Selection for Find.
+
+### Testing it
+
+- `npm test` in `apps/browser`: `ai/chat/chat.test.mjs` (state, asks, context chips, personalization carry-over, pasted
+  links, mentions, the turn context) and `components/chat/highlight.test.mjs`.
+- A Windows or Linux build against a local stack: `ASTRO_OXY_API_URL`, `ASTRO_NILO_API_URL`, `ASTRO_ALIA_API_URL` and
+  `ASTRO_KAANA_URL` move together (`apps/webui/vite.config.ts` refuses a mix, so a local session never reaches a
+  production origin; point one you don't run at a closed port such as `http://127.0.0.1:9`). `globalThis.astro.chat` is the chat store and `astro.oxy` the session.
