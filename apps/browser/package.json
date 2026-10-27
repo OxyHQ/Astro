@@ -19,7 +19,7 @@
     "@astro-browser/shaders": "workspace:*",
     "@astro-browser/shell": "workspace:*",
     "@astro-browser/sync": "workspace:*",
-    "@oxy.so/bloom": "^15.54.0",
+    "@oxy.so/bloom": "^15.56.0",
     "@oxy.so/core": "^7.2.0",
     "@oxy.so/services": "^13.4.0",
     "@react-native-async-storage/async-storage": "2.2.0",
