@@ -1,6 +1,6 @@
 import { APP_COLOR_PRESETS, type AppColorName } from "@oxy.so/bloom/color-presets";
 import { getNormalizedUserHandle, type OxyServices, type User } from "@oxy.so/core";
-import { OxyProvider, useAuth } from "@oxy.so/services";
+import { OxyProvider, useAuth, useOxy } from "@oxy.so/services";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { publishOxyWindow, withdrawOxyWindow, type OxyAccount } from "./session";
 
@@ -59,6 +59,7 @@ function useAvatar(oxyServices: OxyServices, user: User | null, ready: boolean):
 
 function OxySessionBridge({ windowId, niloURL, clientId }: { windowId: string; niloURL: string; clientId: string }) {
   const { user, isAuthResolved, canUsePrivateApi, signIn, signOut, oxyServices, showBottomSheet } = useAuth();
+  const { isAccountDialogOpen } = useOxy();
   const nilo = useMemo(() => oxyServices.createLinkedClient({ baseURL: niloURL }), [oxyServices, niloURL]);
   const sessionBearer = useMemo(() => () => oxyServices.session.accessToken, [oxyServices]);
   const avatar = useAvatar(oxyServices, user, canUsePrivateApi);
@@ -66,6 +67,7 @@ function OxySessionBridge({ windowId, niloURL, clientId }: { windowId: string; n
   useEffect(() => {
     publishOxyWindow(windowId, {
       resolved: isAuthResolved,
+      accountDialogOpen: isAccountDialogOpen,
       account: canUsePrivateApi && user ? accountOf(user, avatar) : null,
       niloFetch: nilo.fetch,
       niloSocket: { url: niloURL, token: () => nilo.getAccessToken(niloURL) },
@@ -77,7 +79,7 @@ function OxySessionBridge({ windowId, niloURL, clientId }: { windowId: string; n
       openAccountDialog: () => showBottomSheet?.("ManageAccount"),
       closeSession: signOut,
     });
-  }, [windowId, isAuthResolved, canUsePrivateApi, user, avatar, nilo, niloURL, sessionBearer, clientId, signIn, signOut, showBottomSheet]);
+  }, [windowId, isAuthResolved, isAccountDialogOpen, canUsePrivateApi, user, avatar, nilo, niloURL, sessionBearer, clientId, signIn, signOut, showBottomSheet]);
   useEffect(() => () => withdrawOxyWindow(windowId), [windowId]);
   return null;
 }

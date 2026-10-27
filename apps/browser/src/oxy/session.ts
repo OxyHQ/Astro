@@ -7,6 +7,7 @@ export type NiloSocketAccess = { url: string; token: () => Promise<string> };
 type OxySession = {
   wanted: boolean;
   resolved: boolean;
+  accountDialogOpen: boolean;
   account: OxyAccount | null;
   niloFetch: typeof fetch | null;
   niloSocket: NiloSocketAccess | null;
@@ -20,6 +21,7 @@ type OxySession = {
 export const useOxySession = create<OxySession>()(() => ({
   wanted: false,
   resolved: false,
+  accountDialogOpen: false,
   account: null,
   niloFetch: null,
   niloSocket: null,
@@ -32,11 +34,12 @@ export const useOxySession = create<OxySession>()(() => ({
 
 type WindowSession = Pick<
   OxySession,
-  "resolved" | "account" | "niloFetch" | "niloSocket" | "sessionBearer" | "clientId" | "openSignIn" | "openAccountDialog" | "closeSession"
+  "resolved" | "accountDialogOpen" | "account" | "niloFetch" | "niloSocket" | "sessionBearer" | "clientId" | "openSignIn" | "openAccountDialog" | "closeSession"
 >;
 
 const SIGNED_OUT: WindowSession = {
   resolved: false,
+  accountDialogOpen: false,
   account: null,
   niloFetch: null,
   niloSocket: null,

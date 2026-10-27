@@ -66,7 +66,10 @@ try {
 
   const signIn = await instance
     .eval(
-      `return ac.oxy.signInWithOxy().then((signedIn) => new Promise((r) => setTimeout(() => r({ ok: signedIn === false, signedIn }), 2500)));`,
+      `return ac.oxy.signInWithOxy().then((signedIn) => new Promise((r) => setTimeout(() => {
+         const dialog = ac.oxy.useOxySession.getState().accountDialogOpen;
+         r({ ok: signedIn === false && dialog, signedIn, dialog });
+       }, 2500)));`,
       { timeout: 30000 },
     )
     .catch((e) => ({ error: e.message }));
