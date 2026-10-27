@@ -26,6 +26,8 @@ function rows(items: Suggestion[]): string[] {
         return `action:${i.id}`;
       case "create":
         return `create:${i.id}`;
+      case "chat":
+        return `chat${i.signIn ? "?" : ""}:${i.query}`;
     }
   });
 }
@@ -173,3 +175,17 @@ test("a newer request aborts the one in flight, which never answers", async () =
   }
 });
 
+
+test("a question goes to Chat first; a site or a search keeps its row and Chat follows the search", () => {
+  const source = { tabs: [], history };
+  const chat = { signIn: false };
+  assert.deepEqual(rows(buildSuggestions("why is the sky blue", source, { now, chat }).items).slice(0, 2), ["chat:why is the sky blue", "search:why is the sky blue"]);
+  assert.deepEqual(rows(buildSuggestions("weather madrid", source, { now, chat }).items).slice(0, 2), ["search:weather madrid", "chat:weather madrid"]);
+  assert.deepEqual(rows(buildSuggestions("github.com", source, { now, chat }).items).slice(0, 3), ["https://github.com/", "search:github.com", "chat:github.com"]);
+  assert.ok(!rows(buildSuggestions("why is the sky blue", source, { now }).items).some((r) => r.startsWith("chat")));
+});
+
+test("signed out, a question keeps today's first row and Chat offers sign-in below the search", () => {
+  const items = rows(buildSuggestions("why is the sky blue", { tabs: [], history }, { now, chat: { signIn: true } }).items);
+  assert.deepEqual(items.slice(0, 2), ["search:why is the sky blue", "chat?:why is the sky blue"]);
+});

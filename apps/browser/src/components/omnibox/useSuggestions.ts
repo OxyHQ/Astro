@@ -18,6 +18,7 @@ import { defaultSearchEngine, searchEngines } from "../../store/settings";
 import type { Bookmarks, HistoryEntry } from "../../store/types";
 import { currentBarActions } from "./actions";
 import { useBangs } from "./bangs";
+import { promptBarActions, useChatRoute } from "./chatRoute";
 import { historyHosts, knownHosts } from "./knownHosts";
 
 const NO_HISTORY: HistoryEntry[] = [];
@@ -99,6 +100,7 @@ export function useSuggestions({
   const engine = useBrowser((s) => defaultSearchEngine(s.settings));
   const preference = useBrowser((s) => s.settings.commandBarPreference);
   const suggestionsOn = useBrowser((s) => s.settings.searchSuggestions);
+  const chat = useChatRoute(windowId);
 
   const tabs = useMemo(() => Object.values(allTabs).filter((t) => t.profileId === profileId), [allTabs, profileId]);
   const bookmarkRows = useMemo(() => profileBookmarks(bookmarks, bookmarkProfile), [bookmarks, bookmarkProfile]);
@@ -143,12 +145,13 @@ export function useSuggestions({
       engine,
       preference,
       remote: remoteList,
-      actions: currentBarActions(windowId),
+      actions: chat ? [...currentBarActions(windowId), ...promptBarActions(windowId, chat.signIn)] : currentBarActions(windowId),
       currentTabId,
       currentUrl,
       scope,
       preventInline,
       bangs,
+      chat,
     });
-  }, [active, text, query, source, engine, preference, remoteList, windowId, currentTabId, currentUrl, scope, preventInline, bangs]);
+  }, [active, text, query, source, engine, preference, remoteList, windowId, currentTabId, currentUrl, scope, preventInline, bangs, chat]);
 }

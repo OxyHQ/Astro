@@ -11,6 +11,7 @@ type OxySession = {
   account: OxyAccount | null;
   niloFetch: typeof fetch | null;
   niloSocket: NiloSocketAccess | null;
+  sessionBearer: (() => string | null) | null;
   openSignIn: (() => Promise<void>) | null;
   openAccountDialog: (() => void) | null;
   closeSession: (() => Promise<void>) | null;
@@ -23,6 +24,7 @@ export const useOxySession = create<OxySession>()(() => ({
   account: null,
   niloFetch: null,
   niloSocket: null,
+  sessionBearer: null,
   openSignIn: null,
   openAccountDialog: null,
   closeSession: null,

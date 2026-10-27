@@ -15,6 +15,7 @@ export type Download = {
   mimeType: string;
   profile?: string;
   offTheRecord?: boolean;
+  tidiedFrom?: string | null;
 };
 
 export type PermissionKind =

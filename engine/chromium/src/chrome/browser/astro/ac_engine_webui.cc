@@ -114,6 +114,7 @@ void ac_components_list(const char*, const char*, ac_engine_reply_t, void*);
 void ac_downloads_cancel(const char*, const char*, ac_engine_reply_t, void*);
 void ac_downloads_list(const char*, const char*, ac_engine_reply_t, void*);
 void ac_downloads_pause(const char*, const char*, ac_engine_reply_t, void*);
+void ac_downloads_rename(const char*, const char*, ac_engine_reply_t, void*);
 void ac_downloads_resume(const char*, const char*, ac_engine_reply_t, void*);
 void ac_extensions_configure(const char*, const char*, ac_engine_reply_t, void*);
 void ac_extensions_inspect(const char*, const char*, ac_engine_reply_t, void*);
@@ -180,6 +181,7 @@ constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_
     {"ac_downloads_cancel", &ac_downloads_cancel},
     {"ac_downloads_list", &ac_downloads_list},
     {"ac_downloads_pause", &ac_downloads_pause},
+    {"ac_downloads_rename", &ac_downloads_rename},
     {"ac_downloads_resume", &ac_downloads_resume},
     {"ac_extensions_configure", &ac_extensions_configure},
     {"ac_extensions_inspect", &ac_extensions_inspect},

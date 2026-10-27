@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { AppRegistry, unstable_batchedUpdates } from "react-native";
 import { WindowRoot } from "./App";
 import { DevErrorBoundary } from "./DevErrorBoundary";
+import { startOneShotFeatures, startPageOneShotFeatures } from "./ai/oneShotFeatures";
 import { startTranslate } from "./components/site/translate";
 import { afterFirstWindow, firstWindowCommitted } from "./lib/afterFirstWindow";
 import { startAppIntegration } from "./lib/appIntegration";
@@ -39,6 +40,8 @@ startTelemetry();
 startKillSwitches();
 startCliControl();
 afterFirstWindow(startUserScripts);
+afterFirstWindow(startOneShotFeatures);
+afterFirstWindow(startPageOneShotFeatures);
 startMemoryTrim();
 if (__DEV__ || perfProbeEnabled) require("./lib/devHarness").startDevHarness();
 

@@ -66,6 +66,12 @@ export type Settings = {
   openLinksInLittleAstro: boolean;
   littleAstroSize: [number, number];
 
+  aiGroupNames: boolean;
+  aiPinnedTitles: boolean;
+  aiTidyDownloads: boolean;
+  aiVideoSummaries: boolean;
+  aiCommandBarChat: boolean;
+
   chosen?: string[];
   inferred?: string[];
 };
@@ -114,6 +120,11 @@ export const DEFAULT_SETTINGS: Settings = {
   shortcuts: {},
   openLinksInLittleAstro: true,
   littleAstroSize: [900, 640],
+  aiGroupNames: true,
+  aiPinnedTitles: true,
+  aiTidyDownloads: true,
+  aiVideoSummaries: true,
+  aiCommandBarChat: true,
 };
 
 const NO_CUSTOM_ENGINES: CustomSearchEngine[] = [];

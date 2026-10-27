@@ -71,6 +71,7 @@ export type Tab = {
   unloaded?: boolean;
   pinKey?: string;
   pageIn?: string;
+  aiTitle?: string;
   createdAt: number;
   lastActiveAt: number;
 };
@@ -99,6 +100,9 @@ export type TabGroup = {
   autoUngroup?: boolean;
   pinnedOpenerId?: string;
   pinKey?: string;
+  autoName?: string;
+  autoIcon?: string;
+  autoSig?: string;
 };
 
 export type SplitView = {

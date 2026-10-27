@@ -2,6 +2,7 @@ import { findBang, type BangMatch, type BangTable } from "./bangs.ts";
 import { calculate } from "./calculator.ts";
 import { BUILT_IN_ENGINES, searchUrl, type SearchEngine } from "./engines.ts";
 import { matchActions, type ActionCandidate } from "./fuzzy.ts";
+import { routeInput } from "./inputRoute.ts";
 import { fixupUrl, hostOf, urlForDisplay } from "./omnibox.ts";
 import { matchQuickCreate } from "./quickCreate.ts";
 import { scopedSearchUrl, type SearchScope } from "./siteSearch.ts";
@@ -27,7 +28,8 @@ export type Suggestion =
   | { kind: "search"; query: string; url: string; engine: string; suggested?: boolean; bang?: true }
   | { kind: "calc"; expression: string; value: string; url: string }
   | { kind: "action"; id: string; title: string; icon?: string; hint?: string }
-  | { kind: "create"; id: string; title: string; url: string; site: string };
+  | { kind: "create"; id: string; title: string; url: string; site: string }
+  | { kind: "chat"; query: string; routed: boolean; signIn?: boolean };
 
 export type SuggestionResult = {
   items: Suggestion[];
@@ -46,6 +48,7 @@ export type SuggestOptions = {
   scope?: SearchScope | null;
   preventInline?: boolean;
   bangs?: BangTable | null;
+  chat?: { signIn: boolean } | null;
 };
 
 export function displayUrl(url: string): string {
@@ -376,6 +379,8 @@ export function suggestionKey(s: Suggestion): string {
       return `action:${s.id}`;
     case "create":
       return `create:${s.id}`;
+    case "chat":
+      return "chat";
   }
 }
 
@@ -489,16 +494,20 @@ export function buildSuggestions(raw: string, source: SuggestionSource, options:
   const target = inline && inlineTarget(q, inline.c);
   const completion = target ? target.text.slice(bare.length) : "";
 
+  const chat = options.chat ? chatRow(query, options.chat.signIn) : null;
+
   let first: Suggestion;
   if (creates.length && /^\S+\s+\S/.test(query)) first = createRow(creates[0]!);
   else if (actionMatches[0]?.exact) first = actionRow(actionMatches[0].action);
   else if (target && completion) first = known(target.url) ?? { kind: "page", url: target.url, title: "", favicon: target.favicon };
   else if (typedUrl) first = known(typedUrl) ?? { kind: "page", url: typedUrl, title: "", favicon: null };
+  else if (chat?.routed && !chat.signIn) first = chat;
   else if (websiteFirst && best && best.m >= 40 && (!noInline || typedIsPage(best.c.text, q))) first = pageSuggestion(best.c, best.tabId);
   else first = search;
 
   out.push(first);
   out.push(search);
+  if (chat) out.push(chat);
   if (calc) out.push({ kind: "calc", expression: calc.expression, value: calc.display, url: searchUrl(engine, calc.expression) });
   out.push(...actionMatches.slice(0, 2).map((m) => actionRow(m.action)));
   out.push(...creates.map(createRow));
@@ -553,6 +562,11 @@ class Output {
       this.items.push(row);
     }
   }
+}
+
+function chatRow(query: string, signIn: boolean): Extract<Suggestion, { kind: "chat" }> {
+  const routed = routeInput(query) === "chat";
+  return signIn ? { kind: "chat", query, routed, signIn } : { kind: "chat", query, routed };
 }
 
 const createRow = (c: { id: string; title: string; url: string; site: string }): Suggestion => ({ kind: "create", id: c.id, title: c.title, url: c.url, site: c.site });

@@ -41,6 +41,16 @@ const ROWS: Record<SettingsPane, Section[]> = {
       section: "Uses your Oxy account",
       rows: { calendar: { title: "Calendar", description: "Your Nilo calendar: the pinned calendar, meeting alerts and meeting tab groups.", keywords: ["nilo", "meetings"] } },
     },
+    {
+      section: "Astro AI",
+      rows: {
+        aiGroupNames: { title: "Name tab groups", description: "Names a group you haven’t named from its tabs, with an emoji.", keywords: ["ai", "auto name", "group name", "emoji"] },
+        aiPinnedTitles: { title: "Tidy pinned tab titles", description: "Shortens a tab’s title when you pin it. Reset Name brings the original back.", keywords: ["ai", "rename", "pinned", "tidy tab titles"] },
+        aiTidyDownloads: { title: "Tidy downloads", description: "Gives a finished download a clear name. Undo restores the original.", keywords: ["ai", "rename files", "downloads", "tidy"] },
+        aiCommandBarChat: { title: "Send questions to Chat", description: `The command bar sends a question to Chat and a site or a search where it belongs. ${ON_MAC ? "⌃⌘↩" : "Ctrl+Alt+Enter"} always asks Chat.`, keywords: ["ai", "router", "chat", "command bar", "ask"] },
+        aiVideoSummaries: { title: "Summarize YouTube videos", description: "Prepares a summary of the video you’re watching from its transcript, for Chat.", keywords: ["ai", "youtube", "transcript", "summary"] },
+      },
+    },
   ],
   general: [
     {

@@ -23,11 +23,13 @@ Legend: **✅** done · **🧪** built, but the deciding test needs the user pre
 
 | ✅ done | 🧪 needs the user | 🟡 partial | ❌ missing | ⛔ blocked | ⏸ deferred (AI) | — n/a |
 |---|---|---|---|---|---|---|
-| 230 | 1 | 2 | 0 | 1 | 59 | 14 |
+| 230 | 1 | 9 | 0 | 1 | 52 | 14 |
 
-Of the 234 rows that count (not ⏸ or —), 230 are done (98 %), 231 with the one 🧪 row (Cast). The two 🟡 rows are
+Of the 241 rows that count (not ⏸ or —), 230 are done (95 %), 231 with the one 🧪 row (Cast). Two 🟡 rows are
 passkeys (iCloud Keychain waits on Apple) and the Dia sidebar import (profiles, open and pinned tabs come through
-Dia's AppleScript; custom names, colours, spaces and folders don't). Keyboard shortcuts: every Dia and Chrome
+Dia's AppleScript; custom names, colours, spaces and folders don't); the other 7 are the one-shot AI features and the command bar's
+router, built on Windows and Linux and waiting on macOS (`docs/ai.md` › One-shot features; production waits on
+OxyHQ/oxy#2006). Keyboard shortcuts: every Dia and Chrome
 shortcut is bound (Dia's where they clash) except Chat (⏸) and a few for Chrome's own hidden UI. Menus: all ten exist and match.
 
 The summary before this recount (304 rows, 207 ✅, 9 🟡, 7 ⛔) didn't match its tables, which held 307 rows: 211 ✅,
@@ -38,6 +40,8 @@ adds three rows: "Filling saved logins in pages" (§16), "Protected video (Widev
 Passwords / Autofill / Extensions panes (§22).
 
 What changed since the last audit, in rows (mostly the migration):
+- Since, one-shot AI (2026-10-27): 7 rows ⏸ → 🟡 (group names and emoji, pinned titles, Tidy Downloads, YouTube
+  summaries, promoted prompts, the router and ⌃⌘↩), on Windows and Linux; AI form autofill stays ⏸ as Chat's.
 - Now done: extensions (Chrome's real `chrome.tabs`, actions, commands, per-profile, Web Store installs through
   Chrome's own flow) and the Extensions menu, Chrome's password manager with our save prompt, card and address
   storage, H.264/AAC, the close-tabs wording in the top strip. Better but still partial: moving a tab between
@@ -269,7 +273,7 @@ string doesn't matter. Afterwards: `kill %1` for the server, quit the app, `rm -
 |---|---|---|---|
 | Tab groups (create, rename, icon, pin, duplicate, ungroup, delete) | ✓ | ✅ | The header, as Dia's (owner recording 2026-09-30): icon, name, then a chevron right after it (∨ open, › closed, turning with the toggle; 8 pt from the name, white at 0.5), no count when closed, ✕ on hover; the header's hover fill reaches the box's border, its corners concentric with the box's (2026-10-20, a friend's report on 0.2.39-nightly.3: it sat 2 pt inside the box and drew a second edge; live folders too); opening or closing takes 150 ms (Dia's, measured at 60 fps: 140–160 ms, fast at first; was 240). Closing a group that holds the page on screen shows the tab just above the group (Dia), not the page's pinned opener. + collapse, colour, Move to Group, Remove from Group. Dia's two ways to end a group (1.50.1: `unparentGroup` / `softDeleteGroup`): Close Group (Recently Closed Groups, ⇧⌘T) and Delete Group (not in Recently Closed; the overflow menu's Recently Deleted Groups keeps it 7 days, Dia's purge interval). Closing a tab of a pinned group unloads it and keeps its row, as for pinned tabs. Rename: double-click the header, Rename… in the group menu, or name the group ⌃⌘N just made, in the header's field (Return or a click away keeps it, Esc cancels). A double-click closes and reopens the group before the field opens, as each click toggles: Dia's header does the same (1.50.1: `TabGroupCellView` and `TabGroupView.HeaderView` act on every mouse-up and never read `clickCount`, which only tab rows, pinned tiles and favicons do), and Dia has no double-click rename for groups, so ours adds the rename and keeps Dia's toggles; with tabs on top or the sidebar hidden, Rename… opens a Rename Group sheet. The name reaches Chrome's group (`chrome.tabGroups` title), survives a relaunch and shows on a pinned group's copy in every window. Fixed 2026-10-19 (the owner's report "renaming tab groups dont work"): the field closed itself as it opened, keeping the old name, because select-all on focus ended the field's edit (our `selectAll:` for text fields called `selectText:`, which ends editing first); tab renames had the same fault. With tabs on top Rename… did nothing |
 | New Tab in Group ⌥⌘T / New Group with Tab(s) ⌃⌘N | ✓ | ✅ | ⌃⌘N titles itself "New Group with N Tabs" for a selection |
-| AI auto‑naming + emoji, shimmer on rename | ✓ | ⏸ | No AI. Unnamed groups are named from their tabs' titles instead (store/groupNames.ts): the site name titles carry at one end (" / X", " - YouTube", "GitHub - …") gives "X", with the page too when every tab is on the same one ("Home / X" ×5 → "X Home", Dia's AI said "X Feed" then "X Home"); a tab not loaded yet takes its site from a loaded one of its host, else from the host (x.com → "X"). It updates as titles arrive, with the label's fade; a name you give always wins. Dia's grey placeholder bar while its AI thinks isn't needed |
+| AI auto‑naming + emoji, shimmer on rename | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › One-shot features); macOS waits for the Oxy SDK (New Architecture), and production for Oxy's session lane (OxyHQ/oxy#2006, ADR 0050): an unnamed group gets an AI name of 1–3 words and an emoji (its icon unless you picked one), 1.5 s after its tabs settle and again when its set of sites changes, at Oxy's `instant` level through `kaana.ai`; the name and the label's dim-and-sweep shimmer (1.1 s) arrive together. Signed out, and until the AI answers, the heuristic below names it, so Dia's grey placeholder bar isn't needed. A name you give always wins. No AI. Unnamed groups are named from their tabs' titles instead (store/groupNames.ts): the site name titles carry at one end (" / X", " - YouTube", "GitHub - …") gives "X", with the page too when every tab is on the same one ("Home / X" ×5 → "X Home", Dia's AI said "X Feed" then "X Home"); a tab not loaded yet takes its site from a loaded one of its host, else from the host (x.com → "X"). It updates as titles arrive, with the label's fade; a name you give always wins. Dia's grey placeholder bar while its AI thinks isn't needed |
 | Group colour from favicon/theme | ✓ until 1.28 | ✅ | neutral by default like Dia since 1.28; colour menu with "Match Site Color". Each colour in it shows a 12 pt swatch of the colour the group takes before its name (Neutral: the neutral chip's grey, its light and dark shades), the current one checked; macOS 27 hides menu item images unless an item asks to keep its own, so they had stopped showing (2026-10-19, the owner's report) |
 | Peek group | ✓ | ✅ | hover card over a collapsed group |
 | Single‑tab group auto‑ungroups | ✓ | ✅ | for ⌘-click groups (`autoUngroup`), like Dia |
@@ -352,10 +356,10 @@ string doesn't matter. Afterwards: `kill %1` for the server, quit the app, `rm -
 | Bookmark suggestions | ✓ | ✅ | |
 | Inline autocomplete | ✓ | ✅ | Deleting text in any way (Backspace, Delete, ⌥⌫, ⌘⌫, cut, deleting the selected completion) drops the completion and puts the search for what was typed on top, as in Chrome and Dia (`preventInline` in `packages/core/src/suggest.ts`: a page only goes first then when what was typed is exactly its host or address, and a typed URL still goes first); the next typed character turns completion back on. Unit tests, and the dev driver in a hidden instance ("gi" → page first with "thub.com"; after a delete → search first, no completion; "t" → back). The native selected-completion delete itself isn't reachable from the dev driver (it bypasses the field), so it's covered by `inline.test.mjs` only |
 | Keyboard/hover selection | ✓ | ✅ | ↑↓, ⌃N/⌃P, Tab/⇧Tab |
-| Route input to site / search / Chat (on‑device router model) | ✓ | ⏸ | input goes to a site or the search engine. The New Tab box reads as what it is (2026-10-21, a Discord user: it looked like an AI chat that then just opened the tab or file): "Search or enter address" as everywhere else instead of Dia's "Ask anything…" (Dia 1.52 has no wording for an AI-off box; its other is "Search or Ask a Question"), and the command bar's "Google ↩" / "Go ↩" pill instead of the round send arrow, greyed and inert while the box is empty as the arrow was |
-| Force route ⌃⌘↩ → Chat | ✓ | ⏸ | |
+| Route input to site / search / Chat (on‑device router model) | ✓ | 🟡 | Windows and Linux, with Chat (`docs/ai.md` › The command bar's router): an on-device rule router (`packages/core/src/inputRoute.ts`, 0.7 µs a call, so the bar is never slower) sends a URL to the site, search syntax and keywords to the engine, and questions and requests (EN/ES/FR/DE/IT) to Chat as the first row (↩); signed out, the first row stays and a Chat row offers sign-in. Not Dia's MLX model. input goes to a site or the search engine. The New Tab box reads as what it is (2026-10-21, a Discord user: it looked like an AI chat that then just opened the tab or file): "Search or enter address" as everywhere else instead of Dia's "Ask anything…" (Dia 1.52 has no wording for an AI-off box; its other is "Search or Ask a Question"), and the command bar's "Google ↩" / "Go ↩" pill instead of the round send arrow, greyed and inert while the box is empty as the arrow was |
+| Force route ⌃⌘↩ → Chat | ✓ | 🟡 | Windows and Linux, with Chat: ⌃⌘↩ (Ctrl+Alt+Enter) sends what was typed to Chat; signed out it signs in first |
 | Force route ⇧⌘↩ → search | ✓ | ✅ | searches with the default engine (Dia: Google) |
-| Google / Chat destination toggle | ✓ | ⏸ | the Go pill names the engine |
+| Google / Chat destination toggle | ✓ | ⏸ | the Go pill names the engine, or "Chat" when the first row is Chat; there is no toggle |
 | "Prefer search engine" vs "Use website first" setting | ✓ | ✅ | Settings › General |
 | Default search engine choice (Google, Bing, DDG, Perplexity, ChatGPT, custom, extension engines) | ✓ | ✅ | 12 built-ins + custom engines with keywords + the engines extensions add (`chrome_settings_overrides.search_provider`), read from Chrome's own TemplateURLService (its settings page's list, `components/extensions/searchEngines.ts`) whenever a profile's extensions change. They're listed under "Extensions" in Settings › Search Engine, can be made the default and have Tab-to-search keywords; like Chrome, an extension that asked to be the default (`is_default`) controls it ("… is controlling this setting", Manage / Disable) until it's disabled or removed, then the user's own choice is back. Verified with two fixture extensions (instance `polish`) |
 | Site search (Tab‑to‑search) | ✓ | ✅ | engines, known sites, history scope. Tab enters it whenever the top row offers it ("Search Google ⇥"), also while inline completion is showing ("goo" + "gle.com"); Space after a site does too. Backspace in the empty field leaves it and puts back the text that was there, like Chrome's keyword mode: "x.com " with its space when a space entered it, so another space stays a space (fixed 2026-10-20, feedback on 0.2.39-nightly.3: it gave "x.com"), "x.com" when Tab did, and the bar stays open (fixed 2026-10-20: in the sidebar dropdown and the panel, leaving by Backspace or Esc closed the whole bar, because AppKit ends and restarts the edit of an empty field whose placeholder changes and React Native reported that as a blur; the react-native-macos patch guards it); with text it just deletes. The field gets Tab and Backspace as commands (`insertTab:`/`deleteBackward:`), not key equivalents, so the react-native-macos patch forwards them to JS (`packages/core/src/siteSearch.test.ts`) |
@@ -416,16 +420,16 @@ Everything in this section is deferred on purpose.
 | Edit / retry / stop & resume / auto‑compaction | ✓ | ⏸ | |
 | Tab tools (open / read / close tabs with confirmation) | ✓ | ⏸ | |
 | Web search + fetch tools | ✓ | ⏸ | |
-| AI form autofill (preview + approve) | ✓ | ⏸ | |
+| AI form autofill (preview + approve) | ✓ | ⏸ | Chat's, not a one-shot feature: Dia fills forms from the conversation's context with page tools and an approval step (`docs/ai.md` › Chat) |
 | Computer use / agentic actions | ✓ | ⏸ | |
-| YouTube transcript Q&A, pre‑generated summaries | ✓ | ⏸ | |
+| YouTube transcript Q&A, pre‑generated summaries | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › One-shot features); macOS waits for the Oxy SDK (New Architecture), and production for Oxy's session lane (OxyHQ/oxy#2006, ADR 0050): a video watched for 4 s gets its transcript from the page (caption track, else YouTube's own transcript panel opened invisibly) and a summary with timestamps; Summarize This Video opens Chat with both. Q&A is Chat's |
 | PDF (OCR) / DOCX / PPTX / XLSX / Google Sheets reading | ✓ | ⏸ | |
 | Tables, charts, code blocks (syntax highlight) in chat | ✓ | ⏸ | |
-| Promoted prompts (summarize, ELI5, quiz me, proofread, review code, citations) | ✓ | ⏸ | |
+| Promoted prompts (summarize, ELI5, quiz me, proofread, review code, citations) | ✓ | 🟡 | Windows and Linux, with Chat: command-bar actions Summarize This Page, Summarize This Video, Explain Like I'm 5, Quiz Me, Proofread, Review Code (code hosts), Find Citations; each opens Chat with its prompt and the page |
 | Proactive suggestions | ✓ | ⏸ | |
 | `/research` deep research | ✓ | ⏸ | |
 | Content safety (sensitive sites, org DLP) | ✓ | ⏸ | |
-| On‑device ML (router, skills classifier, embeddings via MLX) | ✓ | ⏸ | |
+| On‑device ML (router, skills classifier, embeddings via MLX) | ✓ | ⏸ | the router is rules, not a model (row above); no skills classifier or embeddings |
 | New Chat agent runtime (bundled Claude Code agent server) | ✓ | ⏸ | |
 | Ask‑user questions / to‑do list UI in chat | ✓ | ⏸ | |
 
@@ -439,8 +443,8 @@ Everything in this section is deferred on purpose.
 | Morning Brief ("Start My Day") | ✓ | ⏸ | |
 | Meeting prep / recap | ✓ | ⏸ | |
 | Home surface / Task list / missions | ✓ (flagged) | ⏸ | |
-| Tidy Downloads (AI renames files, undo) | ✓ | ⏸ | |
-| AI rename of pinned tabs | ✓ | ⏸ | |
+| Tidy Downloads (AI renames files, undo) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › One-shot features); macOS waits for the Oxy SDK (New Architecture), and production for Oxy's session lane (OxyHQ/oxy#2006, ADR 0050): a download that finishes gets a clear name (extension kept) through Chrome's own rename (`ac_downloads_rename`: file and history together), with the shimmer; ↶ on the row and Restore Original Name undo it |
+| AI rename of pinned tabs | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › One-shot features); macOS waits for the Oxy SDK (New Architecture), and production for Oxy's session lane (OxyHQ/oxy#2006, ADR 0050): pinning a tab whose title you haven't changed gives it a 1–3 word title ("(3) Inbox - ana@… - Gmail" → Inbox) with the shimmer; Reset Name restores it |
 
 ## 11. Connected apps
 The connected apps exist to give Chat tools, so they're deferred with it. Live folders (§3) and Live Calendar use their

@@ -11,6 +11,7 @@ import { activeTabId, viewTabIds } from "../store/model";
 import { defaultSearchEngine } from "../store/settings";
 import { runBarAction } from "./omnibox/actions";
 import { createBangSubmitter, mayBeBang } from "./omnibox/bangs";
+import { forcesChat, sendToChat, useChatRoute } from "./omnibox/chatRoute";
 import { traceOmnibox, useOmniboxDriver } from "./omnibox/devDriver";
 import { claimFocusTag, commandBarFocus, heroBarFocus } from "../lib/focusClaims";
 import { registerHeroBar, savedNtpQuery, saveNtpQuery, type BarDismissal, type BarSnapshot } from "./omnibox/barState";
@@ -102,6 +103,7 @@ export function Omnibox({
   useEffect(() => bangEnter.cancel(), [bangEnter, typed, selected, scope]);
   const root = useRef<View>(null);
 
+  const chatRoute = useChatRoute(windowId);
   const { items: suggested, completion } = useSuggestions({
     text: typed,
     active: edited || !!scope,
@@ -220,7 +222,17 @@ export function Omnibox({
       case "action":
         dismiss();
         return runBarAction(s.id, windowId);
+      case "chat":
+        return askChat(s.query);
     }
+  };
+
+  const askChat = (text: string) => {
+    bangEnter.cancel();
+    const query = text.trim();
+    if (!query || !chatRoute) return;
+    dismiss();
+    void sendToChat(windowId, query);
   };
 
   const forceSearch = () => {
@@ -279,6 +291,7 @@ export function Omnibox({
       if (key === "Tab") return move(shiftKey ? -1 : 1);
     }
     if (key === "Enter") {
+      if (forcesChat({ metaKey, altKey, ctrlKey }) && chatRoute) return askChat(typed);
       if (metaKey && shiftKey) return forceSearch();
       if (ctrlKey && !/[\s./:]/.test(typed.trim()) && typed.trim())
         return go(`https://www.${typed.trim()}.com`, shiftKey ? "newWindow" : "current");
@@ -528,6 +541,7 @@ export function Omnibox({
 
 function destinationLabel(s: Suggestion | undefined): string {
   if (s?.kind === "search") return s.engine;
+  if (s?.kind === "chat") return s.signIn ? "Sign In" : "Chat";
   if (s?.kind === "calc") return "Copy";
   return "Go";
 }

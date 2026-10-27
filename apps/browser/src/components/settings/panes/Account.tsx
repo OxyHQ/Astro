@@ -6,6 +6,7 @@ import { manageOxyAccount, signInWithOxy, signOutOfOxy, useOxySession, type OxyA
 import { AccountAvatar } from "../../account/AccountAvatar";
 import { Button, Group, Row, SectionHeader } from "../controls";
 import { useSettingsNav } from "../windows";
+import { AiFeaturesSection } from "./AiFeatures";
 
 const AVATAR = 64;
 
@@ -55,6 +56,7 @@ export function AccountPane() {
           onPress={() => go("calendar")}
         />
       </Group>
+      <AiFeaturesSection />
       <Text style={{ marginTop: 12, fontSize: 11.5, lineHeight: 15, color: theme.textTertiary }}>
         Astro stays signed in on this device until you sign out. Signing in here doesn’t sign you in to websites in your tabs, and Sync doesn’t use your account.
       </Text>

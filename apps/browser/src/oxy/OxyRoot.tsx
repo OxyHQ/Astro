@@ -60,25 +60,27 @@ function useAvatar(oxyServices: OxyServices, user: User | null, ready: boolean):
 function OxySessionBridge({ niloURL }: { niloURL: string }) {
   const { user, isAuthResolved, canUsePrivateApi, signIn, signOut, oxyServices, showBottomSheet } = useAuth();
   const nilo = useMemo(() => oxyServices.createLinkedClient({ baseURL: niloURL }), [oxyServices, niloURL]);
+  const sessionBearer = useMemo(() => () => oxyServices.session.accessToken, [oxyServices]);
   const avatar = useAvatar(oxyServices, user, canUsePrivateApi);
   useEffect(() => () => nilo.dispose(), [nilo]);
   useEffect(() => {
     useOxySession.setState({
       niloFetch: nilo.fetch,
       niloSocket: { url: niloURL, token: () => nilo.getAccessToken(niloURL) },
+      sessionBearer,
       openSignIn: async () => {
         await signIn();
       },
       openAccountDialog: () => showBottomSheet?.("ManageAccount"),
       closeSession: signOut,
     });
-  }, [nilo, niloURL, signIn, signOut, showBottomSheet]);
+  }, [nilo, niloURL, sessionBearer, signIn, signOut, showBottomSheet]);
   useEffect(() => {
     useOxySession.setState({ resolved: isAuthResolved, account: canUsePrivateApi && user ? accountOf(user, avatar) : null });
   }, [isAuthResolved, canUsePrivateApi, user, avatar]);
   useEffect(
     () => () =>
-      useOxySession.setState({ resolved: false, account: null, niloFetch: null, niloSocket: null, openSignIn: null, openAccountDialog: null, closeSession: null }),
+      useOxySession.setState({ resolved: false, account: null, niloFetch: null, niloSocket: null, sessionBearer: null, openSignIn: null, openAccountDialog: null, closeSession: null }),
     [],
   );
   return null;

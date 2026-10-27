@@ -8,7 +8,7 @@ export type GroupsSlice = {
   groups: Record<string, TabGroup>;
 
   createGroup(tabIds: string[], options?: { name?: string; icon?: string | null; color?: GroupColor | null }): string;
-  updateGroup(id: string, patch: Partial<Pick<TabGroup, "name" | "icon" | "color" | "collapsed" | "pinned">>): void;
+  updateGroup(id: string, patch: Partial<Pick<TabGroup, "name" | "icon" | "color" | "collapsed" | "pinned" | "autoName" | "autoIcon" | "autoSig">>): void;
   addTabsToGroup(groupId: string, tabIds: string[]): void;
   removeTabsFromGroup(tabIds: string[]): void;
   ungroup(groupId: string): void;

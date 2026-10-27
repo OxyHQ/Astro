@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { unstable_batchedUpdates } from "react-native";
 import { WindowRoot } from "../../browser/src/App";
+import { oneShotDebug, startOneShotFeatures, startPageOneShotFeatures } from "../../browser/src/ai/oneShotFeatures";
 import { startTranslate } from "../../browser/src/components/site/translate";
 import { afterFirstWindow } from "../../browser/src/lib/afterFirstWindow";
 import { startCliControl } from "../../browser/src/lib/cliControl";
@@ -41,7 +42,7 @@ startDragPreview();
 startTabDragShare();
 setStoreBatching(unstable_batchedUpdates);
 
-Object.assign(globalThis, { astro: { store: useBrowser, emitCommand } });
+Object.assign(globalThis, { astro: { store: useBrowser, emitCommand, oneShot: oneShotDebug } });
 
 const startPage = () =>
   startWindows(
@@ -53,10 +54,12 @@ const startPage = () =>
         void startPersistence({ hydrate });
         afterFirstWindow(startUserScripts);
         afterFirstWindow(startUpdater);
+        afterFirstWindow(startOneShotFeatures);
       },
       begin: () => {
         startPageTelemetry();
         startTabPages();
+        afterFirstWindow(startPageOneShotFeatures);
         startNativeSync();
         startLifecycle();
         startCliControl();

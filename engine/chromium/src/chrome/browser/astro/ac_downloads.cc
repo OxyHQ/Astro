@@ -17,6 +17,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "base/supports_user_data.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/download/download_crx_util.h"
@@ -37,6 +38,38 @@ namespace {
 using download::DownloadItem;
 
 constexpr base::TimeDelta kProgressInterval = base::Milliseconds(100);
+constexpr char kTidiedFromKey[] = "astro.downloads.tidied_from";
+
+struct TidiedFrom : public base::SupportsUserData::Data {
+  explicit TidiedFrom(std::string name) : name(std::move(name)) {}
+  std::string name;
+};
+
+const TidiedFrom* TidiedFromOf(DownloadItem* item) {
+  return static_cast<const TidiedFrom*>(item->GetUserData(kTidiedFromKey));
+}
+
+const char* RenameError(DownloadItem::DownloadRenameResult result) {
+  switch (result) {
+    case DownloadItem::SUCCESS:
+      return nullptr;
+    case DownloadItem::FAILURE_NAME_CONFLICT:
+      return "name taken";
+    case DownloadItem::FAILURE_NAME_TOO_LONG:
+      return "name too long";
+    case DownloadItem::FAILURE_NAME_INVALID:
+      return "invalid name";
+    default:
+      return "rename failed";
+  }
+}
+
+bool AcceptableFileName(const base::FilePath& file) {
+  const std::string name = file.AsUTF8Unsafe();
+  return !name.empty() && name.size() <= 255 && file.BaseName() == file &&
+         name.front() != '.' && name.find('/') == std::string::npos &&
+         name.find('\\') == std::string::npos;
+}
 
 const char* StateName(const DownloadItem& item) {
   switch (item.GetState()) {
@@ -89,7 +122,9 @@ base::DictValue Describe(DownloadItem* item) {
     name = path.BaseName();
   }
   const int64_t total = item->GetTotalBytes();
+  const TidiedFrom* tidied = TidiedFromOf(item);
   return base::DictValue()
+      .Set("tidiedFrom", tidied ? base::Value(tidied->name) : base::Value())
       .Set("id", item->GetGuid())
       .Set("url", item->GetOriginalUrl().spec())
       .Set("filename", name.AsUTF8Unsafe())
@@ -394,4 +429,59 @@ AC_ENGINE_CALL(ac_downloads_remove) {
     item->Remove();
     call.TakeReply().Ok();
   }
+}
+
+AC_ENGINE_CALL(ac_downloads_rename) {
+  astro::Call call(profile_dir, args_json, reply, context);
+  if (!call) {
+    return;
+  }
+  download::DownloadItem* item = astro::DownloadFor(call);
+  if (!item) {
+    return;
+  }
+  if (item->GetState() != download::DownloadItem::COMPLETE ||
+      item->GetFileExternallyRemoved()) {
+    return call.TakeReply().Error("not a finished download");
+  }
+  const base::FilePath name = base::FilePath::FromUTF8Unsafe(call.String("name"));
+  if (!astro::AcceptableFileName(name)) {
+    return call.TakeReply().Error("invalid name");
+  }
+  const std::string current =
+      item->GetTargetFilePath().BaseName().AsUTF8Unsafe();
+  if (name.AsUTF8Unsafe() == current) {
+    return call.TakeReply().Ok();
+  }
+  const astro::TidiedFrom* tidied = astro::TidiedFromOf(item);
+  const std::string original = tidied ? tidied->name : current;
+  const bool restoring = name.AsUTF8Unsafe() == original;
+  if (!restoring && !call.Bool("tidy")) {
+    return call.TakeReply().Error("only tidying is supported");
+  }
+  std::unique_ptr<base::SupportsUserData::Data> before =
+      item->TakeUserData(astro::kTidiedFromKey);
+  if (!restoring) {
+    item->SetUserData(astro::kTidiedFromKey,
+                      std::make_unique<astro::TidiedFrom>(original));
+  }
+  item->Rename(
+      name,
+      base::BindOnce(
+          [](download::DownloadItem* item,
+             std::unique_ptr<base::SupportsUserData::Data> before,
+             astro::Reply reply,
+             download::DownloadItem::DownloadRenameResult result) {
+            if (const char* error = astro::RenameError(result)) {
+              if (before) {
+                item->SetUserData(astro::kTidiedFromKey, std::move(before));
+              } else {
+                item->RemoveUserData(astro::kTidiedFromKey);
+              }
+              return reply.Error(error);
+            }
+            reply.Send(base::DictValue().Set(
+                "filename", item->GetTargetFilePath().BaseName().AsUTF8Unsafe()));
+          },
+          base::Unretained(item), std::move(before), call.TakeReply()));
 }
