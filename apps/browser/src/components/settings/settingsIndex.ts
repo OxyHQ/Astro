@@ -293,7 +293,13 @@ const ROWS: Record<SettingsPane, Section[]> = {
     },
   ],
   calendar: [
-    { section: "Live Calendar", rows: { access: { title: "Nilo calendar", keywords: ["connect calendar", "sign in with oxy", "nilo", "oxy account"] } } },
+    {
+      section: "Live Calendar",
+      rows: {
+        access: { title: "Nilo calendar", keywords: ["connect calendar", "sign in with oxy", "nilo", "oxy account"] },
+        subscribe: { title: "Google, Outlook or iCloud calendar", description: "Subscribe to it in Nilo with its secret iCal address.", keywords: ["add calendar", "subscribe", "ical", "ics", "google calendar", "outlook", "icloud"] },
+      },
+    },
     {
       section: "Meeting alerts",
       rows: {

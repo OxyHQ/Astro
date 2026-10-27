@@ -32,7 +32,7 @@ export function CalendarPane() {
           {access !== "fixture" ? <Button title="Oxy Account…" onPress={() => go("account")} /> : null}
         </Row>
         {access === "connected" ? (
-          <Row title="Google, Outlook or iCloud calendar" description="Subscribe to it in Nilo with its secret iCal address. Nilo keeps it up to date, read-only.">
+          <Row anchor="calendar.subscribe" title="Google, Outlook or iCloud calendar" description="Subscribe to it in Nilo with its secret iCal address. Nilo keeps it up to date, read-only.">
             <Button title="Add Calendar…" onPress={openNiloCalendarSubscriptions} />
           </Row>
         ) : null}
