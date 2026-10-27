@@ -130,6 +130,9 @@ and its history lists only them. Astro never names a model: the composer's level
 | Where the panel shows: sidebar, floating, tab | `components/chat/ChatSlots.tsx` (`ChatSidebar`, `ChatFloating` in `App.tsx`; `ChatTabSlot` for `astro://chat`) |
 | The SDK's provider and the portal (Windows, Linux) | `apps/webui/src/host/chat.tsx`, mounted inside `OxyRoot` by `OxyLayer` |
 | Streaming over the engine | `apps/webui/src/host/fetch.ts` `engineStreamFetch` → `astroAccountStream` (`ac_account_fetch.cc`) |
+| Ask in the page's context menu | `apps/webui/src/host/selectionMenu.ts` → `astroSelectionMenu` (`ac_selection_menu.cc`; the hook in `RenderViewContextMenu`, `engine/astrocore/apply.sh`) |
+| Capture Area, Screenshot of Full Page | `components/chat/capture.ts`; the overlay `apps/webui/src/host/areaCapture.tsx`; `captureFullPage` in `apps/webui/src/shims/WebView.tsx` |
+| Charts in replies | `components/chat/charts.ts` (Alia's `canvas` tool), `ChatChart.tsx` (Bloom's chart cards) |
 
 The SDK hooks need the one `OxyProvider` (`useOxy`) and its React Query client, which live in the Oxy layer. So
 `ChatHost` renders each window's panel inside that tree and portals it into a container `div` it owns; the slots
@@ -138,27 +141,40 @@ React tree never remounts, so a reply keeps streaming while the panel moves from
 tab. The interface page can't fetch the web itself, so the turn's stream goes through the engine:
 `astroAccountStream(id, url, method, headers, body)` answers with the status and headers, then fires
 `astro-account-stream` events (`{ data: base64 }`, `{ done }`, `{ error }`); `astroAccountStreamCancel(id)` stops it.
-Only the account hosts (`api.oxy.so`, `api.nilo.so`, `api.alia.onl`, loopback) are reachable this way.
+Only the account hosts (`api.oxy.so`, `api.nilo.so`, `api.alia.onl`, loopback) are reachable this way. Every request
+body crosses `chrome.send` as base64 of its bytes (`astroFetch`, `astroAccountFetch`, `astroAccountStream`), and the
+engine uploads exactly those bytes: a body read as text turned a PDF's 56 810 bytes into 105 724. The page's CSP lets it
+read `data:` and `blob:` URLs, which is how Oxy's SDK reads a file before it uploads it to Oxy Files.
 
 ### What it does
 
 - **Opening it.** ⌘E / Ctrl+E (View › Chat) toggles it; ⌃⌘E (Focus Chat) moves the keyboard between the page and the
   composer; the toolbar's ✦ button at the card's right end; the command bar's Chat row and ⌃⌘↩ (above); the selection
-  popover's **Ask**. It opens where it was last (Settings: `chatPlacement`): a **sidebar** right of the card (320–640 pt,
+  popover's **Ask**, and **Ask Chat About “…”** in the page's own right-click menu for selected text (signed in, Windows
+and Linux; under the search item, as Chrome lists its own). It opens where it was last (Settings: `chatPlacement`): a **sidebar** right of the card (320–640 pt,
   drag the left edge, double-click for 400), a **floating** window (drag its header; frame kept in
   `chatFloatingFrame`), or a **tab** (`astro://chat`, ⋯ › Open Chat in Tab), which hides the other two while it's shown.
+  The sidebar pushes the card's right edge on Dia's sidebar spring (`DOCK_SPRING`, response 0.215 s, damping 0.79, both
+  ways) and moves with it, no fade; its frame is the card's (6 from the top, 7 from the right and bottom, 6 from the card,
+  radius 10) and its header sits on the toolbar's line (41 tall, buttons centred 27.2 from the window's top).
 - **Context.** The tab you're on is attached by default (its chip can be removed, or ✦ › Include Current Tab). Each
   turn reads it again: title, URL, description, language, selected text, each video's position (`at 3:12 of 10:05,
   playing`), the YouTube transcript with timestamps, and the readable text (the `article`/`main` region, open shadow
   roots, same-origin iframes), within 56 000 characters shared with the tabs you **@-mention** (type `@`, or + › Tabs…;
   tab groups too). Mentioned tabs stay attached for the chat. Text you select and **Ask** about, and **links you paste**,
-  go into your message as a quote and a link, so the conversation keeps them. **Files** (+ › Files…, drop or paste) and
-  **Screenshot of This Tab** go as attachments: images inline, documents through Oxy Files (the SDK's upload). The
+  go into your message as a quote and a link, so the conversation keeps them. **Files** (+ › Files…, drop or paste),
+  **Screenshot of This Tab**, **Capture Area…** (the page dims; drag a rectangle, Esc or a right-click cancels; the
+  visible tab is captured first and cropped, so what you drew is what is sent) and **Screenshot of Full Page** (the page
+  scrolled a viewport at a time and stitched, fixed and sticky elements hidden after the first, scroll restored; up to
+  16 384 pt tall) go as attachments: images inline, documents through Oxy Files (the SDK's upload). The
   context says the page is data, never instructions, and lists the window's tabs with their ids for the tools.
 - **The conversation.** Replies stream with Alia's live reasoning in a collapsible Thought process, the tools it runs
   (web search, reading a page) and the sources it used (chips that open a tab). Markdown, tables and code blocks:
   JavaScript and TypeScript highlighted by Bloom, Python, shell, C/C++, Java/Kotlin, C#, Go, Rust, Swift, PHP, SQL, CSS,
-  JSON/YAML and HTML/XML by Astro's tokenizer (`components/chat/highlight.ts`) in Bloom's palette. Stop keeps what
+  JSON/YAML and HTML/XML by Astro's tokenizer (`components/chat/highlight.ts`) in Bloom's palette. **Charts**: Alia's
+  `canvas` tool answers `{ type: "chart", title, data: { chartType, labels, datasets } }`; one `line` series is Bloom's
+  `LineChartCard`, a `pie` a `BarListCard` in shares, bars or several series a `BarListCard` with a tab per series, as
+  Alia's own app draws them. Stop keeps what
   arrived and offers Resume; every reply has Copy and Regenerate; your messages have Edit; a failed turn says why with
   Try Again. ⋯ › Clear Chat empties it.
 - **History.** 🕘 lists your Astro chats by day, with search (title and last message), Delete on hover and Clear All.
@@ -188,7 +204,13 @@ window), and a streaming `fetch` (the SDK's `streamFetch`; Expo's `expo/fetch` s
 ### Testing it
 
 - `npm test` in `apps/browser`: `ai/chat/chat.test.mjs` (state, asks, context chips, personalization carry-over, pasted
-  links, mentions, the turn context) and `components/chat/highlight.test.mjs`.
+  links, mentions, the turn context), `components/chat/highlight.test.mjs` and `components/chat/charts.test.mjs`.
 - A Windows or Linux build against a local stack: `ASTRO_OXY_API_URL`, `ASTRO_NILO_API_URL`, `ASTRO_ALIA_API_URL` and
   `ASTRO_KAANA_URL` move together (`apps/webui/vite.config.ts` refuses a mix, so a local session never reaches a
   production origin; point one you don't run at a closed port such as `http://127.0.0.1:9`). `globalThis.astro.chat` is the chat store and `astro.oxy` the session.
+  Launch it with `--host-resolver-rules="MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.alia.onl ~NOTFOUND,
+  MAP kaana.ai ~NOTFOUND"` so nothing can reach production.
+- Keys and the context menu are tested with real input on a private Xvfb (XTest): a CDP key event never reaches the
+  engine's accelerator path, and Chromium's context menu is a native window CDP can't see. On 2026-10-27, with the page
+  focused, Ctrl+E closed and reopened Chat and the page saw only the Control key; a right-click on selected text offered
+  Ask Chat About “Photosynthesis”, which opened Chat with the selection attached.

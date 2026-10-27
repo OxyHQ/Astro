@@ -11,6 +11,16 @@ const loadCr = () => (cr ??= import(/* @vite-ignore */ CR) as Promise<Cr>);
 
 const external = (url: URL) => url.protocol === "https:" || url.protocol === "http:";
 
+const BASE64_CHUNK = 0x8000;
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let at = 0; at < bytes.length; at += BASE64_CHUNK) binary += String.fromCharCode(...bytes.subarray(at, at + BASE64_CHUNK));
+  return btoa(binary);
+}
+
+const bodyBase64 = async (request: Request) => bytesToBase64(new Uint8Array(await request.arrayBuffer()));
+
 export function installEngineFetch() {
   const pageFetch = globalThis.fetch.bind(globalThis);
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -21,7 +31,7 @@ export function installEngineFetch() {
     const headers = Object.fromEntries(request.headers.entries());
     const account = isAccountOrigin(url);
     const sendsBody = account ? request.method !== "GET" && request.method !== "HEAD" : request.method === "POST";
-    const body = sendsBody ? await request.text() : null;
+    const body = sendsBody ? await bodyBase64(request) : null;
     const fetched = (await loadCr()).sendWithPromise<Fetched>(account ? "astroAccountFetch" : "astroFetch", url.href, request.method, headers, body);
     const aborted = new Promise<never>((_, reject) =>
       request.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true }),
@@ -59,7 +69,7 @@ export async function engineStreamFetch(input: RequestInfo | URL, init?: Request
   const bridge = await loadCr();
   const id = ++nextStream;
   const headers = Object.fromEntries(request.headers.entries());
-  const body = request.method === "GET" || request.method === "HEAD" ? null : await request.text();
+  const body = request.method === "GET" || request.method === "HEAD" ? null : await bodyBase64(request);
   let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
   const early: StreamEvent[] = [];
   const finish = () => {

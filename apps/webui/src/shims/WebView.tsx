@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import type { AutofillPrompt, BlockedPopup, ContentBlockedState, CrashInfo, DownloadNavigation, ExternalAppRequest, FindResult, LoadError, MediaAccess, MediaState, NavigationState, PasswordPrompt, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
+import type { AutofillPrompt, BlockedPopup, ContentBlockedState, CrashInfo, DownloadNavigation, ExternalAppRequest, FindResult, LoadError, MediaAccess, MediaState, NavigationState, PageCommand, PasswordPrompt, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
 import type { BrowserCommand } from "@astro-browser-real/shell";
 import { openProfileTab, onProfileTabOpened, PROFILE_TAB_PREFIX } from "../host/profileTabs";
 import { type EngineTab, type TabState, tabHub } from "../host/tabs";
@@ -116,6 +116,55 @@ function handOffTarget(key: string) {
 const ESCAPE_KEPT_BY_PAGE =
   'post("result", JSON.stringify(!!document.fullscreenElement || !!(document.activeElement && (document.activeElement.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)))));';
 
+const PAGE_GEOMETRY =
+  'const root = document.documentElement, body = document.body; post("result", JSON.stringify({ width: innerWidth, height: Math.max(root.scrollHeight, body ? body.scrollHeight : 0, innerHeight), viewport: innerHeight, x: scrollX, y: scrollY }));';
+const scrollTo = (x: number, y: number) =>
+  `scrollTo({ left: ${x}, top: ${y}, behavior: "instant" }); requestAnimationFrame(() => requestAnimationFrame(() => post("result", JSON.stringify(scrollY))));`;
+const HIDE_PINNED =
+  'for (const el of document.querySelectorAll("body *")) { const position = getComputedStyle(el).position; if (position === "fixed" || position === "sticky") { el.dataset.astroCaptureVisibility = el.style.visibility; el.style.visibility = "hidden"; } } post("result", "true");';
+const SHOW_PINNED =
+  'for (const el of document.querySelectorAll("[data-astro-capture-visibility]")) { el.style.visibility = el.dataset.astroCaptureVisibility; delete el.dataset.astroCaptureVisibility; } post("result", "true");';
+const MAX_CAPTURE_HEIGHT = 16384;
+const jpegUri = (data: string) => (data.startsWith("data:") ? data : `data:image/jpeg;base64,${data}`);
+const MAX_CAPTURE_TILES = 40;
+
+type PageGeometry = { width: number; height: number; viewport: number; x: number; y: number };
+
+async function stitchFullPage(
+  evaluate: <T>(code: string) => Promise<T | null>,
+  shoot: () => Promise<string | null>,
+): Promise<{ data: string } | null> {
+  const page = await evaluate<PageGeometry>(PAGE_GEOMETRY);
+  if (!page || page.width < 1 || page.viewport < 1) return null;
+  const height = Math.min(page.height, MAX_CAPTURE_HEIGHT, page.viewport * MAX_CAPTURE_TILES);
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  let ratio = 0;
+  try {
+    for (let top = 0, first = true; top < height; top += page.viewport, first = false) {
+      const scrolled = (await evaluate<number>(scrollTo(page.x, Math.min(top, height - page.viewport)))) ?? top;
+      if (!first) await evaluate(HIDE_PINNED);
+      const data = await shoot();
+      if (!data) return null;
+      const tile = new Image();
+      tile.src = jpegUri(data);
+      await tile.decode();
+      if (!ratio) {
+        ratio = tile.naturalWidth / page.width;
+        canvas.width = tile.naturalWidth;
+        canvas.height = Math.round(height * ratio);
+      }
+      context.drawImage(tile, 0, Math.round(scrolled * ratio));
+    }
+  } finally {
+    await evaluate(SHOW_PINNED);
+    await evaluate(scrollTo(page.x, page.y));
+  }
+  const uri = canvas.toDataURL("image/jpeg", 0.85);
+  return { data: uri.slice(uri.indexOf(",") + 1) };
+}
+
 async function escapeIfUnused(ref: string, p: WebViewProps) {
   const kept = await callTab<string>(ref, "evaluate", { code: ESCAPE_KEPT_BY_PAGE }).catch(() => null);
   if (kept === "false") p.onCommand?.({ command: "escape", text: "" });
@@ -137,6 +186,7 @@ function tabEvents(props: { current: WebViewProps }, browserId: number, onDevToo
     if (kind === "castDialog") return emitNativeEvent("AstroChromeUI", "onCastDialog", { ...payload, browserId });
     if (kind === "windowClose") return p.onWindowClose?.();
     if (kind === "pageFocus") return p.onPageFocus?.();
+    if (kind === "command") return p.onCommand?.(payload as PageCommand);
     if (kind === "contentBlocked") return p.onContentBlocked?.(payload as ContentBlockedState);
     if (kind === "unresponsive") return p.onUnresponsive?.();
     if (kind === "autofillPrompt") return showAutofillPrompt(p, payload);
@@ -397,6 +447,17 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
         const bounds = frame.current?.getBoundingClientRect();
         if (!picture?.data || !bounds?.width || !bounds.height) return null;
         return { data: picture.data, frame: [bounds.left, bounds.top, bounds.width, bounds.height] };
+      },
+      captureFullPage: async () => {
+        const evaluate = async <T,>(code: string) => {
+          try {
+            return JSON.parse((await call<string>("evaluate", { code })) ?? "null") as T | null;
+          } catch {
+            return null;
+          }
+        };
+        const shoot = async () => (await call<{ data: string }>("capturePicture", { scale: 1 }))?.data ?? null;
+        return stitchFullPage(evaluate, shoot);
       },
     };
     return new Proxy(handle, { get: (target, key) => (key in target ? target[key as keyof WebViewHandle] : () => done) }) as WebViewHandle;

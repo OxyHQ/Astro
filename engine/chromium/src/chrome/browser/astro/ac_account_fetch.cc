@@ -243,9 +243,13 @@ std::unique_ptr<network::SimpleURLLoader> AccountFetcher::Loader(
   loader->SetAllowHttpErrorResults(true);
   loader->SetURLLoaderFactoryOptions(
       network::mojom::kURLLoadOptionUseHeaderClient);
-  if (body.is_string() && method != "GET" && method != "HEAD") {
+  if (method != "GET" && method != "HEAD" && body.is_string()) {
+    std::string bytes;
+    if (!base::Base64Decode(body.GetString(), &bytes)) {
+      return nullptr;
+    }
     loader->AttachStringForUpload(
-        body.GetString(),
+        bytes,
         content_type.empty() ? "text/plain;charset=UTF-8" : content_type);
   }
   return loader;

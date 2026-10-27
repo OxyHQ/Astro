@@ -2187,6 +2187,72 @@ def edit(s):
 hook(["  // Astro: the window's title is the one AstroCore's page gives it, as on macOS.\n"], edit)
 PY
 
+hook "$src/chrome/browser/renderer_context_menu/render_view_context_menu.cc" "selected text's host items" <<'PY'
+at = "void RenderViewContextMenu::InitMenu() {\n"
+decl = """// Astro: AstroCore's page adds its own items for selected text (Ask) and runs them.
+constexpr int kAstroSelectionFirst = IDC_CONTENT_CONTEXT_CUSTOM_FIRST + 900;
+constexpr int kAstroSelectionLast = IDC_CONTENT_CONTEXT_CUSTOM_FIRST + 999;
+std::vector<std::u16string> (*g_astro_selection_items)(
+    content::WebContents* contents,
+    const std::u16string& printable_selection) = nullptr;
+void (*g_astro_selection_item_run)(content::WebContents* contents,
+                                   size_t index,
+                                   const std::u16string& selection,
+                                   int event_flags) = nullptr;
+
+"""
+items_old = """  if (show_glic && glic_below_search) {
+    MaybeAppendOpenGlicItem(/*add_separator=*/false);
+  }
+
+"""
+items_new = items_old + """  if (g_astro_selection_items && !params_.selection_text.empty() &&
+      !params_.is_editable) {
+    const std::vector<std::u16string> titles =
+        g_astro_selection_items(source_web_contents_, PrintableSelectionText());
+    for (size_t i = 0; i < titles.size() &&
+                       kAstroSelectionFirst + static_cast<int>(i) <=
+                           kAstroSelectionLast;
+         ++i) {
+      menu_model_.AddItem(kAstroSelectionFirst + static_cast<int>(i),
+                          titles[i]);
+    }
+  }
+
+"""
+enabled_old = "bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {\n"
+enabled_new = enabled_old + """  if (g_astro_selection_items && id >= kAstroSelectionFirst &&
+      id <= kAstroSelectionLast) {
+    return true;
+  }
+"""
+run_old = """void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
+  RenderViewContextMenuBase::ExecuteCommand(id, event_flags);
+"""
+run_new = """void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
+  if (g_astro_selection_item_run && id >= kAstroSelectionFirst &&
+      id <= kAstroSelectionLast) {
+    command_executed_ = true;
+    g_astro_selection_item_run(source_web_contents_,
+                               static_cast<size_t>(id - kAstroSelectionFirst),
+                               params_.selection_text, event_flags);
+    return;
+  }
+  RenderViewContextMenuBase::ExecuteCommand(id, event_flags);
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(items_old) == 1
+    assert s.count(enabled_old) == 1 and s.count(run_old) == 1
+    i = s.index(at)
+    s = s[:i] + decl + s[i:]
+    s = s.replace(items_old, items_new).replace(enabled_old, enabled_new)
+    return s.replace(run_old, run_new)
+hook(["std::vector<std::u16string> (*g_astro_selection_items)(\n",
+      "  if (g_astro_selection_items && !params_.selection_text.empty() &&\n",
+      "  if (g_astro_selection_items && id >= kAstroSelectionFirst &&\n",
+      "  if (g_astro_selection_item_run && id >= kAstroSelectionFirst &&\n"], edit)
+PY
+
 if [[ $mode == check ]]; then
   exit "$drift"
 fi

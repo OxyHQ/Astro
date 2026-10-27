@@ -11,7 +11,9 @@ import { memo, useMemo, useRef, type ReactNode } from "react";
 import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useTheme } from "../../lib/theme";
 import { Favicon } from "../primitives";
+import { ChatChart } from "./ChatChart";
 import { renderCodeBlock } from "./ChatCode";
+import { chartsOf, isChartTool } from "./charts";
 
 export type ThreadActions = {
   openLink: (url: string) => void;
@@ -134,6 +136,8 @@ const AssistantTurn = memo(function AssistantTurn({
   const lifecycle = turnLifecycle(message, { isLoading, isLastAssistant: last, failedTurn });
   const live = lifecycle === "running" || lifecycle === "queued";
   const tools = message.toolInvocations ?? [];
+  const charts = useMemo(() => chartsOf(tools), [tools]);
+  const steps = useMemo(() => tools.filter((tool) => !isChartTool(tool)), [tools]);
   const thinking = message.thinking?.trim() ?? "";
   const failed = lifecycle === "failed";
   const turnActions: AiChatTurnAction[] = [];
@@ -169,12 +173,15 @@ const AssistantTurn = memo(function AssistantTurn({
           ) : null}
         </AgentThinking>
       )}
-      {tools.length > 0 && <ToolSteps tools={tools} />}
+      {steps.length > 0 && <ToolSteps tools={steps} />}
       {text ? (
         <Markdown streaming={live} onLinkPress={actions.openLink} renderCodeBlock={renderCodeBlock}>
           {text}
         </Markdown>
       ) : null}
+      {charts.map((chart) => (
+        <ChatChart key={chart.id} chart={chart} />
+      ))}
       <Sources tools={tools} openLink={actions.openLink} />
       {lifecycle === "cancelled" && <Text style={{ fontSize: 12, color: theme.textSecondary }}>Stopped</Text>}
       {failed && <FailedRow failedTurn={failedTurn} onRetry={actions.retry} />}

@@ -81,6 +81,8 @@ source_set("astro") {
     "ac_scripts_policy.h",
     "ac_search_engines.cc",
     "ac_search_engines.h",
+    "ac_selection_menu.cc",
+    "ac_selection_menu.h",
     "ac_sensitive_args.cc",
     "ac_sensitive_args.h",
     "ac_site_settings.cc",

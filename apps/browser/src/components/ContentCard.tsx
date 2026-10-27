@@ -47,6 +47,7 @@ import { SiteControls } from "./site/SiteControls";
 import { ZoomPopover } from "./site/ZoomControls";
 import { SelectionPopover } from "./site/SelectionPopover";
 import { copyLinkToSelection, searchSelection, setPageSelection, startSelectionTools, type PageSelection } from "./site/selection";
+import { askAboutSelection } from "../ai/chat/actions";
 import { startMedia, useAutoPictureInPicture } from "./media/pip";
 import { SharePicker, requestDisplayMedia } from "./media/SharePicker";
 import { ShareBar } from "./media/ShareBar";
@@ -600,6 +601,7 @@ const TabWebView = memo(function TabWebView({ tabId, visible, warm }: { tabId: s
       onNotification={(notification) => showWebNotification(tabId, notification)}
       onCommand={({ command, text, modifiers }) => {
         if (command === "search") searchSelection(tabId, text, modifiers);
+        else if (command === "ask") askAboutSelection(tabId, text);
         else if (command === "copyLinkToHighlight") void copyLinkToSelection(tabId);
         else if (command === "escape" && usePages.getState().popover[tabId]) setPopover(tabId, null);
         else if (command === "escape") closeLittleAstroOnEscape(tabId);

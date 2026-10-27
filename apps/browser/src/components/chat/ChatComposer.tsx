@@ -2,6 +2,8 @@ import { ComposerPill, type ComposerPanelAddMenuGroup, type ComposerPanelAttachm
 import { RiAtLine } from "@oxy.so/bloom/icons/RiAtLine";
 import { RiAttachment2 } from "@oxy.so/bloom/icons/RiAttachment2";
 import { RiCameraLine } from "@oxy.so/bloom/icons/RiCameraLine";
+import { RiFileImageLine } from "@oxy.so/bloom/icons/RiFileImageLine";
+import { RiCropLine } from "@oxy.so/bloom/icons/RiCropLine";
 import { RiGlobalLine } from "@oxy.so/bloom/icons/RiGlobalLine";
 import { RiUserLine } from "@oxy.so/bloom/icons/RiUserLine";
 import { Symbol } from "@astro-browser/shell";
@@ -13,9 +15,10 @@ import { useBrowser } from "../../store/browser";
 import { activeTabId } from "../../store/model";
 import { Favicon } from "../primitives";
 import { mentionCandidates, type MentionCandidate } from "./mentions";
+import { fullPageCaptureSupported } from "./capture";
 import { POWER_LEVEL_OPTIONS } from "./powerLevels";
 
-export type ComposerAction = "files" | "screenshot" | "mention" | "currentTab" | "personalization";
+export type ComposerAction = "files" | "screenshot" | "screenshotArea" | "screenshotFullPage" | "mention" | "currentTab" | "personalization";
 
 const MENTION = /(^|\s)@([^\s@]*)$/;
 
@@ -71,6 +74,8 @@ export function ChatComposer({
         { id: "mention", label: "Tabs…", description: "Type @ to mention a tab", icon: RiAtLine },
         { id: "files", label: "Files…", icon: RiAttachment2 },
         { id: "screenshot", label: "Screenshot of This Tab", icon: RiCameraLine },
+        { id: "screenshotArea", label: "Capture Area…", description: "Drag over the page", icon: RiCropLine },
+        ...(fullPageCaptureSupported(windowId) ? [{ id: "screenshotFullPage", label: "Screenshot of Full Page", icon: RiFileImageLine }] : []),
       ],
     },
     {

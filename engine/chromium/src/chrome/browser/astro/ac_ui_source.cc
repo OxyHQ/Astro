@@ -139,7 +139,8 @@ void ServeUi(content::WebUIDataSource* source, Profile* profile) {
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ConnectSrc,
       base::StrCat({"connect-src chrome://webui-test chrome://resources "
-                    "chrome://theme 'self' https://api.oxy.so wss://api.oxy.so "
+                    "chrome://theme 'self' data: blob: https://api.oxy.so "
+                    "wss://api.oxy.so "
                     "https://api.nilo.so wss://api.nilo.so",
                     dir.empty() ? "" : " ws://localhost:* ws://127.0.0.1:*",
                     ";"}));

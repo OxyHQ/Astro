@@ -41,6 +41,7 @@
 #include "chrome/browser/astro/ac_host.h"
 #include "chrome/browser/astro/ac_profile_tabs.h"
 #include "chrome/browser/astro/ac_profiles.h"
+#include "chrome/browser/astro/ac_selection_menu.h"
 #include "chrome/browser/astro/ac_import.h"
 #include "chrome/browser/astro/ac_sync_files.h"
 #include "chrome/browser/astro/ac_system.h"
@@ -328,6 +329,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       InstallExtensionPrompts();
       InstallWindowKeys();
       InstallTargetUrl();
+      InstallSelectionMenu();
       InstallOpenUrls();
       InstallDeviceChooser();
       InstallCastDialog();
@@ -455,6 +457,10 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroShortcuts",
         base::BindRepeating(&EngineWebUIHandler::HandleShortcuts,
+                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroSelectionMenu",
+        base::BindRepeating(&EngineWebUIHandler::HandleSelectionMenu,
                             base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroKeyCapture",
@@ -1018,6 +1024,12 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     SetWindowShortcuts(Strings(args[0]), Strings(args[1]));
   }
 
+  void HandleSelectionMenu(const base::ListValue& args) {
+    if (args.size() == 1 && args[0].is_list()) {
+      SetSelectionMenuItems(args[0].GetList());
+    }
+  }
+
   void HandleKeyCapture(const base::ListValue& args) {
     if (args.size() != 1 || !args[0].is_bool()) {
       return;
@@ -1278,6 +1290,12 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
         }
       }
     }
+    std::string upload;
+    if (args[4].is_string() && method == "POST" &&
+        !base::Base64Decode(args[4].GetString(), &upload)) {
+      return ResolveJavascriptCallback(
+          callback_id, base::DictValue().Set("error", "refused"));
+    }
     auto loader =
         network::SimpleURLLoader::Create(std::move(request), kFetchAnnotation);
     loader->SetAllowHttpErrorResults(true);
@@ -1293,7 +1311,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
         }
       }
       loader->AttachStringForUpload(
-          args[4].GetString(),
+          upload,
           content_type.empty() ? "text/plain;charset=UTF-8" : content_type);
     }
     const int id = ++next_fetch_;

@@ -5,6 +5,7 @@ import { isChatTabUrl } from "../../ai/chat/actions";
 import { useWindowChat } from "../../ai/chat/state";
 import { activeTabId } from "../../store/model";
 import { layout, useTheme } from "../../lib/theme";
+import { DOCK_SPRING, springConfig } from "../layout/dockMotion";
 import { useBrowser } from "../../store/browser";
 import { useWindowId } from "../../store/hooks";
 
@@ -13,6 +14,7 @@ export const CHAT_MAX_WIDTH = 640;
 export const CHAT_DEFAULT_WIDTH = 400;
 const FLOATING_DEFAULT = { width: 420, height: 560 };
 const FLOATING_MARGIN = 16;
+const SIDEBAR_SPRING = { ...springConfig(DOCK_SPRING), restDisplacementThreshold: 0.001, restSpeedThreshold: 0.001 };
 
 type Slots = { slots: Record<string, unknown> };
 
@@ -70,7 +72,7 @@ export function ChatSidebar() {
 
   useEffect(() => {
     if (open) setShown(true);
-    Animated.timing(appear, { toValue: open ? 1 : 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start(({ finished }) => {
+    Animated.spring(appear, { toValue: open ? 1 : 0, ...SIDEBAR_SPRING, useNativeDriver: false }).start(({ finished }) => {
       if (finished && !open) setShown(false);
     });
   }, [open]);
@@ -111,17 +113,7 @@ export function ChatSidebar() {
   const room = width + layout.cardInset - 1;
   return (
     <Animated.View style={{ width: appear.interpolate({ inputRange: [0, 1], outputRange: [0, room] }), overflow: "hidden" }}>
-      <Animated.View
-        style={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          right: 0,
-          width,
-          opacity: appear,
-          transform: [{ translateX: appear.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
-        }}
-      >
+      <Animated.View style={{ position: "absolute", top: 0, bottom: 0, left: room - width, width }}>
         <View style={{ flex: 1, borderRadius: layout.cardRadius, overflow: "hidden", backgroundColor: theme.card }}>
           <View ref={slot as never} style={{ flex: 1 }} />
         </View>

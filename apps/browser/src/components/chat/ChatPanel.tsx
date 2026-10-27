@@ -19,13 +19,14 @@ import {
 } from "../../ai/chat/state";
 import { PROMPT_ACTIONS } from "../../ai/oneShotPrompts";
 import { webviews } from "../../lib/webviews";
-import { useTheme } from "../../lib/theme";
+import { layout, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { activeTabId } from "../../store/model";
 import { IconButton } from "../primitives";
 import { ChatComposer, type ComposerAction } from "./ChatComposer";
 import { ChatHistory, ASTRO_APP } from "./ChatHistory";
 import { moveFloatingChat } from "./ChatSlots";
+import { captureFullPage, startAreaCapture } from "./capture";
 import { ChatThreadView, type ThreadActions } from "./ChatThread";
 import { ToolApprovals } from "./ToolApproval";
 import { pickChatFiles } from "./files";
@@ -45,6 +46,9 @@ type PendingInput = Pending extends infer P ? (P extends Pending ? Omit<P, "id">
 type SdkAttachment = { id: string; uri: string; type: "image" | "document"; name: string; size: number; mimeType: string };
 
 let pendingSeq = 0;
+
+const TOOLBAR_GLYPH_CENTER = 21.2;
+const HEADER_CENTER_SHIFT = 2 * TOOLBAR_GLYPH_CENTER - layout.toolbarHeight;
 
 export function ChatPanel(props: ChatPanelProps) {
   const { windowId } = props;
@@ -225,6 +229,10 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       }
       case "screenshot":
         return void screenshotActiveTab(windowId);
+      case "screenshotArea":
+        return startAreaCapture(windowId);
+      case "screenshotFullPage":
+        return void captureFullPage(windowId);
       case "currentTab":
         return updateWindowChat(windowId, (c) => ({ currentTab: !c.currentTab }));
       case "personalization":
@@ -274,7 +282,7 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
     <View style={{ flex: 1 }} onFocus={() => setComposerFocused(windowId)} onBlur={() => setComposerFocused(null)}>
       <View
         {...(placement === "floating" && !inTab ? dragHeader.panHandlers : {})}
-        style={{ height: 44, flexDirection: "row", alignItems: "center", paddingLeft: 14, paddingRight: 6, gap: 2 }}
+        style={{ height: layout.toolbarHeight, paddingTop: HEADER_CENTER_SHIFT, flexDirection: "row", alignItems: "center", paddingLeft: 14, paddingRight: 6, gap: 2 }}
       >
         <Text numberOfLines={1} style={{ flex: 1, fontSize: 13, fontWeight: "600", color: theme.textPrimary }}>
           {history ? "Chats" : title}

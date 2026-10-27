@@ -15,6 +15,7 @@ import { signInWithOxy, useOxySession } from "../../../browser/src/oxy/session";
 import { useBrowser } from "../../../browser/src/store/browser";
 import { WindowContext } from "../../../browser/src/store/hooks";
 import { activeTabId } from "../../../browser/src/store/model";
+import { AreaCapture } from "./areaCapture";
 import { engineStreamFetch } from "./fetch";
 import { usePageWindowId } from "./windows";
 
@@ -23,6 +24,7 @@ export function ChatHost({ aliaURL }: { aliaURL: string }) {
   useEffect(() => registerChatOpener(openChatFromEntry), []);
   return (
     <AliaRuntimeProvider apiUrl={aliaURL} streamFetch={engineStreamFetch as typeof fetch} app="astro">
+      <AreaCapture />
       {windowId ? <WindowChat key={windowId} windowId={windowId} /> : null}
     </AliaRuntimeProvider>
   );
