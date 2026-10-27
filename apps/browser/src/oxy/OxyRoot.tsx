@@ -2,7 +2,7 @@ import { APP_COLOR_PRESETS, type AppColorName } from "@oxy.so/bloom/color-preset
 import { getNormalizedUserHandle, type OxyServices, type User } from "@oxy.so/core";
 import { OxyProvider, useAuth } from "@oxy.so/services";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useOxySession, type OxyAccount } from "./session";
+import { publishOxyWindow, withdrawOxyWindow, type OxyAccount } from "./session";
 
 export type OxyEndpoints = { baseURL: string; clientId: string; niloURL: string };
 
@@ -57,14 +57,16 @@ function useAvatar(oxyServices: OxyServices, user: User | null, ready: boolean):
   return fileId && loaded?.fileId === fileId ? loaded.image : null;
 }
 
-function OxySessionBridge({ niloURL, clientId }: { niloURL: string; clientId: string }) {
+function OxySessionBridge({ windowId, niloURL, clientId }: { windowId: string; niloURL: string; clientId: string }) {
   const { user, isAuthResolved, canUsePrivateApi, signIn, signOut, oxyServices, showBottomSheet } = useAuth();
   const nilo = useMemo(() => oxyServices.createLinkedClient({ baseURL: niloURL }), [oxyServices, niloURL]);
   const sessionBearer = useMemo(() => () => oxyServices.session.accessToken, [oxyServices]);
   const avatar = useAvatar(oxyServices, user, canUsePrivateApi);
   useEffect(() => () => nilo.dispose(), [nilo]);
   useEffect(() => {
-    useOxySession.setState({
+    publishOxyWindow(windowId, {
+      resolved: isAuthResolved,
+      account: canUsePrivateApi && user ? accountOf(user, avatar) : null,
       niloFetch: nilo.fetch,
       niloSocket: { url: niloURL, token: () => nilo.getAccessToken(niloURL) },
       sessionBearer,
@@ -75,22 +77,15 @@ function OxySessionBridge({ niloURL, clientId }: { niloURL: string; clientId: st
       openAccountDialog: () => showBottomSheet?.("ManageAccount"),
       closeSession: signOut,
     });
-  }, [nilo, niloURL, sessionBearer, clientId, signIn, signOut, showBottomSheet]);
-  useEffect(() => {
-    useOxySession.setState({ resolved: isAuthResolved, account: canUsePrivateApi && user ? accountOf(user, avatar) : null });
-  }, [isAuthResolved, canUsePrivateApi, user, avatar]);
-  useEffect(
-    () => () =>
-      useOxySession.setState({ resolved: false, account: null, niloFetch: null, niloSocket: null, sessionBearer: null, clientId: null, openSignIn: null, openAccountDialog: null, closeSession: null }),
-    [],
-  );
+  }, [windowId, isAuthResolved, canUsePrivateApi, user, avatar, nilo, niloURL, sessionBearer, clientId, signIn, signOut, showBottomSheet]);
+  useEffect(() => () => withdrawOxyWindow(windowId), [windowId]);
   return null;
 }
 
-export function OxyRoot({ baseURL, clientId, niloURL, children }: OxyEndpoints & { children?: ReactNode }) {
+export function OxyRoot({ windowId, baseURL, clientId, niloURL, children }: OxyEndpoints & { windowId: string; children?: ReactNode }) {
   return (
     <OxyProvider baseURL={baseURL} clientId={clientId}>
-      <OxySessionBridge niloURL={niloURL} clientId={clientId} />
+      <OxySessionBridge windowId={windowId} niloURL={niloURL} clientId={clientId} />
       {children}
     </OxyProvider>
   );

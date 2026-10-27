@@ -23,7 +23,9 @@
       "TranslateModule",
       "WindowProfileModule",
       "CliModule",
-      "UserScriptsModule"
+      "UserScriptsModule",
+      "PortalHostModule",
+      "PortalModule"
     ]
   }
 }

@@ -17,6 +17,7 @@ export {
   WindowDragRegion,
 } from "./web/chrome";
 export { FadeLabel } from "./web/FadeLabel";
+export { Portal, PortalHost } from "./web/portal";
 export { MouseArea } from "./web/MouseArea";
 export { confirm, prompt, showMenu } from "./web/overlays";
 export { setTrafficLightsCenter } from "./web/windowChrome";

@@ -6,7 +6,7 @@ import { useBrowser } from "../../store/browser";
 import { defaultSearchEngine } from "../../store/settings";
 import { useHover } from "../primitives";
 import { searchSelection, setPageSelection, usePageSelection, type ClickModifiers, type PageSelection } from "./selection";
-import { askAboutSelection, useChatSupported } from "../../ai/chat/actions";
+import { askAboutSelection } from "../../ai/chat/actions";
 
 const HEIGHT = 32;
 const GAP = 6;
@@ -84,9 +84,7 @@ function Bar({ tabId, selection, zoom, area }: { tabId: string; selection: PageS
 
 function AskButton({ tabId, text }: { tabId: string; text: string }) {
   const theme = useTheme();
-  const available = useChatSupported();
   const { hovered, hoverProps } = useHover();
-  if (!available) return null;
   return (
     <View {...hoverProps} tooltip="Ask Chat about the selection">
       <Pressable

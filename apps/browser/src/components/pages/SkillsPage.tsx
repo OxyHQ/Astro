@@ -59,7 +59,6 @@ export function SkillsPage({ tabId }: { tabId: string }) {
   const url = useBrowser((s) => (s.tabs[tabId] ? tabDestination(s.tabs[tabId]!) : ""));
   const windowId = useBrowser((s) => s.tabs[tabId]?.windowId ?? "");
   const ready = useAliaReady();
-  const available = useOxySession((s) => s.available);
   const [view, setView] = useState<View_>(() => skillsRoute(url));
   const [query, setQuery] = useState("");
   useEffect(() => setView(skillsRoute(url)), [url]);
@@ -73,9 +72,7 @@ export function SkillsPage({ tabId }: { tabId: string }) {
         <AiPageHeader title="Skills" query="" onQuery={() => {}} placeholder="Search skills" />
         <SignedOutState
           icon={RiSparklingLine}
-          available={available}
           title="Sign in with Oxy to use skills"
-          unavailable="Skills aren't available on this Mac yet"
           description="Skills are saved prompts and step-by-step instructions you run with / in Chat or the command bar. They live in your Alia account."
         />
       </View>

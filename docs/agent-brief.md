@@ -8,7 +8,8 @@ The user is demanding: no sloppy work, every hover state/animation/detail matter
 
 ## Stack
 - Turborepo + pnpm (hoisted `node_modules` at the repo root).
-- `apps/browser`: Expo SDK 54 + react-native-macos 0.81 (Legacy architecture), zustand store,
+- `apps/browser`: Expo SDK 54 + react-native-macos 0.81 on the New Architecture (Fabric, TurboModules, bridgeless),
+  Reanimated 4, Bloom and the Oxy SDK (`docs/ai.md` › macOS), zustand store,
   inline styles.
 - Native code lives in Expo modules under `packages/*/ios` (Swift / Objective-C++):
   - `packages/astrocore`: the web engine, **AstroCore**: Chrome's own framework (`Chromium Framework.framework`,

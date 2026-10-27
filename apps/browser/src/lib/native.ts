@@ -40,6 +40,7 @@ import { flushPersistence, resumePersistence } from "./persist";
 import { startWindowCloseGuard } from "./windowClose";
 import { startExtensionsBridge } from "../components/extensions/bridge";
 import { extensionMenu, useExtensions } from "../components/extensions/state";
+import { noteOxyWindowFocus } from "../oxy/session";
 
 let quitting = false;
 export const isQuitting = () => quitting;
@@ -78,7 +79,10 @@ export function startNativeSync() {
 
   onWindowEvent((e) => {
     const s = store.getState();
-    if (e.type === "focus") s.setFocusedWindow(e.id);
+    if (e.type === "focus") {
+      s.setFocusedWindow(e.id);
+      noteOxyWindowFocus(e.id);
+    }
     if (e.type === "frame") s.setWindowFrame(e.id, e.frame);
     if (e.type === "close") {
       if (quitting) return;

@@ -12,9 +12,8 @@ and fails over along the routes Oxy signed. Astro asks for a **power level** (`i
 only origin is `https://kaana.ai`.
 
 Every AI feature needs Sign in with Oxy (`apps/browser/src/oxy/`). Signed out, each one falls back to what Astro did
-before it existed, and offers sign-in where Dia shows the AI. macOS can't mount the Oxy SDK yet (Legacy architecture),
-so today the AI runs on Windows and Linux; the shared code needs nothing else on macOS (the engine call is in
-`AstroCoreEngineCalls.swift`), only the session (`useOxySession.sessionBearer`).
+before it existed, and offers sign-in where Dia shows the AI. It runs on every platform from the
+same code; on macOS the engine call is in `AstroCoreEngineCalls.swift`.
 
 ## One-shot features
 
@@ -322,11 +321,16 @@ A new chat offers, above the composer (`ai/work/suggestions.ts`):
 
 ### macOS
 
-The shared code (`ai/chat`, `components/chat`) is platform-neutral. What macOS lacks: the Oxy SDK provider (the app is on
-React Native's Legacy architecture and `@alia.onl/sdk` wants React Native 0.86+), a host for the panel like
-`apps/webui/src/host/chat.tsx` (macOS has no portals: mount `ChatPanel` inside the slot views once the provider wraps the
-window), and a streaming `fetch` (the SDK's `streamFetch`; Expo's `expo/fetch` streams). Until then
-`useOxySession.available` is false there, so no Chat button, shortcut or Ask appears and ⌘E stays Use Selection for Find.
+The same code as Windows and Linux. Every window root mounts one OxyProvider (`oxy/OxyWindowHost.tsx`, after the first
+window, like the webui page's `host/oxy.tsx`), with Bloom's portal outlet teleported over the window and the Chat host
+(`oxy/ChatHost.tsx`, shared with `apps/webui/src/host/chat.tsx`). The windows share one JS runtime, so each provider
+publishes its session to `oxy/session.ts`, which shows the focused window's (sign-in and the account dialog open there),
+and a sign-in or sign-out in one window reloads the others' providers, as storage events do between webui pages. The
+Chat panel keeps one tree while it moves between the sidebar, the floating window and a tab: `Portal`/`PortalHost`
+(`packages/shell`, `Portal.swift`) move its native views into the slot, as the webui host moves its DOM node. Streaming
+is Expo's `expo/fetch`. On macOS Metro maps `expo-secure-store` to Astro's keychain (`oxy/secureStore.ts`) and
+`expo-blur` to `VisualEffect` (`oxy/expoBlur.tsx`), which have no macOS pods; Bloom's classes compile from
+`oxy/bloom.css` through NativeWind.
 
 ### Testing it
 

@@ -40,14 +40,14 @@ export function AiPageHeader({
   );
 }
 
-export function SignedOutState({ icon, available, title, unavailable, description }: { icon: BloomIconComponent; available: boolean; title: string; unavailable: string; description?: string }) {
+export function SignedOutState({ icon, title, description }: { icon: BloomIconComponent; title: string; description?: string }) {
   return (
     <View style={{ flex: 1, justifyContent: "center", paddingBottom: 80 }}>
       <EmptyState
         icon={icon}
-        title={available ? title : unavailable}
+        title={title}
         {...(description ? { description } : {})}
-        {...(available ? { action: { label: "Sign In with Oxy…", onPress: () => void signInWithOxy() } } : {})}
+        action={{ label: "Sign In with Oxy…", onPress: () => void signInWithOxy() }}
       />
     </View>
   );

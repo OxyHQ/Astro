@@ -1,7 +1,7 @@
 import { webviews } from "../../lib/webviews";
 import { useBrowser } from "../../store/browser";
 import { activeTabId } from "../../store/model";
-import { oxySignInAvailable, useOxySession, wantOxy } from "../../oxy/session";
+import { useOxySession, wantOxy } from "../../oxy/session";
 import type { ChatEntry } from "../chatEntry";
 import {
   addChatContext,
@@ -21,8 +21,6 @@ export const setComposerFocused = (windowId: string | null) => {
   composerFocused = windowId;
 };
 
-export const chatSupported = oxySignInAvailable;
-export const useChatSupported = () => useOxySession((s) => s.available);
 
 export function openChatPanel(windowId: string, options: { focus?: boolean } = {}) {
   wantOxy();

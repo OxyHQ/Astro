@@ -101,8 +101,6 @@ function accessDescription(access: CalendarAccess, account: OxyAccount | null, c
       return "Checking your Oxy account…";
     case "signedOut":
       return "Sign in with your Oxy account to show your Nilo calendar. It’s the same account for all of Astro.";
-    case "unavailable":
-      return "Sign in with Oxy isn't available in this build yet.";
   }
 }
 

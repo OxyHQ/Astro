@@ -11,7 +11,7 @@ export function useChatRoute(windowId: string): { signIn: boolean } | null {
   const on = useBrowser((s) => s.settings.aiCommandBarChat !== false && !s.windows[windowId]?.incognito);
   const chat = useChatAvailable();
   const signedIn = useOxySession((s) => !!s.account);
-  const offersSignIn = useOxySession((s) => s.available && s.resolved && !s.account);
+  const offersSignIn = useOxySession((s) => s.resolved && !s.account);
   return useMemo(() => (on && chat && (signedIn || offersSignIn) ? { signIn: !signedIn } : null), [on, chat, signedIn, offersSignIn]);
 }
 

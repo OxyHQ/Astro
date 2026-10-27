@@ -1,6 +1,5 @@
 import type { BrowserCommand, MenuShortcut, ShortcutModifier } from "@astro-browser-real/shell";
 import { emitAppEvent, emitCommand } from "@astro-browser/shell";
-import { oxySignInAvailable as chatAvailable } from "../../../../../browser/src/oxy/session";
 import { menuState } from "../../../../../browser/src/lib/native";
 import { useBrowser } from "../../../../../browser/src/store/browser";
 import { provideNativeModule } from "../../expo-modules-core";
@@ -228,7 +227,7 @@ const CHAT_ENTRIES: Entry[] = menu(["View"], [
 
 const withoutChatKey = (entry: Entry): Entry => (entry.command === "useSelectionForFind" ? { ...entry, key: "", mods: [] } : entry);
 
-const entries = () => (chatAvailable() ? [...CHAT_ENTRIES, ...STATIC_ENTRIES.map(withoutChatKey), ...dynamicEntries()] : [...STATIC_ENTRIES, ...dynamicEntries()]);
+const entries = () => [...CHAT_ENTRIES, ...STATIC_ENTRIES.map(withoutChatKey), ...dynamicEntries()];
 
 const SHIFTED: Record<string, string> = {
   "+": "=", "{": "[", "}": "]", ":": ";", _: "-", '"': "'", "<": ",", ">": ".", "?": "/", "|": "\\", "~": "`",
@@ -293,7 +292,7 @@ function bindings(overrides: Record<string, string[]>): Binding[] {
   return result;
 }
 
-type Table = { overrides: Record<string, string[]>; profiles: unknown; extensions: string; chat: boolean; byCombo: Map<string, Binding> };
+type Table = { overrides: Record<string, string[]>; profiles: unknown; extensions: string; byCombo: Map<string, Binding> };
 let cached: Table | null = null;
 
 function table(): Table {
@@ -302,14 +301,13 @@ function table(): Table {
   const extensions = Object.keys(overrides).some((id) => id.startsWith("openExtension:"))
     ? (menuState(state).extensions ?? []).map((x) => x.id).join()
     : "";
-  const chat = chatAvailable();
-  if (!cached || cached.overrides !== overrides || cached.profiles !== state.profileOrder || cached.extensions !== extensions || cached.chat !== chat) {
+  if (!cached || cached.overrides !== overrides || cached.profiles !== state.profileOrder || cached.extensions !== extensions) {
     const byCombo = new Map<string, Binding>();
     for (const binding of bindings(overrides)) {
       const id = comboId(binding.key, binding.mods);
       if (!byCombo.has(id)) byCombo.set(id, binding);
     }
-    cached = { overrides, profiles: state.profileOrder, extensions, chat, byCombo };
+    cached = { overrides, profiles: state.profileOrder, extensions, byCombo };
   }
   return cached;
 }

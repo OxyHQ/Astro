@@ -63,8 +63,7 @@ function updateItems(): { help: MenuItem[]; ready: MenuItem[] } {
 }
 
 function accountItems(): MenuItem[] {
-  const { available, resolved, account } = useOxySession.getState();
-  if (!available) return [];
+  const { resolved, account } = useOxySession.getState();
   if (!account) return [{ id: SIGN_IN, title: resolved ? "Sign In with Oxy…" : "Oxy Account…", symbol: "person.crop.circle" }, separator];
   const detail = [account.handle && account.handle !== account.name ? `@${account.handle}` : "", account.email ?? ""].filter(Boolean).join(" · ");
   return [

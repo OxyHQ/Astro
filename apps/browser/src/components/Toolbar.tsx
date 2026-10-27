@@ -24,7 +24,6 @@ import { useHover } from "./primitives";
 import { ToolbarExtensions, useToolbarExtensionsWidth } from "./extensions/ToolbarExtensions";
 import { GlassFill, liquidGlass } from "./glass";
 import { ChatButton, CHAT_BUTTON_ROOM } from "./chat/ChatButton";
-import { useChatSupported } from "../ai/chat/actions";
 import { TranslateButton } from "./site/TranslateControls";
 import { ZoomIndicator } from "./site/ZoomControls";
 
@@ -66,8 +65,7 @@ export function Toolbar({
   const palette = toolbarPalette(theme, website);
   const band = useEasedColor(bare ? null : palette.background);
   const history = useHistoryAvailability(tabId);
-  const chatRoom = useChatSupported() ? CHAT_BUTTON_ROOM : 0;
-  const extensionsWidth = useToolbarExtensionsWidth(windowId) + chatRoom;
+  const extensionsWidth = useToolbarExtensionsWidth(windowId) + CHAT_BUTTON_ROOM;
   useEffect(() => setToolbarExtensionsWidth(windowId, extensionsWidth), [windowId, extensionsWidth]);
   const dim = useRef(new Animated.Value(focused ? 1 : 0.5)).current;
   const dimmedFor = useRef(focused);
@@ -107,8 +105,8 @@ export function Toolbar({
         <HistoryButton style={at.back} tabId={tab.id} windowId={tab.windowId} direction={-1} disabled={!history.back} palette={palette} onFocus={focus} />
         <HistoryButton style={at.forward} tabId={tab.id} windowId={tab.windowId} direction={1} disabled={!history.forward} palette={palette} onFocus={focus} />
         <ReloadButton style={at.reload} tab={tab} loading={isLoading} palette={palette} onFocus={focus} />
-        <ToolbarExtensions tabId={tab.id} windowId={windowId} palette={palette} top={21.2 - 14} right={(inSplit ? 8 + 60 : 8) + chatRoom} />
-        {chatRoom > 0 && <ChatButton windowId={windowId} palette={palette} style={{ position: "absolute", top, right: inSplit ? 8 + 60 : 8 }} />}
+        <ToolbarExtensions tabId={tab.id} windowId={windowId} palette={palette} top={21.2 - 14} right={(inSplit ? 8 + 60 : 8) + CHAT_BUTTON_ROOM} />
+        <ChatButton windowId={windowId} palette={palette} style={{ position: "absolute", top, right: inSplit ? 8 + 60 : 8 }} />
         {tab.url ? (
           <UrlField tab={tab} palette={palette} windowId={windowId} inSplit={inSplit} onFocus={focus} style={urlStyle} />
         ) : null}
