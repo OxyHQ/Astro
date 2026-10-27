@@ -29,10 +29,17 @@ type ChatEntryState = { opener: ChatOpener | null };
 
 export const useChatEntry = create<ChatEntryState>()(() => ({ opener: null }));
 
+const openers: { opener: ChatOpener }[] = [];
+
 export function registerChatOpener(opener: ChatOpener): () => void {
+  const entry = { opener };
+  openers.push(entry);
   useChatEntry.setState({ opener });
   return () => {
-    if (useChatEntry.getState().opener === opener) useChatEntry.setState({ opener: null });
+    const index = openers.indexOf(entry);
+    if (index < 0) return;
+    openers.splice(index, 1);
+    useChatEntry.setState({ opener: openers.at(-1)?.opener ?? null });
   };
 }
 
