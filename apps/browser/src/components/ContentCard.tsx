@@ -56,9 +56,10 @@ import { CastPicker } from "./media/CastPicker";
 import { DeviceChooser } from "./site/DeviceChooser";
 import { setNowPlaying, setPictureInPictureState } from "./media/state";
 import { Toolbar, ToolbarBackdrop, urlFieldRight } from "./Toolbar";
-import { AutoHideBackdrop, AutoHideToolbar, useToolbarMode, useToolbarMotion } from "./AutoHideToolbar";
+import { ToolbarSummary, useToolbarBand, useToolbarMode } from "./AutoHideToolbar";
+import { AutoHideBarBody, AutoHideBarRegion, useAutoHideBar } from "@oxy.so/bloom/layout";
 import { publishPaneChrome, WindowToolbar } from "./WindowToolbar";
-import { noteScroll, revealToolbar } from "./layout/toolbarAutoHide";
+import { noteScroll, revealToolbar, STRIP_HEIGHT } from "./layout/toolbarAutoHide";
 import { NavigationOverlays } from "./layout/SwipeOverlay";
 import "./layout/devExpose";
 import { closeWebNotification, showWebNotification } from "../lib/webNotifications";
@@ -244,7 +245,6 @@ export function ContentCard() {
       ...(split.stack && stackWeights ? { stackSizes: [stackWeights[0]! / stackTotal, stackWeights[1]! / stackTotal] as [number, number] } : {}),
     });
   };
-  const cardColor = useTheme().card;
   const visibleSet = useMemo(() => new Set(panes), [panes]);
   const layoutKey = JSON.stringify([slots, split?.sizes, split?.stack?.sizes, split?.orientation]);
   const panels = useMemo(() => {
@@ -256,10 +256,10 @@ export function ContentCard() {
         id: key,
         visible,
         stack: visible && stacked?.includes(tabId) ? STACK : undefined,
+        hiddenPresentation: warmIds.has(tabId) ? ("behind" as const) : undefined,
         resizable: !!split && !fullscreenTab,
         minWidth: MIN_PANE,
         minHeight: MIN_PANE,
-        surfaceColor: cardColor,
         content: (
           <TabPane
             tabId={tabId}
@@ -282,7 +282,7 @@ export function ContentCard() {
         ),
       };
     });
-  }, [paneKeys, shown, visibleSet, stacked, split, fullscreenTab, windowId, activeId, leadingTab, addressInSidebar, small, tabLayout, showSidebarButton, hideWhileScrolling, mountedIds, warmIds, barMode, windowToolbar, layoutKey, cardColor]);
+  }, [paneKeys, shown, visibleSet, stacked, split, fullscreenTab, windowId, activeId, leadingTab, addressInSidebar, small, tabLayout, showSidebarButton, hideWhileScrolling, mountedIds, warmIds, barMode, windowToolbar, layoutKey]);
 
   return (
     <View
@@ -389,15 +389,22 @@ const TabPane = memo(function TabPane({
   const hideBar = autoHide && visible && !fullscreen;
   const mode = useToolbarMode(tabId, windowId, hideBar);
   const bookmarksBar = bookmarksBarShown(barMode, own.exists ? own : undefined) && !fullscreen && !inSplit && !small;
-  const doc = pageKey(own.url);
   const autoLayout = autoHide && toolbar && !fullscreen;
-  const motion = useToolbarMotion({ enabled: autoLayout, mode, height: frame.height, extra: bookmarksBar ? BOOKMARKS_BAR_HEIGHT : 0, doc });
+  const band = useToolbarBand(tabId);
+  const controller = useAutoHideBar({
+    collapsed: autoLayout && mode !== "shown",
+    height: autoLayout ? layout.toolbarHeight : 0,
+    collapsedHeight: STRIP_HEIGHT,
+    onReveal: () => revealToolbar(tabId),
+    background: band,
+    revealLabel: "Show Toolbar",
+  });
   useEffect(() => {
     if (visible) revealToolbar(tabId);
   }, [visible]);
   const chromeInWindow = hideBar && windowToolbar;
   useLayoutEffect(() => {
-    if (chromeInWindow) publishPaneChrome(windowId, { tabId, mode, bar: motion.bar, fade: motion.fade });
+    if (chromeInWindow) publishPaneChrome(windowId, { tabId, controller });
   });
 
   return (
@@ -423,9 +430,10 @@ const TabPane = memo(function TabPane({
         <View style={{ height: layout.toolbarHeight }} />
       )}
       {!autoLayout && bookmarksBar && <BookmarksBar placeholder={!visible} />}
-      <Animated.View style={autoLayout ? motion.groupStyle : { flex: 1 }}>
+      <View style={{ flex: 1 }}>
+        <AutoHideBarBody controller={controller}>
         {autoLayout && bookmarksBar && <BookmarksBar placeholder={!visible} />}
-        <View style={autoLayout ? { height: motion.pageHeight } : { flex: 1 }}>
+        <View style={{ flex: 1 }}>
           {visible && !fullscreen && (focused || !inSplit) && <CliControlBar />}
           {visible && !fullscreen && <ShareBar tabId={tabId} />}
           <View style={{ flex: 1 }}>
@@ -436,9 +444,9 @@ const TabPane = memo(function TabPane({
               <>
                 <FindBar tabId={tabId} />
                 {fullscreen && <CliControlPill />}
-                <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, autoLayout && motion.bottomStyle]}>
+                <View pointerEvents="none" style={StyleSheet.absoluteFill}>
                   <StatusBubble tabId={tabId} maxWidth={Math.max(160, frame.width / 2)} />
-                </Animated.View>
+                </View>
                 <SadTab tabId={tabId} />
                 {!newTabShown && <PermissionPrompt tabId={tabId} left={Math.max(POPOVER_MARGIN, Math.min(geometry.urlLeft, frame.width - 308))} top={POPOVER_MARGIN} />}
                 <PasswordPrompt tabId={tabId} right={POPOVER_MARGIN} top={POPOVER_MARGIN} />
@@ -456,9 +464,15 @@ const TabPane = memo(function TabPane({
             )}
           </View>
         </View>
-      </Animated.View>
-      {hideBar && <AutoHideBackdrop tabId={tabId} mode={mode} motion={motion} />}
-      {hideBar && !windowToolbar && <AutoHideToolbar tabId={tabId} geometry={geometry} windowId={windowId} inSplit={inSplit} focused={focused || !inSplit} mode={mode} motion={motion} />}
+        </AutoHideBarBody>
+      </View>
+      {hideBar && !windowToolbar && (
+        <AutoHideBarRegion
+          controller={controller}
+          bar={<Toolbar tabId={tabId} geometry={geometry} windowId={windowId} inSplit={inSplit} focused={focused || !inSplit} bare />}
+          summary={<ToolbarSummary tabId={tabId} />}
+        />
+      )}
     </View>
   );
 });
