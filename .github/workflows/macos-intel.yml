@@ -127,14 +127,52 @@ jobs:
       state_key: ${{ needs.plan.outputs.state_key }}
       state_run: ${{ github.run_id }}
 
+  engine_9:
+    needs: [plan, engine_8]
+    if: needs.engine_8.outputs.status == 'running'
+    uses: ./.github/workflows/macos-intel-engine-phase.yml
+    with:
+      phase: 9
+      engine_key: ${{ needs.plan.outputs.engine_key }}
+      state_key: ${{ needs.plan.outputs.state_key }}
+      state_run: ${{ github.run_id }}
+  engine_10:
+    needs: [plan, engine_9]
+    if: needs.engine_9.outputs.status == 'running'
+    uses: ./.github/workflows/macos-intel-engine-phase.yml
+    with:
+      phase: 10
+      engine_key: ${{ needs.plan.outputs.engine_key }}
+      state_key: ${{ needs.plan.outputs.state_key }}
+      state_run: ${{ github.run_id }}
+  engine_11:
+    needs: [plan, engine_10]
+    if: needs.engine_10.outputs.status == 'running'
+    uses: ./.github/workflows/macos-intel-engine-phase.yml
+    with:
+      phase: 11
+      engine_key: ${{ needs.plan.outputs.engine_key }}
+      state_key: ${{ needs.plan.outputs.state_key }}
+      state_run: ${{ github.run_id }}
+  engine_12:
+    needs: [plan, engine_11]
+    if: needs.engine_11.outputs.status == 'running'
+    uses: ./.github/workflows/macos-intel-engine-phase.yml
+    with:
+      phase: 12
+      engine_key: ${{ needs.plan.outputs.engine_key }}
+      state_key: ${{ needs.plan.outputs.state_key }}
+      state_run: ${{ github.run_id }}
   app:
-    needs: [plan, engine_1, engine_2, engine_3, engine_4, engine_5, engine_6, engine_7, engine_8]
+    needs: [plan, engine_1, engine_2, engine_3, engine_4, engine_5, engine_6, engine_7, engine_8, engine_9, engine_10, engine_11, engine_12]
     if: >-
       always() && !cancelled() && (needs.plan.outputs.engine_run != '' ||
       needs.engine_1.outputs.status == 'finished' || needs.engine_2.outputs.status == 'finished' ||
       needs.engine_3.outputs.status == 'finished' || needs.engine_4.outputs.status == 'finished' ||
       needs.engine_5.outputs.status == 'finished' || needs.engine_6.outputs.status == 'finished' ||
-      needs.engine_7.outputs.status == 'finished' || needs.engine_8.outputs.status == 'finished')
+      needs.engine_7.outputs.status == 'finished' || needs.engine_8.outputs.status == 'finished' ||
+      needs.engine_9.outputs.status == 'finished' || needs.engine_10.outputs.status == 'finished' ||
+      needs.engine_11.outputs.status == 'finished' || needs.engine_12.outputs.status == 'finished')
     # The app needs the macOS 27 SDK (Xcode 27 runs only on Apple silicon); it still builds x86_64.
     runs-on: xcode-27
     timeout-minutes: 120
