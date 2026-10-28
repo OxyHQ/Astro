@@ -148,7 +148,7 @@ the operating system's recognizers are not used, as in Alia since SDK 15.
 inside a spoken conversation with a realtime model, which is a call, not dictation. Alia's route is batch. Astro makes
 it stream by cutting the recording at your pauses and sending each phrase as it ends, while you go on speaking, so the
 text arrives phrase by phrase. Each millisecond of audio is sent once, as one batch dictation would send it. Word by
-word partials can come when Kaana serves transcription sessions and Alia carries them: proposed as Kaana ADR 0006
+word partials can come when Kaana serves transcription sessions and Alia carries them: accepted as Kaana ADR 0006
 (OxyHQ/Kaana#233) and Alia ADR 0024 (OxyHQ/Alia#922), with this path kept as the fallback.
 
 | What | Where |
