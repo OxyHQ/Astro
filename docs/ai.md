@@ -598,7 +598,7 @@ settings app URLs' `apps`, `skills` and `personalization` sections open them (`c
 A field saves when you press ↩ or leave it; a refused save puts the old value back and says so. The memory profile is
 Alia's, so it is the same in the Alia app; one chat can still leave it out (⋯ › Personalization for This Chat). The SDK's
 `useAliaApi()` has no PUT, so the bridge in `oxy/ChatHost.tsx` adds one (`ai/alia/put.ts`) through the same linked Oxy
-client, with its refresh and 401 replay.
+client, with its refresh and 401 replay. Alia #920 (SDK 22.5.0) adds `put` to the SDK; once it ships, `put.ts` goes.
 
 What Dia's Apps pane holds besides connections was inferred: Dia's settings list "Apps (connections, Morning Brief,
 New Chat)", and Astro's New Chat choices are the two a new chat starts from.
