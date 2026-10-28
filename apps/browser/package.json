@@ -12,7 +12,7 @@
     "test": "node --no-warnings --import ./src/test-loader.mjs --test \"src/**/*.test.mjs\""
   },
   "dependencies": {
-    "@alia.onl/sdk": "^22.7.0",
+    "@alia.onl/sdk": "^22.8.0",
     "@astro-browser/astrocore": "workspace:*",
     "@astro-browser/core": "workspace:*",
     "@astro-browser/import": "workspace:*",
