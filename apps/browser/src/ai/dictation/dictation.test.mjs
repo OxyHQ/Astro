@@ -380,3 +380,110 @@ test("the test endpoint takes only loopback with a bearer", () => {
   assert.equal(dictation.setDictationTestEndpoint("http://127.0.0.1:8796", "x"), true);
   assert.equal(dictation.setDictationTestEndpoint(null), true);
 });
+
+const { Upsampler, STREAM_SAMPLE_RATE } = await import("./audio.ts");
+
+function streamRig() {
+  const streams = [];
+  const unregister = dictation.registerDictationStreamer(({ language, onEvent, signal }) => {
+    const stream = { language, onEvent, signal, bytes: 0, appended: 0, ended: 0, closed: 0, finish: null };
+    stream.handle = {
+      append: (pcm) => {
+        stream.bytes += pcm.length;
+        stream.appended++;
+      },
+      end: () => {
+        stream.ended++;
+        return new Promise((resolve) => (stream.finish = resolve));
+      },
+      close: () => stream.closed++,
+    };
+    streams.push(stream);
+    return stream.handle;
+  });
+  return { streams, done: unregister };
+}
+
+test("with a streamer, words arrive as Alia hears them and no phrase is uploaded", async () => {
+  const r = rig();
+  const s = streamRig();
+  await dictation.beginDictation("bar", r.sink);
+  const stream = s.streams[0];
+  assert.ok(stream, "no stream was opened");
+  stream.onEvent({ type: "dictation.ready", maxDurationMs: 300_000 });
+  r.play(join(silence(500), speech(1500), silence(800)));
+  assert.equal(r.sent.length, 0);
+  assert.ok(Math.abs(stream.bytes - ms(2800) * 1.5 * 2) <= 2 * stream.appended * 2, `appended ${stream.bytes} bytes`);
+  stream.onEvent({ type: "transcript.interim", segment: 0, text: "hello wor" });
+  stream.onEvent({ type: "transcript.delta", segment: 0, text: "hello world" });
+  stream.onEvent({ type: "transcript.interim", segment: 0, text: "hello world how" });
+  stream.onEvent({ type: "transcript.final", segment: 0, text: "Hello world, how are you?" });
+  stream.onEvent({ type: "transcript.interim", segment: 1, text: "fine" });
+  assert.deepEqual(r.shown, ["hello wor", "hello world", "hello world how", "Hello world, how are you?", "Hello world, how are you? fine"]);
+  const finished = dictation.endDictation("bar");
+  assert.equal(stream.ended, 1);
+  assert.equal(dictation.useDictation.getState().phase, "finishing");
+  stream.onEvent({ type: "transcript.final", segment: 1, text: "Fine." });
+  stream.finish("ended");
+  await finished;
+  assert.equal(r.shown.at(-1), "Hello world, how are you? Fine.");
+  assert.equal(dictation.useDictation.getState().phase, "idle");
+  assert.equal(r.sent.length, 0);
+  s.done();
+  r.done();
+});
+
+test("a stream refused before it is ready falls back to phrases, losing no audio", async () => {
+  const r = rig();
+  const s = streamRig();
+  await dictation.beginDictation("bar", r.sink);
+  const stream = s.streams[0];
+  r.play(join(silence(500), speech(1500), silence(800)));
+  assert.equal(r.sent.length, 0);
+  stream.onEvent({ type: "error", code: "TRANSCRIPTION_UNAVAILABLE", message: "x", retryable: false });
+  assert.equal(stream.closed, 1);
+  assert.equal(r.sent.length, 1);
+  r.play(join(speech(1300), silence(800)));
+  assert.equal(r.sent.length, 2);
+  stream.onEvent({ type: "transcript.final", segment: 0, text: "ignored" });
+  await dictation.endDictation("bar");
+  assert.deepEqual(r.shown, ["part 0", "part 0 part 1"]);
+  s.done();
+  r.done();
+});
+
+test("a stream that fails after it is ready stops with its code and keeps the final text", async () => {
+  const r = rig();
+  const s = streamRig();
+  await dictation.beginDictation("bar", r.sink);
+  const stream = s.streams[0];
+  stream.onEvent({ type: "dictation.ready", maxDurationMs: 300_000 });
+  stream.onEvent({ type: "transcript.final", segment: 0, text: "Kept." });
+  stream.onEvent({ type: "error", code: "TRANSCRIPTION_LIMITED", message: "x", retryable: true });
+  assert.equal(dictation.useDictation.getState().error?.code, "limited");
+  assert.equal(dictation.useDictation.getState().phase, "idle");
+  assert.equal(r.shown.at(-1), "Kept.");
+  assert.equal(r.closed, 1);
+  assert.equal(stream.closed, 1);
+  s.done();
+  r.done();
+});
+
+test("the stream's audio is the capture upsampled to 24 kHz PCM16, continuous across chunks", () => {
+  assert.equal(STREAM_SAMPLE_RATE, 24_000);
+  const audio = speech(1000);
+  const whole = new Upsampler().push(audio);
+  const chunked = new Upsampler();
+  const parts = [];
+  for (let at = 0; at < audio.length; at += 333) parts.push(chunked.push(audio.slice(at, at + 333)));
+  const joined = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const part of parts) {
+    joined.set(part, at);
+    at += part.length;
+  }
+  assert.deepEqual(joined, whole);
+  assert.ok(Math.abs(whole.length / 2 - ms(1000) * 1.5) <= 2, `${whole.length / 2} samples`);
+  const view = new DataView(whole.buffer);
+  assert.ok(Math.abs(view.getInt16(2 * 3, true) / 0x7fff - audio[2]) < 1e-3, "every third output sample is an input sample");
+});

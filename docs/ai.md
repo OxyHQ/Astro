@@ -143,19 +143,26 @@ under Oxy's `alia-kaana` `audio_transcriptions` terms (at most 300 000 ms and US
 terms of its own on its `product_session` lane (ADR 0050 gives it `responses` only) and names no model. The browser's and
 the operating system's recognizers are not used, as in Alia since SDK 15.
 
-**Why phrases, not words.** Oxy's stack has no streaming transcription yet: Kaana serves no `transcription` session
-(`~/Oxy/oxy/docs/inference/realtime.md` › "What is not served yet"), and its realtime input transcription exists only
-inside a spoken conversation with a realtime model, which is a call, not dictation. Alia's route is batch. Astro makes
-it stream by cutting the recording at your pauses and sending each phrase as it ends, while you go on speaking, so the
-text arrives phrase by phrase. Each millisecond of audio is sent once, as one batch dictation would send it. Word by
-word partials can come when Kaana serves transcription sessions and Alia carries them: accepted as Kaana ADR 0006
-(OxyHQ/Kaana#233) and Alia ADR 0024 (OxyHQ/Alia#922), with this path kept as the fallback.
+**Words as you speak, phrases as the fallback.** A dictation opens Alia's streaming dictation,
+`GET {alia}/v1/audio/transcriptions/stream` (Alia ADR 0024, `@alia.onl/sdk/dictation` `openDictationStream`), which
+Alia serves as one Kaana transcription session on xAI's streaming speech-to-text (Kaana ADR 0006): the microphone's audio
+is sent as it is captured, upsampled from 16 kHz to the stream's 24 kHz PCM16, and the field shows each utterance's
+provisional words about every half second, its locked words, then its final text, which replaces them. One dictation is
+one request. Until the stream says it is ready, the phrases the segmenter cuts are held; if the stream is refused before
+then (Alia or Kaana not serving it yet, a dropped socket), Astro falls back to the phrase path below and sends the held
+phrases first, so no audio is lost. A stream that fails after it was ready stops the dictation with its code and keeps
+the text already final.
+
+**The phrase path.** `POST {alia}/v1/audio/transcriptions` is batch, so Astro cuts the recording at your pauses and sends
+each phrase as it ends, while you go on speaking, and the text arrives phrase by phrase. Each millisecond of audio is sent
+once.
 
 | What | Where |
 | --- | --- |
-| The session: start, phrases in order, finish, cancel, hold or toggle, errors, the call log | `ai/dictation/dictation.ts` |
+| The session: start, the stream or phrases in order, the fallback, finish, cancel, hold or toggle, errors, the call log | `ai/dictation/dictation.ts` |
 | Cutting at pauses (20 ms frames, an adaptive noise floor) | `ai/dictation/segmenter.ts` |
-| WAV encoding and the level meter | `ai/dictation/audio.ts` |
+| WAV encoding, the 24 kHz upsampler and the level meter | `ai/dictation/audio.ts` |
+| Alia's stream, its codes and the streamed transcript | `ai/dictation/stream.ts` (registered by `oxy/ChatHost.tsx` with the session's linked token) |
 | Alia's request and its refusals | `@alia.onl/sdk/dictation` (`requestTranscription`, the request Alia's own composer makes); `ai/dictation/alia.ts` turns its refusals into Astro's codes and is registered by `oxy/ChatHost.tsx` with the session's linked fetch for Alia |
 | Joining phrases, putting them at the caret, the language | `ai/dictation/transcript.ts` |
 | The bar's mic (live level bars, spinner, error), the composer's strip | `components/dictation/DictationMic.tsx`, `components/chat/ChatComposer.tsx` |
