@@ -8,6 +8,7 @@ import { redactForModel } from "../safety/policy";
 import { approve, chatKey } from "./approvals";
 import { readPage } from "./pageContext";
 import { windowChat } from "./state";
+import { placeInWorkspace } from "./workspace";
 
 export { answerApproval, dropApprovals, useApprovals, type Approval, type ApprovalKind } from "./approvals";
 
@@ -81,8 +82,9 @@ async function run(windowId: string, action: AliaHostAction): Promise<AliaHostOu
         return { outcome: "rejected", detail: "The person declined." };
       const s = useBrowser.getState();
       const opener = activeTabId(s, windowId);
-      let last: string | undefined;
-      for (const url of urls) last = useBrowser.getState().newTab(windowId, { url, background: true, ...(opener ? { openerId: opener } : {}) });
+      const opened = urls.map((url) => useBrowser.getState().newTab(windowId, { url, background: true, ...(opener ? { openerId: opener } : {}) }));
+      placeInWorkspace(windowId, windowChat(windowId).conversationId ?? conversation, opened);
+      const last = opened.at(-1);
       if (last && input.background !== true) useBrowser.getState().activate(last);
       return { outcome: "applied", detail: `Opened ${urls.length} tab${urls.length > 1 ? "s" : ""}.` };
     }

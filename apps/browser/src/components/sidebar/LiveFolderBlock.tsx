@@ -2,6 +2,8 @@ import { ContextMenuArea, FadeLabel, Surface, Symbol } from "@astro-browser/shel
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
 import { useShallow } from "zustand/react/shallow";
+import { chatAboutLiveFolder } from "../../ai/chat/liveFolders";
+import { useChatAvailable } from "../../ai/chatEntry";
 import { closeTab } from "../../lib/actions";
 import { hex, layout, useTheme } from "../../lib/theme";
 import { COMPLETION_MS, errorText, openLiveItem, refreshFolder, statusText } from "../../live/engine";
@@ -116,6 +118,7 @@ function FolderHeader({ folderId, windowId, collapsed }: { folderId: string; win
   const unread = useLive((s) => (s.unread[folderId]?.length ?? 0) > 0);
   const status = useLive((s) => s.status[folderId]);
   const { hovered, hoverProps } = useHover();
+  const chat = useChatAvailable();
   if (!folder) return null;
   const updating = status?.state === "updating" || status?.state === "initializing";
   const sourceSite = SOURCES[folder.sources[0] ?? "github"].site;
@@ -151,7 +154,14 @@ function FolderHeader({ folderId, windowId, collapsed }: { folderId: string; win
               <HoverSlot
                 hovered={hovered && !updating}
                 width={22}
-                hover={<RefreshButton spinning={false} tooltip={statusText(folderId)} onPress={() => void refreshFolder(folderId)} />}
+                hover={
+                  <View style={{ flexDirection: "row", gap: 2 }}>
+                    {chat ? (
+                      <IconButton icon="sparkles" size={11} weight="semibold" box={22} radius={6} tooltip="Chat About This Folder" onPress={() => chatAboutLiveFolder(windowId, folderId)} />
+                    ) : null}
+                    <RefreshButton spinning={false} tooltip={statusText(folderId)} onPress={() => void refreshFolder(folderId)} />
+                  </View>
+                }
               >
                 {updating ? (
                   <RefreshButton spinning tooltip={statusText(folderId)} onPress={() => void refreshFolder(folderId)} />

@@ -14,6 +14,8 @@ import { RiCropLine } from "@oxy.so/bloom/icons/RiCropLine";
 import { RiDoubleQuotesL } from "@oxy.so/bloom/icons/RiDoubleQuotesL";
 import { RiFileImageLine } from "@oxy.so/bloom/icons/RiFileImageLine";
 import { RiMicOffLine } from "@oxy.so/bloom/icons/RiMicOffLine";
+import { RiGitPullRequestLine } from "@oxy.so/bloom/icons/RiGitPullRequestLine";
+import { RiFileList3Line } from "@oxy.so/bloom/icons/RiFileList3Line";
 import { RiGlobalLine } from "@oxy.so/bloom/icons/RiGlobalLine";
 import { RiSearchLine } from "@oxy.so/bloom/icons/RiSearchLine";
 import { RiSparklingLine } from "@oxy.so/bloom/icons/RiSparklingLine";
@@ -111,7 +113,7 @@ export function ChatComposer({
     {
       label: "Add",
       rows: [
-        { id: "mention", label: "Tabs…", description: "Type @ to mention a tab", icon: RiAtLine },
+        { id: "mention", label: "Tabs…", description: "Type @ to mention a tab or live folder", icon: RiAtLine },
         { id: "files", label: "Files…", icon: RiAttachment2 },
         { id: "screenshot", label: "Screenshot of This Tab", icon: RiCameraLine },
         { id: "screenshotArea", label: "Capture Area…", description: "Drag over the page", icon: RiCropLine },
@@ -297,6 +299,13 @@ const COMMAND_ICONS: Record<AstroCommand, typeof RiSearchLine> = {
 };
 
 function mentionSuggestion(candidate: MentionCandidate): ChatComposerSuggestion {
+  if (candidate.kind === "liveFolder")
+    return {
+      id: candidate.key,
+      label: candidate.title,
+      description: `Live folder · ${candidate.count} ${candidate.folderKind === "pullRequests" ? "pull requests" : "documents"}`,
+      icon: candidate.folderKind === "pullRequests" ? RiGitPullRequestLine : RiFileList3Line,
+    };
   if (candidate.kind === "group") return { id: candidate.key, label: candidate.title, description: `${candidate.count} tabs`, icon: RiStackLine };
   return { id: candidate.key, label: candidate.title, leading: <Favicon url={candidate.url} favicon={candidate.favicon} size={16} /> };
 }
@@ -367,7 +376,7 @@ function ContextChips({ windowId }: { windowId: string }) {
           key={item.id}
           icon={chipIcon(item)}
           label={chipLabel(item)}
-          {...(item.kind === "skill" ? { hint: item.title } : {})}
+          {...(item.kind === "skill" ? { hint: item.title } : item.kind === "liveFolder" ? { hint: "Live folder" } : {})}
           onRemove={() => removeChatContext(windowId, item.id)}
         />
       ))}
@@ -387,6 +396,8 @@ function chipIcon(item: ChatContextItem): ReactNode {
       return <Favicon url={item.url} size={12} />;
     case "skill":
       return <RiSparklingLine />;
+    case "liveFolder":
+      return item.folderKind === "pullRequests" ? <RiGitPullRequestLine /> : <RiFileList3Line />;
     default:
       return null;
   }
@@ -404,6 +415,8 @@ function chipLabel(item: ChatContextItem): string {
       return item.url.replace(/^https?:\/\/(www\.)?/, "");
     case "skill":
       return `/${item.name}`;
+    case "liveFolder":
+      return item.title;
     default:
       return "";
   }

@@ -21,6 +21,9 @@ import { chartsOf, isChartTool } from "./charts";
 import { artifactsOfTools, type Artifact } from "../../ai/artifacts/artifacts";
 import { ArtifactCard } from "../artifacts/ArtifactCard";
 import { AGENT_CONTINUE } from "../../ai/agent/session";
+import { askedIn, isQuietTool } from "../../ai/chat/questions";
+import { AskedCard } from "./AskedQuestions";
+import { ChatTodo } from "./ChatTodo";
 
 export type ThreadActions = {
   openLink: (url: string) => void;
@@ -159,19 +162,22 @@ const AssistantTurn = memo(function AssistantTurn({
   isLoading,
   last,
   failedTurn,
+  asking,
 }: {
   message: Message;
   actions: ThreadActions;
   isLoading: boolean;
   last: boolean;
   failedTurn: FailedTurn | null;
+  asking: string | null;
 }) {
   const text = textOf(message);
   const lifecycle = turnLifecycle(message, { isLoading, isLastAssistant: last, failedTurn });
   const live = lifecycle === "running" || lifecycle === "queued";
   const tools = message.toolInvocations ?? [];
   const charts = useMemo(() => chartsOf(tools), [tools]);
-  const steps = useMemo(() => tools.filter((tool) => !isChartTool(tool)), [tools]);
+  const steps = useMemo(() => tools.filter((tool) => !isChartTool(tool) && !isQuietTool(tool.toolName)), [tools]);
+  const asked = useMemo(() => askedIn(message), [message]);
   const made = useMemo(() => (actions.openArtifact ? artifactsOfTools(tools) : []), [tools, actions.openArtifact]);
   const thinking = message.thinking?.trim() ?? "";
   const failed = lifecycle === "failed";
@@ -204,12 +210,14 @@ const AssistantTurn = memo(function AssistantTurn({
           {thinking ? <AiChatMessageLine tone="secondary">{thinking}</AiChatMessageLine> : null}
         </AgentThinking>
       )}
+      <ChatTodo message={message} turn={lifecycle} />
       {steps.length > 0 && <ToolSteps tools={steps} />}
       {text ? (
         <Markdown streaming={live} onLinkPress={actions.openLink} renderCodeBlock={renderCodeBlock}>
           {text}
         </Markdown>
       ) : null}
+      {asked && asked.toolCallId !== asking && <AskedCard questions={asked.questions} />}
       {charts.map((chart) => (
         <ChatChart key={chart.id} chart={chart} />
       ))}
@@ -252,12 +260,14 @@ export function ChatThreadView({
   failedTurn,
   actions,
   empty,
+  asking = null,
 }: {
   messages: Message[];
   isLoading: boolean;
   failedTurn: FailedTurn | null;
   actions: ThreadActions;
   empty: ReactNode;
+  asking?: string | null;
 }) {
   const shown = messages.filter((m) => m.role !== "system" && !(m.role === "user" && getTextFromContent(m.content as never).trim() === AGENT_CONTINUE));
   const lastAssistant = [...shown].reverse().find((m) => m.role === "assistant");
@@ -272,7 +282,7 @@ export function ChatThreadView({
             {orphan && failedTurn.anchorMessageId === message.id && <FailedRow failedTurn={failedTurn} onRetry={actions.retry} />}
           </View>
         ) : (
-          <AssistantTurn key={message.id} message={message} actions={actions} isLoading={isLoading} last={message === lastAssistant} failedTurn={failedTurn} />
+          <AssistantTurn key={message.id} message={message} actions={actions} isLoading={isLoading} last={message === lastAssistant} failedTurn={failedTurn} asking={asking} />
         ),
       )}
     </AiChatThread>

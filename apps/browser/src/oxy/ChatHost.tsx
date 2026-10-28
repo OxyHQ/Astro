@@ -12,6 +12,7 @@ import { registerAliaApi } from "../ai/alia/api";
 import { startOAuthReturns } from "../ai/apps/oauthReturn";
 import { closeChat, isChatTabUrl, openChatFromEntry } from "../ai/chat/actions";
 import { useChat } from "../ai/chat/state";
+import { startWorkspaceFollow } from "../ai/chat/workspace";
 import { registerChatOpener } from "../ai/chatEntry";
 import { aliaTranscriber } from "../ai/dictation/alia";
 import { registerDictationTranscriber } from "../ai/dictation/dictation";
@@ -89,6 +90,7 @@ function useActiveSlot(windowId: string): string | null {
 }
 
 function WindowChat({ windowId }: { windowId: string }) {
+  useEffect(() => startWorkspaceFollow(windowId), [windowId]);
   const used = useChat((s) => !!s.windows[windowId]?.open);
   const slot = useActiveSlot(windowId);
   const [mounted, setMounted] = useState(false);

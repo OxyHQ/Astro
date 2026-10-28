@@ -1,5 +1,7 @@
 import { cleanUrl, markdownLink } from "@astro-browser/core";
 import { copyText, prompt, showMenu, type MenuItem } from "@astro-browser/shell";
+import { chatAboutLiveFolder } from "../../ai/chat/liveFolders";
+import { chatAvailable } from "../../ai/chatEntry";
 import { closeTab } from "../../lib/actions";
 import { calendarConnected, connectCalendar, openNiloCalendarSubscriptions, setCalendarHidden, useCalendar } from "../../live/calendar";
 import { deleteLiveFolder, newLiveFolder, openLiveItem, refreshFolder, statusText } from "../../live/engine";
@@ -46,6 +48,7 @@ export async function openLiveFolderMenu(windowId: string, folderId: string) {
   const choice = await showMenu([
     { id: "status", title: statusText(folderId), enabled: false },
     { id: "refresh", title: "Refresh", symbol: "arrow.clockwise", enabled: status?.state !== "updating" },
+    ...(chatAvailable() ? [{ id: "chat", title: "Chat About This Folder", symbol: "sparkles" }] : []),
     sep,
     ...(pr
       ? [
@@ -77,6 +80,7 @@ export async function openLiveFolderMenu(windowId: string, folderId: string) {
   ]);
   if (!choice) return;
   if (choice === "refresh") void refreshFolder(folderId);
+  else if (choice === "chat") chatAboutLiveFolder(windowId, folderId);
   else if (choice.startsWith("filter:")) {
     const key = choice.slice(7) as "authored" | "reviewRequests";
     updateFolder(folderId, { filters: { ...folder.filters, [key]: !folder.filters[key] } });

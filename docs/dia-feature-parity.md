@@ -269,7 +269,7 @@ string doesn't matter. Afterwards: `kill %1` for the server, quit the app, `rm -
 | Favicons | ✓ | ✅ | per-profile cache on disk keyed by page URL and host, downloaded by the tab's own browser (no cookies); incognito icons in memory only; no third-party service; Dia's EmptyFavicon fallback (WP5) |
 | Tabs keep running in background | ✓ | ✅ | |
 | Move tab to profile | ✓ | ✅ | with Dia's one-time data-loss warning; the page reloads in the new profile and moves to its Chrome window (ledger 11) |
-| Workspace / companion tab | ✓ (agent tasks) | ⏸ | an AI surface: the companion panel belongs to a Chat task |
+| Workspace / companion tab | ✓ (agent tasks) | 🟡 | tabs Chat opens for a task (`open_tabs`) go into that chat's workspace group (✦, named after the chat, the binding kept with the group); stepping into it shows that chat beside it and opens the panel (`docs/ai.md` › Chat) |
 | Copy URLs of selected tabs / all links as Markdown | ✓ | ✅ | |
 
 ## 3. Tab groups & live folders
@@ -287,7 +287,7 @@ string doesn't matter. Afterwards: `kill %1` for the server, quit the app, `rm -
 | GitHub / Bitbucket PR live folder (checks, stacks, review requests, hover preview) | ✓ | ✅ | the user supplies a token or their own OAuth app |
 | Documents live folder (Drive, Notion, Confluence) | ✓ | ✅ | same: user-supplied Google OAuth client / Notion / Confluence tokens |
 | Unread pip on live folders | ✓ | ✅ | |
-| Chat with a live folder | ✓ | ⏸ | |
+| Chat with a live folder | ✓ | 🟡 | Chat About This Folder (the folder's menu and its header's ✦ on hover) or `@` in the composer attaches the folder; each turn carries its current items (title, URL, repo, author, review, checks, conflicts, updated) |
 | Shared split view in sidebar | ✓ | ✅ | one row per split, a segment per pane |
 
 ## 4. Sidebar & layout
@@ -435,7 +435,7 @@ Everything in this section is deferred on purpose.
 | Content safety (sensitive sites, org DLP) | ✓ | 🟡 | `docs/ai.md` › Content safety: banking, health and password-manager sites stay out of Chat until shared (Share in This Chat / Always Share This Site), card numbers are removed from what's sent, and organizations set `AstroAIContentPolicy` (blocked and sensitive sites, redaction patterns, Alia's actions off) |
 | On‑device ML (router, skills classifier, embeddings via MLX) | ✓ | ⏸ | the router is rules, not a model (row above); no skills classifier or embeddings |
 | New Chat agent runtime (bundled Claude Code agent server) | ✓ | ⏸ | |
-| Ask‑user questions / to‑do list UI in chat | ✓ | ⏸ | |
+| Ask‑user questions / to‑do list UI in chat | ✓ | 🟡 | Alia's `askUserQuestion` docks above the composer as Bloom's `Questionnaire` (options, multi-select, Other, Skip), the answers go as the next message; Alia's plan (`planPreview`) is a to-do list (Bloom `AgentProgress`) ticked off as the turn's tools finish |
 
 ## 10. AI — Skills, artifacts, work features
 | Feature | Dia | Astro | Gap |

@@ -35,6 +35,7 @@ import { chatKey } from "../../ai/chat/approvals";
 import { AGENT_CONTINUE, endRun, noteContinuation, noteOutput, registerAgentStopper, resetAgentStop, shouldContinue, stopAgent } from "../../ai/agent/session";
 import { loadContentPolicy } from "../../ai/safety/policy";
 import {
+  addChatContext,
   personalizationOff,
   setPersonalizationOff,
   updateWindowChat,
@@ -62,6 +63,9 @@ import { moveFloatingChat } from "./ChatSlots";
 import { captureFullPage, startAreaCapture } from "./capture";
 import { ChatThreadView, type ThreadActions } from "./ChatThread";
 import { ToolApprovals } from "./ToolApproval";
+import { PendingQuestions } from "./AskedQuestions";
+import { pendingQuestions } from "../../ai/chat/questions";
+import { noteChatTitle } from "../../ai/chat/workspace";
 import { pickChatFiles } from "./files";
 import type { MentionCandidate } from "./mentions";
 import { powerLevelOf } from "./powerLevels";
@@ -182,6 +186,10 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
   useEffect(() => {
     if (thread.conversationId && !thread.conversationLoading) rememberArtifacts(thread.conversationId, thread.messages);
   }, [thread.messages, thread.conversationId, thread.conversationLoading]);
+
+  useEffect(() => {
+    if (thread.conversationId && thread.conversation?.title && thread.messages.length) noteChatTitle(thread.conversationId, thread.conversation.title);
+  }, [thread.conversationId, thread.conversation?.title, thread.messages.length]);
 
   useEffect(() => {
     if (!focusRequest) return;
@@ -317,6 +325,9 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
     [windowId, prepare, send],
   );
   const [editing, setEditing] = useState<string | null>(null);
+  const [skipped, setSkipped] = useState<string | null>(null);
+  const asked = useMemo(() => pendingQuestions(thread.messages, thread.isLoading || preparing), [thread.messages, thread.isLoading, preparing]);
+  const askedNow = asked && asked.toolCallId !== skipped ? asked : null;
 
   const submit = (text: string) => {
     if (editing) {
@@ -362,6 +373,10 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
           { id: chatItemId("tab"), kind: "tab", tabId: candidate.tabId, title: candidate.title, url: candidate.url, favicon: candidate.favicon },
         ],
       }));
+      return;
+    }
+    if (candidate.kind === "liveFolder") {
+      addChatContext(windowId, [{ id: chatItemId("live"), kind: "liveFolder", folderId: candidate.folderId, title: candidate.title, folderKind: candidate.folderKind }]);
       return;
     }
     const group = s.groups[candidate.groupId];
@@ -453,7 +468,22 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       onPowerLevel={(level) => useBrowser.getState().updateSettings({ chatPowerLevel: level })}
       editing={!!editing}
       onCancelEdit={cancelEdit}
-      question={<ToolApprovals windowId={windowId} />}
+      question={
+        <>
+          <ToolApprovals windowId={windowId} />
+          {askedNow && (
+            <PendingQuestions
+              key={askedNow.toolCallId}
+              asked={askedNow}
+              onAnswer={(text) => send(text)}
+              onSkip={() => {
+                setSkipped(askedNow.toolCallId);
+                updateWindowChat(windowId, { focusRequest: Date.now() });
+              }}
+            />
+          )}
+        </>
+      }
     />
   );
 
@@ -478,7 +508,7 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
                   {history ? (
                     <ChatHistory current={conversationId} onOpen={(id) => showChatConversation(windowId, id)} onNewChat={() => newChat(windowId)} />
                   ) : thread.conversationLoading ? null : (
-                    <ChatThreadView messages={thread.messages} isLoading={thread.isLoading} failedTurn={thread.failedTurn} actions={actions} empty={empty} />
+                    <ChatThreadView messages={thread.messages} isLoading={thread.isLoading} failedTurn={thread.failedTurn} actions={actions} empty={empty} asking={askedNow?.toolCallId ?? null} />
                   )}
                 </AiChatContainer>
               ),

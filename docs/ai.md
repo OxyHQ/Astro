@@ -238,6 +238,9 @@ and its history lists only them. Astro never names a model: the composer's level
 | Ask in the page's context menu | `apps/webui/src/host/selectionMenu.ts` → `astroSelectionMenu` (`ac_selection_menu.cc`; the hook in `RenderViewContextMenu`, `engine/astrocore/apply.sh`) |
 | Capture Area, Screenshot of Full Page | `components/chat/capture.ts`; the overlay `apps/webui/src/host/areaCapture.tsx`; `captureFullPage` in `apps/webui/src/shims/WebView.tsx` |
 | Charts in replies | `components/chat/charts.ts` (Alia's `canvas` tool), `ChatChart.tsx` (Bloom's chart cards) |
+| Questions, to-dos | `ai/chat/questions.ts` (reading `askUserQuestion` and `planPreview`, the answers' text, which to-dos are done), `components/chat/AskedQuestions.tsx`, `ChatTodo.tsx` |
+| Workspaces | `ai/chat/workspace.ts` (the group a chat's tabs go into, its name, following the active tab) |
+| Live folders in Chat | `ai/chat/liveFolders.ts` (the folder as the turn's context, Chat About This Folder) |
 
 The SDK hooks need the one `OxyProvider` (`useOxy`) and its React Query client, which live in the Oxy layer. So
 `ChatHost` renders each window's panel inside that tree and portals it into a container `div` it owns; the slots
@@ -287,6 +290,26 @@ and Linux; under the search item, as Chrome lists its own). It opens where it wa
   `close_tabs` (asks first) and `read_tab` (asks first for a tab you haven't shared; Alia waits for its answer within
   the turn, up to 45 s), and the page tools that act in your tabs (below, Acting in tabs). The question docks above the
   composer: Don't Allow, Always Allow in This Chat, Allow. Alia performs web search and page fetching itself.
+- **Questions.** When Alia needs a choice or a detail (her `askUserQuestion` tool: 1–4 questions of 2–4 options, the
+  card ends her turn), the questions dock above the composer as Bloom's `Questionnaire`: one at a time with step pills,
+  a pick moves on, multi-select ones take several, every one has an Other row to type into, Send ends it and ✕ skips
+  it. The answers go as your next message, one line per question (`Which city?` / `→ Rome`), so the thread reads as
+  what you said and the model reads the same text; the asked questions stay in her reply as a card. Typing a message
+  instead answers them too.
+- **To-dos.** For a task that takes several tools, Alia shows a plan first (`planPreview`, and `alia.plan_preview` on
+  the stream): it's a to-do list in her reply (Bloom's `AgentProgress`, "3 to-dos left"), ticked off as the turn's
+  later tools finish (a step is done when a tool with its `toolName` finishes, in order; steps before it with no tool
+  are done too) and all done when the turn completes. A stopped or failed turn leaves the rest unticked. The plan and
+  question tools don't show in the steps log. Alia sends no per-step progress, so it's inferred from the tool calls.
+- **Workspace.** Tabs Chat opens for a task (`open_tabs`) go into that chat's workspace: a tab group with ✦
+  (`symbol:sparkles`), named after the chat and renamed with it, whose `chatId` is the conversation (kept with the
+  group, so it survives a restart). Stepping into a workspace from another tab shows its chat in the panel, opening the
+  panel if it was closed; moving within it, or switching chats while in it, changes nothing.
+- **Live folders.** Chat About This Folder (the folder's menu, and ✦ beside refresh on its header while hovered) or
+  `@` in the composer (live folders are listed after groups) attaches a live folder as a chip. Like a mentioned tab it
+  stays for the chat, and each turn reads the folder again: one line per item with its title, URL and what the folder
+  knows (repo and number, author, draft, review state, conflicts, checks, unresolved threads, size, section, updated;
+  for documents the source, kind, place and last editor), up to 60 items.
 - **Personalization.** ⋯ › Personalization for This Chat (and + › Personalization on a new chat) turns it off for one
   conversation: its turns carry `personalization: false`, so Alia reads and writes no memory for them.
 
@@ -529,14 +552,14 @@ is Expo's `expo/fetch`. On macOS Metro maps `expo-secure-store` to Astro's keych
   `ai/skills/skills.test.mjs` (slugs, the `/` list, `/name` parsing, the Alia routes the shelf calls),
   `ai/work/brief.test.mjs` (brief, prep, recap), `ai/agent/agent.test.mjs` (the snapshot outline, what needs
   approval, keys, continuing a task), `ai/safety/safety.test.mjs` (sensitive sites, policies, redaction), `ai/artifacts/artifacts.test.mjs` (canvas results to artifacts,
-  versions, addresses, the revision request, exports), `ai/apps/apps.test.mjs` (the apps list, which apps are
-  available, connecting, finishing OAuth once and only after a connect) and `ai/work/suggestions.test.mjs`.
+  versions, addresses, the revision request, exports), `ai/apps/apps.test.mjs` (the apps list, which apps are available, connecting, finishing OAuth once and only after a connect), `ai/work/suggestions.test.mjs` and `ai/chat/tasks.test.mjs` (questions,
+  answers, the plan and its ticks, workspaces and following them, live folders in the turn and in `@`).
 - A Windows or Linux build against a local stack: `ASTRO_OXY_API_URL`, `ASTRO_NILO_API_URL`, `ASTRO_ALIA_API_URL` and
   `ASTRO_KAANA_URL` move together (`apps/webui/vite.config.ts` refuses a mix, so a local session never reaches a
   production origin; point one you don't run at a closed port such as `http://127.0.0.1:9`). `globalThis.astro.chat` is the chat store and `astro.oxy` the session;
   `astro.skills`, `astro.apps` and `astro.artifacts` are the stores above; `astro.agent` has the run, the open
   questions (`approvals`, `answer`), `tools(windowId).execute(action)` to call a host tool directly, `setPolicy` and
-  `context(windowId)` (the turn's context).
+  `context(windowId)` (the turn's context); `astro.live` the live folders, `astro.library` the library index.
   Launch it with `--host-resolver-rules="MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.alia.onl ~NOTFOUND,
   MAP kaana.ai ~NOTFOUND"` so nothing can reach production.
 - Keys and the context menu are tested with real input on a private Xvfb (XTest): a CDP key event never reaches the

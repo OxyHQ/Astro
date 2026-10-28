@@ -1,9 +1,11 @@
 import type { BrowserState } from "../../store/browser";
-import { viewTabIds } from "../../store/model";
+import { activeTabId, viewTabIds } from "../../store/model";
+import { live, profileFolders } from "../../live/store";
 
 export type MentionCandidate =
   | { kind: "tab"; key: string; tabId: string; title: string; url: string; favicon: string | null }
-  | { kind: "group"; key: string; groupId: string; title: string; count: number };
+  | { kind: "group"; key: string; groupId: string; title: string; count: number }
+  | { kind: "liveFolder"; key: string; folderId: string; title: string; count: number; folderKind: "pullRequests" | "documents" };
 
 const MAX = 8;
 
@@ -28,5 +30,12 @@ export function mentionCandidates(s: BrowserState, windowId: string, query: stri
       title: g.name || "Tab Group",
       count: g.tabIds.filter((id) => tabIds.includes(id)).length,
     }));
-  return [...groups, ...tabs].slice(0, MAX);
+  const active = activeTabId(s, windowId);
+  const profileId = (active ? s.tabs[active]?.profileId : undefined) ?? s.windows[windowId]?.profileId ?? "";
+  const store = live();
+  const folders: MentionCandidate[] = profileFolders(store, profileId)
+    .map((id) => store.folders[id]!)
+    .filter((f) => matches(query, f.name))
+    .map((f) => ({ kind: "liveFolder", key: `live:${f.id}`, folderId: f.id, title: f.name, count: store.items[f.id]?.length ?? 0, folderKind: f.kind }));
+  return [...groups, ...folders, ...tabs].slice(0, MAX);
 }

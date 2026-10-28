@@ -14,6 +14,7 @@ import { startTabPages } from "../../browser/src/lib/tabPages";
 import { startUserScripts } from "../../browser/src/lib/userScripts";
 import { setStoreBatching, useBrowser } from "../../browser/src/store/browser";
 import { useChat } from "../../browser/src/ai/chat/state";
+import { useLive } from "../../browser/src/live/store";
 import { useChatEntry } from "../../browser/src/ai/chatEntry";
 import { useOxySession } from "../../browser/src/oxy/session";
 import { dictationDebug } from "../../browser/src/ai/dictation/dictation";
@@ -53,7 +54,7 @@ startDictationCapture();
 startTabDragShare();
 setStoreBatching(unstable_batchedUpdates);
 
-Object.assign(globalThis, { astro: { store: useBrowser, emitCommand, oneShot: oneShotDebug, chat: useChat, chatEntry: useChatEntry, oxy: useOxySession, skills: useSkills, apps: useApps, artifacts: useArtifacts, dictation: dictationDebug, agent: agentDebug } });
+Object.assign(globalThis, { astro: { store: useBrowser, emitCommand, oneShot: oneShotDebug, chat: useChat, chatEntry: useChatEntry, oxy: useOxySession, skills: useSkills, apps: useApps, artifacts: useArtifacts, dictation: dictationDebug, agent: agentDebug, live: useLive } });
 
 const startPage = () =>
   startWindows(

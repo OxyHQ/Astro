@@ -103,6 +103,7 @@ export type TabGroup = {
   autoName?: string;
   autoIcon?: string;
   autoSig?: string;
+  chatId?: string;
 };
 
 export type SplitView = {
