@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Makes a fresh, patched Chromium tree in ~/chromium-build on a CI runner, through the engine's own steps
 # (docs/engine-build.md › "Rebuilding"): depot_tools and the pinned Helium checkouts, then steps 1, 3, 4 and 2,
-# each under the chromium lock. Step 1 is retried, since a googlesource fetch can drop mid-transfer.
+# each under the chromium lock. Step 1 is retried, since a googlesource fetch can drop mid-transfer. The out dir builds
+# with ninja (use_siso = false): it records each finished step as it goes, so a build stopped at a job's deadline
+# resumes where it stopped; siso started over.
 #
 #   AC_MAC_TARGET_CPU=x64 scripts/ci/macos-engine-prepare.sh
 set -euo pipefail
@@ -68,9 +70,13 @@ stage "Step 4: Astro's series"
 "${locked[@]}" "$build/04-series.sh" --apply
 done_stage
 
-stage "Step 2: GN args"
+stage "Step 2: GN args, built with ninja"
 "${locked[@]}" "$build/02-gn-args.sh" --apply
-cat "$cb/chromium_git/chromium/src/out/Release_GN_${AC_MAC_TARGET_CPU:-arm64}/args.gn"
+out_dir="out/Release_GN_${AC_MAC_TARGET_CPU:-arm64}"
+echo 'use_siso = false' >>"$cb/chromium_git/chromium/src/$out_dir/args.gn"
+"${locked[@]}" env PATH="$cb/depot_tools:$PATH" DEPOT_TOOLS_UPDATE=0 bash -c 'cd "$1" && gn gen "$2"' _ \
+  "$cb/chromium_git/chromium/src" "$out_dir"
+cat "$cb/chromium_git/chromium/src/$out_dir/args.gn"
 done_stage
 
 git -C "$repo" rev-parse HEAD >"$cb/ci-source-commit"
