@@ -50,22 +50,23 @@ jobs:
         run: scripts/ci/tools-from-branch.sh
       - name: Prepare the runner
         run: scripts/ci/macos-runner-prep.sh --free-disk
+      - name: Wait for disk
+        if: inputs.state_run != ''
+        run: scripts/ci/macos-runner-prep.sh --wait-free
       - name: Download the tree
         if: inputs.state_run != ''
-        uses: actions/download-artifact@v4
-        with:
-          name: engine-state-${{ inputs.cpu }}-${{ inputs.state_key }}
-          path: ${{ runner.temp }}/state
-          run-id: ${{ inputs.state_run }}
-          github-token: ${{ github.token }}
-      - name: Wait for disk
-        run: scripts/ci/macos-runner-prep.sh --wait-free
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/ci/macos-engine-state.sh fetch "$RUNNER_TEMP/state" "${{ inputs.state_run }}" "engine-state-${{ inputs.cpu }}-${{ inputs.state_key }}"
       - name: Unpack the tree
         if: inputs.state_run != ''
         run: scripts/ci/macos-engine-state.sh unpack "$RUNNER_TEMP/state"
       - name: Sync, patch and configure Chromium
         if: inputs.state_run == ''
         run: scripts/ci/macos-engine-prepare.sh
+      - name: Wait for disk
+        if: inputs.state_run == ''
+        run: scripts/ci/macos-runner-prep.sh --wait-free
       - name: Build
         id: build
         run: scripts/ci/macos-engine-build.sh --deadline $((AC_CI_START + 300 * 60))
