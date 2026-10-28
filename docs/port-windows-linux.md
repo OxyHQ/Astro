@@ -166,21 +166,43 @@ a DevTools client is attached, and the bridge keeps one on every tab, so a secon
 (`g_astro_debugger_attached` in `WebContentsImpl::ShouldIgnoreUnresponsiveRenderer`).
 
 The page script (`packages/astrocore/ios/page_script.js`, which the renderer runs in every frame on macOS) is injected by
-the bridge's internal DevTools client: `Page.addScriptToEvaluateOnNewDocument` installs it in every document, and it
+the bridge's internal DevTools client. It attaches to the tab's target, as Chrome's own DevTools does, not to the page:
+Chromium refuses to prerender while a session is attached to the page itself (`PrerenderingDisabledByDevTools`), so with
+the page-level session no tab ever prerendered. The tab target auto-attaches the tab's page, its prerendered pages and,
+on each of those, its cross-site (out-of-process) iframes, every one paused until the bridge has installed the script
+(`waitForDebuggerOnStart`, then `Runtime.runIfWaitingForDebugger`); a target in another WebContents (a new-tab
+prerender) is released. `Page.addScriptToEvaluateOnNewDocument` installs it in every document of each session, and it
 answers through `Runtime.addBinding` under a random name that the installer catches with a non-enumerable accessor first,
-so the page never holds the binding. `Runtime.enable` would carry bindings into new documents by itself, but it made a
+so the page never holds the binding. A message's `frame` is the bridge's own number for a (session, execution context)
+pair, so `callPage` reaches the frame that sent it in whichever process it runs (execution context ids repeat across
+processes). A prerendered page's messages wait until it is activated (`document.prerendering`, `prerenderingchange`),
+so a page the user hasn't opened never tints the toolbar. `Runtime.enable` would carry bindings into new documents by itself, but it made a
 page logging 20,000 objects take 690 ms instead of 82; the bridge re-adds the binding on frame events instead and the
 page queues its messages until then. The queue is sent a microtask after the binding arrives, not inside its setter:
 V8 marks a binding live in a DevTools session only once its setter returns, and a document in a new process (every
 first navigation away from about:blank or the new tab page, every cross-site one) has a new session, so the
 document's first messages (`hello`, the theme colour) were silently dropped. A page entering the back/forward cache
 queues again until the restored frame's session binds it anew. `apps/webui/scripts/page-messages.mjs` checks this in a
-hidden instance (`DISPLAY=:83 node apps/webui/scripts/page-messages.mjs --chrome <engine>`). Prerendering never runs in
-a tab: Chromium refuses it while a DevTools session is attached to the page itself rather than through its tab target
-(`PrerenderingDisabledByDevTools`), and the bridge's is. `host/pageChannel.ts` is the macOS dispatcher (`AstroCoreWebView`'s
+hidden instance (`DISPLAY=:83 node apps/webui/scripts/page-messages.mjs --chrome <engine>`), back/forward cache and
+prerender cases included. `host/pageChannel.ts` is the macOS dispatcher (`AstroCoreWebView`'s
 `didReceivePageMessage`) ported: selection (the Search popover), scroll (hiding the toolbar while scrolling), the page's
 theme colour (the toolbar tint), Now Playing and its controls (`mediaCommand` to the frame that plays), Picture in
 Picture, pinch zoom, dropped links, autoplay blocking from the site setting, and notifications.
+
+Back/forward cache: no tab in the window was ever restored from it. Chromium's sticky check meant to keep out a page
+that holds an inner WebContents also matched every document inside one (`HaveInnerContents`), and Webium's tabs are
+unowned inner WebContents of the window page; its reporting skipped them too (`IsCrossDocumentMainFrameHistoryNavigation`
+asks for no embedder), so neither DevTools nor the page's `notRestoredReasons` said why.
+`chromium-astro-bfcache-inner-contents.patch` makes a tab's own pages count as the outermost main frames they are: only an
+inner WebContents nested in the page blocks it, and the reasons reach DevTools (`Page.backForwardCacheNotUsed`) and the
+page again. A cached page survives the tab moving to another window (it shows and takes input there, also after the old
+window closes). `apps/webui/scripts/tab-navigation.mjs` checks, in tabs of a hidden instance, a Speculation Rules
+prerender activating (`document.prerendering` true, then false; its messages only after activation), the page script in a
+cross-site iframe (its hello, and a `callPage` back to it), and back and forward restored from the cache
+(`pageshow.persisted`, no `Page.backForwardCacheNotUsed`, the window showing the page), with a control whose unload
+handler keeps it out of the cache. On a local server (Linux `dev` build, 5 tabs): back 5 ms and forward 4 ms to
+`pageshow` from the cache, 14 and 15 ms reloaded (the control); before, every tab reloaded (16 to 49 ms), and a prerendered
+page now shows 6 ms after the navigation starts instead of 58.
 
 Prompts: AstroCore's Chromium hooks are in the Linux and Windows trees too (`engine/astrocore/apply.sh` applies on every
 platform), so the layer plugs Astro's own prompts into them, delivered to the window page that shows the tab

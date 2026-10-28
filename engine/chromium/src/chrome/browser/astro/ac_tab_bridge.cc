@@ -203,9 +203,13 @@ std::string PageScriptInstaller(const std::string& binding) {
          "  const queue = [];\n"
          "  let binding = null;\n"
          "  let offered = null;\n"
+         "  let prerendering = document.prerendering === true;\n"
          "  const deliver = (message) => { try { binding(message); } catch (e) {} };\n"
-         "  const bind = () => { binding = offered; offered = null;"
-         " for (const message of queue.splice(0)) deliver(message); };\n"
+         "  const ready = () => binding && !prerendering;\n"
+         "  const flush = () => { if (ready()) for (const message of queue.splice(0)) deliver(message); };\n"
+         "  const bind = () => { binding = offered; offered = null; flush(); };\n"
+         "  if (prerendering) document.addEventListener('prerenderingchange', (event) => {"
+         " if (event.isTrusted) { prerendering = false; later(flush); } }, true);\n"
          "  Object.defineProperty(globalThis, '" + binding + "', {\n"
          "    configurable: false, enumerable: false, get() { return undefined; },\n"
          "    set(fn) { if (binding || offered || typeof fn !== 'function') return;"
@@ -215,7 +219,7 @@ std::string PageScriptInstaller(const std::string& binding) {
          " if (event.isTrusted && event.persisted) binding = null; }, true);\n"
          "  const post = (kind, json) => {\n"
          "    const message = stringify([String(kind), String(json), top]);\n"
-         "    if (binding) deliver(message); else if (queue.length < " +
+         "    if (ready() && !queue.length) deliver(message); else if (queue.length < " +
          base::NumberToString(kMaxQueuedPageMessages) +
          ") queue.push(message);\n"
          "  };\n"
@@ -962,7 +966,28 @@ void TabBridge::Call(const std::string& method,
   std::move(done).Run(base::Value());
 }
 
+namespace {
+
 constexpr base::TimeDelta kEvaluationTimeout = base::Seconds(20);
+constexpr size_t kMaxFrames = 1024;
+constexpr size_t kMaxWaitingForPage = 256;
+
+base::DictValue AutoAttach() {
+  base::ListValue filter;
+  for (const char* type : {"worker", "shared_worker", "service_worker",
+                           "worklet", "shared_storage_worklet",
+                           "auction_worklet"}) {
+    filter.Append(base::DictValue().Set("type", type).Set("exclude", true));
+  }
+  filter.Append(base::DictValue());
+  return base::DictValue()
+      .Set("autoAttach", true)
+      .Set("waitForDebuggerOnStart", true)
+      .Set("flatten", true)
+      .Set("filter", std::move(filter));
+}
+
+}
 
 bool TabBridge::EnsureAgent() {
   if (agent_) {
@@ -971,26 +996,130 @@ bool TabBridge::EnsureAgent() {
   if (!web_contents()) {
     return false;
   }
-  agent_ = content::DevToolsAgentHost::GetOrCreateFor(web_contents());
+  agent_ = content::DevToolsAgentHost::GetOrCreateForTab(web_contents());
   if (!agent_ || !agent_->AttachClient(this)) {
     agent_ = nullptr;
     return false;
   }
+  SendProtocol("Target.setAutoAttach", AutoAttach(), std::string());
   return true;
 }
 
 void TabBridge::SendProtocol(const std::string& method,
-                             base::DictValue params) {
+                             base::DictValue params,
+                             const std::string& session) {
   if (!EnsureAgent()) {
     return;
   }
-  const std::string message =
-      base::WriteJson(base::DictValue()
-                          .Set("id", ++last_message_id_)
-                          .Set("method", method)
-                          .Set("params", std::move(params)))
-          .value_or("{}");
+  base::DictValue command = base::DictValue()
+                                .Set("id", ++last_message_id_)
+                                .Set("method", method)
+                                .Set("params", std::move(params));
+  if (!session.empty()) {
+    command.Set("sessionId", session);
+  }
+  const std::string message = base::WriteJson(command).value_or("{}");
   agent_->DispatchProtocolMessage(this, base::as_byte_span(message));
+}
+
+std::optional<std::string> TabBridge::PageSession() {
+  content::WebContents* contents = web_contents();
+  if (!contents) {
+    return std::nullopt;
+  }
+  const std::string target =
+      content::DevToolsAgentHost::GetOrCreateFor(contents)->GetId();
+  for (const auto& [session, session_target] : session_targets_) {
+    if (session_target == target) {
+      return session;
+    }
+  }
+  return std::nullopt;
+}
+
+void TabBridge::SendToPage(const std::string& method,
+                           base::DictValue params,
+                           int id) {
+  std::optional<std::string> session =
+      EnsureAgent() ? PageSession() : std::nullopt;
+  if (!session) {
+    if (waiting_for_page_.size() < kMaxWaitingForPage) {
+      waiting_for_page_.emplace_back(method, std::move(params), id);
+    }
+    return;
+  }
+  base::DictValue command = base::DictValue()
+                                .Set("id", id)
+                                .Set("method", method)
+                                .Set("params", std::move(params))
+                                .Set("sessionId", *session);
+  const std::string message = base::WriteJson(command).value_or("{}");
+  agent_->DispatchProtocolMessage(this, base::as_byte_span(message));
+}
+
+void TabBridge::SendWaitingToPage() {
+  if (waiting_for_page_.empty() || !PageSession()) {
+    return;
+  }
+  std::vector<std::tuple<std::string, base::DictValue, int>> waiting =
+      std::move(waiting_for_page_);
+  waiting_for_page_.clear();
+  for (auto& [method, params, id] : waiting) {
+    SendToPage(method, std::move(params), id);
+  }
+}
+
+void TabBridge::AttachedToTarget(const std::string& parent,
+                                 const base::DictValue& params) {
+  const std::string* session = params.FindString("sessionId");
+  const std::string* target = params.FindStringByDottedPath("targetInfo.targetId");
+  if (!session || !target) {
+    return;
+  }
+  scoped_refptr<content::DevToolsAgentHost> host =
+      content::DevToolsAgentHost::GetForId(*target);
+  if (!host || host->GetWebContents() != web_contents()) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&TabBridge::ReleaseSession,
+                                  weak_factory_.GetWeakPtr(), parent, *session));
+    return;
+  }
+  session_targets_[*session] = *target;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&TabBridge::SetUpSession,
+                                weak_factory_.GetWeakPtr(), *session));
+}
+
+void TabBridge::ReleaseSession(const std::string& parent,
+                               const std::string& session) {
+  if (!agent_) {
+    return;
+  }
+  SendProtocol("Runtime.runIfWaitingForDebugger", base::DictValue(), session);
+  SendProtocol("Target.detachFromTarget",
+               base::DictValue().Set("sessionId", session), parent);
+}
+
+void TabBridge::DetachedFromTarget(const std::string& session) {
+  session_targets_.erase(session);
+  std::erase_if(frame_ids_, [&session](const auto& entry) {
+    return entry.first.first == session;
+  });
+  std::erase_if(frames_, [&session](const auto& entry) {
+    return entry.second.first == session;
+  });
+}
+
+void TabBridge::SetUpSession(const std::string& session) {
+  if (!agent_ || !session_targets_.contains(session)) {
+    return;
+  }
+  if (page_script_installed_) {
+    InstallPageScriptIn(session);
+  }
+  SendProtocol("Target.setAutoAttach", AutoAttach(), session);
+  SendProtocol("Runtime.runIfWaitingForDebugger", base::DictValue(), session);
+  SendWaitingToPage();
 }
 
 void TabBridge::InstallPageScript() {
@@ -1002,24 +1131,48 @@ void TabBridge::InstallPageScript() {
     page_binding_ = "__astro" + base::HexEncode(crypto::RandBytesAsVector(
                                     kPageScriptBindingBytes));
   }
-  SendProtocol("Page.enable", base::DictValue());
+  for (const auto& [session, target] : session_targets_) {
+    InstallPageScriptIn(session);
+  }
+}
+
+void TabBridge::InstallPageScriptIn(const std::string& session) {
+  SendProtocol("Page.enable", base::DictValue(), session);
   SendProtocol("Page.addScriptToEvaluateOnNewDocument",
                base::DictValue()
                    .Set("source", PageScriptInstaller(page_binding_))
-                   .Set("runImmediately", true));
-  BindPageScript();
+                   .Set("runImmediately", true),
+               session);
+  BindPageScript(session);
 }
 
-void TabBridge::BindPageScript() {
+void TabBridge::BindPageScript(const std::string& session) {
   SendProtocol("Runtime.addBinding",
-               base::DictValue().Set("name", page_binding_));
+               base::DictValue().Set("name", page_binding_), session);
 }
 
-void TabBridge::PageScriptMessage(const base::DictValue& params) {
+int TabBridge::FrameFor(const std::string& session, int context) {
+  const std::pair<std::string, int> key(session, context);
+  if (auto it = frame_ids_.find(key); it != frame_ids_.end()) {
+    return it->second;
+  }
+  if (frames_.size() >= kMaxFrames) {
+    frame_ids_.erase(frames_.begin()->second);
+    frames_.erase(frames_.begin());
+  }
+  const int frame = ++last_frame_id_;
+  frame_ids_[key] = frame;
+  frames_[frame] = key;
+  return frame;
+}
+
+void TabBridge::PageScriptMessage(const std::string& session,
+                                  const base::DictValue& params) {
   const std::string* name = params.FindString("name");
   const std::string* payload = params.FindString("payload");
   std::optional<int> context = params.FindInt("executionContextId");
-  if (!name || *name != page_binding_ || !payload || !context ||
+  if (session.empty() || !session_targets_.contains(session) || !name ||
+      *name != page_binding_ || !payload || !context ||
       payload->size() > kMaxPageMessage) {
     return;
   }
@@ -1034,22 +1187,28 @@ void TabBridge::PageScriptMessage(const base::DictValue& params) {
   emit_.Run("pageScript", base::DictValue()
                               .Set("kind", (*parts)[0].GetString())
                               .Set("json", (*parts)[1].GetString())
-                              .Set("frame", *context)
+                              .Set("frame", FrameFor(session, *context))
                               .Set("main", (*parts)[2].GetBool()));
 }
 
 void TabBridge::CallPage(const std::string& kind,
                          const std::string& json,
-                         std::optional<int> context) {
+                         std::optional<int> frame) {
   const std::string expression =
       "(globalThis[Symbol.for('" + std::string(kPageScriptReceiver) +
       "')] || (() => {}))(" + base::WriteJson(base::Value(kind)).value_or("\"\"") +
       ", " + base::WriteJson(base::Value(json)).value_or("\"null\"") + ")";
   base::DictValue params = base::DictValue().Set("expression", expression);
-  if (context) {
-    params.Set("contextId", *context);
+  if (!frame) {
+    return SendToPage("Runtime.evaluate", std::move(params),
+                      ++last_message_id_);
   }
-  SendProtocol("Runtime.evaluate", std::move(params));
+  auto it = frames_.find(*frame);
+  if (it == frames_.end()) {
+    return;
+  }
+  params.Set("contextId", it->second.second);
+  SendProtocol("Runtime.evaluate", std::move(params), it->second.first);
 }
 
 void TabBridge::Evaluate(const std::string& code,
@@ -1064,23 +1223,18 @@ void TabBridge::Evaluate(const std::string& code,
       "new Promise((resolve) => { const post = (kind, json) => { if (kind === "
       "'result') resolve(json); }; (function(post){'use strict';\n" +
       code + "\n})(post); })";
-  const std::string message =
-      base::WriteJson(
-          base::DictValue()
-              .Set("id", id)
-              .Set("method", "Runtime.evaluate")
-              .Set("params", base::DictValue()
-                                 .Set("expression", expression)
-                                 .Set("awaitPromise", true)
-                                 .Set("userGesture", user_gesture)
-                                 .Set("returnByValue", true)))
-          .value_or("{}");
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&TabBridge::Answer, weak_factory_.GetWeakPtr(), id,
                      base::Value()),
       kEvaluationTimeout);
-  agent_->DispatchProtocolMessage(this, base::as_byte_span(message));
+  SendToPage("Runtime.evaluate",
+             base::DictValue()
+                 .Set("expression", expression)
+                 .Set("awaitPromise", true)
+                 .Set("userGesture", user_gesture)
+                 .Set("returnByValue", true),
+             id);
 }
 
 void TabBridge::Answer(int id, base::Value result) {
@@ -1097,21 +1251,35 @@ void TabBridge::DispatchProtocolMessage(content::DevToolsAgentHost*,
                                         base::span<const uint8_t> message) {
   std::optional<base::DictValue> reply = base::JSONReader::ReadDict(
       base::as_string_view(message), base::JSON_PARSE_RFC);
-  if (const std::string* method = reply ? reply->FindString("method") : nullptr) {
+  if (!reply) {
+    return;
+  }
+  const std::string* from = reply->FindString("sessionId");
+  const std::string session = from ? *from : std::string();
+  if (const std::string* method = reply->FindString("method")) {
+    const base::DictValue* params = reply->FindDict("params");
+    if (!params) {
+      return;
+    }
     if (*method == "Runtime.bindingCalled") {
-      if (const base::DictValue* params = reply->FindDict("params")) {
-        PageScriptMessage(*params);
+      PageScriptMessage(session, *params);
+    } else if (*method == "Target.attachedToTarget") {
+      AttachedToTarget(session, *params);
+    } else if (*method == "Target.detachedFromTarget") {
+      if (const std::string* detached = params->FindString("sessionId")) {
+        DetachedFromTarget(*detached);
       }
-    } else if (page_script_installed_ &&
+    } else if (page_script_installed_ && !session.empty() &&
+               session_targets_.contains(session) &&
                (*method == "Page.frameNavigated" ||
                 *method == "Page.frameAttached" ||
                 *method == "Page.domContentEventFired" ||
                 *method == "Page.frameStoppedLoading")) {
-      BindPageScript();
+      BindPageScript(session);
     }
     return;
   }
-  std::optional<int> id = reply ? reply->FindInt("id") : std::nullopt;
+  std::optional<int> id = reply->FindInt("id");
   if (!id) {
     return;
   }
@@ -1123,6 +1291,10 @@ void TabBridge::DispatchProtocolMessage(content::DevToolsAgentHost*,
 void TabBridge::AgentHostClosed(content::DevToolsAgentHost*) {
   agent_ = nullptr;
   page_script_installed_ = false;
+  session_targets_.clear();
+  frame_ids_.clear();
+  frames_.clear();
+  waiting_for_page_.clear();
   std::map<int, base::OnceCallback<void(base::Value)>> pending =
       std::move(evaluations_);
   for (auto& [id, done] : pending) {

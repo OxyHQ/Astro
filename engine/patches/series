@@ -66,6 +66,7 @@ chromium chromium-astro-ui.patch
 chromium chromium-astro-engine-webui.patch
 chromium chromium-astro-webium-default.patch
 chromium chromium-astro-guest-gone.patch
+chromium chromium-astro-bfcache-inner-contents.patch
 chromium chromium-astro-linux-identity.patch
 chromium chromium-astro-windows-identity.patch
 

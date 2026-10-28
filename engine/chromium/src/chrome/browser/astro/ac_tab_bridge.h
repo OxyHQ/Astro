@@ -7,6 +7,7 @@
 #include <optional>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -128,9 +129,22 @@ class TabBridge : public content::WebContentsObserver,
                 bool user_gesture,
                 base::OnceCallback<void(base::Value)> done);
   bool EnsureAgent();
-  void SendProtocol(const std::string& method, base::DictValue params);
-  void PageScriptMessage(const base::DictValue& params);
-  void BindPageScript();
+  void SendProtocol(const std::string& method,
+                    base::DictValue params,
+                    const std::string& session);
+  void SendToPage(const std::string& method, base::DictValue params, int id);
+  void SendWaitingToPage();
+  std::optional<std::string> PageSession();
+  void AttachedToTarget(const std::string& parent,
+                        const base::DictValue& params);
+  void ReleaseSession(const std::string& parent, const std::string& session);
+  void DetachedFromTarget(const std::string& session);
+  void SetUpSession(const std::string& session);
+  void InstallPageScriptIn(const std::string& session);
+  int FrameFor(const std::string& session, int context);
+  void PageScriptMessage(const std::string& session,
+                         const base::DictValue& params);
+  void BindPageScript(const std::string& session);
   void NoteBlockedByClient(const GURL& blocked_url, const GURL& url);
   void NoteBlocked(const GURL& url);
   void ReportBlocked();
@@ -158,6 +172,11 @@ class TabBridge : public content::WebContentsObserver,
   std::unique_ptr<webshare::ShareOperation> share_;
 #endif
   int last_message_id_ = 0;
+  std::map<std::string, std::string> session_targets_;
+  std::map<std::pair<std::string, int>, int> frame_ids_;
+  std::map<int, std::pair<std::string, int>> frames_;
+  int last_frame_id_ = 0;
+  std::vector<std::tuple<std::string, base::DictValue, int>> waiting_for_page_;
   bool page_script_installed_ = false;
   bool discarded_ = false;
   std::string page_binding_;

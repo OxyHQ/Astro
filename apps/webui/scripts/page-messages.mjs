@@ -1,10 +1,8 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { createServer as createNetServer } from "node:net";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { sleep, startEngine, windowPage } from "./lib/engine.mjs";
 
 const USAGE = `usage: page-messages.mjs --chrome <engine binary> [--tabs N] [--scratch <dir>] [--case <name>]...
 
@@ -34,16 +32,6 @@ const chrome = resolve(option("chrome"));
 const tabs = Number(option("tabs", "8"));
 const cases = options("case").length ? options("case") : ["blank", "webui", "swap", "bfcache", "prerender"];
 const scratch = resolve(option("scratch", join(process.env.TMPDIR ?? "/tmp", `ac-page-messages-${process.pid}`)));
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const freePort = () =>
-  new Promise((done) => {
-    const probe = createNetServer();
-    probe.listen(0, "127.0.0.1", () => {
-      const { port } = probe.address();
-      probe.close(() => done(port));
-    });
-  });
-
 const page = (url) => {
   const color = url.searchParams.get("c") ?? "#336699";
   const next = url.searchParams.get("next");
@@ -61,120 +49,15 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const httpPort = server.address().port;
 const site = (name, color, extra = "") => `http://${name}.test:${httpPort}/doc?c=${encodeURIComponent(color)}${extra}`;
 
-rmSync(scratch, { recursive: true, force: true });
-mkdirSync(join(scratch, "profile/Default"), { recursive: true });
-writeFileSync(join(scratch, "profile/Default/Preferences"), JSON.stringify({ net: { network_prediction_options: 0 } }));
-const debugPort = await freePort();
-const unreachable = ["api.oxy.so", "api.nilo.so", "api.alia.onl", "kaana.ai"].map((host) => `MAP ${host} 0.0.0.0:9`);
-const engine = spawn(
-  chrome,
-  [
-    `--user-data-dir=${join(scratch, "profile")}`,
-    `--remote-debugging-port=${debugPort}`,
-    `--astro-ui-dir=${join(repo, "apps/webui/dist")}`,
-    `--host-resolver-rules=${[...unreachable, "MAP *.test 127.0.0.1"].join(", ")}`,
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--password-store=basic",
-    "--disable-features=HttpsUpgrades",
-    "about:blank",
-  ],
-  { env: { ...process.env, ASTRO_BACKGROUND: "1" }, stdio: ["ignore", "ignore", "pipe"] },
-);
-let engineLog = "";
-engine.stderr.on("data", (chunk) => {
-  engineLog = (engineLog + chunk).slice(-20000);
-});
-let engineExited = false;
-engine.on("exit", () => {
-  engineExited = true;
-});
-
-const stop = async () => {
-  if (!engineExited) engine.kill("SIGTERM");
-  for (const end = Date.now() + 8000; !engineExited && Date.now() < end; await sleep(100));
-  if (!engineExited) engine.kill("SIGKILL");
-  server.close();
-};
-
-const waitFor = async (what, test, ms) => {
-  for (const end = Date.now() + ms; Date.now() < end; await sleep(100)) {
-    if (engineExited) throw new Error(`the engine exited while waiting for ${what}\n${engineLog}`);
-    const value = await test().catch(() => null);
-    if (value) return value;
-  }
-  throw new Error(`timed out waiting for ${what}`);
-};
-
-const connect = (url) =>
-  new Promise((done, fail) => {
-    const socket = new WebSocket(url);
-    const pending = new Map();
-    let id = 0;
-    socket.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      const answer = pending.get(message.id);
-      if (!answer) return;
-      pending.delete(message.id);
-      if (message.error) answer.fail(new Error(JSON.stringify(message.error)));
-      else answer.done(message.result);
-    };
-    socket.onerror = () => fail(new Error(`cannot connect to ${url}`));
-    socket.onopen = () =>
-      done({
-        send: (method, params = {}) =>
-          new Promise((ok, no) => {
-            pending.set(++id, { done: ok, fail: no });
-            socket.send(JSON.stringify({ id, method, params }));
-          }),
-        close: () => socket.close(),
-      });
-  });
-
-let cdp;
+const engine = await startEngine({ chrome, repo, scratch });
+let ui;
 let failures = 0;
 try {
-  const ui = await waitFor(
-    "the window page",
-    async () => {
-      const list = await (await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json();
-      return list.find((target) => target.url.startsWith("chrome://webui-browser"));
-    },
-    60000,
-  );
-  cdp = await connect(ui.webSocketDebuggerUrl);
-  const run = async (expression) => {
-    const { result, exceptionDetails } = await cdp.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
-    if (exceptionDetails) throw new Error(exceptionDetails.exception?.description ?? exceptionDetails.text);
-    return result.value;
-  };
-  await waitFor("the window page's modules", () => run("document.readyState === 'complete'"), 30000);
-  await run(`(async () => {
-    const cr = await import("chrome://resources/js/cr.js");
-    const api = await import("/tab_strip_api/tab_strip_api.mojom-webui.js");
-    const events = [];
-    cr.addWebUiListener("astro-tab-event", (ref, kind, payload) => {
-      if (kind === "pageScript" && payload.main) events.push({ ref, kind: payload.kind, json: payload.json });
-    });
-    globalThis.__pageMessages = {
-      events,
-      service: api.TabStripService.getRemote(),
-      open: async (url) => {
-        const { tab } = await globalThis.__pageMessages.service.createTabAt(null, url).then((t) => ({ tab: t.tab ?? t }));
-        await cr.sendWithPromise("astroTabWatch", tab.id);
-        return tab.id;
-      },
-      call: (ref, method, args) => cr.sendWithPromise("astroTabCall", ref, method, args),
-    };
-    return true;
-  })()`);
-  const open = (url) => run(`__pageMessages.open(${JSON.stringify(url)})`);
-  const call = (ref, method, callArgs) => run(`__pageMessages.call(${JSON.stringify(ref)}, ${JSON.stringify(method)}, ${JSON.stringify(callArgs)})`);
-  const messages = (ref) => run(`__pageMessages.events.filter((e) => e.ref === ${JSON.stringify(ref)})`);
-  const evaluate = (ref, code) => call(ref, "evaluate", { code });
+  ui = await windowPage(engine);
+  const { open, call, evaluate, settle } = ui;
+  const messages = async (ref) => (await ui.messages(ref)).filter((e) => e.main);
   const hello = (url) => (e) => e.kind === "hello" && JSON.parse(e.json).url === url;
   const theme = (color) => (e) => e.kind === "theme" && (JSON.parse(e.json)?.color ?? "").toLowerCase() === color;
-  const settle = (ref, url) => waitFor(`${url} to load`, async () => (await evaluate(ref, "post('result', document.readyState === 'complete' ? location.href : '')")) === url, 15000);
   const arrived = async (ref, since, predicate, ms = 5000) => {
     for (const end = Date.now() + ms; Date.now() < end; await sleep(50)) {
       if ((await messages(ref)).slice(since).some(predicate)) return true;
@@ -248,7 +131,7 @@ try {
       if (skipped) results.skipped.push(`tab ${i}: ${skipped}`);
       else if (missing.length) results.lost.push(`tab ${i}: ${missing.join(", ")}`);
       else results.delivered++;
-      await run(`__pageMessages.service.closeNodes([${JSON.stringify(ref)}])`).catch(() => {});
+      await ui.close(ref);
     }
     const counted = tabs - results.skipped.length;
     console.log(`${name}: ${results.delivered}/${counted} tabs got every first message${results.lost.length ? ` (lost: ${results.lost.join("; ")})` : ""}${results.skipped.length ? ` [skipped ${results.skipped.length}: ${results.skipped[0]}]` : ""}`);
@@ -258,8 +141,8 @@ try {
   console.error(error.message);
   failures++;
 } finally {
-  cdp?.close();
-  await stop();
-  rmSync(scratch, { recursive: true, force: true });
+  ui?.cdp.close();
+  await engine.stop();
+  server.close();
 }
 process.exit(failures ? 1 : 0);
