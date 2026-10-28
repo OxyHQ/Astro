@@ -22,6 +22,10 @@ export function PortalHost({ name, ...props }: PortalHostProps) {
   return <View ref={ref as never} {...props} />;
 }
 
+export function usePortalHostPresent(name: string) {
+  return useHosts((s) => !!s.hosts[name]);
+}
+
 export function Portal({ host, containerRef, children }: PortalProps) {
   const target = useHosts((s) => (host ? (s.hosts[host] ?? null) : null));
   const container = useMemo(() => {

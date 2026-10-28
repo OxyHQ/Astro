@@ -19,7 +19,8 @@ import { ProfileSwipeArea } from "./ProfileSwipe";
 import { openNewTabInSplit } from "./splitActions";
 import { toggleNewTabBar } from "../omnibox/newTabBar";
 import { setMeasuredWidth, useMeasuredWidths } from "./measuredWidths";
-import { usePeek } from "./usePeek";
+import { useAppShell } from "@oxy.so/bloom/app-shell";
+import { WindowButtonsHost } from "./windowButtons";
 import { lightsCenter, TOP_STRIP_LIGHTS_CENTER } from "./dockMotion";
 import {
   dragGeometry,
@@ -1346,64 +1347,47 @@ function NewTabButton({ windowId, geometry }: { windowId: string; geometry: Drag
 
 const HOVER_HEIGHT = 6;
 const PEEK_LEFT = 6;
-const PEEK_TOP = 4;
+export const TOP_PEEK_TOP = 4;
 
-export function TopStripPeek({ windowWidth, enabled }: { windowWidth: number; enabled: boolean }) {
-  const theme = useTheme();
+export function TopStripRegion({ width, fullscreen }: { width: number; fullscreen: boolean }) {
   const windowId = useWindowId();
-  const { slide, live, show, hide } = usePeek(enabled);
+  const { topBarDock: dock } = useAppShell();
+  const floating = dock.peeking && !fullscreen;
+  const away = dock.hidden && !floating;
+  const lightsAway = dock.hidden && !fullscreen;
   useEffect(() => {
-    if (!enabled) return;
+    if (!lightsAway) return;
     void setTrafficLightsCenter(windowId, lightsCenter(layout.sidebarWidth));
     return () => void setTrafficLightsCenter(windowId, null);
-  }, [enabled, windowId]);
-  const leaveStrip = (e: { nativeEvent: { clientY: number } }) => {
-    if (live && e.nativeEvent.clientY < HOVER_HEIGHT) hide();
-  };
+  }, [lightsAway, windowId]);
   const leavePanel = (e: { nativeEvent: { clientX: number; clientY: number } }) => {
-    const x = e.nativeEvent.clientX + PEEK_LEFT;
-    const y = e.nativeEvent.clientY + PEEK_TOP;
-    if (!(y >= 0 && y < HOVER_HEIGHT && x >= layout.trafficLightsWidth)) hide();
+    const { clientX: x, clientY: y } = e.nativeEvent;
+    if (!(y >= 0 && y < HOVER_HEIGHT && x >= layout.trafficLightsWidth)) dock.peek(false);
   };
   return (
-    <>
-      {enabled ? (
-        <View
-          onMouseEnter={show}
-          onMouseLeave={leaveStrip}
-          style={{ position: "absolute", left: layout.trafficLightsWidth, right: PEEK_LEFT, top: 0, height: HOVER_HEIGHT }}
-        />
-      ) : null}
-      <Animated.View
-        pointerEvents={live ? "auto" : "none"}
-        onMouseEnter={live ? show : undefined}
-        onMouseLeave={live ? leavePanel : undefined}
-        style={{
-          position: "absolute",
-          left: PEEK_LEFT,
-          width: windowWidth - PEEK_LEFT * 2,
-          top: live ? PEEK_TOP : -10_000,
-          height: PEEK_HEIGHT,
-          opacity: slide,
-          transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [-PEEK_HEIGHT - 8, 0] }) }],
-        }}
-      >
-        <Surface
-          fill={hex(theme.windowTint[0])}
-          cornerRadius={12}
-          borderColor={hex(theme.panelBorder)}
-          borderWidth={PEEK_BORDER}
-          shadowColor="#000000"
-          shadowOpacity={theme.panelShadowOpacity}
-          shadowRadius={20}
-          shadowOffset={[0, 6]}
-          style={{ flex: 1 }}
-        >
-          <View style={{ position: "absolute", left: 0, right: 0, top: PEEK_PAD - ITEM_TOP, height: TOP_STRIP_HEIGHT }}>
-            <TopTabStrip floating swipe={live} width={windowWidth - 12 - PEEK_BORDER * 2} />
-          </View>
-        </Surface>
-      </Animated.View>
-    </>
+    <View
+      pointerEvents={fullscreen ? "none" : "box-none"}
+      onMouseEnter={floating ? () => dock.peek(true) : undefined}
+      onMouseLeave={floating ? leavePanel : undefined}
+      style={{ height: floating ? PEEK_HEIGHT : TOP_STRIP_HEIGHT }}
+    >
+      <View style={floating ? { position: "absolute", left: 0, right: 0, top: PEEK_PAD - ITEM_TOP, height: TOP_STRIP_HEIGHT } : { flex: 1 }}>
+        <TopTabStrip floating={floating} hidden={away || fullscreen} swipe={!away} width={floating ? width - PEEK_LEFT * 2 - PEEK_BORDER * 2 : width} />
+      </View>
+      <WindowButtonsHost />
+    </View>
+  );
+}
+
+export function TopStripEdge() {
+  const { topBarDock: dock } = useAppShell();
+  return (
+    <View
+      onMouseEnter={() => dock.peek(true)}
+      onMouseLeave={(e: { nativeEvent: { clientY: number } }) => {
+        if (dock.peeking && e.nativeEvent.clientY < HOVER_HEIGHT) dock.peek(false);
+      }}
+      style={{ position: "absolute", left: layout.trafficLightsWidth, right: PEEK_LEFT, top: 0, height: HOVER_HEIGHT }}
+    />
   );
 }

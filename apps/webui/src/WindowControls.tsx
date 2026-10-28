@@ -1,4 +1,7 @@
 import { TRAFFIC_LIGHT_DIAMETER, TRAFFIC_LIGHT_SPACING, TrafficLights, useTrafficLightsCenter } from "../../demo/src/shims/web/windowChrome";
+import { windowButtonsHost } from "../../browser/src/components/layout/windowButtons";
+import { Portal, usePortalHostPresent } from "../../demo/src/shims/web/portal";
+import { AppMenuButton } from "./AppMenu";
 import { confirmWindowClose } from "./host/quit";
 import { tabHub } from "./host/tabs";
 import { pageWindowId } from "./host/windows";
@@ -50,4 +53,16 @@ export function WindowControls() {
       ))}
     </>
   );
+}
+
+export function WindowButtons({ windowId }: { windowId: string }) {
+  const host = windowButtonsHost(windowId);
+  const inRegion = usePortalHostPresent(host);
+  const buttons = (
+    <>
+      <WindowControls />
+      <AppMenuButton />
+    </>
+  );
+  return inRegion ? <Portal host={host}>{buttons}</Portal> : buttons;
 }

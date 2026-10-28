@@ -6,7 +6,8 @@ import { isChatTabUrl } from "../../ai/chat/actions";
 import { useWindowChat } from "../../ai/chat/state";
 import { activeTabId } from "../../store/model";
 import { layout } from "../../lib/theme";
-import { DOCK_SPRING, springConfig } from "../layout/dockMotion";
+import { springPhysics } from "@oxy.so/bloom/motion";
+import { DOCK_SPRING } from "../layout/dockMotion";
 import { useBrowser } from "../../store/browser";
 import { useWindowId } from "../../store/hooks";
 
@@ -15,7 +16,7 @@ export const CHAT_MAX_WIDTH = 640;
 export const CHAT_DEFAULT_WIDTH = 400;
 const FLOATING_DEFAULT = { width: 420, height: 560 };
 const FLOATING_MARGIN = 16;
-const SIDEBAR_SPRING = { ...springConfig(DOCK_SPRING), restDisplacementThreshold: 0.001, restSpeedThreshold: 0.001 };
+const SIDEBAR_SPRING = { ...springPhysics(DOCK_SPRING), restDisplacementThreshold: 0.001, restSpeedThreshold: 0.001 };
 
 type Slots = { slots: Record<string, number> };
 
