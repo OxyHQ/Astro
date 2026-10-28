@@ -79,7 +79,7 @@ const awaitingSignIn = (app: AppEntry, c: Connection) => app.kind === "mcp" && !
 function AppConnectionRow({ app }: { app: AppEntry }) {
   const theme = useTheme();
   const connections = useApps((s) => s.connections[app.id] ?? NO_CONNECTIONS);
-  const configured = useApps((s) => (app.kind === "integration" ? s.configured[app.service] !== false : true));
+  const configured = useApps((s) => s.configured[app.id] !== false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
