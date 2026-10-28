@@ -28,7 +28,7 @@ jobs:
       engine_run: ${{ steps.lookup.outputs.engine_run }}
       state_run: ${{ steps.lookup.outputs.state_run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       # The engine is rebuilt only when what it's built from changes; a tree left by an earlier run with the same
@@ -142,17 +142,17 @@ jobs:
       HOMEBREW_NO_AUTO_UPDATE: "1"
       AC_CI_XCODE: /Applications/Xcode_27.1.app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Prepare the runner
         run: scripts/ci/macos-runner-prep.sh
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: pnpm
         run: npm install -g "pnpm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: astrocore-macos-x64-${{ needs.plan.outputs.engine_key }}
           path: ${{ runner.temp }}/engine
@@ -164,7 +164,7 @@ jobs:
           echo "engine tree $(cat "$RUNNER_TEMP/engine/engine-tree"), this checkout's $(git rev-parse HEAD:engine)"
       - name: Build and package Astro.app (x86_64)
         run: scripts/ci/macos-app-build.sh --arch x86_64 --framework "$RUNNER_TEMP/engine/Chromium Framework.framework" --out "$RUNNER_TEMP/dist"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Astro-macos-x86_64-dmg
           path: |
@@ -174,7 +174,7 @@ jobs:
           retention-days: 30
           if-no-files-found: error
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-build-log
           path: ${{ runner.temp }}/dist/build.log
@@ -185,17 +185,17 @@ jobs:
     runs-on: macos-15-intel
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: Astro-macos-x86_64-dmg
           path: ${{ runner.temp }}/dmg
       - name: Install from the disk image and launch
         run: scripts/ci/macos-smoke-test.sh "$(ls "$RUNNER_TEMP"/dmg/*.dmg)" "$RUNNER_TEMP/smoke" 45
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: smoke-test
           path: ${{ runner.temp }}/smoke
