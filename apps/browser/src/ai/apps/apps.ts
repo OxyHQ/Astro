@@ -22,6 +22,18 @@ export const APPS: AppEntry[] = [
   { id: "notion", name: "Notion", description: "Search, read and write pages", icon: "doc.text", kind: "mcp", service: "notion", oauth: true },
   { id: "github", name: "GitHub", description: "Repositories, issues and pull requests", icon: "chevron.left.forwardslash.chevron.right", kind: "mcp", service: "github-remote", oauth: true },
   { id: "linear", name: "Linear", description: "Issues, projects and cycles", icon: "checkmark.circle", kind: "mcp", service: "linear", oauth: true },
+  { id: "microsoft-outlook", name: "Outlook", description: "Mail and calendar in Microsoft 365 or Outlook.com", icon: "envelope", kind: "integration", service: "microsoft-outlook", oauth: true },
+  { id: "microsoft-teams", name: "Microsoft Teams", description: "Read and send chat messages, post in channels", icon: "person.2", kind: "integration", service: "microsoft-teams", oauth: true },
+  { id: "microsoft-sharepoint", name: "SharePoint and OneDrive", description: "Search and read your work files", icon: "externaldrive", kind: "integration", service: "microsoft-sharepoint", oauth: true },
+  { id: "atlassian", name: "Atlassian", description: "Jira issues, Confluence pages and Loom videos", icon: "square.stack", kind: "mcp", service: "atlassian", oauth: true },
+  { id: "trello", name: "Trello", description: "Boards, lists and cards", icon: "rectangle.split.3x1", kind: "mcp", service: "trello", oauth: true },
+  { id: "figma", name: "Figma", description: "Designs, components and FigJam diagrams", icon: "pencil", kind: "mcp", service: "figma", oauth: true },
+  { id: "canva", name: "Canva", description: "Find, create, edit and export designs", icon: "paintpalette", kind: "mcp", service: "canva", oauth: true },
+  { id: "zoom", name: "Zoom", description: "Meetings, recordings, transcripts and notes", icon: "video", kind: "mcp", service: "zoom", oauth: true },
+  { id: "granola", name: "Granola", description: "Your meeting notes and transcripts", icon: "doc.plaintext", kind: "mcp", service: "granola", oauth: true },
+  { id: "amplitude", name: "Amplitude", description: "Charts, dashboards and experiments (US)", icon: "chart.bar", kind: "mcp", service: "amplitude", oauth: true },
+  { id: "amplitude-eu", name: "Amplitude EU", description: "Charts, dashboards and experiments (EU data center)", icon: "chart.bar", kind: "mcp", service: "amplitude-eu", oauth: true },
+  { id: "salesforce", name: "Salesforce", description: "Query, create and update records in your org", icon: "cloud", kind: "mcp", service: "salesforce", oauth: true },
   { id: "slack", name: "Slack", description: "Channels and messages, with a Slack bot token", icon: "bubble.left", kind: "mcp", service: "slack", oauth: false },
 ];
 
@@ -75,15 +87,26 @@ const listOf = async (path: string, key: string): Promise<Raw[]> => {
 export async function refreshApps(): Promise<void> {
   if (!aliaReady()) return;
   useApps.setState({ loading: true });
-  const [integrations, servers, accounts, available] = await Promise.all([
+  const [integrations, servers, accounts, available, registry] = await Promise.all([
     listOf("/integrations", "integrations"),
     listOf("/mcp/installed", "servers"),
     listOf("/accounts", "accounts"),
     listOf("/integrations/available", "integrations"),
+    listOf("/mcp/registry", "servers"),
   ]);
-  const configured: Record<string, boolean> = {};
-  for (const a of available) configured[str(a.service)] = a.configured !== false;
-  useApps.setState({ connections: connectionsFrom({ integrations, servers, accounts }), configured, loadedAt: Date.now(), loading: false, error: null });
+  useApps.setState({ connections: connectionsFrom({ integrations, servers, accounts }), configured: configuredFrom({ available, registry }), loadedAt: Date.now(), loading: false, error: null });
+}
+
+export function configuredFrom(lists: { available: Raw[]; registry: Raw[] }): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  for (const app of APPS) {
+    if (app.kind === "gmail") continue;
+    const list = app.kind === "integration" ? lists.available : lists.registry;
+    const source = list.find((entry) => str(app.kind === "integration" ? entry.service : entry.id) === app.service);
+    if (source) out[app.id] = source.configured !== false;
+    else if (list.length) out[app.id] = false;
+  }
+  return out;
 }
 
 const PENDING_MS = 15 * 60_000;

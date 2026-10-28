@@ -3,14 +3,24 @@ import { Button } from "@oxy.so/bloom/button";
 import { Card } from "@oxy.so/bloom/card";
 import { Chip } from "@oxy.so/bloom/chip";
 import type { BloomIconComponent } from "@oxy.so/bloom/icons";
+import { RiBarChartBoxLine } from "@oxy.so/bloom/icons/RiBarChartBoxLine";
 import { RiCalendarLine } from "@oxy.so/bloom/icons/RiCalendarLine";
 import { RiChat3Line } from "@oxy.so/bloom/icons/RiChat3Line";
 import { RiCheckboxCircleLine } from "@oxy.so/bloom/icons/RiCheckboxCircleLine";
+import { RiCloudLine } from "@oxy.so/bloom/icons/RiCloudLine";
 import { RiCodeSSlashLine } from "@oxy.so/bloom/icons/RiCodeSSlashLine";
 import { RiFileTextLine } from "@oxy.so/bloom/icons/RiFileTextLine";
 import { RiFolderLine } from "@oxy.so/bloom/icons/RiFolderLine";
+import { RiHardDrive2Line } from "@oxy.so/bloom/icons/RiHardDrive2Line";
+import { RiLayoutGridLine } from "@oxy.so/bloom/icons/RiLayoutGridLine";
 import { RiMailLine } from "@oxy.so/bloom/icons/RiMailLine";
+import { RiPaletteLine } from "@oxy.so/bloom/icons/RiPaletteLine";
+import { RiPenNibLine } from "@oxy.so/bloom/icons/RiPenNibLine";
 import { RiPuzzleLine } from "@oxy.so/bloom/icons/RiPuzzleLine";
+import { RiStackLine } from "@oxy.so/bloom/icons/RiStackLine";
+import { RiStickyNoteLine } from "@oxy.so/bloom/icons/RiStickyNoteLine";
+import { RiTeamLine } from "@oxy.so/bloom/icons/RiTeamLine";
+import { RiVideoLine } from "@oxy.so/bloom/icons/RiVideoLine";
 import { Loading } from "@oxy.so/bloom/loading";
 import { useTheme } from "@oxy.so/bloom/theme";
 import { Text } from "@oxy.so/bloom/typography";
@@ -30,6 +40,16 @@ const APP_ICONS: Record<string, BloomIconComponent> = {
   "chevron.left.forwardslash.chevron.right": RiCodeSSlashLine,
   "checkmark.circle": RiCheckboxCircleLine,
   "bubble.left": RiChat3Line,
+  "person.2": RiTeamLine,
+  externaldrive: RiHardDrive2Line,
+  "square.stack": RiStackLine,
+  "rectangle.split.3x1": RiLayoutGridLine,
+  pencil: RiPenNibLine,
+  paintpalette: RiPaletteLine,
+  video: RiVideoLine,
+  "doc.plaintext": RiStickyNoteLine,
+  "chart.bar": RiBarChartBoxLine,
+  cloud: RiCloudLine,
 };
 
 export function AppsPage({ tabId }: { tabId: string }) {
@@ -83,7 +103,7 @@ const signedOut = (app: AppEntry, c: Connection) => app.kind === "mcp" && !/runn
 function AppRow({ app, windowId }: { app: AppEntry; windowId: string }) {
   const { colors } = useTheme();
   const connections = useApps((s) => s.connections[app.id] ?? NO_CONNECTIONS);
-  const configured = useApps((s) => (app.kind === "integration" ? s.configured[app.service] !== false : true));
+  const configured = useApps((s) => s.configured[app.id] !== false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const Icon = APP_ICONS[app.icon] ?? RiPuzzleLine;
