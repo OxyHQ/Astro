@@ -82,6 +82,13 @@ jobs:
         with:
           node-version: 22
       - run: npm install -g "pnpm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            apps/browser/macos/Pods/hermes-engine-artifacts
+          key: pods-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/browser/macos/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-${{ runner.arch }}-
       - name: Stub engine
         run: scripts/ci/macos-stub-engine.sh "${{ matrix.arch }}" "$RUNNER_TEMP/stub"
       - name: Build (New Architecture, stub engine)
@@ -122,6 +129,13 @@ jobs:
         with:
           node-version: 22
       - run: npm install -g "pnpm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            apps/browser/macos/Pods/hermes-engine-artifacts
+          key: pods-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/browser/macos/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-${{ runner.arch }}-
       - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.plan.outputs.x64_name }}
@@ -168,6 +182,13 @@ jobs:
         with:
           node-version: 22
       - run: npm install -g "pnpm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            apps/browser/macos/Pods/hermes-engine-artifacts
+          key: pods-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/browser/macos/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-${{ runner.arch }}-
       - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.plan.outputs.arm64_name }}
