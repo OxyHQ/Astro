@@ -88,7 +88,7 @@ export function setDictationTestEndpoint(url: string | null, bearer = "", option
     return true;
   }
   if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(new URL(url).hostname) || !bearer) return false;
-  testTranscriber = aliaTranscriber(url.replace(/\/$/, ""), (input, init) => fetch(input, init), () => ({ Authorization: `Bearer ${bearer}` }));
+  testTranscriber = aliaTranscriber(url.replace(/\/$/, ""), { token: bearer });
   segmenterOptions = options;
   useDictation.setState({ testEndpoint: url, calls: [] });
   return true;

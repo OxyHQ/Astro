@@ -26,8 +26,8 @@ importers:
   apps/browser:
     dependencies:
       '@alia.onl/sdk':
-        specifier: ^22.5.0
-        version: 22.5.0(4f64cb6890e41d88c36cc28d7151c785)
+        specifier: ^22.6.0
+        version: 22.6.0(4f64cb6890e41d88c36cc28d7151c785)
       '@astro-browser/astrocore':
         specifier: workspace:*
         version: link:../../packages/astrocore
@@ -268,8 +268,8 @@ importers:
   apps/webui:
     dependencies:
       '@alia.onl/sdk':
-        specifier: ^22.5.0
-        version: 22.5.0(4f64cb6890e41d88c36cc28d7151c785)
+        specifier: ^22.6.0
+        version: 22.6.0(4f64cb6890e41d88c36cc28d7151c785)
       '@astro-browser/astrocore':
         specifier: workspace:*
         version: link:../../packages/astrocore
@@ -390,8 +390,8 @@ packages:
       graphql:
         optional: true
 
-  '@alia.onl/sdk@22.5.0':
-    resolution: {integrity: sha512-tNx/+0pXi3cerC8ql9E2KBPDn4xZyCk3Rw9cBa3Xr8WRlik/B83Ow1H+oyhPpFKhhSttBsb3myLXTn4JExsx6A==}
+  '@alia.onl/sdk@22.6.0':
+    resolution: {integrity: sha512-wNHORwPUcUSgOTG+dqrZcW6b9Y9gVNyB5938Iml8/Qfr0WxWdbB8C/NhlhSkJH9X+NrrY+0AYU/jbwWhCeHz+w==}
     peerDependencies:
       '@expo/vector-icons': ^15.1.1
       '@oxy.so/bloom': '>=15.10.1'
@@ -4824,7 +4824,7 @@ snapshots:
 
   '@0no-co/graphql.web@1.3.4': {}
 
-  '@alia.onl/sdk@22.5.0(4f64cb6890e41d88c36cc28d7151c785)':
+  '@alia.onl/sdk@22.6.0(4f64cb6890e41d88c36cc28d7151c785)':
     dependencies:
       '@expo/vector-icons': 15.1.1(expo-font@14.0.12(expo@54.0.37(@babel/core@7.29.7)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)(typescript@5.9.3))(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4))(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)
       '@oxy.so/bloom': 15.59.0(980d300ea6e7a453ef0f16ced1b2057e)

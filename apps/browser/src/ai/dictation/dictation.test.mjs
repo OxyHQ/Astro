@@ -129,14 +129,15 @@ test("the language is the BCP 47 tag Alia accepts", () => {
   assert.equal(dictationLanguage("not a tag"), "en");
 });
 
-test("Alia gets a multipart WAV and its refusals become codes", async () => {
+test("Alia gets a multipart WAV and its refusals become codes", async (t) => {
   const seen = [];
   let answer = { status: 200, body: { text: "hola" } };
   const send = async (url, init) => {
     seen.push({ url, init });
     return new Response(JSON.stringify(answer.body), { status: answer.status, headers: { "Content-Type": "application/json" } });
   };
-  const transcribe = aliaTranscriber("https://api.alia.example", send, () => ({ Authorization: "Bearer t" }));
+  const transcribe = aliaTranscriber("https://api.alia.example", { token: "t" });
+  t.mock.method(globalThis, "fetch", send);
   const clip = { wav: encodeWav(speech(100)), durationMs: 100.4 };
   assert.equal(await transcribe(clip, "es-ES", new AbortController().signal), "hola");
   assert.equal(seen[0].url, "https://api.alia.example/v1/audio/transcriptions");
@@ -158,8 +159,19 @@ test("Alia gets a multipart WAV and its refusals become codes", async () => {
     answer = { status, body: { error: { code, message: "x" } } };
     await assert.rejects(transcribe(clip, "en", new AbortController().signal), (e) => e instanceof DictationFailure && e.code === expected);
   }
-  const offline = aliaTranscriber("https://x", async () => {
-    throw new TypeError("Failed to fetch");
+  const viaTransport = aliaTranscriber("https://api.alia.example", { transport: { fetch: send } });
+  answer = { status: 200, body: { text: "linked" } };
+  assert.equal(await viaTransport(clip, "en", new AbortController().signal), "linked");
+  assert.equal(seen.at(-1).init.headers, undefined);
+  assert.equal(seen.at(-1).init.credentials, "omit");
+  answer = { status: 429, body: null };
+  await assert.rejects(viaTransport(clip, "en", new AbortController().signal), (e) => e instanceof DictationFailure && e.code === "limited");
+  const offline = aliaTranscriber("https://x", {
+    transport: {
+      fetch: async () => {
+        throw new TypeError("Failed to fetch");
+      },
+    },
   });
   await assert.rejects(offline(clip, "en", new AbortController().signal), (e) => e instanceof DictationFailure && e.code === "failed" && e.retryable);
 });
