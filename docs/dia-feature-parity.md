@@ -23,12 +23,12 @@ Legend: **✅** done · **🧪** built, but the deciding test needs the user pre
 
 | ✅ done | 🧪 needs the user | 🟡 partial | ❌ missing | ⛔ blocked | ⏸ deferred (AI) | — n/a |
 |---|---|---|---|---|---|---|
-| 230 | 1 | 27 | 0 | 1 | 34 | 14 |
+| 230 | 1 | 41 | 0 | 1 | 19 | 15 |
 
-Of the 259 rows that count (not ⏸ or —), 230 are done (89 %), 231 with the one 🧪 row (Cast). Two 🟡 rows are
+Of the 273 rows that count (not ⏸ or —), 230 are done (84 %), 231 with the one 🧪 row (Cast). Two 🟡 rows are
 passkeys (iCloud Keychain waits on Apple) and the Dia sidebar import (profiles, open and pinned tabs come through
-Dia's AppleScript; custom names, colours, spaces and folders don't); the other 25 are AI, built on Windows
-and Linux and waiting on macOS: 18 are Chat (§8–§9, `docs/ai.md` › Chat) and 7 the one-shot features and the command bar's router (`docs/ai.md` › One-shot features; production waits on OxyHQ/oxy#2006). Keyboard shortcuts: every Dia and Chrome
+Dia's AppleScript; custom names, colours, spaces and folders don't); the other 39 are AI, built on Windows
+and Linux and waiting on macOS: 32 are Chat (§8–§9, `docs/ai.md` › Chat) and 7 the one-shot features and the command bar's router (`docs/ai.md` › One-shot features; production waits on OxyHQ/oxy#2006). Keyboard shortcuts: every Dia and Chrome
 shortcut is bound (Dia's where they clash) except Chat on macOS and a few for Chrome's own hidden UI. Menus: all ten exist and match.
 
 The summary before this recount (304 rows, 207 ✅, 9 🟡, 7 ⛔) didn't match its tables, which held 307 rows: 211 ✅,
@@ -43,6 +43,10 @@ What changed since the last audit, in rows (mostly the migration):
   summaries, promoted prompts, the router and ⌃⌘↩), on Windows and Linux; AI form autofill stays ⏸ as Chat's.
 - Since, acting in tabs (2026-10-28): 4 rows ⏸ → 🟡 (AI form autofill, computer use, PDF / Office / Google Sheets
   reading, content safety), on Windows and Linux, with Alia #917 and #918 open.
+- Since, Chat's surfaces (2026-10-28): 14 rows ⏸ → 🟡 (Library, history search of chats and artifacts, the workspace
+  tab, chatting with a live folder, Alia's questions and to-dos, the command bar's `@` mentions, "+ Add tabs or files"
+  and Google / Chat toggle, the New Tab connect-apps upsell, the per-profile Morning Brief, Settings › Apps, Skills and
+  Personalization), on Windows and Linux, with Alia #920 open; the Home surface ⏸ → —, behind a Dia flag that ships off.
 - Since, Chat (2026-10-27): 13 rows ⏸ → 🟡 in §8 and §9 (panel, context, mentions and attachments, Ask on Page,
   screenshot, power levels and live thinking, history, edit/retry/stop, tab tools, web tools, rendering, Ask, pasted
   links), on Windows and Linux; then Personalization's per-chat switch and reading tabs, with Alia #913 and SDK 22.2 (⏸ → 🟡).
