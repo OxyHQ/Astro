@@ -583,6 +583,39 @@ A new chat offers, above the composer (`ai/work/suggestions.ts`):
 - Alia's welcome suggestions (`POST /suggestions/welcome`), ranked for the tab: its title, host and description go as
   `clientContext` (4 KB), which Alia matches against each suggestion's tags.
 
+### Settings: Apps, Skills, Personalization
+
+Three panes in Settings, drawn with the Settings window's own controls like every other pane; signed out, each offers
+Sign In with Oxy. Their rows are in the settings search (`components/settings/settingsIndex.ts`), and the
+settings app URLs' `apps`, `skills` and `personalization` sections open them (`components/pages/appUrls.ts`).
+
+| Pane | What it holds | Alia |
+| --- | --- | --- |
+| **Apps** (`panes/Apps.tsx`) | every app of `ai/apps/apps.ts` with Connect…, Add Account…, Reconnect… and Disconnect, and Open Apps…; **Morning Brief**, one row per profile (below); **New Chat**: where Chat opens (`chatPlacement`) and the power level a new chat starts with (`chatPowerLevel`) | the Connected apps routes above |
+| **Skills** (`panes/Skills.tsx`) | your skills with **On** and **Automatic**, Manage Skills…, Open Gallery…, New Skill…, and Astro's four commands | `GET /skills/installed`, `PATCH /skills/:id/install` |
+| **Personalization** (`panes/Personalization.tsx`, `ai/alia/memory.ts`) | what you do, where you are, about you, interests; language, tone, answer length; remember things from chats, use what Chat remembers; saved memories with Forget… | `GET /memory`; `PUT /memory/context`, `/memory/preferences` (each replaces its whole section, so Astro sends all of it), `/memory/settings`; `DELETE /memory/:id` |
+
+A field saves when you press ↩ or leave it; a refused save puts the old value back and says so. The memory profile is
+Alia's, so it is the same in the Alia app; one chat can still leave it out (⋯ › Personalization for This Chat). The SDK's
+`useAliaApi()` has no PUT, so the bridge in `oxy/ChatHost.tsx` adds one (`ai/alia/put.ts`) through the same linked Oxy
+client, with its refresh and 401 replay.
+
+What Dia's Apps pane holds besides connections was inferred: Dia's settings list "Apps (connections, Morning Brief,
+New Chat)", and Astro's New Chat choices are the two a new chat starts from.
+
+### Morning Brief and the New Tab page
+
+Each profile has a Morning Brief (`Profile.morningBrief`, `{ enabled, at }`, default on after 7:00; Settings › Apps and
+the profile's own pane). Once a day after its time, that profile's New Tab page shows **Your Morning Brief** under the
+bar; **Start My Day** runs `/start-my-day` in Chat (the brief above), and running it or ✕ retires it for that day. It
+sends nothing until clicked, and `/start-my-day` run from anywhere counts. Otherwise, signed in, with Chat and no app
+connected, the same place shows **Connect your apps**, which opens `astro://apps`; its ✕ hides it for good. Neither
+shows signed out or in incognito. While a card shows, the bar moves up 80 pt, the space Dia reserves for its upsell
+(`docs/dia-spec.md` › New Tab page). The rules are pure (`ai/work/home.ts`, tests in `home.test.mjs`); the days and
+the dismissal are kept in `ai-home.json` (`ai/work/homeState.ts`); the card is `components/ntp/HomeCards.tsx`.
+
+Dia's Home surface, task list and missions are behind a flag that ships off, so Astro has no counterpart.
+
 ### macOS
 
 The same code as Windows and Linux. Every window root mounts one OxyProvider (`oxy/OxyWindowHost.tsx`, after the first
@@ -604,8 +637,9 @@ is Expo's `expo/fetch`. On macOS Metro maps `expo-secure-store` to Astro's keych
   `ai/work/brief.test.mjs` (brief, prep, recap), `ai/agent/agent.test.mjs` (the snapshot outline, what needs
   approval, keys, continuing a task), `ai/safety/safety.test.mjs` (sensitive sites, policies, redaction), `ai/artifacts/artifacts.test.mjs` (canvas results to artifacts,
   versions, addresses, the revision request, exports), `ai/library/library.test.mjs` (the index, search by title, message,
-  link and date, day groups), `ai/apps/apps.test.mjs` (the apps list, which apps are available, connecting, finishing OAuth once and only after a connect), `ai/work/suggestions.test.mjs` and `ai/chat/tasks.test.mjs` (questions,
-  answers, the plan and its ticks, workspaces and following them, live folders in the turn and in `@`).
+  link and date, day groups), `ai/apps/apps.test.mjs` (the apps list, which apps are available, connecting, finishing OAuth once and only after a connect), `ai/work/suggestions.test.mjs`, `ai/chat/tasks.test.mjs` (questions, answers, the plan and its ticks,
+  workspaces and following them, live folders in the turn and in `@`), `ai/alia/memory.test.mjs` (the memory profile and
+  what each save sends) and `ai/work/home.test.mjs` (the Morning Brief's schedule and the New Tab cards).
 - A Windows or Linux build against a local stack: `ASTRO_OXY_API_URL`, `ASTRO_NILO_API_URL`, `ASTRO_ALIA_API_URL` and
   `ASTRO_KAANA_URL` move together (`apps/webui/vite.config.ts` refuses a mix, so a local session never reaches a
   production origin; point one you don't run at a closed port such as `http://127.0.0.1:9`). `globalThis.astro.chat` is the chat store and `astro.oxy` the session;

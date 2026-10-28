@@ -14,17 +14,20 @@ import { PANES, setting } from "./settingsIndex";
 import { SettingsSearchField, SettingsSearchResults } from "./SettingsSearch";
 import { AccountPane } from "./panes/Account";
 import { AdvancedPane } from "./panes/Advanced";
+import { AppsPane } from "./panes/Apps";
 import { AppearancePane } from "./panes/Appearance";
 import { CalendarPane } from "./panes/Calendar";
 import { GeneralPane } from "./panes/General";
 import { LiveFoldersPane } from "./panes/LiveFolders";
 import { ExtensionsPane } from "./panes/Extensions";
 import { PasswordsPane } from "./panes/Passwords";
+import { PersonalizationPane } from "./panes/Personalization";
 import { AutofillPane } from "./panes/Autofill";
 import { PrivacyPane } from "./panes/Privacy";
 import { ProfileDetailsPane, ProfilesPane } from "./panes/Profiles";
 import { SearchPane } from "./panes/Search";
 import { ShortcutsPane } from "./panes/Shortcuts";
+import { SkillsPane } from "./panes/Skills";
 import { SyncPane } from "./panes/Sync";
 import { TabsPane } from "./panes/Tabs";
 import { useSettingsSheet } from "./sheet";
@@ -163,6 +166,12 @@ function Pane({ pane, profileId }: { pane: SettingsPane; profileId: string | nul
       return <GeneralPane />;
     case "profiles":
       return profileId ? <ProfileDetailsPane profileId={profileId} /> : <ProfilesPane />;
+    case "apps":
+      return <AppsPane />;
+    case "skills":
+      return <SkillsPane />;
+    case "personalization":
+      return <PersonalizationPane />;
     case "sync":
       return <SyncPane />;
     case "tabs":

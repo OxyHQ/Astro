@@ -1,14 +1,15 @@
 import { AliaRuntimeProvider, useAliaApi } from "@alia.onl/sdk/runtime";
+import { useOxy } from "@oxy.so/services";
 import { Portal } from "@astro-browser/shell";
 import { ButtonGroup, ButtonGroupItem } from "@oxy.so/bloom/button-group";
-import { useOxy } from "@oxy.so/services";
 import { EmptyState } from "@oxy.so/bloom/empty-state";
 import { RiCloseLine } from "@oxy.so/bloom/icons/RiCloseLine";
 import { RiSparklingLine } from "@oxy.so/bloom/icons/RiSparklingLine";
 import { BloomThemeProvider } from "@oxy.so/bloom/theme";
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { View } from "react-native";
 import { registerAliaApi } from "../ai/alia/api";
+import { aliaPut, type LinkableOxy } from "../ai/alia/put";
 import { startOAuthReturns } from "../ai/apps/oauthReturn";
 import { closeChat, isChatTabUrl, openChatFromEntry } from "../ai/chat/actions";
 import { useChat } from "../ai/chat/state";
@@ -62,8 +63,9 @@ export function ChatHost({ windowId, aliaURL, streamFetch, children }: ChatHostP
 }
 
 function AliaApiBridge({ aliaURL }: { aliaURL: string }) {
-  const api = useAliaApi();
+  const sdk = useAliaApi();
   const { oxyServices } = useOxy();
+  const api = useMemo(() => ({ ...sdk, put: aliaPut(oxyServices as unknown as LinkableOxy, aliaURL) }), [sdk, oxyServices, aliaURL]);
   useEffect(() => {
     const linked = oxyServices.createLinkedClient({ baseURL: aliaURL });
     const unregister = registerDictationTranscriber(aliaTranscriber(aliaURL, linked.fetch));

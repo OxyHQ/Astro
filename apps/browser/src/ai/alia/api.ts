@@ -7,6 +7,7 @@ export type AliaRest = {
   get<T>(path: string, request?: { params?: Record<string, string | number | undefined> }): Promise<AliaResult<T>>;
   post<T>(path: string, body?: unknown): Promise<AliaResult<T>>;
   patch<T>(path: string, body?: unknown): Promise<AliaResult<T>>;
+  put<T>(path: string, body?: unknown): Promise<AliaResult<T>>;
   delete<T>(path: string): Promise<AliaResult<T>>;
 };
 

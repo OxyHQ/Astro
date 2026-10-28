@@ -6,6 +6,9 @@ export const PANES: { id: SettingsPane; title: string; icon: string }[] = [
   { id: "account", title: "Oxy Account", icon: "person.crop.circle" },
   { id: "general", title: "General", icon: "gearshape" },
   { id: "profiles", title: "Profiles", icon: "person.2" },
+  { id: "apps", title: "Apps", icon: "app.badge" },
+  { id: "skills", title: "Skills", icon: "sparkles" },
+  { id: "personalization", title: "Personalization", icon: "face.smiling" },
   { id: "sync", title: "Sync", icon: "arrow.triangle.2.circlepath" },
   { id: "tabs", title: "Tabs", icon: "square.on.square" },
   { id: "appearance", title: "Appearance", icon: "circle.lefthalf.filled" },
@@ -107,6 +110,93 @@ const ROWS: Record<SettingsPane, Section[]> = {
   profiles: [
     { section: "New windows open with", rows: { defaultProfile: { title: "Default profile", description: "Used for new windows. Links from other apps open in the profile you used last.", keywords: ["new window"] } } },
     { section: "Profiles", rows: { list: { title: "Profiles", description: "Drag to reorder. ⌃1–⌃9 switch to the first nine.", keywords: ["create profile", "new profile", "delete profile", "reorder", "work", "personal"] } } },
+  ],
+  apps: [
+    {
+      section: "Connected apps",
+      rows: {
+        connections: {
+          title: "Connected apps",
+          description: "Apps Chat can use when you ask, through your Alia account: your mail, calendar, documents and issues.",
+          keywords: ["connect", "connectors", "integrations", "gmail", "google calendar", "google drive", "notion", "github", "linear", "slack", "disconnect", "reconnect"],
+        },
+        manage: { title: "Apps page", description: "Every app, with its accounts, on its own page.", keywords: ["manage apps", "connect apps"] },
+      },
+    },
+    {
+      section: "Morning Brief",
+      rows: {
+        morningBrief: {
+          title: "Morning Brief",
+          description: "Each profile offers Start My Day on its New Tab page once a day, after the time you pick: your meetings, what needs you, where you left off and headlines.",
+          keywords: ["start my day", "brief", "daily", "morning", "summary", "new tab"],
+        },
+      },
+    },
+    {
+      section: "New Chat",
+      rows: {
+        chatPlacement: { title: "Open Chat in", description: "Where Chat opens until you move it.", keywords: ["sidebar", "floating", "window", "placement"] },
+        chatPowerLevel: { title: "Power level", description: "What a new chat starts with. Change it for one chat in its composer.", keywords: ["model", "auto", "instant", "pro", "ultra", "thinking"] },
+      },
+    },
+  ],
+  skills: [
+    {
+      section: "Your skills",
+      rows: {
+        list: {
+          title: "Skills",
+          description: "Saved instructions you run with / in Chat or the command bar. Automatic ones run when a request matches them.",
+          keywords: ["slash commands", "shortcuts", "prompts", "automatic", "auto invoke", "enable"],
+        },
+      },
+    },
+    {
+      section: "Astro's commands",
+      rows: {
+        commands: { title: "Astro's commands", description: "Built in: /research, /start-my-day, /prep and /recap.", keywords: ["research", "start my day", "prep", "recap", "meeting"] },
+      },
+    },
+    {
+      section: "Add skills",
+      rows: {
+        gallery: { title: "Skills Gallery", description: "Skills from Alia and the people who publish theirs.", keywords: ["browse skills", "install", "add skill"] },
+        builder: { title: "New Skill", description: "Describe it and Astro writes it, or write it yourself.", keywords: ["create skill", "skill builder", "write skill"] },
+      },
+    },
+  ],
+  personalization: [
+    {
+      section: "About you",
+      rows: {
+        occupation: { title: "What you do", keywords: ["occupation", "job", "role", "work"] },
+        location: { title: "Where you are", keywords: ["location", "city", "country"] },
+        bio: { title: "About you", description: "Anything Chat should know about you to help better.", keywords: ["bio", "custom instructions", "context", "profile"] },
+        interests: { title: "Interests", description: "Separated by commas.", keywords: ["topics", "hobbies"] },
+      },
+    },
+    {
+      section: "How Chat answers",
+      rows: {
+        language: { title: "Language", description: "The language Chat answers in.", keywords: ["response language", "translate", "english", "spanish"] },
+        tone: { title: "Tone", keywords: ["style", "personality", "friendly", "professional", "concise", "casual"] },
+        responseLength: { title: "Answer length", keywords: ["response length", "short", "long", "verbose", "brief answers"] },
+      },
+    },
+    {
+      section: "Memory",
+      rows: {
+        autoSave: { title: "Remember things from chats", description: "Chat saves what it learns about you, like your role or the people you work with.", keywords: ["memory", "save memories", "learn"] },
+        recall: { title: "Use what Chat remembers", description: "Chat reads its memories of you when it answers. Turn personalization off for one chat in its ⋯ menu.", keywords: ["memory", "recall", "personalized"] },
+      },
+    },
+    {
+      section: "Saved memories",
+      rows: {
+        memories: { title: "Saved memories", description: "What Chat remembers about you. Forget any of them.", keywords: ["forget", "delete memory", "memories"] },
+      },
+    },
   ],
   sync: [
     {
