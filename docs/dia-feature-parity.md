@@ -331,7 +331,7 @@ string doesn't matter. Afterwards: `kill %1` for the server, quit the app, `rm -
 ## 6. Split view
 | Feature | Dia | Astro | Gap |
 |---|---|---|---|
-| Split view up to 3 panes, horizontal/vertical, add bottom split | ✓ | ✅ | each pane is a Chrome tab at its own size; Chrome's dialogs follow the focused pane (ledger "Split view") |
+| Split view up to 3 panes, horizontal/vertical, add bottom split | ✓ | ✅ | each pane is a Chrome tab at its own size; Chrome's dialogs follow the focused pane (ledger "Split view"). Since 2026-10-28 the panes are Bloom's retained panels (`panelLayout.retain`, `ContentCard.tsx`): every mounted tab is a panel that stays in one place in the tree, so splitting, stacking, flipping, moving a pane, changing orientation, separating and switching tabs reload nothing (page-side sentinel on Linux: 0, as before) and hidden tabs keep the card's size; sizes are the layout's spans, the dividers Bloom's pill (a 150 pt drag lands at 0.6223/0.3777, identical to before) and the drop targets Bloom's zones over the card |
 | Open Split Pane ⌃⇧=, focus next/prev ⌃⇧] / ⌃⇧[ | ✓ | ✅ | |
 | Drag tab to edge to split; ⌥‑click ➕ opens split NTP; ⇧⌥‑click link opens right pane | ✓ | ✅ | Dia's split targets from the sidebar and the top strip alike ("Add left split" / "Add right split" at each pane's sides: slide in, grow, the one under the dragged card takes the accent and leans to the pointer; the tab shows as a small window under the pointer; `dia-spec.md` › Dragging tabs and split targets). The page showing the dragged tab alone splits with the tab used before it |
 | Per‑pane nav bar / tint / close | ✓ | ✅ | unfocused panes dim |
