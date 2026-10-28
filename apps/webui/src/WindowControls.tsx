@@ -7,7 +7,7 @@ import { tabHub } from "./host/tabs";
 import { pageWindowId } from "./host/windows";
 import { emitWindowEvent } from "./shims/shell";
 
-let maximized = false;
+const fillsScreen = () => window.outerWidth >= window.screen.availWidth && window.outerHeight >= window.screen.availHeight;
 
 const ACTIONS = [
   {
@@ -23,9 +23,8 @@ const ACTIONS = [
     name: "zoom",
     run: () =>
       void tabHub().then((hub) => {
-        maximized = !maximized;
-        if (maximized) hub.page.maximize();
-        else hub.page.restore();
+        if (fillsScreen()) hub.page.restore();
+        else hub.page.maximize();
       }),
   },
 ];

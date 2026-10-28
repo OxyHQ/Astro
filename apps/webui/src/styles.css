@@ -29,6 +29,7 @@ a,
 .astro-window-control {
   position: absolute;
   z-index: 1001;
+  pointer-events: auto;
   padding: 0;
   border: none;
   border-radius: 50%;
@@ -39,6 +40,7 @@ a,
 .astro-app-menu {
   position: absolute;
   z-index: 1001;
+  pointer-events: auto;
   padding: 0;
   border: none;
   border-radius: 6px;
