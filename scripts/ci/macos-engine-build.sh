@@ -26,6 +26,8 @@ ulimit -n 65536 2>/dev/null || ulimit -n 10240 2>/dev/null || true
 report() { [[ -n "${GITHUB_OUTPUT:-}" ]] && echo "status=$1" >>"$GITHUB_OUTPUT"; echo "engine build: $1"; }
 remaining() { echo $((deadline - $(date +%s))); }
 
+group_alive() { ps -A -o pgid=,stat= | awk -v group="$1" '$1 == group && $2 !~ /^Z/ { found = 1 } END { exit !found }'; }
+
 until_deadline() {
   set -m
   "$@" &
@@ -35,8 +37,8 @@ until_deadline() {
     if (($(date +%s) >= deadline)); then
       echo "::notice::deadline reached: interrupting the build to hand it to the next job"
       kill -INT -- "-$pid" 2>/dev/null
-      for _ in $(seq 1 120); do kill -0 "$pid" 2>/dev/null || break; sleep 5; done
-      kill -KILL -- "-$pid" 2>/dev/null
+      for _ in $(seq 1 120); do group_alive "$pid" || break; sleep 5; done
+      if group_alive "$pid"; then echo "::warning::the build didn't stop in 10 minutes; killing it"; kill -KILL -- "-$pid"; fi
       wait "$pid" 2>/dev/null
       return 124
     fi

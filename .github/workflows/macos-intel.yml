@@ -32,11 +32,11 @@ jobs:
         with:
           persist-credentials: false
       # The engine is rebuilt only when what it's built from changes; a tree left by an earlier run with the same
-      # patch series resumes instead of starting over.
+      # patch series and preparation resumes instead of starting over.
       - id: keys
         run: |
           engine=$(git rev-parse HEAD:engine HEAD:apps/browser/assets/offline-game HEAD:apps/browser/assets/offline-game-pipeline | shasum -a 256 | cut -c1-16)
-          state=$(git rev-parse HEAD:engine/patches HEAD:engine/astrocore/apply.sh | shasum -a 256 | cut -c1-16)
+          state=$(git rev-parse HEAD:engine/patches HEAD:engine/astrocore/apply.sh HEAD:scripts/ci/macos-engine-prepare.sh | shasum -a 256 | cut -c1-16)
           echo "engine_key=$engine" >> "$GITHUB_OUTPUT"
           echo "state_key=$state" >> "$GITHUB_OUTPUT"
       - id: lookup
