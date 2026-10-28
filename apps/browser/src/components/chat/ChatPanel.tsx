@@ -580,6 +580,7 @@ function PanelMenu({
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
+        <DropdownMenuItem onPress={() => openInternalPage("library", windowId)}>Library…</DropdownMenuItem>
         <DropdownMenuItem onPress={() => openSkillsPage(windowId)}>Skills…</DropdownMenuItem>
         <DropdownMenuItem onPress={() => openInternalPage("apps", windowId)}>Connected Apps…</DropdownMenuItem>
       </DropdownMenuContent>

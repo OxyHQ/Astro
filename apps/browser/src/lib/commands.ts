@@ -274,6 +274,8 @@ export function runCommand({ command, arg, windowId: requested }: CommandEvent) 
       return void toggleCastPicker(windowId);
     case "showHistory":
       return openInternalPage("history", windowId);
+    case "showLibrary":
+      return openInternalPage("library", windowId);
     case "clearBrowsingData":
       openInternalPage("history", windowId);
       return useClearDataRequest.getState().request(windowId);

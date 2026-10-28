@@ -41,6 +41,7 @@ import { UtilityWindows } from "./UtilityWindows";
 import { WindowButtons } from "./WindowControls";
 import { useApps } from "../../browser/src/ai/apps/apps";
 import { useArtifacts } from "../../browser/src/ai/artifacts/artifacts";
+import { useLibrary } from "../../browser/src/ai/library/store";
 import { useSkills } from "../../browser/src/ai/skills/skills";
 import { agentDebug } from "../../browser/src/ai/agent/debug";
 
@@ -54,7 +55,7 @@ startDictationCapture();
 startTabDragShare();
 setStoreBatching(unstable_batchedUpdates);
 
-Object.assign(globalThis, { astro: { store: useBrowser, emitCommand, oneShot: oneShotDebug, chat: useChat, chatEntry: useChatEntry, oxy: useOxySession, skills: useSkills, apps: useApps, artifacts: useArtifacts, dictation: dictationDebug, agent: agentDebug, live: useLive } });
+Object.assign(globalThis, { astro: { store: useBrowser, emitCommand, oneShot: oneShotDebug, chat: useChat, chatEntry: useChatEntry, oxy: useOxySession, skills: useSkills, apps: useApps, artifacts: useArtifacts, dictation: dictationDebug, agent: agentDebug, live: useLive, library: useLibrary } });
 
 const startPage = () =>
   startWindows(

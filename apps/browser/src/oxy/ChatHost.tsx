@@ -23,6 +23,7 @@ import { ChatPanel } from "../components/chat/ChatPanel";
 import { tabSlotKey, useChatSlots, windowSlotKey } from "../components/chat/ChatSlots";
 import { useChatDropAndPaste } from "../components/chat/useChatDropAndPaste";
 import { AppsPage } from "../components/pages/AppsPage";
+import { LibraryPage } from "../components/pages/LibraryPage";
 import { registerInternalPage } from "../components/pages/registry";
 import { SkillsPage } from "../components/pages/SkillsPage";
 import { ThemeScope, useTheme } from "../lib/theme";
@@ -45,6 +46,7 @@ function themed(Page: ComponentType<{ tabId: string }>) {
 registerInternalPage("artifact", themed(ArtifactPage));
 registerInternalPage("skills", themed(SkillsPage));
 registerInternalPage("apps", themed(AppsPage));
+registerInternalPage("library", themed(LibraryPage));
 
 export type ChatHostProps = { windowId: string | null; aliaURL: string; streamFetch: typeof fetch; children?: ReactNode };
 

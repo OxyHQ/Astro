@@ -100,6 +100,7 @@ function appMenu(state: MenuState): MenuItem[] {
     ]),
     submenu("History", [
       c(["Show History…", "showHistory", "y"]),
+      c(["Show Library…", "showLibrary"]),
       c(["Reopen Closed Tab", "reopenClosedTab", "t", ["command", "shift"]]),
       c(["Reopen Closed Window", "reopenClosedWindow"]),
       c(["Clear Browsing Data…", "clearBrowsingData"]),

@@ -39,6 +39,7 @@ export function InternalPage({ tabId }: { tabId: string }) {
       {page === "skills" && <RegisteredPage id="skills" tabId={tabId} />}
       {page === "apps" && <RegisteredPage id="apps" tabId={tabId} />}
       {page === "artifact" && <RegisteredPage id="artifact" tabId={tabId} />}
+      {page === "library" && <RegisteredPage id="library" tabId={tabId} />}
     </View>
   );
 }

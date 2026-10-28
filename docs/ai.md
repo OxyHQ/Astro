@@ -522,6 +522,33 @@ connections, so a connection made in Astro works in the Alia app and back.
   its own host tools (open and close tabs, read a tab, act in a tab).
 - Entry points: the command bar's Connect Apps, the panel's ⋯ › Connected Apps….
 
+### Library
+
+`astro://library` (`components/pages/LibraryPage.tsx`, `ai/library/`): the chats you had with Alia in Astro and the
+files Chat made (Dia's Library). Opened from History › Show Library…, the command bar's Library and Chat's ⋯ ›
+Library…; signed out it offers Sign In with Oxy.
+
+- **Chats** are Alia's conversations (`GET /v1/conversations?app=astro`, every page up to 500), by day as Chat's history
+  groups them. A row opens the conversation in the Chat panel; its ⋯ has Open in Chat, Open Link (when a link matched),
+  Copy Title and Delete… (`DELETE /v1/conversations/:id`, from the account everywhere).
+- **Files** are the canvas results and `generateFile` outputs in those conversations (`ai/artifacts/artifacts.ts`), the
+  latest version of each kind and title, with the chat they came from. A row opens the artifact tab.
+- **Search** matches a chat's title, its messages, the links in them and in its tools' results (a web search's pages),
+  and the titles of its files; files match by title, kind and chat. A date filter (Any Time, Today, Yesterday, Past 7
+  Days, Past 30 Days) narrows both, and so do dates written in the search: “today”, “yesterday”, “this week”, “last
+  week”, “past month”, a weekday (its latest), a month (its latest) or “oct 18”. “may” and “march” count as a month only
+  with a day.
+- **The index.** Alia's list carries only titles and the last message, so Astro reads each conversation once
+  (`GET /v1/conversations/:id`, four at a time, the newest 300) and keeps what search needs: up to 8 000 characters of
+  its messages, 60 links and its files (`indexConversation`). A conversation is read again only when its `updatedAt`
+  changes. The index is kept per Oxy account in the interface's storage (`astro.library.v1.<account>`; another
+  account's is dropped), so reopening reads nothing that hasn't changed. Reading a conversation also fills the artifact
+  store, so a file opens at once.
+- **History** (`components/pages/HistoryPage.tsx`, `HistoryChats.tsx`): the same date filter and written dates narrow
+  the pages; signed in, a search lists up to three matching chats and three files above them, with Show All in Library.
+- **Search Tabs** (⇧⌘A) lists the five newest chats under Recently Closed, or those matching what you type; ↩ opens one
+  in Chat.
+
 ### Suggestions
 
 A new chat offers, above the composer (`ai/work/suggestions.ts`):
@@ -552,7 +579,8 @@ is Expo's `expo/fetch`. On macOS Metro maps `expo-secure-store` to Astro's keych
   `ai/skills/skills.test.mjs` (slugs, the `/` list, `/name` parsing, the Alia routes the shelf calls),
   `ai/work/brief.test.mjs` (brief, prep, recap), `ai/agent/agent.test.mjs` (the snapshot outline, what needs
   approval, keys, continuing a task), `ai/safety/safety.test.mjs` (sensitive sites, policies, redaction), `ai/artifacts/artifacts.test.mjs` (canvas results to artifacts,
-  versions, addresses, the revision request, exports), `ai/apps/apps.test.mjs` (the apps list, which apps are available, connecting, finishing OAuth once and only after a connect), `ai/work/suggestions.test.mjs` and `ai/chat/tasks.test.mjs` (questions,
+  versions, addresses, the revision request, exports), `ai/library/library.test.mjs` (the index, search by title, message,
+  link and date, day groups), `ai/apps/apps.test.mjs` (the apps list, which apps are available, connecting, finishing OAuth once and only after a connect), `ai/work/suggestions.test.mjs` and `ai/chat/tasks.test.mjs` (questions,
   answers, the plan and its ticks, workspaces and following them, live folders in the turn and in `@`).
 - A Windows or Linux build against a local stack: `ASTRO_OXY_API_URL`, `ASTRO_NILO_API_URL`, `ASTRO_ALIA_API_URL` and
   `ASTRO_KAANA_URL` move together (`apps/webui/vite.config.ts` refuses a mix, so a local session never reaches a

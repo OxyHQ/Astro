@@ -29,6 +29,7 @@ const SKILLS_ACTIONS: CommandAction[] = [
   { id: "astroSkills:yours", title: "Skills", icon: "sparkles", hint: "Chat", keywords: ["skills", "slash commands", "gallery"] },
   { id: "astroSkills:new", title: "New Skill", icon: "wand.and.stars", hint: "Chat", keywords: ["create skill", "skill builder"] },
   { id: "astroSkills:gallery", title: "Skills Gallery", icon: "sparkles", hint: "Chat", keywords: ["skills gallery", "browse skills"] },
+  { id: "astroSkills:library", title: "Library", icon: "book", hint: "Chat", keywords: ["library", "chats", "chat history", "files", "artifacts", "reports", "past chats"] },
   { id: "astroSkills:apps", title: "Connect Apps", icon: "puzzlepiece", hint: "Chat", keywords: ["apps", "connectors", "integrations", "gmail", "notion", "slack", "github", "linear", "google drive"] },
 ];
 
@@ -37,8 +38,8 @@ export const skillsBarActions = (signIn: boolean): CommandAction[] => (signIn ? 
 export const isSkillsActionId = (id: string) => id.startsWith("astroSkills:");
 
 export function runSkillsAction(id: string, windowId: string) {
-  const route = id.slice("astroSkills:".length) as "yours" | "new" | "gallery" | "apps";
-  if (route === "apps") return void import("../pages/urls").then(({ openInternalPage }) => openInternalPage("apps", windowId));
+  const route = id.slice("astroSkills:".length) as "yours" | "new" | "gallery" | "apps" | "library";
+  if (route === "apps" || route === "library") return void import("../pages/urls").then(({ openInternalPage }) => openInternalPage(route, windowId));
   void import("../pages/urls").then(({ openSkillsPage }) => openSkillsPage(windowId, route));
 }
 

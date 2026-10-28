@@ -1,7 +1,11 @@
 import { displayUrl, fuzzyScore } from "@astro-browser/core";
 import { FadeLabel, Surface, Symbol } from "@astro-browser/shell";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useAliaReady } from "../../ai/alia/api";
+import { searchChats, shortDate } from "../../ai/library/library";
+import { openLibraryChat } from "../../ai/library/open";
+import { refreshLibrary, useLibrary } from "../../ai/library/store";
 import { switchToTab } from "../../lib/actions";
 import { hex, useTheme } from "../../lib/theme";
 import { useBrowser, type BrowserState } from "../../store/browser";
@@ -12,11 +16,13 @@ import { TabIcon } from "./TabIcon";
 
 type Row =
   | { kind: "tab"; id: string; title: string; url: string; favicon: string | null; icon: string | null; where: string | null; current: boolean }
-  | { kind: "closed"; id: string; title: string; url: string; favicon: string | null; icon: string | null; detail: string };
+  | { kind: "closed"; id: string; title: string; url: string; favicon: string | null; icon: string | null; detail: string }
+  | { kind: "chat"; id: string; title: string; url: string; favicon: null; icon: null; detail: string };
 
 const WIDTH = 560;
 const ROW = 36;
 const MAX_ROWS = 10;
+const CHAT_ROWS = 5;
 
 function candidates(s: BrowserState, windowId: string): { open: Row[]; closed: Row[] } {
   const w = s.windows[windowId];
@@ -84,24 +90,38 @@ function Panel({ windowId, windowWidth }: { windowId: string; windowWidth: numbe
   const tabs = useBrowser((s) => s.tabs);
   const closedTabs = useBrowser((s) => s.closedTabs);
   const closedGroups = useBrowser((s) => s.closedGroups);
+  const signedIn = useAliaReady();
+  const conversations = useLibrary((s) => s.conversations);
+  const chatIndex = useLibrary((s) => s.index);
+  useEffect(() => {
+    if (signedIn) void refreshLibrary();
+  }, [signedIn]);
+  const chats = useMemo((): Row[] => {
+    if (!signedIn) return [];
+    const now = Date.now();
+    return searchChats(conversations, chatIndex, query.trim(), null)
+      .slice(0, CHAT_ROWS)
+      .map((c) => ({ kind: "chat", id: c.id, title: c.title, url: "", favicon: null, icon: null, detail: shortDate(c.at, now) }));
+  }, [signedIn, conversations, chatIndex, query]);
   const sections = useMemo(() => {
     const { open, closed } = candidates(useBrowser.getState(), windowId);
     const q = query.trim();
-    if (!q) return [{ title: "Open Tabs", rows: open }, { title: "Recently Closed", rows: closed.slice(0, 8) }];
+    if (!q) return [{ title: "Open Tabs", rows: open }, { title: "Recently Closed", rows: closed.slice(0, 8) }, { title: "Chats", rows: chats }];
     const rank = (rows: Row[]) =>
       rows
         .map((r) => ({ r, score: Math.max(fuzzyScore(q, r.title), fuzzyScore(q, host(r.url)) * 0.9, fuzzyScore(q, r.url) * 0.6) }))
         .filter((x) => x.score > 0)
         .sort((a, b) => b.score - a.score)
         .map((x) => x.r);
-    return [{ title: "Open Tabs", rows: rank(open) }, { title: "Recently Closed", rows: rank(closed).slice(0, 8) }];
-  }, [query, tabs, closedTabs, closedGroups, windowId]);
+    return [{ title: "Open Tabs", rows: rank(open) }, { title: "Recently Closed", rows: rank(closed).slice(0, 8) }, { title: "Chats", rows: chats }];
+  }, [query, tabs, closedTabs, closedGroups, windowId, chats]);
   const rows = sections.flatMap((s) => s.rows);
   const close = () => setSidebarUi({ searchTabs: null });
   const choose = (row: Row | undefined) => {
     if (!row) return;
     close();
     if (row.kind === "tab") switchToTab(row.id);
+    else if (row.kind === "chat") openLibraryChat(windowId, row.id);
     else useBrowser.getState().restoreClosed(row.id, windowId);
   };
   const move = (delta: number) => {
@@ -155,7 +175,7 @@ function Panel({ windowId, windowWidth }: { windowId: string; windowWidth: numbe
         <View style={{ height: 0.5, backgroundColor: theme.divider }} />
         <ScrollView ref={scroll} style={{ maxHeight: ROW * MAX_ROWS + 60 }} showsVerticalScrollIndicator={false}>
           {rows.length === 0 ? (
-            <Text style={{ paddingHorizontal: 16, paddingVertical: 14, fontSize: 13, color: theme.textTertiary }}>No tabs match “{query.trim()}”</Text>
+            <Text style={{ paddingHorizontal: 16, paddingVertical: 14, fontSize: 13, color: theme.textTertiary }}>No tabs or chats match “{query.trim()}”</Text>
           ) : null}
           {sections.map((section) =>
             section.rows.length ? (
@@ -184,7 +204,11 @@ function ResultRow({ row, selected, onHover, onPress }: { row: Row; selected: bo
         onMouseEnter={onHover}
         style={{ height: ROW, borderRadius: 10, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, gap: 10, backgroundColor: selected ? theme.rowSelected : undefined }}
       >
-        <TabIcon url={row.url} favicon={row.favicon} icon={row.icon} />
+        {row.kind === "chat" ? (
+          <Symbol name="bubble.left" size={13} color={theme.textSecondary} style={{ width: 16, height: 16 }} />
+        ) : (
+          <TabIcon url={row.url} favicon={row.favicon} icon={row.icon} />
+        )}
         <View style={{ flex: 1, flexDirection: "row", alignItems: "center", minWidth: 0 }}>
           <FadeLabel text={row.title} fontSize={14} color={theme.textPrimary} style={{ flex: 3, height: 19 }} />
           {row.url ? <FadeLabel text={`— ${displayUrl(row.url)}`} fontSize={14} color={theme.textSecondary} style={{ flex: 2, height: 19, marginLeft: 5 }} /> : null}
