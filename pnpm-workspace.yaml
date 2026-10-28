@@ -21,7 +21,7 @@ allowBuilds:
   esbuild: false
 
 minimumReleaseAgeExclude:
-  - '@alia.onl/sdk@22.6.0'
+  - '@alia.onl/sdk@22.6.0 || 22.7.0'
   - '@oxy.so/bloom@15.59.0'
   - '@oxy.so/contracts@6.0.0'
   - '@oxy.so/core@7.1.0 || 7.2.0'

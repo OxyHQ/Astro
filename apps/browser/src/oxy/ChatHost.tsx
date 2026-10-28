@@ -15,7 +15,8 @@ import { useChat } from "../ai/chat/state";
 import { startWorkspaceFollow } from "../ai/chat/workspace";
 import { registerChatOpener } from "../ai/chatEntry";
 import { aliaTranscriber } from "../ai/dictation/alia";
-import { registerDictationTranscriber } from "../ai/dictation/dictation";
+import { registerDictationStreamer, registerDictationTranscriber } from "../ai/dictation/dictation";
+import { aliaStreamer } from "../ai/dictation/stream";
 import { forgetSkills, refreshSkills } from "../ai/skills/skills";
 import { ArtifactPage } from "../components/artifacts/ArtifactPage";
 import { ChatFrame } from "../components/chat/ChatFrame";
@@ -67,7 +68,9 @@ function AliaApiBridge({ aliaURL }: { aliaURL: string }) {
   useEffect(() => {
     const linked = oxyServices.createLinkedClient({ baseURL: aliaURL });
     const unregister = registerDictationTranscriber(aliaTranscriber(aliaURL, { transport: { fetch: linked.fetch } }));
+    const unregisterStreamer = registerDictationStreamer(aliaStreamer(aliaURL, (target, options) => linked.getAccessToken(target, options)));
     return () => {
+      unregisterStreamer();
       unregister();
       linked.dispose();
     };
