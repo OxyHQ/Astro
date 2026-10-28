@@ -55,3 +55,36 @@ export function encodeWav(samples: Float32Array, sampleRate = DICTATION_SAMPLE_R
   }
   return bytes;
 }
+
+export const STREAM_SAMPLE_RATE = 24_000;
+
+export class Upsampler {
+  private carry: number | null = null;
+  private produced = 0;
+  private consumed = 0;
+
+  push(samples: Float32Array): Uint8Array<ArrayBuffer> {
+    const out: number[] = [];
+    const sampleAt = (index: number) => (index < this.consumed ? (this.carry ?? samples[0]!) : samples[index - this.consumed]!);
+    for (;;) {
+      const scaled = this.produced * DICTATION_SAMPLE_RATE;
+      const index = Math.floor(scaled / STREAM_SAMPLE_RATE);
+      if (index + 1 > this.consumed + samples.length - 1) break;
+      const fraction = (scaled % STREAM_SAMPLE_RATE) / STREAM_SAMPLE_RATE;
+      const before = sampleAt(index);
+      out.push(before + (sampleAt(index + 1) - before) * fraction);
+      this.produced++;
+    }
+    if (samples.length > 0) {
+      this.consumed += samples.length;
+      this.carry = samples[samples.length - 1]!;
+    }
+    const bytes = new Uint8Array(out.length * 2);
+    const view = new DataView(bytes.buffer);
+    for (let i = 0; i < out.length; i++) {
+      const clamped = Math.max(-1, Math.min(1, out[i]!));
+      view.setInt16(i * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+    }
+    return bytes;
+  }
+}

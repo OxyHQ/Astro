@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { useOxySession } from "../../oxy/session";
 import { aliaTranscriber, DICTATION_ERROR_MESSAGES, DictationFailure, type DictationErrorCode, type Transcriber } from "./alia";
-import { encodeWav } from "./audio";
+import { encodeWav, Upsampler } from "./audio";
 import { SpeechSegmenter, type SegmenterOptions, type SpeechSegment } from "./segmenter";
+import { StreamTranscript, streamFailureCode, type DictationStreamHandle, type Streamer, type StreamEvent } from "./stream";
 import { dictationLanguage, joinTranscript } from "./transcript";
 
 export type DictationPhase = "idle" | "starting" | "listening" | "finishing";
@@ -23,6 +24,7 @@ type DictationState = {
   error: DictationError | null;
   capture: boolean;
   transcriber: boolean;
+  streamer: boolean;
   testEndpoint: string | null;
   calls: DictationCall[];
 };
@@ -45,6 +47,7 @@ export const useDictation = create<DictationState>()(() => ({
   error: null,
   capture: false,
   transcriber: false,
+  streamer: false,
   testEndpoint: null,
   calls: [],
 }));
@@ -64,10 +67,11 @@ export class DictationCaptureError extends Error {
 
 const captures: DictationCapture[] = [];
 const transcribers: Transcriber[] = [];
+const streamers: Streamer[] = [];
 let testTranscriber: Transcriber | null = null;
 let segmenterOptions: Partial<SegmenterOptions> = {};
 
-function enlist<T>(list: T[], item: T, flag: "capture" | "transcriber"): () => void {
+function enlist<T>(list: T[], item: T, flag: "capture" | "transcriber" | "streamer"): () => void {
   list.push(item);
   useDictation.setState({ [flag]: true });
   return () => {
@@ -79,6 +83,7 @@ function enlist<T>(list: T[], item: T, flag: "capture" | "transcriber"): () => v
 
 export const registerDictationCapture = (capture: DictationCapture) => enlist(captures, capture, "capture");
 export const registerDictationTranscriber = (transcriber: Transcriber) => enlist(transcribers, transcriber, "transcriber");
+export const registerDictationStreamer = (streamer: Streamer) => enlist(streamers, streamer, "streamer");
 
 export function setDictationTestEndpoint(url: string | null, bearer = "", options: Partial<SegmenterOptions> = {}): boolean {
   if (url === null) {
@@ -96,6 +101,7 @@ export function setDictationTestEndpoint(url: string | null, bearer = "", option
 
 const signedIn = () => !!useOxySession.getState().account;
 const currentTranscriber = (): Transcriber | null => testTranscriber ?? (signedIn() ? (transcribers.at(-1) ?? null) : null);
+const currentStreamer = (): Streamer | null => (testTranscriber || !signedIn() ? null : (streamers.at(-1) ?? null));
 
 export const dictationAvailable = (): boolean => captures.length > 0;
 
@@ -112,9 +118,18 @@ export const useDictationPhase = (key: string): DictationPhase => useDictation((
 
 export const useDictationError = (key: string): DictationError | null => useDictation((s) => (s.error?.key === key ? s.error : null));
 
+type StreamMode = "opening" | "live" | "off";
+
 type Session = {
   key: string;
   sink: DictationSink;
+  mode: StreamMode;
+  stream: DictationStreamHandle | null;
+  streamAbort: AbortController;
+  streamEnded: boolean;
+  held: SpeechSegment[];
+  transcript: StreamTranscript;
+  upsampler: Upsampler;
   segmenter: SpeechSegmenter;
   transcriber: Transcriber;
   language: string;
@@ -147,9 +162,17 @@ export async function beginDictation(key: string, sink: DictationSink, mode: Dic
   const capture = captures.at(-1);
   const transcriber = currentTranscriber();
   if (!capture || !transcriber) return fail(key, signedIn() || testTranscriber ? "unavailable" : "not-signed-in");
+  const streamer = currentStreamer();
   const s: Session = {
     key,
     sink,
+    mode: streamer ? "opening" : "off",
+    stream: null,
+    streamAbort: new AbortController(),
+    streamEnded: false,
+    held: [],
+    transcript: new StreamTranscript(),
+    upsampler: new Upsampler(),
     segmenter: new SpeechSegmenter(segmenterOptions),
     transcriber,
     language: dictationLanguage(),
@@ -165,6 +188,7 @@ export async function beginDictation(key: string, sink: DictationSink, mode: Dic
   };
   session = s;
   useDictation.setState({ key, phase: "starting", mode, startedAt: 0, firstTextAt: 0, levels: [], pending: 0, text: "", error: null });
+  if (streamer) openStream(s, streamer);
   let handle: DictationCaptureHandle;
   try {
     handle = await capture.open((samples) => hear(s, samples));
@@ -184,11 +208,65 @@ export function setDictationMode(key: string, mode: DictationMode) {
   if (session?.key === key) useDictation.setState({ mode });
 }
 
+function openStream(s: Session, streamer: Streamer) {
+  try {
+    s.stream = streamer({ language: s.language, signal: s.streamAbort.signal, onEvent: (event) => onStreamEvent(s, event) });
+  } catch {
+    fallBack(s);
+  }
+}
+
+function onStreamEvent(s: Session, event: StreamEvent) {
+  if (session !== s || s.cancelled || s.mode === "off") return;
+  switch (event.type) {
+    case "dictation.ready":
+      if (s.mode === "opening") {
+        s.mode = "live";
+        s.held = [];
+      }
+      return;
+    case "transcript.interim":
+    case "transcript.delta":
+    case "transcript.final":
+      if (s.transcript.apply(event)) show(s);
+      return;
+    case "error": {
+      const code = streamFailureCode(event.code);
+      if (s.mode === "opening" && code !== "not-signed-in") return fallBack(s);
+      return stop(s, code);
+    }
+    case "dictation.closed":
+      if (!s.closed && (event.reason === "max-duration" || event.reason === "idle-timeout")) void endDictation(s.key);
+      return;
+  }
+}
+
+function fallBack(s: Session) {
+  s.mode = "off";
+  closeStream(s);
+  const held = s.held;
+  s.held = [];
+  for (const segment of held) send(s, segment);
+  settleIfDone(s);
+}
+
+function closeStream(s: Session) {
+  s.streamAbort.abort();
+  s.stream?.close();
+  s.stream = null;
+}
+
 function hear(s: Session, samples: Float32Array) {
   if (session !== s || s.closed) return;
   const { segments, levels } = s.segmenter.push(samples, () => mayCut(s));
   if (levels.length) useDictation.setState((state) => ({ levels: [...state.levels, ...levels].slice(-SHOWN_LEVELS) }));
-  for (const segment of segments) send(s, segment);
+  if (s.mode !== "off") s.stream?.append(s.upsampler.push(samples));
+  route(s, segments);
+}
+
+function route(s: Session, segments: SpeechSegment[]) {
+  if (s.mode === "opening") s.held.push(...segments);
+  else if (s.mode === "off") for (const segment of segments) send(s, segment);
 }
 
 function mayCut(s: Session): boolean {
@@ -239,7 +317,7 @@ function show(s: Session) {
     if (part === null) break;
     ready.push(part);
   }
-  const text = joinTranscript(ready);
+  const text = s.mode === "off" ? joinTranscript(ready) : s.transcript.text;
   if (text === s.shown) return;
   s.shown = text;
   s.sink.apply(text);
@@ -259,7 +337,7 @@ function settle(s: Session) {
 }
 
 function settleIfDone(s: Session) {
-  if (!s.closed || s.controllers.size > 0) return;
+  if (!s.closed || s.controllers.size > 0 || (s.mode === "live" && !s.streamEnded)) return;
   if (session === s) {
     session = null;
     useDictation.setState({ key: null, phase: "idle", levels: [], pending: 0 });
@@ -270,6 +348,7 @@ function settleIfDone(s: Session) {
 function stop(s: Session, code: DictationErrorCode) {
   s.closed = true;
   close(s);
+  closeStream(s);
   for (const controller of s.controllers) controller.abort();
   s.controllers.clear();
   for (let i = 0; i < s.parts.length; i++) if (s.parts[i] === null) s.parts[i] = "";
@@ -291,8 +370,19 @@ export function endDictation(key?: string): Promise<void> {
     s.closed = true;
     close(s);
     const last = s.segmenter.flush();
-    if (last) send(s, last);
+    if (s.mode === "opening") {
+      if (last) s.held.push(last);
+      fallBack(s);
+    } else if (s.mode === "off" && last) send(s, last);
     useDictation.setState({ phase: "finishing", levels: [] });
+    if (s.mode === "live" && !s.stream) s.streamEnded = true;
+    if (s.mode === "live" && s.stream) {
+      void s.stream.end().finally(() => {
+        s.streamEnded = true;
+        if (!s.cancelled) show(s);
+        settleIfDone(s);
+      });
+    }
   }
   settleIfDone(s);
   return finished;
@@ -304,6 +394,7 @@ export function cancelDictation(key?: string) {
   s.cancelled = true;
   s.closed = true;
   close(s);
+  closeStream(s);
   for (const controller of s.controllers) controller.abort();
   s.controllers.clear();
   session = null;
