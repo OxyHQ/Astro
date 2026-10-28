@@ -74,7 +74,6 @@ jobs:
         with:
           name: astrocore-macos-x64-${{ inputs.engine_key }}
           path: ${{ runner.temp }}/framework
-          compression-level: 0
           retention-days: 30
           if-no-files-found: error
       - name: Pack the tree for the next phase
