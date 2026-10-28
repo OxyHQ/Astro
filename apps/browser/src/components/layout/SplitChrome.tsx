@@ -95,7 +95,7 @@ export function usePaneDrop(visible: readonly string[]): AppShellPanelDrop | und
       panels: candidates,
       edges: ["start", "end"] as const,
       preview: PREVIEW,
-      appearance: "glass" as const,
+      appearance: "translucent" as const,
       onTargetChange: (target: PanelDropTarget | null) => setDropTarget(latest.current.asTarget(target)),
     }),
     [active, dragging, x, y, candidates],
