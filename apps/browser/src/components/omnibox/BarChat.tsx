@@ -16,7 +16,7 @@ import { switchFromBar } from "./open";
 export function MentionIcon({ candidate }: { candidate: MentionCandidate }) {
   const theme = useTheme();
   if (candidate.kind === "tab") return <Favicon url={candidate.url} favicon={candidate.favicon} />;
-  return <Symbol name="square.on.square" size={13} color={theme.textSecondary} style={{ width: 16, height: 16 }} />;
+  return <Symbol name={candidate.kind === "liveFolder" ? "dot.radiowaves.left.and.right" : "square.on.square"} size={13} color={theme.textSecondary} style={{ width: 16, height: 16 }} />;
 }
 
 export const MentionList = memo(function MentionList({
@@ -40,7 +40,12 @@ export const MentionList = memo(function MentionList({
 function MentionRow({ candidate, selected, onPick }: { candidate: MentionCandidate; selected: boolean; onPick(c: MentionCandidate): void }) {
   const theme = useTheme();
   const { hovered, hoverProps } = useHover();
-  const detail = candidate.kind === "tab" ? displayUrl(candidate.url) : `${candidate.count} tab${candidate.count === 1 ? "" : "s"}`;
+  const detail =
+    candidate.kind === "tab"
+      ? displayUrl(candidate.url)
+      : candidate.kind === "liveFolder"
+        ? `Live folder · ${candidate.count} ${candidate.folderKind === "pullRequests" ? "pull request" : "document"}${candidate.count === 1 ? "" : "s"}`
+        : `${candidate.count} tab${candidate.count === 1 ? "" : "s"}`;
   return (
     <View {...hoverProps}>
       <Pressable onPress={() => onPick(candidate)} accessibilityRole="menuitem" accessibilityLabel={candidate.title}>
@@ -76,7 +81,7 @@ function AttachmentIcon({ item }: { item: ChatContextItem }) {
   const theme = useTheme();
   if (item.kind === "tab") return <Favicon url={item.url} favicon={item.favicon} size={14} />;
   return (
-    <Symbol name={item.kind === "group" ? "square.on.square" : "doc"} size={11} color={theme.textSecondary} style={{ width: 14, height: 14 }} />
+    <Symbol name={item.kind === "group" ? "square.on.square" : item.kind === "liveFolder" ? "dot.radiowaves.left.and.right" : "doc"} size={11} color={theme.textSecondary} style={{ width: 14, height: 14 }} />
   );
 }
 

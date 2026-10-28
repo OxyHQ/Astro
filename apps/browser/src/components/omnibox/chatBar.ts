@@ -20,6 +20,7 @@ export const withoutMention = (text: string, mention: BarMention) => text.slice(
 export function attachmentKey(item: ChatContextItem): string {
   if (item.kind === "tab") return `tab:${item.tabId}`;
   if (item.kind === "group") return `group:${item.groupId}`;
+  if (item.kind === "liveFolder") return `live:${item.folderId}`;
   return item.id;
 }
 
@@ -45,6 +46,7 @@ export function groupTabRefs(s: Pick<BrowserState, "groups" | "tabs">, groupId: 
 export function mentionItem(candidate: MentionCandidate, groupTabs: (groupId: string) => ChatTabRef[], id: string): ChatContextItem {
   if (candidate.kind === "tab")
     return { id, kind: "tab", tabId: candidate.tabId, title: candidate.title, url: candidate.url, favicon: candidate.favicon };
+  if (candidate.kind === "liveFolder") return { id, kind: "liveFolder", folderId: candidate.folderId, title: candidate.title, folderKind: candidate.folderKind };
   return { id, kind: "group", groupId: candidate.groupId, title: candidate.title, tabs: groupTabs(candidate.groupId) };
 }
 
@@ -75,6 +77,8 @@ export function attachmentLabel(item: ChatContextItem): string {
       return `${item.title} (${item.tabs.length})`;
     case "file":
       return item.name;
+    case "liveFolder":
+      return item.title;
     default:
       return "";
   }
