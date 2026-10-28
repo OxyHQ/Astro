@@ -38,6 +38,8 @@ export function showMenu(items: MenuItem[]): Promise<string | null> {
   return new Promise((resolve) => publish({ items: withShareServices(items), x: pointer.x, y: pointer.y, resolve }));
 }
 
+export const menuIsOpen = () => open !== null;
+
 export const closeMenu = (id: string | null) => {
   const menu = open;
   if (!menu) return;

@@ -71,6 +71,30 @@ The promoted prompts are command-bar actions while Chat exists: Summarize This P
 Explain Like I'm 5, Quiz Me, Proofread (not on code hosts), Review Code (code hosts), Find Citations. Each opens Chat with
 its prompt and the page; the video's comes with the pre-made summary and the transcript.
 
+### Mentions, attachments and the destination toggle
+
+The command bar and the New Tab bar (not the sidebar's dropdown) talk to Chat like its composer does. The pure rules are
+`components/omnibox/chatBar.ts` (tests: `chatBar.test.mjs`), the drawing `components/omnibox/BarChat.tsx`.
+
+- **`@` mentions.** An `@` at the start or after a space, with Chat available, swaps the rows for the window's tabs and
+  tab groups (`components/chat/mentions.ts`, the composer's list), filtered by what follows the `@`; ↑↓ move, ↩ or ⇥
+  picks, Esc closes it until the text after the `@` changes. A pick drops the `@word` and becomes a chip before the text
+  (favicon or group glyph, title, ✕); ⌫ on an empty field removes the last chip.
+- **"+ Add tabs or files".** Signed in with Chat on, the bottom row's chip reads "+ Add tabs or files": a menu of the
+  window's tabs (checked when added; picking again removes it) and Files… (`pickChatFiles`, the composer's picker), each
+  a chip. The bar stays open while the menu or the file picker is up (the web shim's `OutsidePressArea` ignores presses
+  while a `showMenu` menu is open). Signed out or with Chat off it stays "↗ Open a tab or file".
+- **Destination.** A toggle before the mic, the default engine's name and Chat, shows where ↩ goes: the router's choice
+  (`routedDestination`: Chat when the first row is Chat) until you flip it, by click or ⌃/ (Ctrl+/ on Windows and
+  Linux). Flipping back to the router's choice clears the override. Anything attached locks it to Chat. The override
+  applies while the first row is selected; picking another row with ↑↓ still opens that row. The Go pill and the
+  leading glyph follow it.
+- **Sending.** The question goes through `sendToChat(windowId, query, items)` → `openChatWithQuery` → `openChat` with
+  `ChatEntry.items` (`ai/chatEntry.ts`), which `openChatFromEntry` adds to the ask's context, minus the tab the page
+  context already carries. Tabs and groups stay attached for the chat, as the composer's mentions do; files go once,
+  as the SDK's attachments. `/name words` from the bar (`runSlashAction`) carries the chips too. Files alone, with no
+  words, can be sent; tabs alone can't (there would be nothing to ask).
+
 ## Opening Chat from elsewhere: `ai/chatEntry.ts`
 
 The one-shot features reach Chat through one hook, so neither side imports the other:
@@ -423,8 +447,8 @@ and runs them.
   Esc closes). The pick becomes a chip above the composer; the message is sent with `skillNames: [name]` and the chip goes
   with it. Sending a chip with no text runs the skill on what's attached (the tab you're on, by default).
 - **The command bar**: typing `/` lists the same rows (`/name — Title`); `/name words` runs it on the words with the
-  current tab attached (`components/omnibox/chatRoute.ts` `slashBarRows`). The bar also has Skills, New Skill and Skills
-  Gallery.
+  current tab and the bar's chips attached (`components/omnibox/chatRoute.ts` `slashBarRows`, above › Mentions). The bar
+  also has Skills, New Skill and Skills Gallery.
 - **Automatic** (Dia's auto-fire) is the install's `autoInvoke`: Alia lists the skill in the turn's skill index and the
   model loads it (`loadSkill`) when a request matches its description, without the `/`. Off, the skill runs only when
   chosen.

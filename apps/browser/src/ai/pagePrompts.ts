@@ -3,6 +3,7 @@ import { webviews } from "../lib/webviews";
 import { signInWithOxy } from "../oxy/session";
 import { useBrowser } from "../store/browser";
 import { activeTab, isIncognitoProfile } from "../store/model";
+import type { ChatContextItem } from "./chat/state";
 import { chatAvailable, openChat, type ChatEntrySkill, type ChatPageContext } from "./chatEntry";
 import { oneShot, oneShotReady, oneShotSignedIn } from "./inference";
 import { promptActionsFor, PROMPT_ACTIONS, transcriptText, VIDEO_SUMMARY_INSTRUCTIONS, videoSummaryInput, youtubeVideoId, type PromptAction } from "./oneShotPrompts";
@@ -91,14 +92,27 @@ export async function runPromptAction(id: string, windowId: string): Promise<voi
   openChat({ windowId, prompt: action.prompt, source: action.when === "video" ? "videoSummary" : "promptAction", page: pageContext(tab.id) });
 }
 
-export function openChatWithQuery(windowId: string, prompt: string): boolean {
+export function openChatWithQuery(windowId: string, prompt: string, items: ChatContextItem[] = []): boolean {
   const tab = activeTab(useBrowser.getState(), windowId);
-  return openChat({ windowId, prompt, source: "commandBar", ...(tab?.url && /^https?:/i.test(tab.url) ? { page: pageContext(tab.id) } : {}) });
+  return openChat({
+    windowId,
+    prompt,
+    source: "commandBar",
+    ...(tab?.url && /^https?:/i.test(tab.url) ? { page: pageContext(tab.id) } : {}),
+    ...(items.length ? { items } : {}),
+  });
 }
 
-export function openChatWithSkill(windowId: string, prompt: string, skill: ChatEntrySkill): boolean {
+export function openChatWithSkill(windowId: string, prompt: string, skill: ChatEntrySkill, items: ChatContextItem[] = []): boolean {
   const tab = activeTab(useBrowser.getState(), windowId);
-  return openChat({ windowId, prompt, source: "skill", skill, ...(tab?.url && /^https?:/i.test(tab.url) ? { page: pageContext(tab.id) } : {}) });
+  return openChat({
+    windowId,
+    prompt,
+    source: "skill",
+    skill,
+    ...(tab?.url && /^https?:/i.test(tab.url) ? { page: pageContext(tab.id) } : {}),
+    ...(items.length ? { items } : {}),
+  });
 }
 
 export function startVideoSummaries(): () => void {

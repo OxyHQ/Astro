@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { ChatContextItem } from "./chat/state";
 import type { AstroCommand } from "./skills/skills";
 
 export type ChatEntrySource = "commandBar" | "promptAction" | "videoSummary" | "skill" | "calendar" | "suggestion" | "artifact";
@@ -21,6 +22,7 @@ export type ChatEntry = {
   skill?: ChatEntrySkill;
   conversationId?: string;
   context?: string[];
+  items?: ChatContextItem[];
 };
 
 export type ChatOpener = (entry: ChatEntry) => void;

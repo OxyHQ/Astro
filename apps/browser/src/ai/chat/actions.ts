@@ -112,9 +112,10 @@ export function openChatFromEntry(entry: ChatEntry) {
   const context: ChatContextItem[] = entry.page
     ? [{ id: chatItemId("tab"), kind: "tab", tabId: entry.page.tabId, title: entry.page.title, url: entry.page.url, favicon: tab?.favicon ?? null }]
     : [];
+  if (entry.items?.length) context.push(...entry.items.filter((item) => item.kind !== "tab" || item.tabId !== entry.page?.tabId));
   if (entry.skill) context.push({ id: chatItemId("skill"), kind: "skill", ...entry.skill });
   askInChat(entry.windowId, entry.prompt, {
-    send: entry.prompt.trim().length > 0 || !!entry.skill,
+    send: entry.prompt.trim().length > 0 || !!entry.skill || !!entry.items?.some((item) => item.kind === "file"),
     fresh: !entry.conversationId && entry.source !== "promptAction" && entry.source !== "suggestion",
     ...(entry.conversationId ? { conversationId: entry.conversationId } : {}),
     ...(entry.context?.length ? { extra: entry.context } : {}),

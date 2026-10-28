@@ -1,5 +1,6 @@
 import type { CommandAction, Suggestion } from "@astro-browser/core";
 import { useMemo } from "react";
+import type { ChatContextItem } from "../../ai/chat/state";
 import { useChatAvailable } from "../../ai/chatEntry";
 import { openChatWithQuery, openChatWithSkill, promptActionId, promptActionsForWindow } from "../../ai/pagePrompts";
 import { ASTRO_COMMANDS, slashCandidates, useSkills, type SlashCandidate } from "../../ai/skills/skills";
@@ -46,9 +47,9 @@ export function runSkillsAction(id: string, windowId: string) {
 export const forcesChat = (keys: { metaKey?: boolean; altKey?: boolean; ctrlKey?: boolean }) =>
   !!keys.ctrlKey && (ON_MAC ? !!keys.metaKey : !!keys.altKey);
 
-export async function sendToChat(windowId: string, query: string): Promise<boolean> {
+export async function sendToChat(windowId: string, query: string, items: ChatContextItem[] = []): Promise<boolean> {
   if (!useOxySession.getState().account && !(await signInWithOxy())) return false;
-  return openChatWithQuery(windowId, query);
+  return openChatWithQuery(windowId, query, items);
 }
 
 const BAR_SLASH = /^\/([a-z0-9-]*)(?:\s+([\s\S]*))?$/;
@@ -74,7 +75,7 @@ export function slashBarRows(text: string, signIn: boolean): Suggestion[] {
   }));
 }
 
-export async function runSlashAction(id: string, windowId: string): Promise<boolean> {
+export async function runSlashAction(id: string, windowId: string, items: ChatContextItem[] = []): Promise<boolean> {
   const [head = "", rest = ""] = id.slice(SLASH_PREFIX.length).split("\u0000");
   const [kind, name = ""] = head.split(/:(.*)/s);
   let candidate: SlashCandidate | undefined;
@@ -87,5 +88,5 @@ export async function runSlashAction(id: string, windowId: string): Promise<bool
   }
   if (!candidate) return false;
   if (!useOxySession.getState().account && !(await signInWithOxy())) return false;
-  return openChatWithSkill(windowId, rest, { name: candidate.name, title: candidate.title, ...(candidate.kind === "command" ? { command: candidate.command } : {}) });
+  return openChatWithSkill(windowId, rest, { name: candidate.name, title: candidate.title, ...(candidate.kind === "command" ? { command: candidate.command } : {}) }, items);
 }

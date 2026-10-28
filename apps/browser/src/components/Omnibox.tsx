@@ -1,5 +1,5 @@
 import { displayUrl, asksForBackspace, keywordBySpace, resolveInput, searchUrl, scopedSearchUrl, siteSearchKey, type SearchScope, type Suggestion } from "@astro-browser/core";
-import { ContextMenuArea, Symbol, copyText, pickFiles, showMenu, startDictation } from "@astro-browser/shell";
+import { ContextMenuArea, Symbol, copyText, showMenu, startDictation } from "@astro-browser/shell";
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { findNodeHandle, Pressable, Text, TextInput, View } from "react-native";
 import { useTheme } from "../lib/theme";
@@ -7,11 +7,26 @@ import { journeyBarCommitted, journeyBarFocused, journeyKeystroke, journeyNaviga
 import { sampleOmniboxLatency, trackSuggestionChosen } from "../telemetry/track";
 import { useBrowser } from "../store/browser";
 import { useWindowId, useWindowProfileId } from "../store/hooks";
-import { activeTabId, viewTabIds } from "../store/model";
 import { defaultSearchEngine } from "../store/settings";
 import { runBarAction } from "./omnibox/actions";
 import { createBangSubmitter, mayBeBang } from "./omnibox/bangs";
-import { forcesChat, sendToChat, useChatRoute } from "./omnibox/chatRoute";
+import { forcesChat, isSlashActionId, runSlashAction, sendToChat, useChatRoute } from "./omnibox/chatRoute";
+import { chatItemId, type ChatContextItem } from "../ai/chat/state";
+import { mentionCandidates, type MentionCandidate } from "./chat/mentions";
+import {
+  addAttachment,
+  attachmentKey,
+  barDestination,
+  barMention,
+  canAskWith,
+  destinationDecides,
+  groupTabRefs,
+  mentionItem,
+  routedDestination,
+  withoutMention,
+  type BarDestination,
+} from "./omnibox/chatBar";
+import { AddChip, AttachmentChips, DestinationToggle, MentionIcon, MentionList } from "./omnibox/BarChat";
 import { traceOmnibox, useOmniboxDriver } from "./omnibox/devDriver";
 import { claimFocusTag, commandBarFocus, heroBarFocus } from "../lib/focusClaims";
 import { registerHeroBar, savedNtpQuery, saveNtpQuery, type BarDismissal, type BarSnapshot } from "./omnibox/barState";
@@ -52,9 +67,11 @@ const BASE_KEYS = [
   { key: "Enter", shiftKey: true },
   { key: "Enter", ctrlKey: true },
   { key: "Enter", ctrlKey: true, shiftKey: true },
+  { key: "/", ctrlKey: true },
 ];
 const SCOPE_KEYS = [...BASE_KEYS, { key: "Backspace" }];
 const REMOVE_KEYS = [...BASE_KEYS, { key: "Delete", shiftKey: true }];
+const ATTACHED_KEYS = [...BASE_KEYS, { key: "Backspace" }];
 
 export function Omnibox({
   variant,
@@ -107,6 +124,19 @@ export function Omnibox({
   const root = useRef<View>(null);
 
   const chatRoute = useChatRoute(windowId);
+  const [attached, setAttached] = useState<ChatContextItem[]>([]);
+  const [destinationOverride, setDestinationOverride] = useState<BarDestination | null>(null);
+  const [mentionSelected, setMentionSelected] = useState(0);
+  const [mentionClosed, setMentionClosed] = useState<string | null>(null);
+  const holdOpen = useRef(false);
+  const mention = chatRoute && !dropdown && !scope && edited ? barMention(typed) : null;
+  const mentionQuery = mention && mentionClosed !== `${mention.start}:${mention.query}` ? mention.query : null;
+  const mentions = useMemo(
+    () => (mentionQuery === null ? [] : mentionCandidates(useBrowser.getState(), windowId, mentionQuery)),
+    [mentionQuery, windowId],
+  );
+  const mentioning = mentions.length > 0;
+  const mentionIndex = Math.min(mentionSelected, mentions.length - 1);
   const { items: suggested, completion } = useSuggestions({
     text: typed,
     active: edited || !!scope,
@@ -119,7 +149,7 @@ export function Omnibox({
   });
   const start = useDropdownStart(dropdown && !edited && !scope, tabId, profileId);
   const items = dropdown && !edited && !scope ? start : suggested;
-  const inline = useInlineCompletion(input, typed, suppressCompletion || scope ? "" : completion);
+  const inline = useInlineCompletion(input, typed, suppressCompletion || scope || mentioning ? "" : completion);
   const shownCompletion = inline.shown;
   const value = typed + shownCompletion;
   const selectedIndex = Math.min(selected, items.length - 1);
@@ -194,6 +224,9 @@ export function Omnibox({
 
   const reset = () => {
     bangEnter.cancel();
+    setAttached([]);
+    setDestinationOverride(null);
+    setMentionClosed(null);
     setTyped("");
     setEdited(false);
     setScope(null);
@@ -251,9 +284,12 @@ export function Omnibox({
         setSuppressCompletion(true);
         setPendingSelection({ start: 0, end: s.value.length });
         return;
-      case "action":
+      case "action": {
+        const sent = attached;
         dismiss();
+        if (isSlashActionId(s.id)) return void runSlashAction(s.id, windowId, sent);
         return runBarAction(s.id, windowId);
+      }
       case "chat":
         return askChat(s.query);
     }
@@ -262,9 +298,45 @@ export function Omnibox({
   const askChat = (text: string) => {
     bangEnter.cancel();
     const query = text.trim();
-    if (!query || !chatRoute) return;
+    if (!chatRoute || !canAskWith(query, attached)) return;
+    const sent = attached;
     dismiss();
-    void sendToChat(windowId, query);
+    void sendToChat(windowId, query, sent);
+  };
+
+  const first = items[0];
+  const destination = barDestination({ override: destinationOverride, attached, first });
+  const destinationRules = !!chatRoute && destinationDecides(destinationOverride, attached) && selectedIndex <= 0;
+
+  const submit = () => {
+    if (destinationRules && destination === "chat") return askChat(typed);
+    if (destinationRules && destination === "search") return forceSearch();
+    choose(current, "current", true);
+  };
+
+  const pickDestination = (next: BarDestination) => {
+    if (attached.length && next === "search") return;
+    setDestinationOverride(next === routedDestination(first) ? null : next);
+  };
+
+  const toggleDestination = () => pickDestination(destination === "chat" ? "search" : "chat");
+
+  const pickMention = (candidate: MentionCandidate | undefined) => {
+    if (!candidate || !mention) return;
+    const s = useBrowser.getState();
+    setAttached((list) => addAttachment(list, mentionItem(candidate, (groupId) => groupTabRefs(s, groupId), chatItemId(candidate.kind))));
+    const next = withoutMention(typed, mention);
+    setTyped(next);
+    setEdited(true);
+    setSuppressCompletion(true);
+    setSelected(0);
+    setMentionSelected(0);
+    setPendingSelection({ start: next.length, end: next.length });
+  };
+
+  const removeAttachment = (item: ChatContextItem) => {
+    setAttached((list) => list.filter((i) => attachmentKey(i) !== attachmentKey(item)));
+    focusField();
   };
 
   const forceSearch = () => {
@@ -304,6 +376,15 @@ export function Omnibox({
       void endDictation(dictationKey).then(() => requestAnimationFrame(() => latest.current.onKeyDown(e)));
       return;
     }
+    if (mentioning) {
+      const count = mentions.length;
+      if (key === "Escape") return setMentionClosed(mention ? `${mention.start}:${mention.query}` : null);
+      if (key === "ArrowDown" || (ctrlKey && key === "n")) return setMentionSelected((i) => (Math.min(i, count - 1) + 1) % count);
+      if (key === "ArrowUp" || (ctrlKey && key === "p")) return setMentionSelected((i) => (Math.min(i, count - 1) - 1 + count) % count);
+      if (key === "Tab" && !ctrlKey) return pickMention(mentions[mentionIndex]);
+    }
+    if (ctrlKey && key === "/" && chatRoute && !dropdown) return toggleDestination();
+    if (key === "Backspace" && attached.length && !value) return setAttached((list) => list.slice(0, -1));
     if (key === "Escape") {
       if (scope) return leaveScope(null);
       if (!hero) return onDone?.("escape");
@@ -328,6 +409,7 @@ export function Omnibox({
       if (key === "Tab") return move(shiftKey ? -1 : 1);
     }
     if (key === "Enter") {
+      if (mentioning) return;
       if (forcesChat({ metaKey, altKey, ctrlKey }) && chatRoute) return askChat(typed);
       if (metaKey && shiftKey) return forceSearch();
       if (ctrlKey && !/[\s./:]/.test(typed.trim()) && typed.trim())
@@ -398,6 +480,7 @@ export function Omnibox({
     setTyped(change.typed);
     setSuppressCompletion(change.suppress);
     setSelected(0);
+    setMentionSelected(0);
   };
 
   useOmniboxDriver(`${windowId}:${variant}`, {
@@ -408,13 +491,16 @@ export function Omnibox({
     clear: reset,
     key: (key, mods) => onKeyDown({ nativeEvent: { key, ...mods } }),
     select: (start, end) => noteSelection({ start, end }),
-    submit: () => choose(current, "current", true),
+    submit: () => (mentioning ? pickMention(mentions[mentionIndex]) : submit()),
     measure: () => new Promise((resolve) => root.current?.measureInWindow((x, y, width, height) => resolve({ x, y, width, height }))),
-    state: () => ({ typed, value, selection: selection.current, completion: shownCompletion, suggested: completion, preventInline: suppressCompletion, selectionBefore: selectionBefore.current, selected: selectedIndex, scope, scopeFrom: scopeFrom.current, tabScope, items }),
+    state: () => ({ typed, value, selection: selection.current, completion: shownCompletion, suggested: completion, preventInline: suppressCompletion, selectionBefore: selectionBefore.current, selected: selectedIndex, scope, scopeFrom: scopeFrom.current, tabScope, items, attached: attached.map(attachmentKey), destination, destinationOverride, mentions: mentions.map((m) => m.key), mentionIndex }),
   });
 
-  const leadingIcon =
-    current && (typed || scope) && current.kind !== "search" ? (
+  const leadingIcon = mentioning ? (
+    <MentionIcon candidate={mentions[mentionIndex]!} />
+  ) : destinationRules && (typed || attached.length) ? (
+    <Symbol name={destination === "chat" ? "sparkles" : "magnifyingglass"} size={15} weight="medium" color={hero ? theme.textSecondary : theme.textPrimary} style={{ width: 18, height: 18 }} />
+  ) : current && (typed || scope) && current.kind !== "search" ? (
       <SuggestionIcon suggestion={current} color={theme.textPrimary} />
     ) : (
       <Symbol name="magnifyingglass" size={15} weight="medium" color={hero ? theme.textSecondary : theme.textPrimary} style={{ width: 18, height: 18 }} />
@@ -454,11 +540,12 @@ export function Omnibox({
         }
       }}
       onChangeText={onChangeText}
-      placeholder={dictationPhase === "listening" || dictationPhase === "starting" ? "Listening…" : scope ? `Search ${scope.name}` : "Search or enter address"}
+      placeholder={dictationPhase === "listening" || dictationPhase === "starting" ? "Listening…" : scope ? `Search ${scope.name}` : attached.length ? "Ask about what you added" : "Search or enter address"}
       placeholderTextColor={theme.placeholder}
       selectionColor={theme.selection}
       enableFocusRing={false}
-      onSubmitEditing={() => (dictating(dictationKey) ? submitAfterDictation() : choose(current, "current", true))}
+      onSubmitEditing={() => (dictating(dictationKey) ? submitAfterDictation() : mentioning ? pickMention(mentions[mentionIndex]) : submit())}
+      blurOnSubmit={!mentioning}
       onFocus={() => {
         editing.current = true;
         setListAway(false);
@@ -466,9 +553,9 @@ export function Omnibox({
       onBlur={() => {
         editing.current = false;
         focusEcho.current = false;
-        onCancel?.();
+        if (!holdOpen.current) onCancel?.();
       }}
-      keyDownEvents={asksForBackspace(scope) ? SCOPE_KEYS : isRemovable(current) ? REMOVE_KEYS : BASE_KEYS}
+      keyDownEvents={asksForBackspace(scope) ? SCOPE_KEYS : attached.length && !value ? ATTACHED_KEYS : isRemovable(current) ? REMOVE_KEYS : BASE_KEYS}
       onKeyDown={onKeyDown}
       style={{
         flex: 1,
@@ -480,14 +567,17 @@ export function Omnibox({
     />
   );
 
-  const submitAfterDictation = () =>
-    void endDictation(dictationKey).then(() => requestAnimationFrame(() => latest.current.choose(latest.current.current, "current", true)));
-  const latest = useRef({ choose, profileId, go, current, onCancel, tabId, onKeyDown, dictationKey, submitAfterDictation });
-  latest.current = { choose, profileId, go, current, onCancel, tabId, onKeyDown, dictationKey, submitAfterDictation };
+  const submitAfterDictation = () => void endDictation(dictationKey).then(() => requestAnimationFrame(() => latest.current.submit()));
+  const latest = useRef({ choose, submit, profileId, go, current, onCancel, tabId, onKeyDown, dictationKey, submitAfterDictation });
+  latest.current = { choose, submit, profileId, go, current, onCancel, tabId, onKeyDown, dictationKey, submitAfterDictation };
   const [barActions] = useState(() => ({
     go: (url: string) => latest.current.go(url),
-    choose: () =>
-      dictating(latest.current.dictationKey) ? latest.current.submitAfterDictation() : latest.current.choose(latest.current.current, "current", true),
+    choose: () => (dictating(latest.current.dictationKey) ? latest.current.submitAfterDictation() : latest.current.submit()),
+    attach: (next: ChatContextItem[]) => setAttached(next),
+    holdOpen: (hold: boolean) => {
+      holdOpen.current = hold;
+      if (!hold) setTimeout(() => input.current?.focus(), 0);
+    },
     dictate: () => {
       focusField();
       startDictation();
@@ -501,7 +591,9 @@ export function Omnibox({
     choose: (s) => latest.current.choose(s),
     remove: (url) => useBrowser.getState().removeHistory(latest.current.profileId, [url]),
   }));
-  const suggestionList = (
+  const suggestionList = mentioning ? (
+    <MentionList candidates={mentions} selectedIndex={mentionIndex} onPick={pickMention} />
+  ) : (
     <SuggestionList
       items={items}
       selectedIndex={selectedIndex}
@@ -522,10 +614,19 @@ export function Omnibox({
         marginBottom: hero ? 8 : 0,
       }}
     >
-      <AddChip tabId={tabId} onGo={barActions.go} />
+      <AddChip
+        tabId={tabId}
+        onGo={barActions.go}
+        chat={chatRoute && !chatRoute.signIn ? { attached, onAttach: barActions.attach, holdOpen: barActions.holdOpen } : null}
+      />
       <View style={{ flex: 1 }} />
+      {chatRoute ? <DestinationToggle engine={engine.name} destination={destination} locked={attached.length > 0} onPick={pickDestination} /> : null}
       <DictationMic dictationKey={dictationKey} ready={dictationAvailable} begin={beginBarDictation} fallback={barActions.dictate} />
-      <GoButton label={destinationLabel(current)} enabled={!hero || !!typed.trim()} onPress={barActions.choose} />
+      <GoButton
+        label={destinationRules ? (destination === "chat" ? (chatRoute?.signIn ? "Sign In" : "Chat") : engine.name) : destinationLabel(current)}
+        enabled={!hero || canAskWith(typed, attached)}
+        onPress={barActions.choose}
+      />
     </View>
   );
 
@@ -570,6 +671,7 @@ export function Omnibox({
         >
           <View style={{ width: 18, alignItems: "center" }}>{leadingIcon}</View>
           {scope && <ScopeChip scope={scope} large={hero} />}
+          <AttachmentChips items={attached} onRemove={removeAttachment} />
           {field}
         </View>
       </ContextMenuArea>
@@ -585,53 +687,6 @@ function destinationLabel(s: Suggestion | undefined): string {
   if (s?.kind === "calc") return "Copy";
   return "Go";
 }
-
-const AddChip = memo(function AddChip({ tabId, onGo }: { tabId: string; onGo(url: string): void }) {
-  const theme = useTheme();
-  const windowId = useWindowId();
-  const { hovered, hoverProps } = useHover();
-  const open = async () => {
-    const s = useBrowser.getState();
-    const active = activeTabId(s, windowId);
-    const others = viewTabIds(s, windowId)
-      .map((id) => s.tabs[id]!)
-      .filter((t) => t.id !== active && t.url)
-      .slice(0, 12);
-    const choice = await showMenu([
-      ...others.map((t) => ({ id: `tab:${t.id}`, title: t.title || displayUrl(t.url) })),
-      ...(others.length ? [{ separator: true as const }] : []),
-      { id: "files", title: "Open File…", symbol: "doc" },
-    ]);
-    if (choice?.startsWith("tab:")) switchFromBar(choice.slice(4), "", tabId, "current");
-    if (choice === "files") {
-      const [file] = await pickFiles();
-      if (file) onGo(file);
-    }
-  };
-  return (
-    <View {...hoverProps}>
-    <Pressable onPress={open}>
-      <View
-        style={{
-          height: 32,
-          borderRadius: 16,
-          borderWidth: 1,
-          borderColor: theme.chipBorder,
-          backgroundColor: hovered ? theme.rowHover : undefined,
-          flexDirection: "row",
-          alignItems: "center",
-          paddingLeft: 9,
-          paddingRight: 12,
-          gap: 5,
-        }}
-      >
-        <Symbol name="arrow.up.right" size={10} weight="medium" color={theme.chipText} style={{ width: 14, height: 14 }} />
-        <Text style={{ fontSize: 13, color: theme.chipText }}>Open a tab or file</Text>
-      </View>
-    </Pressable>
-    </View>
-  );
-});
 
 const GoButton = memo(function GoButton({ label, enabled, onPress }: { label: string; enabled: boolean; onPress(): void }) {
   const theme = useTheme();
