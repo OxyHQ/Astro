@@ -92,7 +92,7 @@ export function WindowShell({ fullscreen, topTabs, width, children }: { fullscre
   );
 
   return (
-    <BloomThemeProvider mode={dark ? "dark" : "light"}>
+    <BloomThemeProvider mode={dark ? "dark" : "light"} colorPreset="blue">
       <BloomScope panelRadius={fullscreen ? 0 : layout.cardRadius}>
         <AppShell
           style={{ flex: 1 }}

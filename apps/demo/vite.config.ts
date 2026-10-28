@@ -128,6 +128,26 @@ function bloomWorklets(): Plugin {
   };
 }
 
+const REANIMATED_WEB_UTILS = /[/\\]react-native-reanimated[/\\]lib[/\\]module[/\\]ReanimatedModule[/\\]js-reanimated[/\\]webUtils\.web\.js$/;
+
+function reanimatedWebStyles(): Plugin {
+  return {
+    name: "astro-demo:reanimated-web-styles",
+    enforce: "pre",
+    transform(_code, id) {
+      if (!REANIMATED_WEB_UTILS.test(id.split("?", 1)[0]!)) return null;
+      return {
+        code: [
+          'import createReactDOMStyle from "react-native-web/dist/exports/StyleSheet/compiler/createReactDOMStyle";',
+          'import { createTextShadowValue, createTransformValue } from "react-native-web/dist/exports/StyleSheet/preprocess";',
+          "export { createReactDOMStyle, createTextShadowValue, createTransformValue };",
+        ].join("\n"),
+        map: null,
+      };
+    },
+  };
+}
+
 const BLOOM_CLASS_SENTINEL = ".rounded-radius-16";
 
 function bloomStylesPresent(): Plugin {
@@ -149,6 +169,7 @@ export default defineConfig({
   plugins: [
     nativeModuleShim(),
     bloomWorklets(),
+    reanimatedWebStyles(),
     tailwindcss(),
     bloomStylesPresent(),
     commonJsRequires(),

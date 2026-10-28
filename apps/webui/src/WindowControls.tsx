@@ -55,6 +55,8 @@ export function WindowControls() {
   );
 }
 
+const passThrough = (container: HTMLElement | null) => container?.style.setProperty("pointer-events", "none");
+
 export function WindowButtons({ windowId }: { windowId: string }) {
   const host = windowButtonsHost(windowId);
   const inRegion = usePortalHostPresent(host);
@@ -64,5 +66,11 @@ export function WindowButtons({ windowId }: { windowId: string }) {
       <AppMenuButton />
     </>
   );
-  return inRegion ? <Portal host={host}>{buttons}</Portal> : buttons;
+  return inRegion ? (
+    <Portal host={host} containerRef={passThrough}>
+      {buttons}
+    </Portal>
+  ) : (
+    buttons
+  );
 }

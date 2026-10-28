@@ -1,141 +1,86 @@
 import { Surface, Symbol, VisualEffect } from "@astro-browser/shell";
+import { resolvePanelDropTarget, type AppShellPanelDrop, type PanelDropTarget } from "@oxy.so/bloom/app-shell";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
 import { hex, useTheme } from "../../lib/theme";
 import { withAlpha } from "../sidebar/tokens";
 import { useBrowser } from "../../store/browser";
-import type { SplitView } from "../../store/types";
-import { resize, type Divider, type Rect } from "./geometry";
+import { MAX_SPLIT_PANES } from "../../store/splits";
 import { useHover } from "../primitives";
 import { hideToast, useToasts } from "./splitActions";
 import { useWindowId } from "../../store/hooks";
 import { overPeek } from "./dockMotion";
-import { zoneHit, zoneRect, type ZoneStage } from "./splitDrop";
+import { PREVIEW } from "./splitDrop";
 import { setDropTarget, setOnPage, setTargetResolver, useTabDrag } from "./tabDrag";
 
-export function SplitDividers({ split, dividers, width, height }: { split: SplitView; dividers: Divider[]; width: number; height: number }) {
-  return (
-    <>
-      {dividers.map((d) => (
-        <DividerHandle key={d.kind === "root" ? `r${d.index}` : "s"} split={split} divider={d} width={width} height={height} />
-      ))}
-    </>
-  );
+type PaneRect = { x: number; y: number; width: number; height: number };
+
+const paneRects = new Map<string, Map<string, PaneRect>>();
+
+export function notePaneRect(windowId: string, paneId: string, rect: PaneRect | null) {
+  let rects = paneRects.get(windowId);
+  if (!rects) paneRects.set(windowId, (rects = new Map()));
+  if (rect) rects.set(paneId, rect);
+  else rects.delete(paneId);
 }
 
-function DividerHandle({ split, divider, width, height }: { split: SplitView; divider: Divider; width: number; height: number }) {
-  const theme = useTheme();
-  const [hovered, setHovered] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const start = useRef<{ sizes: number[]; stack?: [number, number] }>({ sizes: split.sizes });
-  const latest = useRef({ split, divider, width, height });
-  latest.current = { split, divider, width, height };
+const tabOf = (paneId: string) => paneId.slice(0, paneId.indexOf("|"));
+const inside = (r: PaneRect, x: number, y: number) => x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height;
 
-  const responder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => {
-          const { split: v } = latest.current;
-          start.current = { sizes: v.sizes, stack: v.stack?.sizes };
-          setDragging(true);
-        },
-        onPanResponderMove: (_, g) => {
-          const { split: v, divider: d, width: w, height: h } = latest.current;
-          const delta = d.vertical ? g.dx : g.dy;
-          if (d.kind === "root") {
-            useBrowser.getState().updateSplit(v.id, { sizes: resize(start.current.sizes, d.index, delta, d.vertical ? w : h) });
-          } else if (start.current.stack) {
-            const next = resize(start.current.stack, 0, delta, d.vertical ? w : h) as [number, number];
-            useBrowser.getState().updateSplit(v.id, { stackSizes: next });
-          }
-        },
-        onPanResponderRelease: () => setDragging(false),
-        onPanResponderTerminate: () => setDragging(false),
-      }),
-    [],
-  );
-
-  const { rect, vertical } = divider;
-  const active = hovered || dragging;
-  return (
-    <View
-      {...responder.panHandlers}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        position: "absolute",
-        left: rect.x - (vertical ? 2 : 0),
-        top: rect.y - (vertical ? 0 : 2),
-        width: rect.width + (vertical ? 4 : 0),
-        height: rect.height + (vertical ? 0 : 4),
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: vertical ? "col-resize" : "row-resize",
-      }}
-    >
-      <View
-        style={{
-          width: vertical ? 4 : 36,
-          height: vertical ? 36 : 4,
-          borderRadius: 2,
-          backgroundColor: theme.dark ? "#FFFFFF" : "#000000",
-          opacity: dragging ? 0.55 : active ? 0.32 : 0,
-        }}
-      />
-    </View>
-  );
-}
-
-export function DropTargets({ panes, origin }: { panes: Record<string, Rect>; origin: { x: number; y: number } | null }) {
+export function usePaneDrop(visible: readonly string[]): AppShellPanelDrop | undefined {
   const windowId = useWindowId();
   const dragging = useTabDrag((s) => (s.windowId === windowId ? s.tabId : null));
   const x = useTabDrag((s) => s.x);
   const y = useTabDrag((s) => s.y);
   const lifted = useTabDrag((s) => s.lifted);
   const outside = useTabDrag((s) => s.outside);
-  const target = useTabDrag((s) => s.target);
-  const full = Object.keys(panes).length >= 3;
+  const full = visible.length >= MAX_SPLIT_PANES;
   const fallback = useBrowser((s) => {
-    if (!dragging || Object.keys(panes).length !== 1 || !panes[dragging]) return null;
+    if (!dragging || visible.length !== 1 || tabOf(visible[0]!) !== dragging) return null;
     const tab = s.tabs[dragging];
     const others = (s.windows[windowId]?.tabIds ?? []).map((id) => s.tabs[id]!).filter((t) => t && t.id !== dragging && t.profileId === tab?.profileId);
     return others.sort((a, b) => b.lastActiveAt - a.lastActiveAt)[0]?.id ?? null;
   });
-  const candidates = useMemo((): [string, Rect][] => {
-    if (fallback && dragging) return [[fallback, panes[dragging]!]];
-    return Object.entries(panes).filter(([tabId]) => tabId !== dragging);
-  }, [panes, dragging, fallback]);
-
-  const px = origin ? x - origin.x : -1;
-  const py = origin ? y - origin.y : -1;
-  const overPage = !!origin && x >= 0 && !overPeek(windowId, x) && Object.values(panes).some((r) => px >= r.x && px <= r.x + r.width && py >= r.y && py <= r.y + r.height);
-  const shown = !!dragging && !!origin && !full && !outside && candidates.length > 0 && (lifted ?? overPage);
-  const [grown, setGrown] = useState(false);
-  useEffect(() => {
-    setGrown(false);
-    if (!shown) return;
-    const timer = setTimeout(() => setGrown(true), ZONE_SLIDE_MS);
-    return () => clearTimeout(timer);
-  }, [shown]);
-
-  const hit = shown && grown && overPage ? zoneHit(candidates, px, py, target) : null;
-  const preview = shown && overPage;
-  const resolver = useRef({ candidates, origin, panes, ready: false });
-  resolver.current = { candidates, origin, panes, ready: !!dragging && !!origin && !full && candidates.length > 0 && grown && lifted !== false };
+  const candidates = useMemo(() => (fallback ? visible : visible.filter((id) => tabOf(id) !== dragging)), [visible, dragging, fallback]);
+  const overPage = !!dragging && x >= 0 && !overPeek(windowId, x) && visible.some((id) => {
+    const r = paneRects.get(windowId)?.get(id);
+    return !!r && inside(r, x, y);
+  });
+  const active = !!dragging && !full && !outside && candidates.length > 0 && (lifted ?? overPage);
+  const asTarget = (target: PanelDropTarget | null) => {
+    if (!target) return null;
+    const tabId = fallback && tabOf(target.panelId) === dragging ? fallback : tabOf(target.panelId);
+    return { tabId, side: target.edge === "start" ? ("left" as const) : ("right" as const) };
+  };
+  const latest = useRef({ candidates, visible, ready: false, asTarget });
+  latest.current = { candidates, visible, ready: active && lifted !== false, asTarget };
   useEffect(() => {
     if (!dragging) return;
-    setTargetResolver((x, y, current, outside) => {
-      const { candidates, origin, panes, ready } = resolver.current;
-      if (!ready || outside || !origin || overPeek(windowId, x)) return null;
-      const px = x - origin.x, py = y - origin.y;
-      if (!Object.values(panes).some((r) => px >= r.x && px <= r.x + r.width && py >= r.y && py <= r.y + r.height)) return null;
-      return zoneHit(candidates, px, py, current);
+    setTargetResolver((px, py, current, out) => {
+      const { candidates, visible, ready, asTarget } = latest.current;
+      const rects = paneRects.get(windowId);
+      if (!ready || out || !rects || overPeek(windowId, px)) return null;
+      if (!visible.some((id) => rects.get(id) && inside(rects.get(id)!, px, py))) return null;
+      const panels: Record<string, PaneRect> = {};
+      for (const id of candidates) if (rects.get(id)) panels[id] = rects.get(id)!;
+      const over: Record<string, PaneRect> = {};
+      for (const id of visible) if (rects.get(id)) over[id] = rects.get(id)!;
+      const keep = current ? candidates.find((id) => tabOf(id) === current.tabId || current.tabId === fallback) : undefined;
+      return asTarget(
+        resolvePanelDropTarget({
+          panels,
+          over,
+          point: { x: px, y: py },
+          current: keep && current ? { panelId: keep, edge: current.side === "left" ? "start" : "end" } : null,
+          edges: ["start", "end"],
+          preview: PREVIEW,
+          rtl: false,
+        }),
+      );
     });
     return () => setTargetResolver(null);
   }, [dragging]);
-  useEffect(() => setDropTarget(hit), [hit?.tabId, hit?.side]);
-  useEffect(() => setOnPage(preview), [preview]);
+  useEffect(() => setOnPage(active && overPage), [active && overPage]);
   useEffect(
     () => () => {
       setDropTarget(null);
@@ -143,93 +88,16 @@ export function DropTargets({ panes, origin }: { panes: Record<string, Rect>; or
     },
     [],
   );
-  const [mounted, setMounted] = useState<[string, Rect][]>([]);
-  useEffect(() => {
-    if (shown) setMounted(candidates);
-  }, [shown, candidates]);
-
-  if (!mounted.length) return null;
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {mounted.flatMap(([tabId, rect]) =>
-        (["left", "right"] as const).map((side) => (
-          <DropZone
-            key={`${tabId}${side}`}
-            pane={rect}
-            side={side}
-            shown={shown}
-            stage={target?.tabId === tabId && target.side === side ? "active" : grown ? "grown" : "rest"}
-            pointerX={px}
-            onHidden={() => setMounted([])}
-          />
-        )),
-      )}
-    </View>
-  );
-}
-
-const ZONE_SLIDE_MS = 110;
-const ZONE_SPRING = { stiffness: 987, damping: 56.5, mass: 1, useNativeDriver: false } as const;
-
-function DropZone({ pane, side, shown, stage, pointerX, onHidden }: { pane: Rect; side: "left" | "right"; shown: boolean; stage: ZoneStage; pointerX: number; onHidden(): void }) {
-  const theme = useTheme();
-  const rect = zoneRect(pane, side, stage, pointerX);
-  const anim = useRef({ x: new Animated.Value(rect.x), y: new Animated.Value(rect.y), w: new Animated.Value(rect.width), h: new Animated.Value(rect.height) }).current;
-  const glow = useRef(new Animated.Value(0)).current;
-  const slide = useRef(new Animated.Value(0)).current;
-  const active = stage === "active";
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(anim.x, { toValue: rect.x, ...ZONE_SPRING }),
-      Animated.spring(anim.y, { toValue: rect.y, ...ZONE_SPRING }),
-      Animated.spring(anim.w, { toValue: rect.width, ...ZONE_SPRING }),
-      Animated.spring(anim.h, { toValue: rect.height, ...ZONE_SPRING }),
-    ]).start();
-  }, [rect.x, rect.y, rect.width, rect.height]);
-  useEffect(() => {
-    Animated.timing(glow, { toValue: active ? 1 : 0, duration: 120, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
-  }, [active]);
-  useEffect(() => {
-    Animated.timing(slide, { toValue: shown ? 1 : 0, duration: ZONE_SLIDE_MS, easing: shown ? Easing.out(Easing.cubic) : Easing.in(Easing.quad), useNativeDriver: false }).start(
-      ({ finished }) => finished && !shown && onHidden(),
-    );
-  }, [shown]);
-  const away = side === "left" ? -(rect.x - pane.x + rect.width) : pane.x + pane.width - rect.x;
-  const dark = theme.dark;
-  const rest = dark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.55)";
-  return (
-    <Animated.View
-      style={{
-        position: "absolute",
-        left: anim.x,
-        top: anim.y,
-        width: anim.w,
-        height: anim.h,
-        borderRadius: 20,
-        borderWidth: 0.5,
-        borderColor: dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-        backgroundColor: glow.interpolate({ inputRange: [0, 1], outputRange: [dark ? "rgba(255,236,214,0.04)" : "rgba(255,255,255,0.45)", withAlpha(theme.accent, dark ? 0.16 : 0.12)] }),
-        alignItems: "center",
-        justifyContent: "center",
-        transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [away, 0] }) }],
-      }}
-    >
-      <View
-        style={{
-          position: "absolute",
-          left: 9.5,
-          right: 9.5,
-          top: 9.5,
-          bottom: 9.5,
-          borderRadius: 11,
-          borderStyle: "dashed",
-          borderWidth: active ? 2.33 : 2,
-          borderColor: active ? theme.accent : dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
-        }}
-      />
-      <Symbol name={side === "left" ? "rectangle.lefthalf.filled" : "rectangle.righthalf.filled"} size={18} color={active ? theme.accent : rest} style={{ width: 24, height: 20 }} />
-      <Text style={{ marginTop: 11, fontSize: 13, fontWeight: "600", color: active ? theme.accent : rest }}>{side === "left" ? "Add left split" : "Add right split"}</Text>
-    </Animated.View>
+  return useMemo(
+    () => ({
+      active,
+      point: dragging ? { x, y } : null,
+      panels: candidates,
+      edges: ["start", "end"] as const,
+      preview: PREVIEW,
+      onTargetChange: (target: PanelDropTarget | null) => setDropTarget(latest.current.asTarget(target)),
+    }),
+    [active, dragging, x, y, candidates],
   );
 }
 

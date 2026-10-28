@@ -20,18 +20,19 @@ import { shallowEqual, useProfilesValue, useStoreWhile, useTabValue } from "../s
 import { useActiveTabId, useWindowId } from "../store/hooks";
 import { activeTabId, engineProfile, isIncognitoProfile, navigationTo, wake } from "../store/model";
 import { removeTabs } from "../store/tabs";
-import { splitOf } from "../store/splits";
+import { slotsOf, splitOf } from "../store/splits";
 import type { SplitView, Tab } from "../store/types";
 import { BOOKMARKS_BAR_HEIGHT, BookmarksBar, bookmarksBarShown, useBookmarksBarMode, type BookmarksBarMode } from "./bookmarks/BookmarksBar";
 import { CliControlBar, CliControlPill } from "./CliControlBar";
 import { FindBar } from "./FindBar";
 import { POPOVER_MARGIN } from "./layout/controls";
-import { NO_TOOLBAR, splitGeometry, toolbarGeometry, type Rect, type ToolbarGeometry } from "./layout/geometry";
+import { NO_TOOLBAR, toolbarGeometry, type ToolbarGeometry } from "./layout/geometry";
 import { dismissPermissions, startPermissionPrompts } from "./site/permissions";
 import { patchPage, pageOf, setBrowserId, setPopover, useFullscreenTab, usePages } from "./layout/pageState";
 import { useTabDrag } from "./layout/tabDrag";
 import { SadTab, StatusBubble } from "./layout/PaneOverlays";
-import { DropTargets, SplitDividers, SplitToast } from "./layout/SplitChrome";
+import { notePaneRect, SplitToast, usePaneDrop } from "./layout/SplitChrome";
+import { AppShellPanels } from "@oxy.so/bloom/app-shell";
 import { SplitEmptyState } from "./layout/SplitEmptyState";
 import { pagerFor } from "./layout/profilePager";
 import { openFromPage } from "./layout/openFromPage";
@@ -116,19 +117,17 @@ export function ContentCard() {
 
   const mountedIds = useMemo(() => new Set(mounted), [mounted]);
 
-  const { panes, dividers } = useMemo(() => {
-    const full: Rect = { x: 0, y: 0, width: size.width, height: size.height };
-    if (fullscreenTab) {
-      const under = split?.tabIds.includes(fullscreenTab) ? splitGeometry(split, size.width, size.height).panes : {};
-      return { panes: { ...under, [fullscreenTab]: full }, dividers: [] };
-    }
-    if (split) return splitGeometry(split, size.width, size.height);
-    return { panes: activeId ? { [activeId]: full } : {}, dividers: [] };
-  }, [split, activeId, fullscreenTab, size.width, size.height]);
+  const slots = useMemo<string[][]>(() => {
+    if (fullscreenTab) return [[fullscreenTab]];
+    if (split) return slotsOf(split);
+    return activeId ? [[activeId]] : [];
+  }, [split, activeId, fullscreenTab]);
+  const panes = useMemo(() => slots.flat(), [slots]);
+  const leadingTab = slots[0]?.[0];
 
   useEffect(() => {
     const s = useBrowser.getState();
-    for (const id of Object.keys(panes)) {
+    for (const id of panes) {
       const t = s.tabs[id];
       if (!t?.url || t.navigation || t.adoptId || t.pageIn) continue;
       const holder = holderOf(s, id);
@@ -152,12 +151,7 @@ export function ContentCard() {
     }),
   );
   const warmSplits = useBrowser(useShallow((s) => warm.map((id) => splitOf(s, id)).filter((v): v is SplitView => !!v)));
-  const warmPanes = useMemo(() => {
-    const out: Record<string, Rect> = {};
-    for (const id of warm) out[id] = { x: 0, y: 0, width: size.width, height: size.height };
-    for (const v of warmSplits) Object.assign(out, splitGeometry(v, size.width, size.height).panes);
-    return out;
-  }, [warm, warmSplits, size.width, size.height]);
+  const warmIds = useMemo(() => new Set([...warm, ...warmSplits.flatMap((v) => v.tabIds)]), [warm, warmSplits]);
 
   const shownMemo = useRef<{ mounted?: string[]; panes?: object; tabs?: object; keys: string[]; ids: string[]; found: (Tab | undefined)[] }>({ keys: [], ids: [], found: [] });
   const shown = useBrowser(
@@ -182,7 +176,7 @@ export function ContentCard() {
           return memo.keys;
         }
       }
-      const ids = [...new Set([...mounted, ...Object.keys(panes)])];
+      const ids = [...new Set([...mounted, ...panes])];
       const found = ids.map((id) => s.tabs[id]);
       const keys = found
         .filter((t): t is Tab => !!t)
@@ -193,27 +187,10 @@ export function ContentCard() {
     }),
   );
 
-  const geometryFor = (rect: Rect | undefined): ToolbarGeometry => {
+  const geometryFor = (leading: boolean): ToolbarGeometry => {
     if (addressInSidebar || small) return NO_TOOLBAR;
-    const leading = !!rect && rect.x === 0 && rect.y === 0;
     return toolbarGeometry({ sidebarButton: leading && tabLayout === "sidebar" && showSidebarButton });
   };
-
-  const focusedRect = activeId ? panes[activeId] : undefined;
-  useEffect(() => {
-    if (!origin || !focusedRect || addressInSidebar || small) return;
-    const g = geometryFor(focusedRect);
-    const place = (extensionsWidth = 0) =>
-      setUrlAnchor(windowId, {
-        left: origin.x + focusedRect.x + g.urlLeft,
-        top: origin.y + focusedRect.y,
-        width: focusedRect.width - g.urlLeft - urlFieldRight(!!split, extensionsWidth),
-      });
-    place(useToolbarExtensionsWidths.getState()[windowId]);
-    return useToolbarExtensionsWidths.subscribe((w, prev) => {
-      if (w[windowId] !== prev[windowId]) place(w[windowId]);
-    });
-  }, [origin, focusedRect?.x, focusedRect?.y, focusedRect?.width, tabLayout, addressInSidebar, !!split, showSidebarButton]);
 
   useEffect(() => {
     if (origin && size.width > 0) setCardAnchor(windowId, { left: origin.x, top: origin.y, width: size.width, height: size.height });
@@ -236,6 +213,76 @@ export function ContentCard() {
   );
 
   const windowToolbar = !split && !fullscreenTab && !addressInSidebar && !small;
+  const paneKeys = useMemo(() => {
+    const byTab = new Map(shown.map((key) => [key.slice(0, key.indexOf("|")), key]));
+    return { byTab, visible: panes.map((id) => byTab.get(id)).filter((key): key is string => !!key) };
+  }, [shown, panes]);
+  const drop = usePaneDrop(fullscreenTab ? [] : paneKeys.visible);
+  const stacked = split && !fullscreenTab ? slots.find((slot) => slot.length > 1) : undefined;
+  const spans = useMemo(() => {
+    if (!split || fullscreenTab) return undefined;
+    const out: Record<string, number> = {};
+    const sizes = split.sizes.length === slots.length ? split.sizes : slots.map(() => 1 / slots.length);
+    slots.forEach((slot, i) => {
+      const key = slot.length > 1 ? STACK : paneKeys.byTab.get(slot[0]!);
+      if (key) out[key] = sizes[i]!;
+    });
+    if (stacked) stacked.forEach((id, j) => {
+      const key = paneKeys.byTab.get(id);
+      if (key) out[key] = split.stack?.sizes[j] ?? 0.5;
+    });
+    return out;
+  }, [split, fullscreenTab, slots, stacked, paneKeys]);
+  const onSpansChange = (next: Readonly<Record<string, number>>) => {
+    if (!split) return;
+    const weights = slots.map((slot) => next[slot.length > 1 ? STACK : (paneKeys.byTab.get(slot[0]!) ?? "")] ?? 0);
+    const total = weights.reduce((sum, w) => sum + w, 0) || 1;
+    const stackWeights = stacked?.map((id) => next[paneKeys.byTab.get(id) ?? ""] ?? 0);
+    const stackTotal = stackWeights ? stackWeights.reduce((sum, w) => sum + w, 0) || 1 : 1;
+    useBrowser.getState().updateSplit(split.id, {
+      sizes: weights.map((w) => w / total),
+      ...(split.stack && stackWeights ? { stackSizes: [stackWeights[0]! / stackTotal, stackWeights[1]! / stackTotal] as [number, number] } : {}),
+    });
+  };
+  const cardColor = useTheme().card;
+  const visibleSet = useMemo(() => new Set(panes), [panes]);
+  const layoutKey = JSON.stringify([slots, split?.sizes, split?.stack?.sizes, split?.orientation]);
+  const panels = useMemo(() => {
+    const order = [...paneKeys.visible, ...shown.filter((key) => !paneKeys.visible.includes(key))];
+    return order.map((key) => {
+      const tabId = key.slice(0, key.indexOf("|"));
+      const visible = visibleSet.has(tabId);
+      return {
+        id: key,
+        visible,
+        stack: visible && stacked?.includes(tabId) ? STACK : undefined,
+        resizable: !!split && !fullscreenTab,
+        minWidth: MIN_PANE,
+        minHeight: MIN_PANE,
+        surfaceColor: cardColor,
+        content: (
+          <TabPane
+            tabId={tabId}
+            windowId={windowId}
+            visible={visible}
+            focused={tabId === activeId}
+            inActiveSplit={!!split?.tabIds.includes(tabId)}
+            fullscreen={tabId === fullscreenTab}
+            geometry={geometryFor(tabId === leadingTab && !fullscreenTab)}
+            toolbar={!addressInSidebar && !small}
+            autoHide={hideWhileScrolling && !addressInSidebar && !small}
+            small={small}
+            mounted={mountedIds.has(tabId)}
+            warm={warmIds.has(tabId)}
+            barMode={barMode}
+            windowToolbar={windowToolbar}
+            inSplit={!!split}
+            layoutKey={layoutKey}
+          />
+        ),
+      };
+    });
+  }, [paneKeys, shown, visibleSet, stacked, split, fullscreenTab, windowId, activeId, leadingTab, addressInSidebar, small, tabLayout, showSidebarButton, hideWhileScrolling, mountedIds, warmIds, barMode, windowToolbar, layoutKey, cardColor]);
 
   return (
     <View
@@ -243,62 +290,36 @@ export function ContentCard() {
       style={{ flex: 1 }}
       onLayout={(e) => {
         const { width, height } = e.nativeEvent.layout;
-        if (size.width > 0 && dockMoving(windowId) && !split) settled.current = { width, height };
+        if (size.width > 0 && dockMoving(windowId)) settled.current = { width, height };
         else measure(width, height);
       }}
     >
-      {size.width > 0 &&
-        shown.map((key) => {
-          const tabId = key.slice(0, key.indexOf("|"));
-          const rect = panes[tabId];
-          return (
-            <TabPane
-              key={key}
-              tabId={tabId}
-              windowId={windowId}
-              rect={rect}
-              fills={!!rect && rect.x === 0 && rect.y === 0 && rect.width === size.width && rect.height === size.height}
-              fullWidth={size.width}
-              fullHeight={size.height}
-              focused={tabId === activeId}
-              inActiveSplit={!!split?.tabIds.includes(tabId)}
-              fullscreen={tabId === fullscreenTab}
-              covered={!!fullscreenTab && tabId !== fullscreenTab}
-              geometry={geometryFor(rect)}
-              toolbar={!addressInSidebar && !small}
-              autoHide={hideWhileScrolling && !addressInSidebar && !small}
-              small={small}
-              mounted={mountedIds.has(tabId)}
-              warm={warmPanes[tabId]}
-              barMode={barMode}
-              windowToolbar={windowToolbar}
-            />
-          );
-        })}
-      {size.width > 0 && windowToolbar && activeId && panes[activeId] && (
-        <WindowToolbar windowId={windowId} tabId={activeId} geometry={geometryFor(panes[activeId])} autoHide={hideWhileScrolling} />
+      <AppShellPanels
+        scope="local"
+        layout={{ mode: "split", flow: "bounded", retain: true, gap: PANE_GAP, axis: split?.orientation ?? "horizontal", resizeHandle: "pill", spans, onSpansChange, drop, panels }}
+      />
+      {size.width > 0 && windowToolbar && activeId && panes.includes(activeId) && (
+        <WindowToolbar windowId={windowId} tabId={activeId} geometry={geometryFor(true)} autoHide={hideWhileScrolling} />
       )}
       {size.width > 0 && !split && !fullscreenTab && (
         <FrozenPage windowId={windowId} tabId={activeId} top={(!addressInSidebar && !small && !hideWhileScrolling ? layout.toolbarHeight : 0) + (barMode === "always" && !small && !hideWhileScrolling ? BOOKMARKS_BAR_HEIGHT : 0)} />
       )}
-      {split && !fullscreenTab && <SplitDividers split={split} dividers={dividers} width={size.width} height={size.height} />}
-      {!fullscreenTab && <DropTargets panes={panes} origin={origin} />}
       <SplitToast windowId={windowId} />
     </View>
   );
 }
 
+const STACK = "stack";
+const PANE_GAP = 7;
+const MIN_PANE = 220;
+
 const TabPane = memo(function TabPane({
   tabId,
   windowId,
-  rect,
-  fills,
-  fullWidth,
-  fullHeight,
+  visible,
   focused,
   inActiveSplit,
   fullscreen,
-  covered,
   geometry,
   toolbar,
   autoHide,
@@ -307,38 +328,60 @@ const TabPane = memo(function TabPane({
   warm,
   barMode,
   windowToolbar,
+  inSplit: splitShown,
+  layoutKey,
 }: {
   tabId: string;
   windowId: string;
-  rect: Rect | undefined;
-  fills: boolean;
-  fullWidth: number;
-  fullHeight: number;
+  visible: boolean;
   focused: boolean;
   inActiveSplit: boolean;
   fullscreen: boolean;
-  covered: boolean;
   geometry: ToolbarGeometry;
   toolbar: boolean;
   autoHide: boolean;
   small: boolean;
   mounted: boolean;
-  warm: Rect | undefined;
+  warm: boolean;
   barMode: BookmarksBarMode;
   windowToolbar: boolean;
+  inSplit: boolean;
+  layoutKey: string;
 }) {
   const theme = useTheme();
-  const visible = !!rect;
-  const live = visible || !!warm;
+  const live = visible || warm;
+  const pane = useRef<View>(null);
+  const [frame, setFrame] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const own = useTabValue(tabId, paneTab, shallowEqual);
   const isNewTab = !own.url;
   const emptyCard = useBrowser((s) => isNewTab && s.settings.newTabOpens === "commandBar");
   const zoom = own.zoom;
   const popover = useStoreWhile(usePages, visible, (s) => s.popover[tabId] ?? null);
   const newTabShown = useStoreWhile(usePages, live, (s) => !!s.pages[tabId]?.newTabShown);
-  const inSomeSplit = useStoreWhile(useBrowser, !!warm, (s) => !!warm && !!splitOf(s, tabId));
+  const inSomeSplit = useStoreWhile(useBrowser, warm, (s) => warm && !!splitOf(s, tabId));
   const inSplit = visible ? inActiveSplit : inSomeSplit;
-  const frame = rect ?? warm ?? { x: 0, y: 0, width: fullWidth, height: fullHeight };
+  const paneKey = `${tabId}|${useTabValue(tabId, (t) => t?.profileId ?? "")}`;
+  const place = () =>
+    pane.current?.measureInWindow((x, y, width, height) => {
+      setFrame((f) => (f.x === x && f.y === y && f.width === width && f.height === height ? f : { x, y, width, height }));
+    });
+  useLayoutEffect(() => {
+    if (visible) place();
+  }, [visible, layoutKey]);
+  useEffect(() => {
+    if (!visible) return notePaneRect(windowId, paneKey, null);
+    notePaneRect(windowId, paneKey, frame);
+    return () => notePaneRect(windowId, paneKey, null);
+  }, [visible, windowId, paneKey, frame]);
+  useEffect(() => {
+    if (!visible || !focused || !toolbar || frame.width === 0) return;
+    const anchor = (extensionsWidth = 0) =>
+      setUrlAnchor(windowId, { left: frame.x + geometry.urlLeft, top: frame.y, width: frame.width - geometry.urlLeft - urlFieldRight(splitShown, extensionsWidth) });
+    anchor(useToolbarExtensionsWidths.getState()[windowId]);
+    return useToolbarExtensionsWidths.subscribe((w, prev) => {
+      if (w[windowId] !== prev[windowId]) anchor(w[windowId]);
+    });
+  }, [visible, focused, toolbar, frame.x, frame.y, frame.width, geometry.urlLeft, splitShown, windowId]);
   useEffect(() => {
     if (visible && isNewTab && !mounted) patchPage(tabId, { wasNewTab: true });
   }, [visible, isNewTab, mounted]);
@@ -359,16 +402,16 @@ const TabPane = memo(function TabPane({
 
   return (
     <View
-      pointerEvents={visible && !covered ? "auto" : "none"}
+      ref={pane}
+      onLayout={place}
+      pointerEvents={visible ? "auto" : "none"}
       onTouchStart={() => {
         if (visible && !focused) useBrowser.getState().activate(tabId);
       }}
       style={{
-        position: "absolute",
-        ...(fills ? { left: 0, top: 0, right: 0, bottom: 0 } : { left: frame.x, top: frame.y, width: frame.width, height: frame.height }),
+        flex: 1,
         borderRadius: fullscreen ? 0 : layout.cardRadius,
         overflow: "hidden",
-        opacity: covered ? 0 : 1,
         backgroundColor: visible && !fullscreen ? theme.card : undefined,
       }}
     >
@@ -386,7 +429,7 @@ const TabPane = memo(function TabPane({
           {visible && !fullscreen && (focused || !inSplit) && <CliControlBar />}
           {visible && !fullscreen && <ShareBar tabId={tabId} />}
           <View style={{ flex: 1 }}>
-            {(mounted || prewarmed) && <TabWebView tabId={tabId} visible={visible && !newTabShown && !isNewTab} warm={!!warm && !newTabShown && !isNewTab} />}
+            {(mounted || prewarmed) && <TabWebView tabId={tabId} visible={visible && !newTabShown && !isNewTab} warm={warm && !newTabShown && !isNewTab} />}
             {visible && isNewTab && !small && (inSplit ? <SplitEmptyState tabId={tabId} focused={focused} /> : emptyCard ? <EmptyCard windowId={windowId} tabId={tabId} /> : <NewTabPage key={tabId} tabId={tabId} toolbar={toolbar} />)}
             {visible && <InternalPage tabId={tabId} />}
             {visible && (
