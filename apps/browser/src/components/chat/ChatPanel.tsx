@@ -29,8 +29,11 @@ import { PageHeader } from "@oxy.so/bloom/page-header";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PanResponder, View, type TextInput } from "react-native";
 import { closeChat, newChat, openChatTab, setChatPlacement, setComposerFocused, showChatConversation, toggleChatHistory } from "../../ai/chat/actions";
-import { buildTurnContext } from "../../ai/chat/clientContext";
-import { astroHostTools } from "../../ai/chat/hostTools";
+import { buildTurnContext, notePdfAttached } from "../../ai/chat/clientContext";
+import { astroHostTools, dropApprovals } from "../../ai/chat/hostTools";
+import { chatKey } from "../../ai/chat/approvals";
+import { AGENT_CONTINUE, endRun, noteContinuation, noteOutput, registerAgentStopper, resetAgentStop, shouldContinue, stopAgent } from "../../ai/agent/session";
+import { loadContentPolicy } from "../../ai/safety/policy";
 import {
   personalizationOff,
   setPersonalizationOff,
@@ -66,7 +69,7 @@ import { powerLevelOf } from "./powerLevels";
 export type ChatPanelProps = { windowId: string; inTab: boolean; personalizationSupported: boolean; faviconUrl?: (url: string) => string | null };
 
 type Pending =
-  | { kind: "send"; id: number; text: string; attachments: SdkAttachment[]; skills: string[]; research: boolean }
+  | { kind: "send"; id: number; text: string; attachments: SdkAttachment[]; skills: string[]; research: boolean; agentContinue?: boolean }
   | { kind: "regenerate"; id: number; messageId: string }
   | { kind: "edit"; id: number; messageId: string; text: string }
   | { kind: "retry"; id: number };
@@ -88,6 +91,7 @@ export function ChatPanel(props: ChatPanelProps) {
     () => ({
       openConversation: (id) => showChatConversation(windowId, id),
       onTurnEnd: () => void researchTurns.delete(windowId),
+      onOutput: () => noteOutput(windowId),
       onToolResult: ({ toolCallId, name, output }) => {
         const conversationId = windowChat(windowId).conversationId;
         const artifact = name ? artifactOfTool({ toolCallId, toolName: name, state: "result", result: output }) : null;
@@ -157,7 +161,23 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
 
   useEffect(() => {
     void refreshSkills();
+    void loadContentPolicy();
   }, []);
+
+  useEffect(() => registerAgentStopper(windowId, () => void thread.stopGeneration()), [windowId, thread.stopGeneration]);
+
+  const wasLoading = useRef(false);
+  useEffect(() => {
+    const ended = wasLoading.current && !thread.isLoading;
+    wasLoading.current = thread.isLoading;
+    if (!ended) return;
+    dropApprovals(windowId);
+    const last = [...thread.messages].reverse().find((m) => m.role === "assistant");
+    if (shouldContinue(windowId, last?.turnOutcome)) {
+      noteContinuation(windowId);
+      void prepare({ kind: "send", text: AGENT_CONTINUE, attachments: [], skills: [], research: false, agentContinue: true });
+    } else endRun(windowId);
+  }, [thread.isLoading]);
 
   useEffect(() => {
     if (thread.conversationId && !thread.conversationLoading) rememberArtifacts(thread.conversationId, thread.messages);
@@ -175,7 +195,15 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       try {
         const context = await buildTurnContext(windowId, extra);
         setClientContext(context.text);
-        setPending({ ...next, id: ++pendingSeq } as Pending);
+        const key = chatKey(windowId, windowChat(windowId).conversationId);
+        const pdfs: SdkAttachment[] =
+          next.kind === "send"
+            ? context.pdfs.map((pdf) => {
+                notePdfAttached(key, pdf.url);
+                return { id: chatItemId("file"), uri: `data:application/pdf;base64,${pdf.data}`, type: "document", name: pdf.name, size: pdf.size, mimeType: "application/pdf" };
+              })
+            : [];
+        setPending({ ...next, ...(next.kind === "send" ? { attachments: [...next.attachments, ...pdfs] } : {}), id: ++pendingSeq } as Pending);
       } finally {
         setPreparing(false);
       }
@@ -233,6 +261,8 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       const text = [quote, asked].filter(Boolean).join("\n\n");
       const attachments = attachmentsOf(items);
       if (!text && !attachments.length) return;
+      resetAgentStop(windowId);
+      endRun(windowId);
       updateWindowChat(windowId, (c) => ({ draft: "", context: c.context.filter((item) => !ONE_SHOT.has(item.kind)), history: false }));
       void prepare(
         { kind: "send", text, attachments, skills, research },
@@ -417,7 +447,7 @@ function ChatPanelBody({ windowId, inTab, personalizationSupported }: ChatPanelP
       personalization={personalizationSupported ? personal : null}
       inputRef={inputRef}
       onSubmit={submit}
-      onStop={() => thread.stopGeneration()}
+      onStop={() => stopAgent(windowId)}
       onAction={(action) => void onAction(action)}
       onPickMention={onPickMention}
       onPowerLevel={(level) => useBrowser.getState().updateSettings({ chatPowerLevel: level })}

@@ -15,6 +15,8 @@ export type PageRead = {
   selection: string;
   media: PageMedia[];
   transcript?: string;
+  contentType?: string;
+  document?: string;
 };
 
 export const PAGE_TEXT_LIMIT = 48_000;
@@ -63,8 +65,64 @@ post('result', JSON.stringify({
   truncated: text.length > limit,
   selection: clean(String(getSelection() || '')).slice(0, 8000),
   media,
+  contentType: document.contentType || '',
 }));
 `;
+
+export type GoogleDocument = { kind: "Google Sheets" | "Google Docs" | "Google Slides"; exportPath: string };
+
+export function googleDocument(url: string): GoogleDocument | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname !== "docs.google.com") return null;
+    const match = /^\/(spreadsheets|document|presentation)\/d\/([\w-]{10,})/.exec(u.pathname);
+    if (!match) return null;
+    const [, kind, id] = match;
+    if (kind === "spreadsheets") {
+      const gid = /(?:^|[#&?])gid=(\d+)/.exec(`${u.hash}&${u.search}`)?.[1];
+      return { kind: "Google Sheets", exportPath: `/spreadsheets/d/${id}/export?format=csv${gid ? `&gid=${gid}` : ""}` };
+    }
+    if (kind === "document") return { kind: "Google Docs", exportPath: `/document/d/${id}/export?format=txt` };
+    return { kind: "Google Slides", exportPath: `/presentation/d/${id}/export?format=txt` };
+  } catch {
+    return null;
+  }
+}
+
+const exportReader = (path: string) => `
+fetch(${JSON.stringify(path)}, { credentials: 'include' })
+  .then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
+  .then((text) => post('result', JSON.stringify({ text: text.slice(0, ${PAGE_TEXT_LIMIT}), truncated: text.length > ${PAGE_TEXT_LIMIT} })))
+  .catch(() => post('result', 'null'));
+`;
+
+export const PDF_LIMIT_BYTES = 15 * 1024 * 1024;
+
+const PDF_READER = `
+fetch(location.href, { credentials: 'include' })
+  .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
+  .then((buffer) => {
+    if (buffer.byteLength > ${PDF_LIMIT_BYTES}) return post('result', JSON.stringify({ error: 'too large', size: buffer.byteLength }));
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    const name = decodeURIComponent(location.pathname.split('/').pop() || '') || 'document.pdf';
+    post('result', JSON.stringify({ data: btoa(binary), size: bytes.length, name: /\\.pdf$/i.test(name) ? name : name + '.pdf' }));
+  })
+  .catch(() => post('result', 'null'));
+`;
+
+export type PdfBytes = { data: string; size: number; name: string };
+
+export const isPdf = (page: Pick<PageRead, "contentType" | "url">) =>
+  page.contentType === "application/pdf" || (!page.contentType && /\.pdf($|[?#])/i.test(page.url));
+
+export async function readPdf(tabId: string): Promise<PdfBytes | null> {
+  const web = webviews.get(tabId);
+  if (!web) return null;
+  const read = await withTimeout(web.evaluate<PdfBytes | { error: string }>(PDF_READER).catch(() => null), 19_000, null);
+  return read && "data" in read ? read : null;
+}
 
 const withTimeout = <T>(work: Promise<T>, ms: number, fallback: T) =>
   Promise.race([work, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
@@ -113,6 +171,15 @@ export async function readPage(tabId: string, options: { transcript?: boolean } 
     null,
   );
   const page = read ?? fallback;
+  const google = googleDocument(page.url || tab.url);
+  if (google) {
+    const exported = await withTimeout(web.evaluate<{ text: string; truncated: boolean }>(exportReader(google.exportPath)).catch(() => null), 8000, null);
+    if (exported?.text) {
+      page.text = exported.text;
+      page.truncated = exported.truncated;
+      page.document = google.kind === "Google Sheets" ? `${google.kind}, the sheet as CSV` : google.kind;
+    }
+  }
   const videoId = options.transcript === false ? null : youTubeVideoId(page.url || tab.url);
   if (videoId) {
     const transcript = await readTranscript(tabId, videoId);

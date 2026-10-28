@@ -98,6 +98,7 @@ extern bool (*g_astro_window_close_requested)(BrowserWindowInterface* browser);
 
 extern "C" {
 void ac_engine_set_event_sink(ac_engine_event_t sink, void* context);
+void ac_ai_policy(const char*, const char*, ac_engine_reply_t, void*);
 void ac_autofill_addresses(const char*, const char*, ac_engine_reply_t, void*);
 void ac_autofill_card_number(const char*, const char*, ac_engine_reply_t, void*);
 void ac_autofill_cards(const char*, const char*, ac_engine_reply_t, void*);
@@ -165,6 +166,7 @@ namespace astro {
 namespace {
 
 constexpr auto kCalls = base::MakeFixedFlatMap<std::string_view, ac_engine_call_t>({
+    {"ac_ai_policy", &ac_ai_policy},
     {"ac_autofill_addresses", &ac_autofill_addresses},
     {"ac_autofill_card_number", &ac_autofill_card_number},
     {"ac_autofill_cards", &ac_autofill_cards},

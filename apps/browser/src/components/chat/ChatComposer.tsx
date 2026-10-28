@@ -1,5 +1,9 @@
 import { ComposerBanner, SuggestionList, type ChatComposerSuggestion } from "@oxy.so/bloom/chat-composer";
 import { Chip, ChipRow } from "@oxy.so/bloom/chip";
+import { RiLockLine } from "@oxy.so/bloom/icons/RiLockLine";
+import { chatKey } from "../../ai/chat/approvals";
+import { shareInChat, shareStateOf, useShareConsent } from "../../ai/safety/consent";
+import { useContentPolicy } from "../../ai/safety/policy";
 import { ComposerLoader } from "@oxy.so/bloom/composer-loader";
 import { ComposerPill, type ComposerPanelAddMenuGroup, type ComposerPanelAttachment } from "@oxy.so/bloom/composer-panel";
 import { RiAtLine } from "@oxy.so/bloom/icons/RiAtLine";
@@ -265,15 +269,29 @@ function ContextChips({ windowId }: { windowId: string }) {
   const activeId = useBrowser((s) => activeTabId(s, windowId));
   const active = useBrowser((s) => (activeId ? s.tabs[activeId] : undefined));
   const showCurrent = currentTab && !!active?.url && /^(https?|file):/i.test(active.url);
+  const conversationId = useWindowChat(windowId, (c) => c.conversationId);
+  const key = chatKey(windowId, conversationId);
+  useShareConsent((s) => s.shared[key]);
+  useBrowser((s) => s.settings.aiSharedSites);
+  useContentPolicy((s) => s.policy);
+  const share = showCurrent && active ? shareStateOf(active.url, key) : null;
   const chips = context.filter((item) => item.kind !== "file" && item.kind !== "screenshot");
   if (!showCurrent && !chips.length) return null;
+  const withheld = share?.state === "withheld" || share?.state === "blocked";
   return (
     <ChipRow accessibilityLabel="Context" gap={6}>
       {showCurrent && active && (
         <ContextChip
-          icon={<Favicon url={active.url} favicon={active.favicon} size={12} />}
-          label={active.customTitle || active.title || active.url}
-          hint="Current tab"
+          icon={withheld ? <RiLockLine /> : <Favicon url={active.url} favicon={active.favicon} size={12} />}
+          label={
+            share?.state === "blocked"
+              ? `${share.sensitivity?.host} · Blocked by your organization`
+              : withheld
+                ? `${active.customTitle || active.title || active.url} · Not shared`
+                : active.customTitle || active.title || active.url
+          }
+          hint={share?.state === "withheld" ? "Sensitive site: press to share it in this chat" : "Current tab"}
+          {...(share?.state === "withheld" && share.sensitivity ? { onPress: () => shareInChat(key, share.sensitivity!.host) } : {})}
           onRemove={() => updateWindowChat(windowId, { currentTab: false })}
         />
       )}
@@ -324,12 +342,13 @@ function chipLabel(item: ChatContextItem): string {
   }
 }
 
-function ContextChip({ icon, label, hint, onRemove }: { icon: ReactNode; label: string; hint?: string; onRemove: () => void }) {
+function ContextChip({ icon, label, hint, onRemove, onPress }: { icon: ReactNode; label: string; hint?: string; onRemove: () => void; onPress?: () => void }) {
   return (
     <Chip
       size="sm"
       variant="subtle"
       startIcon={icon}
+      {...(onPress ? { onPress } : {})}
       onClose={onRemove}
       closeLabel={`Remove ${label}`}
       accessibilityLabel={hint ? `${hint}: ${label}` : label}

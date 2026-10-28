@@ -23,12 +23,12 @@ Legend: **✅** done · **🧪** built, but the deciding test needs the user pre
 
 | ✅ done | 🧪 needs the user | 🟡 partial | ❌ missing | ⛔ blocked | ⏸ deferred (AI) | — n/a |
 |---|---|---|---|---|---|---|
-| 230 | 1 | 23 | 0 | 1 | 38 | 14 |
+| 230 | 1 | 27 | 0 | 1 | 34 | 14 |
 
-Of the 255 rows that count (not ⏸ or —), 230 are done (90 %), 231 with the one 🧪 row (Cast). Two 🟡 rows are
+Of the 259 rows that count (not ⏸ or —), 230 are done (89 %), 231 with the one 🧪 row (Cast). Two 🟡 rows are
 passkeys (iCloud Keychain waits on Apple) and the Dia sidebar import (profiles, open and pinned tabs come through
-Dia's AppleScript; custom names, colours, spaces and folders don't); the other 21 are AI, built on Windows
-and Linux and waiting on macOS: 14 are Chat (§8–§9, `docs/ai.md` › Chat) and 7 the one-shot features and the command bar's router (`docs/ai.md` › One-shot features; production waits on OxyHQ/oxy#2006). Keyboard shortcuts: every Dia and Chrome
+Dia's AppleScript; custom names, colours, spaces and folders don't); the other 25 are AI, built on Windows
+and Linux and waiting on macOS: 18 are Chat (§8–§9, `docs/ai.md` › Chat) and 7 the one-shot features and the command bar's router (`docs/ai.md` › One-shot features; production waits on OxyHQ/oxy#2006). Keyboard shortcuts: every Dia and Chrome
 shortcut is bound (Dia's where they clash) except Chat on macOS and a few for Chrome's own hidden UI. Menus: all ten exist and match.
 
 The summary before this recount (304 rows, 207 ✅, 9 🟡, 7 ⛔) didn't match its tables, which held 307 rows: 211 ✅,
@@ -41,6 +41,8 @@ Passwords / Autofill / Extensions panes (§22).
 What changed since the last audit, in rows (mostly the migration):
 - Since, one-shot AI (2026-10-27): 7 rows ⏸ → 🟡 (group names and emoji, pinned titles, Tidy Downloads, YouTube
   summaries, promoted prompts, the router and ⌃⌘↩), on Windows and Linux; AI form autofill stays ⏸ as Chat's.
+- Since, acting in tabs (2026-10-28): 4 rows ⏸ → 🟡 (AI form autofill, computer use, PDF / Office / Google Sheets
+  reading, content safety), on Windows and Linux, with Alia #917 and #918 open.
 - Since, Chat (2026-10-27): 13 rows ⏸ → 🟡 in §8 and §9 (panel, context, mentions and attachments, Ask on Page,
   screenshot, power levels and live thinking, history, edit/retry/stop, tab tools, web tools, rendering, Ask, pasted
   links), on Windows and Linux; then Personalization's per-chat switch and reading tabs, with Alia #913 and SDK 22.2 (⏸ → 🟡).
@@ -422,15 +424,15 @@ Everything in this section is deferred on purpose.
 | Edit / retry / stop & resume / auto‑compaction | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): edit, regenerate, Try Again, Stop (Alia's turn cancel) then Resume; compaction is Alia's (it trims old turns to fit) |
 | Tab tools (open / read / close tabs with confirmation) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): open, switch to and close tabs, with Allow / Always Allow in This Chat / Don't Allow; read a tab within the turn (asks first for a tab you haven't shared) |
 | Web search + fetch tools | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): Alia's own web search and page reader, shown as steps and source chips |
-| AI form autofill (preview + approve) | ✓ | ⏸ | Chat's, not a one-shot feature: Dia fills forms from the conversation's context with page tools and an approval step (`docs/ai.md` › Chat) |
-| Computer use / agentic actions | ✓ | ⏸ | |
+| AI form autofill (preview + approve) | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Acting in tabs); macOS runs the same code (unverified on a Mac): Alia's `fill_form` fills text fields, selects and checkboxes from the conversation after showing every field and value (Fill / Don't Fill); never passwords, card numbers or files, and nothing is submitted |
+| Computer use / agentic actions | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Acting in tabs); macOS runs the same code through AstroCore's DevTools call (unverified on a Mac): page snapshot from Chromium's accessibility tree, click, type, keys, scroll (real input events), select, navigate, wait; a pulsing border and a pill with Stop on the tab; per-site permission; approval before buying, paying, sending, posting, deleting or submitting; continues a task over Alia turns. Screenshots wait on Oxy accepting image input (Alia #917) |
 | YouTube transcript Q&A, pre‑generated summaries | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › One-shot features); macOS waits for the Oxy SDK (New Architecture), and production for Oxy's session lane (OxyHQ/oxy#2006, ADR 0050): a video watched for 4 s gets its transcript from the page (caption track, else YouTube's own transcript panel opened invisibly) and a summary with timestamps; Summarize This Video opens Chat with both. Q&A is Chat's |
-| PDF (OCR) / DOCX / PPTX / XLSX / Google Sheets reading | ✓ | ⏸ | |
+| PDF (OCR) / DOCX / PPTX / XLSX / Google Sheets reading | ✓ | 🟡 | `docs/ai.md` › Documents: a PDF tab goes to Chat as its file, Google Sheets, Docs and Slides tabs through Google's export; attached Word, PowerPoint and Excel files are read by Alia #918 (open). OCR of scanned PDFs is in #918 but waits on Oxy accepting image input |
 | Tables, charts, code blocks (syntax highlight) in chat | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Chat); macOS waits for the Oxy SDK (New Architecture): Markdown tables, code blocks highlighted in 17 languages, and the charts Alia's `canvas` tool makes, on Bloom's chart cards as Alia draws them |
 | Promoted prompts (summarize, ELI5, quiz me, proofread, review code, citations) | ✓ | 🟡 | Windows and Linux, with Chat: command-bar actions Summarize This Page, Summarize This Video, Explain Like I'm 5, Quiz Me, Proofread, Review Code (code hosts), Find Citations; each opens Chat with its prompt and the page |
 | Proactive suggestions | ✓ | 🟡 | Windows and Linux (`docs/ai.md` › Suggestions): a new chat offers Prepare for "…" before a meeting, Recap "…" after one and Start My Day in the morning (Nilo), the tab's prompts, and Alia's welcome suggestions ranked for the tab |
 | `/research` deep research | ✓ | 🟡 | `/research` in the composer or the command bar sends the turn with `deepResearch: true`: Alia's deep research, its steps and sources in the reply (`docs/ai.md` › Skills) |
-| Content safety (sensitive sites, org DLP) | ✓ | ⏸ | |
+| Content safety (sensitive sites, org DLP) | ✓ | 🟡 | `docs/ai.md` › Content safety: banking, health and password-manager sites stay out of Chat until shared (Share in This Chat / Always Share This Site), card numbers are removed from what's sent, and organizations set `AstroAIContentPolicy` (blocked and sensitive sites, redaction patterns, Alia's actions off) |
 | On‑device ML (router, skills classifier, embeddings via MLX) | ✓ | ⏸ | the router is rules, not a model (row above); no skills classifier or embeddings |
 | New Chat agent runtime (bundled Claude Code agent server) | ✓ | ⏸ | |
 | Ask‑user questions / to‑do list UI in chat | ✓ | ⏸ | |

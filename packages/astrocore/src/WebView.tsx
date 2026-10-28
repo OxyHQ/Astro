@@ -211,6 +211,7 @@ export type WebViewHandle = {
   navigationEntries(): Promise<NavigationEntry[]>;
   capturePicture(scale: number): Promise<{ data: string; frame: [number, number, number, number] } | null>;
   captureFullPage?(): Promise<{ data: string } | null>;
+  devToolsCall?(method: DevToolsMethod, params?: Record<string, unknown>): Promise<DevToolsAnswer | null>;
   downloadFavicon(url: string): Promise<FaviconImage | null>;
   downloadImage(url: string, maxPixels: number): Promise<FaviconImage | null>;
 
@@ -234,6 +235,27 @@ export type WebViewHandle = {
   discard(options?: { unload?: boolean }): Promise<DiscardOutcome>;
   setFrozen(frozen: boolean): Promise<void>;
 };
+
+export type DevToolsMethod =
+  | "Accessibility.getFullAXTree"
+  | "Accessibility.getPartialAXTree"
+  | "Accessibility.queryAXTree"
+  | "DOM.describeNode"
+  | "DOM.focus"
+  | "DOM.getBoxModel"
+  | "DOM.getContentQuads"
+  | "DOM.getDocument"
+  | "DOM.resolveNode"
+  | "DOM.scrollIntoViewIfNeeded"
+  | "Input.dispatchKeyEvent"
+  | "Input.dispatchMouseEvent"
+  | "Input.insertText"
+  | "Page.captureScreenshot"
+  | "Page.getLayoutMetrics"
+  | "Runtime.callFunctionOn"
+  | "Runtime.releaseObject";
+
+export type DevToolsAnswer = { result?: Record<string, unknown>; error?: string };
 
 export type DiscardOutcome = "discarded" | "already" | "refused" | "unsupported";
 
@@ -390,6 +412,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       },
       navigationEntries: async () => (await call([], (n) => n.navigationEntries())).map((e) => ({ ...e, url: toAppUrl(e.url) })),
       capturePicture: (scale) => call(null, (n) => n.capturePicture(scale)),
+      devToolsCall: (method, params) => call(null, (n) => n.devToolsCall?.(method, params ?? {}) ?? Promise.resolve(null)),
       downloadImage: (url, maxPixels) => call(null, (n) => n.downloadImage(url, maxPixels)),
       downloadFavicon: (url) => call(null, (n) => n.downloadFavicon(url)),
       mediaCommand: (action, seconds) => call(undefined, (n) => n.mediaCommand(action, seconds)),

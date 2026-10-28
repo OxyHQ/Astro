@@ -7,6 +7,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -710,6 +711,33 @@ void TabBridge::CheckSecurity() {
   emit_.Run("security", std::move(info));
 }
 
+namespace {
+
+bool AgentProtocolAllowed(std::string_view method) {
+  static constexpr std::string_view kAllowed[] = {
+      "Accessibility.getFullAXTree",
+      "Accessibility.getPartialAXTree",
+      "Accessibility.queryAXTree",
+      "DOM.describeNode",
+      "DOM.focus",
+      "DOM.getBoxModel",
+      "DOM.getContentQuads",
+      "DOM.getDocument",
+      "DOM.resolveNode",
+      "DOM.scrollIntoViewIfNeeded",
+      "Input.dispatchKeyEvent",
+      "Input.dispatchMouseEvent",
+      "Input.insertText",
+      "Page.captureScreenshot",
+      "Page.getLayoutMetrics",
+      "Runtime.callFunctionOn",
+      "Runtime.releaseObject",
+  };
+  return std::ranges::find(kAllowed, method) != std::end(kAllowed);
+}
+
+}
+
 void TabBridge::Call(const std::string& method,
                      const base::DictValue& args,
                      base::OnceCallback<void(base::Value)> done) {
@@ -952,6 +980,15 @@ void TabBridge::Call(const std::string& method,
     if (kind && json) {
       CallPage(*kind, *json, args.FindInt("frame"));
     }
+  } else if (method == "devTools") {
+    const std::string* name = args.FindString("method");
+    const base::DictValue* params = args.FindDict("params");
+    if (!name || !AgentProtocolAllowed(*name)) {
+      return std::move(done).Run(
+          base::Value(base::DictValue().Set("error", "not allowed")));
+    }
+    return CallProtocol(*name, params ? params->Clone() : base::DictValue(),
+                        std::move(done));
   } else if (method == "capturePicture") {
     return CapturePicture(args.FindDouble("scale").value_or(1),
                           std::move(done));
@@ -1237,6 +1274,33 @@ void TabBridge::Evaluate(const std::string& code,
              id);
 }
 
+void TabBridge::CallProtocol(const std::string& method,
+                             base::DictValue params,
+                             base::OnceCallback<void(base::Value)> done) {
+  if (!EnsureAgent()) {
+    return std::move(done).Run(
+        base::Value(base::DictValue().Set("error", "detached")));
+  }
+  const int id = ++last_message_id_;
+  protocol_calls_[id] = std::move(done);
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&TabBridge::AnswerProtocol, weak_factory_.GetWeakPtr(),
+                     id, base::DictValue().Set("error", "timeout")),
+      kEvaluationTimeout);
+  SendToPage(method, std::move(params), id);
+}
+
+void TabBridge::AnswerProtocol(int id, base::DictValue answer) {
+  auto it = protocol_calls_.find(id);
+  if (it == protocol_calls_.end()) {
+    return;
+  }
+  base::OnceCallback<void(base::Value)> done = std::move(it->second);
+  protocol_calls_.erase(it);
+  std::move(done).Run(base::Value(std::move(answer)));
+}
+
 void TabBridge::Answer(int id, base::Value result) {
   auto it = evaluations_.find(id);
   if (it == evaluations_.end()) {
@@ -1283,6 +1347,16 @@ void TabBridge::DispatchProtocolMessage(content::DevToolsAgentHost*,
   if (!id) {
     return;
   }
+  if (protocol_calls_.contains(*id)) {
+    base::DictValue answer;
+    if (const base::DictValue* error = reply->FindDict("error")) {
+      const std::string* text = error->FindString("message");
+      answer.Set("error", text ? *text : std::string("error"));
+    } else if (base::DictValue* result = reply->FindDict("result")) {
+      answer.Set("result", std::move(*result));
+    }
+    return AnswerProtocol(*id, std::move(answer));
+  }
   const std::string* value =
       reply->FindStringByDottedPath("result.result.value");
   Answer(*id, value ? base::Value(*value) : base::Value());
@@ -1299,6 +1373,13 @@ void TabBridge::AgentHostClosed(content::DevToolsAgentHost*) {
       std::move(evaluations_);
   for (auto& [id, done] : pending) {
     std::move(done).Run(base::Value());
+  }
+  std::map<int, base::OnceCallback<void(base::Value)>> calls =
+      std::move(protocol_calls_);
+  protocol_calls_.clear();
+  for (auto& [id, done] : calls) {
+    std::move(done).Run(
+        base::Value(base::DictValue().Set("error", "detached")));
   }
 }
 

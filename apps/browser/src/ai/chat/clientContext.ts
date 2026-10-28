@@ -1,6 +1,9 @@
 import { useBrowser } from "../../store/browser";
 import { activeTabId, viewTabIds } from "../../store/model";
-import { clock, readPage, type PageRead } from "./pageContext";
+import { shareStateOf, withheldNote } from "../safety/consent";
+import { redactForModel } from "../safety/policy";
+import { chatKey } from "./approvals";
+import { clock, isPdf, readPage, readPdf, type PageRead, type PdfBytes } from "./pageContext";
 import { windowChat, type ChatContextItem } from "./state";
 
 export const CONTEXT_BUDGET = 56_000;
@@ -8,7 +11,19 @@ const CURRENT_SHARE = 0.55;
 const MIN_SHARE = 4_000;
 const LISTED_TABS = 40;
 
-export type TurnContext = { text: string; tabs: string[]; currentTabId: string | null };
+export type TurnPdf = PdfBytes & { tabId: string; url: string };
+
+export type TurnContext = { text: string; tabs: string[]; currentTabId: string | null; pdfs: TurnPdf[] };
+
+const attachedPdfs = new Map<string, Set<string>>();
+
+export function pdfAlreadyAttached(key: string, url: string) {
+  return !!attachedPdfs.get(key)?.has(url);
+}
+
+export function notePdfAttached(key: string, url: string) {
+  attachedPdfs.set(key, new Set([...(attachedPdfs.get(key) ?? []), url]));
+}
 
 const isWeb = (url: string) => /^(https?|file):/i.test(url);
 
@@ -19,8 +34,13 @@ function clip(text: string, budget: number): { text: string; clipped: boolean } 
   return { text: `${text.slice(0, Math.max(0, budget - 1)).trimEnd()}…`, clipped: true };
 }
 
-function describePage(page: PageRead, budget: number, heading: string): string {
+function describePage(page: PageRead, budget: number, heading: string, pdfNote = ""): string {
   const lines = [`## ${heading}`, `Title: ${page.title || "(untitled)"}`, `URL: ${page.url}`];
+  if (page.document) lines.push(`Document: ${page.document}`);
+  if (pdfNote) {
+    lines.push(pdfNote);
+    return lines.join("\n");
+  }
   if (page.description) lines.push(`Description: ${page.description}`);
   if (page.language) lines.push(`Language: ${page.language}`);
   for (const media of page.media) {
@@ -44,9 +64,10 @@ function describePage(page: PageRead, budget: number, heading: string): string {
   return lines.join("\n");
 }
 
-function tabSummary(tabId: string): string {
+function tabSummary(tabId: string, key: string): string {
   const tab = useBrowser.getState().tabs[tabId];
   if (!tab) return "";
+  if (shareStateOf(tab.url, key).state === "blocked") return `- [${tab.id}] (a site blocked for AI by the person's organization)`;
   return `- [${tab.id}] ${tab.customTitle || tab.title || "(untitled)"} — ${tab.url || "New Tab"}`;
 }
 
@@ -62,8 +83,35 @@ export async function buildTurnContext(windowId: string, extra: string[] = []): 
   }
   if (currentTabId) mentionedTabs.delete(currentTabId);
 
-  const current = currentTabId && isWeb(s.tabs[currentTabId]?.url ?? "") ? await readPage(currentTabId) : null;
-  const others = await Promise.all([...mentionedTabs.keys()].map((id) => readPage(id)));
+  const key = chatKey(windowId, chat.conversationId);
+  const withheld: string[] = [];
+  const readable = (tabId: string) => {
+    const tab = s.tabs[tabId];
+    if (!tab || !isWeb(tab.url)) return false;
+    const share = shareStateOf(tab.url, key);
+    if (share.state === "withheld" || share.state === "blocked") {
+      withheld.push(
+        share.state === "blocked"
+          ? `- A tab on ${share.sensitivity?.host}: ${withheldNote(share.sensitivity!)}`
+          : `- [${tab.id}] ${tab.customTitle || tab.title || "(untitled)"} — ${share.sensitivity?.host}: ${withheldNote(share.sensitivity!)}`,
+      );
+      return false;
+    }
+    return true;
+  };
+  const current = currentTabId && readable(currentTabId) ? await readPage(currentTabId) : null;
+  const others = await Promise.all([...mentionedTabs.keys()].map((id) => (readable(id) ? readPage(id) : Promise.resolve(null))));
+  const pdfs: TurnPdf[] = [];
+  const pdfNote = async (tabId: string, page: PageRead | null): Promise<string> => {
+    if (!page || !isPdf(page)) return "";
+    if (pdfAlreadyAttached(key, page.url)) return "This tab is a PDF that was attached earlier in this conversation as a file: read it there.";
+    const bytes = await readPdf(tabId);
+    if (!bytes) return "This tab is a PDF that couldn't be read. Use your web tools on its URL if you need it.";
+    pdfs.push({ ...bytes, tabId, url: page.url });
+    return `This tab is a PDF; its file (${bytes.name}) is attached to this message.`;
+  };
+  const currentPdf = currentTabId ? await pdfNote(currentTabId, current) : "";
+  const otherPdfs = await Promise.all([...mentionedTabs.keys()].map((id, i) => pdfNote(id, others[i] ?? null)));
 
   const sections: string[] = [
     "# Astro",
@@ -74,18 +122,24 @@ export async function buildTurnContext(windowId: string, extra: string[] = []): 
 
   const budget = CONTEXT_BUDGET;
   const currentBudget = others.length ? Math.floor(budget * CURRENT_SHARE) : budget;
-  if (current) sections.push(describePage(current, currentBudget, "The tab the person is on"));
+  if (current) sections.push(describePage(redactPage(current), currentBudget, "The tab the person is on", currentPdf));
 
   const otherBudget = Math.max(MIN_SHARE, Math.floor((budget - (current ? currentBudget : 0)) / Math.max(1, others.length)));
   others.forEach((page, i) => {
-    if (page) sections.push(describePage(page, otherBudget, `Tab the person mentioned (${i + 1})`));
+    if (page) sections.push(describePage(redactPage(page), otherBudget, `Tab the person mentioned (${i + 1})`, otherPdfs[i]));
   });
+
+  if (withheld.length)
+    sections.push("## Tabs whose content isn't shared", "The person's privacy settings keep these out of the conversation:", withheld.join("\n"));
 
   for (const item of items) sections.push(...attachedItem(item));
 
   sections.push(...extra);
 
-  const listed = viewTabIds(s, windowId).slice(0, LISTED_TABS).map(tabSummary).filter(Boolean);
+  const listed = viewTabIds(s, windowId)
+    .slice(0, LISTED_TABS)
+    .map((id) => tabSummary(id, key))
+    .filter(Boolean);
   if (listed.length)
     sections.push(
       "## The person's open tabs in this window",
@@ -93,7 +147,16 @@ export async function buildTurnContext(windowId: string, extra: string[] = []): 
       listed.join("\n"),
     );
 
-  return { text: sections.join("\n\n"), tabs: [...(currentTabId ? [currentTabId] : []), ...mentionedTabs.keys()], currentTabId };
+  return { text: sections.join("\n\n"), tabs: [...(currentTabId ? [currentTabId] : []), ...mentionedTabs.keys()], currentTabId, pdfs };
+}
+
+function redactPage(page: PageRead): PageRead {
+  return {
+    ...page,
+    text: redactForModel(page.text).text,
+    selection: redactForModel(page.selection).text,
+    ...(page.transcript ? { transcript: redactForModel(page.transcript).text } : {}),
+  };
 }
 
 function attachedItem(item: ChatContextItem): string[] {

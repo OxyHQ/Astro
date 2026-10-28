@@ -39,6 +39,7 @@ import { WindowButtons } from "./WindowControls";
 import { useApps } from "../../browser/src/ai/apps/apps";
 import { useArtifacts } from "../../browser/src/ai/artifacts/artifacts";
 import { useSkills } from "../../browser/src/ai/skills/skills";
+import { agentDebug } from "../../browser/src/ai/agent/debug";
 
 installEngineFetch();
 startTranslate();
@@ -49,7 +50,7 @@ startDragPreview();
 startTabDragShare();
 setStoreBatching(unstable_batchedUpdates);
 
-Object.assign(globalThis, { astro: { store: useBrowser, emitCommand, oneShot: oneShotDebug, chat: useChat, chatEntry: useChatEntry, oxy: useOxySession, skills: useSkills, apps: useApps, artifacts: useArtifacts } });
+Object.assign(globalThis, { astro: { store: useBrowser, emitCommand, oneShot: oneShotDebug, chat: useChat, chatEntry: useChatEntry, oxy: useOxySession, skills: useSkills, apps: useApps, artifacts: useArtifacts, agent: agentDebug } });
 
 const startPage = () =>
   startWindows(

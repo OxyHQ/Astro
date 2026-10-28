@@ -10,6 +10,8 @@ source_set("astro") {
   sources = [
     "ac_account_fetch.cc",
     "ac_account_fetch.h",
+    "ac_ai_policy.cc",
+    "ac_ai_policy.h",
     "ac_autofill.cc",
     "ac_autofill.h",
     "ac_autofill_prompt.cc",

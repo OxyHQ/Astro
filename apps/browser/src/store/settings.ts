@@ -75,6 +75,8 @@ export type Settings = {
   aiTidyDownloads: boolean;
   aiVideoSummaries: boolean;
   aiCommandBarChat: boolean;
+  aiSharedSites: string[];
+  agentSites: string[];
 
   chosen?: string[];
   inferred?: string[];
@@ -133,6 +135,8 @@ export const DEFAULT_SETTINGS: Settings = {
   aiTidyDownloads: true,
   aiVideoSummaries: true,
   aiCommandBarChat: true,
+  aiSharedSites: [],
+  agentSites: [],
 };
 
 const NO_CUSTOM_ENGINES: CustomSearchEngine[] = [];

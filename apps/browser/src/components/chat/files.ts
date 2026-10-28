@@ -11,6 +11,23 @@ export function readFileAsDataUrl(file: Blob): Promise<string> {
   });
 }
 
+const MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  csv: "text/csv",
+  md: "text/markdown",
+  txt: "text/plain",
+  json: "application/json",
+};
+
+export function mimeOf(name: string, type: string): string {
+  if (type && type !== "application/octet-stream") return type;
+  const extension = /\.([a-z0-9]+)$/i.exec(name)?.[1]?.toLowerCase();
+  return (extension && MIME_BY_EXTENSION[extension]) || type || "application/octet-stream";
+}
+
 export async function fileItems(files: readonly File[]): Promise<ChatContextItem[]> {
   const usable = files.filter((file) => file.size <= MAX_ATTACHMENT_BYTES).slice(0, 10);
   return Promise.all(
@@ -18,7 +35,7 @@ export async function fileItems(files: readonly File[]): Promise<ChatContextItem
       id: chatItemId("file"),
       kind: "file" as const,
       name: file.name || "Pasted image",
-      mime: file.type || "application/octet-stream",
+      mime: mimeOf(file.name, file.type),
       uri: await readFileAsDataUrl(file),
       size: file.size,
     })),

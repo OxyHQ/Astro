@@ -130,7 +130,9 @@ and its history lists only them. Astro never names a model: the composer's level
 | --- | --- |
 | Per-window state: open, placement, conversation, draft, context chips, asks | `ai/chat/state.ts`, `ai/chat/actions.ts` (no SDK import: runs on macOS too) |
 | What the model is told about the browser (the turn's `clientContext`) | `ai/chat/clientContext.ts`, `ai/chat/pageContext.ts` |
-| Tools Astro performs for Alia (host tools) and their approvals | `ai/chat/hostTools.ts`, `components/chat/ToolApproval.tsx` |
+| Tools Astro performs for Alia (host tools) and their approvals | `ai/chat/hostTools.ts`, `ai/chat/approvals.ts`, `components/chat/ToolApproval.tsx` |
+| Acting in tabs: the page tools, the run, Stop | `ai/agent/` (`tools.ts`, `page.ts`, `rules.ts`, `session.ts`), `components/chat/AgentOverlay.tsx` |
+| What may reach the model: sensitive sites, the organization's policy, redaction | `ai/safety/` (`sensitive.ts`, `policy.ts`, `consent.ts`); the engine call `ac_ai_policy` (`ac_ai_policy.cc`) |
 | The panel: header, thread, composer, history | `components/chat/` (`ChatPanel`, `ChatThread`, `ChatComposer`, `ChatHistory`, `ChatCode`) |
 | Where the panel shows: sidebar, floating, tab | `components/chat/ChatSlots.tsx` (`ChatSidebar`, `ChatFloating` in `App.tsx`; `ChatTabSlot` for `astro://chat`): geometry and motion only; the material is `components/chat/ChatFrame.tsx`, a Bloom `Surface` that keeps one tree in every placement, so moving never remounts the panel |
 | The SDK's provider and the portal (Windows, Linux) | `apps/webui/src/host/chat.tsx`, mounted inside `OxyRoot` by `OxyLayer` |
@@ -185,12 +187,96 @@ and Linux; under the search item, as Chrome lists its own). It opens where it wa
 - **History.** 🕘 lists your Astro chats by day, with search (title and last message), Delete in each row's ⋯ menu and ⋯ › Delete All Chats…, loading older chats as you scroll.
 - **Tools** (Alia host tools, `host_astro__*`): `open_tabs` (asks first for more than one), `switch_to_tab`,
   `close_tabs` (asks first) and `read_tab` (asks first for a tab you haven't shared; Alia waits for its answer within
-  the turn, up to 45 s). The question docks above the composer: Don't Allow, Always Allow in This Chat, Allow. Alia
-  performs web search and page fetching itself.
+  the turn, up to 45 s), and the page tools that act in your tabs (below, Acting in tabs). The question docks above the
+  composer: Don't Allow, Always Allow in This Chat, Allow. Alia performs web search and page fetching itself.
 - **Personalization.** ⋯ › Personalization for This Chat (and + › Personalization on a new chat) turns it off for one
   conversation: its turns carry `personalization: false`, so Alia reads and writes no memory for them.
 
+### Acting in tabs
+
+Alia acts in your tabs through ten more host tools (`ai/agent/tools.ts`), all awaited, so the model sees what
+happened in the same turn:
+
+| Tool | What Astro does |
+| --- | --- |
+| `page_snapshot` | reads the tab's accessibility tree (Chromium's own, `Accessibility.getFullAXTree`) as an outline: headings, text, links, buttons and fields with their values and states, each control with a ref (`e123`, its DOM node id); 40 000 characters at most, password values never |
+| `click` | scrolls the element into view and clicks its centre with real mouse events (`Input.dispatchMouseEvent`; the page sees `isTrusted`) |
+| `type_text` | focuses the field, selects what's in it and inserts the text (`Input.insertText`); `submit` presses Enter |
+| `press_key` | a key or a combination (Enter, Tab, Escape, arrows, Control+A…) as real key events |
+| `scroll` | a mouse wheel over the page or an element, by screens |
+| `select_option` | picks options of a `<select>` by value or label and fires `input` and `change` |
+| `navigate` | loads an address in the tab, or goes back, forward or reloads |
+| `wait_for` | waits for text to appear or the page to load (15 s at most) |
+| `fill_form` | fills many fields at once: text, selects and checkboxes (below) |
+| `screenshot` | the visible part as a JPEG of 40 000 base64 characters at most; declared only once Alia can show images to the model (`IMAGE_RESULTS`, below) |
+
+Each action answers with the page's new snapshot, so a step is one call, not two. The calls go through one engine
+method, `devTools` on the tab (`TabBridge::CallProtocol`, `ac_tab_bridge.cc`), which sends a DevTools command to the
+tab's page session and answers its whole result; only the 17 commands the tools use are allowed (the same list in
+`AstroCoreWebView.mm` on macOS, which calls AstroCore's `devToolsCall:`). The JS side is `WebViewHandle.devToolsCall`.
+
+- **Asking.** The first action on a site asks "Let Alia use example.com?": Allow in This Chat, Always Allow on This
+  Site (Settings › Oxy Account › Sites Alia can use, where Remove takes it back), Don't Allow. Reading a tab follows
+  `read_tab`'s rule. Whatever the site, Astro asks before anything consequential (`rules.ts`): a click whose name says
+  buy, pay, order, checkout, subscribe, donate, send, post, publish, delete, remove, cancel a subscription, close an
+  account, transfer, withdraw, submit, confirm or sign up; a form's submit button; Enter in a form field that isn't a
+  search. Cookie banners, searches, filters and "show more" pass. Passwords, card numbers and file inputs are never
+  typed.
+- **Working.** While Alia acts, the tab has a pulsing border in the accent colour and a pill at the bottom with
+  what it's doing ("Clicking “Add to cart”", Bloom's shimmering `AgentProgressLoadingText`) and **Stop**
+  (`components/chat/AgentOverlay.tsx`). Stop, or the composer's stop button, ends the turn (Alia's cancel), answers
+  every open question with Don't Allow and refuses further actions until you send a message.
+- **Longer tasks.** An Alia turn has a bound of steps (5 today; 16 for a turn with awaited host tools from Alia
+  #917) inside 80 s. When a turn ends right after an action, without a reply, Astro sends "Continue the task in my
+  tabs." on its own, up to 6 times a task (`session.ts` `shouldContinue`); the thread doesn't show those messages.
+- **Form autofill.** `fill_form` (Dia's AI autofill) takes `{ ref, value }` pairs the model chose from the
+  conversation and the snapshot. The question lists every field with its label and value ("Fill 5 fields on
+  example.com?", Fill / Don't Fill, "Nothing is submitted."); nothing is typed before Fill, and the form isn't
+  submitted: a submit is a click, which asks again.
+- **Screenshots.** Alia #917 gives the model an image result (`{ type: "image", mediaType, data, text }`), but Oxy's
+  inference edge refuses image input today (`unsupported_modality`), so `screenshot` stays undeclared
+  (`IMAGE_RESULTS = false` in `tools.ts`) until it doesn't.
+- Tested on Linux in a hidden instance against local pages (2026-10-28): a snapshot of a shop page; Add to Cart after
+  "Let Alia use shop.example?"; Place Order refused, then allowed (both clicks `isTrusted`); a search submitted without
+  asking; scrolling; `fill_form` on a contact form (5 fields shown and filled, the password refused, no submit until the
+  Send Message click was allowed); Stop during a wait answered within 120 ms and cleared the pill.
+
+### Documents
+
+- **PDF tabs.** A tab showing a PDF (Chromium's viewer) has no page text, so Astro attaches the PDF itself to the
+  message: the page fetches its own bytes (with its cookies, so a signed-in PDF works; 15 MB at most) and the file goes
+  through Oxy Files like an attached one, once per conversation (`pageContext.ts` `readPdf`, `clientContext.ts`).
+  Alia reads its text; a scanned PDF's pages go to the model as images (Alia #918), which waits on the same Oxy change
+  as screenshots.
+- **Attached files.** PDF, Word, PowerPoint and Excel files (+ › Files…, drop, paste) are uploaded as they are; Alia
+  #918 reads `.docx` (paragraphs and tables), `.pptx` (each slide and its notes) and `.xlsx` (each sheet as CSV).
+  Astro names the type from the extension when the system doesn't (`files.ts` `mimeOf`).
+- **Google Sheets, Docs and Slides.** Their pages are drawn on a canvas, so the page text is empty. Astro reads them
+  through Google's own export with the person's session (`/export?format=csv&gid=…` for the sheet shown, `txt` for a
+  document or deck), from inside the page (`pageContext.ts` `googleDocument`).
+
+### Content safety
+
+- **Sensitive sites.** Banking and finance (banks, brokers, payment and crypto apps, tax agencies), health (patient
+  portals, labs, telehealth) and password managers (`sensitive.ts`) aren't sent to the model by default: the current
+  tab's chip reads "· Not shared" with a lock (press it to share it in this chat), the context lists the tab without
+  its content, and `read_tab` or a page tool asks "Share mybank.com with Alia?": Share in This Chat, Always Share This
+  Site (Settings › Oxy Account › Sensitive sites you share), Don't Share.
+- **Redaction.** Payment card numbers (13–19 digits passing Luhn) are replaced in everything read from a page before
+  it is sent: page text, selections, transcripts and snapshots.
+- **Organizations.** The policy `AstroAIContentPolicy` (a Chrome policy on Windows and Linux, read through the profile's
+  policy service; a managed preference holding JSON on macOS, whose AstroCore has no platform policy provider) is
+  `{ blockedSites, sensitiveSites, redact, agent, builtInSensitiveSites }`: blocked sites never reach the model (not even
+  their titles in the tab list) and can't be shared, sensitive sites ask like the built-in ones, `redact` is a list of
+  regular expressions replaced with "[removed by your organization's policy]", `agent: false` turns the page tools off
+  and `builtInSensitiveSites: false` drops Astro's own list. Sites are `host` (with its subdomains), `*.host` or an
+  `https://` prefix. Settings › Oxy Account says when a policy applies.
+
 ### Alia's side
+
+Open Alia PRs this work needs: **#917** (image results for host tools, 16 steps for turns with awaited host tools,
+SDK 22.5.0) and **#918** (Word, PowerPoint and Excel as text; scanned PDF pages as images). Images also wait on Oxy's
+inference edge, which refuses non-text input.
 
 Alia (#913, SDK 22.2.0, in production since 2026-10-27) carries the two contracts Chat needed beyond the SDK's
 original surface: host tools declared `awaitsResult`, whose action carries the `turnId` and whose answer the SDK posts to
@@ -306,7 +392,7 @@ connections, so a connection made in Astro works in the Alia app and back.
   answer Alia's origins only to a browser, and Astro reaches them through the engine (`astroAccountFetch`, no Origin).
 - **Write actions with approval** (Dia's "Always allow for this chat") aren't possible for these apps: Alia runs every
   tool under the person's authority and asks for nothing (Alia ADR 0020 §3: no approval events). Astro asks only for
-  its own host tools (open and close tabs, read a tab).
+  its own host tools (open and close tabs, read a tab, act in a tab).
 - Entry points: the command bar's Connect Apps, the panel's ⋯ › Connected Apps….
 
 ### Suggestions
@@ -337,13 +423,16 @@ is Expo's `expo/fetch`. On macOS Metro maps `expo-secure-store` to Astro's keych
 - `npm test` in `apps/browser`: `ai/chat/chat.test.mjs` (state, asks, context chips, personalization carry-over, pasted
   links, mentions, the turn context), `components/chat/highlight.test.mjs`, `components/chat/charts.test.mjs`,
   `ai/skills/skills.test.mjs` (slugs, the `/` list, `/name` parsing, the Alia routes the shelf calls),
-  `ai/work/brief.test.mjs` (brief, prep, recap), `ai/artifacts/artifacts.test.mjs` (canvas results to artifacts,
+  `ai/work/brief.test.mjs` (brief, prep, recap), `ai/agent/agent.test.mjs` (the snapshot outline, what needs
+  approval, keys, continuing a task), `ai/safety/safety.test.mjs` (sensitive sites, policies, redaction), `ai/artifacts/artifacts.test.mjs` (canvas results to artifacts,
   versions, addresses, the revision request, exports), `ai/apps/apps.test.mjs` (the apps list, connecting, finishing
   OAuth once and only after a connect) and `ai/work/suggestions.test.mjs`.
 - A Windows or Linux build against a local stack: `ASTRO_OXY_API_URL`, `ASTRO_NILO_API_URL`, `ASTRO_ALIA_API_URL` and
   `ASTRO_KAANA_URL` move together (`apps/webui/vite.config.ts` refuses a mix, so a local session never reaches a
   production origin; point one you don't run at a closed port such as `http://127.0.0.1:9`). `globalThis.astro.chat` is the chat store and `astro.oxy` the session;
-  `astro.skills`, `astro.apps` and `astro.artifacts` are the stores above.
+  `astro.skills`, `astro.apps` and `astro.artifacts` are the stores above; `astro.agent` has the run, the open
+  questions (`approvals`, `answer`), `tools(windowId).execute(action)` to call a host tool directly, `setPolicy` and
+  `context(windowId)` (the turn's context).
   Launch it with `--host-resolver-rules="MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.alia.onl ~NOTFOUND,
   MAP kaana.ai ~NOTFOUND"` so nothing can reach production.
 - Keys and the context menu are tested with real input on a private Xvfb (XTest): a CDP key event never reaches the

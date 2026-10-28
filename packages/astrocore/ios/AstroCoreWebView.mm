@@ -2233,6 +2233,29 @@ void AstroCoreWebViewsSetFieldTiming(BOOL on) {
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{ answer(nil); });
 }
 
+- (void)devToolsCall:(NSString *)method
+              params:(NSDictionary<NSString *, id> *)params
+          completion:(void (^)(NSDictionary<NSString *, id> *))completion {
+  static NSSet<NSString *> *allowed;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    allowed = [NSSet setWithArray:@[
+      @"Accessibility.getFullAXTree", @"Accessibility.getPartialAXTree", @"Accessibility.queryAXTree", @"DOM.describeNode",
+      @"DOM.focus", @"DOM.getBoxModel", @"DOM.getContentQuads", @"DOM.getDocument", @"DOM.resolveNode",
+      @"DOM.scrollIntoViewIfNeeded", @"Input.dispatchKeyEvent", @"Input.dispatchMouseEvent", @"Input.insertText",
+      @"Page.captureScreenshot", @"Page.getLayoutMetrics", @"Runtime.callFunctionOn", @"Runtime.releaseObject"
+    ]];
+  });
+  if (![allowed containsObject:method]) return completion(@{@"error" : @"not allowed"});
+  if (![_tab respondsToSelector:@selector(devToolsCall:params:completion:)]) return completion(@{@"error" : @"detached"});
+  [self thawHiddenPage];
+  [_tab devToolsCall:method
+              params:params ?: @{}
+          completion:^(NSDictionary *result, NSString *error) {
+            completion(result ? @{@"result" : result} : @{@"error" : error ?: @"error"});
+          }];
+}
+
 - (void)navigationEntries:(void (^)(NSArray<NSDictionary<NSString *, id> *> *))completion {
   completion([_tab respondsToSelector:@selector(navigationEntries)] ? _tab.navigationEntries : @[]);
 }

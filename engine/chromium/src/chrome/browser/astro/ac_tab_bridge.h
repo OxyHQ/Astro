@@ -154,6 +154,10 @@ class TabBridge : public content::WebContentsObserver,
                 const std::string& json,
                 std::optional<int> context);
   void Answer(int id, base::Value result);
+  void CallProtocol(const std::string& method,
+                    base::DictValue params,
+                    base::OnceCallback<void(base::Value)> done);
+  void AnswerProtocol(int id, base::DictValue answer);
 
   Emit emit_;
   base::DictValue security_;
@@ -187,6 +191,7 @@ class TabBridge : public content::WebContentsObserver,
   std::optional<std::pair<int, int>> unresponsive_;
   base::RepeatingClosure hang_monitor_restarter_;
   std::map<int, base::OnceCallback<void(base::Value)>> evaluations_;
+  std::map<int, base::OnceCallback<void(base::Value)>> protocol_calls_;
   base::WeakPtrFactory<TabBridge> weak_factory_{this};
 };
 

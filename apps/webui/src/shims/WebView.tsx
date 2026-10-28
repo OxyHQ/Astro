@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import type { AutofillPrompt, BlockedPopup, ContentBlockedState, CrashInfo, DownloadNavigation, ExternalAppRequest, FindResult, LoadError, MediaAccess, MediaState, NavigationState, PageCommand, PasswordPrompt, SecurityInfo, WebViewHandle, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
+import type { AutofillPrompt, BlockedPopup, ContentBlockedState, CrashInfo, DownloadNavigation, ExternalAppRequest, FindResult, LoadError, MediaAccess, MediaState, NavigationState, PageCommand, PasswordPrompt, SecurityInfo, WebViewHandle, DevToolsAnswer, WebViewProps, ZoomState } from "@astro-browser-real/astrocore";
 import type { BrowserCommand } from "@astro-browser-real/shell";
 import { openProfileTab, onProfileTabOpened, PROFILE_TAB_PREFIX } from "../host/profileTabs";
 import { type EngineTab, type TabState, tabHub } from "../host/tabs";
@@ -443,6 +443,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       notificationAction: async (id, action) => channel.current?.notificationAction(id, action),
       resolveUnresponsive: async (terminate) => run("resolveUnresponsive", { terminate }),
       resolveAutofillPrompt: async (id, answer) => run("resolveAutofillPrompt", { id, answer }),
+      devToolsCall: async (method, params) => await call<DevToolsAnswer>("devTools", { method, params: params ?? {} }),
       capturePicture: async (scale) => {
         const picture = await call<{ data: string }>("capturePicture", { scale });
         const bounds = frame.current?.getBoundingClientRect();

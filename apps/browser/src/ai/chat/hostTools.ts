@@ -1,49 +1,15 @@
 import type { AliaHostAction, AliaHostOutcome, AliaHostToolDefinition, AliaHostTools } from "@alia.onl/sdk/runtime";
-import { create } from "zustand";
 import { closeTab } from "../../lib/actions";
 import { useBrowser } from "../../store/browser";
 import { activeTabId, viewTabIds } from "../../store/model";
+import { AGENT_TOOL_NAMES, agentToolDefinitions, runAgentTool, tabIsShared } from "../agent/tools";
+import { consentToShare, shareStateOf } from "../safety/consent";
+import { redactForModel } from "../safety/policy";
+import { approve, chatKey } from "./approvals";
 import { readPage } from "./pageContext";
 import { windowChat } from "./state";
 
-export type ApprovalKind = "open" | "close" | "read";
-
-export type Approval = {
-  id: string;
-  windowId: string;
-  kind: ApprovalKind;
-  tabs: { tabId?: string; title: string; url: string }[];
-};
-
-type Approvals = { pending: Approval[]; allowed: Record<string, ApprovalKind[]> };
-
-export const useApprovals = create<Approvals>()(() => ({ pending: [], allowed: {} }));
-
-const answers = new Map<string, (choice: "allow" | "always" | "deny") => void>();
-
-export function answerApproval(id: string, choice: "allow" | "always" | "deny") {
-  const answer = answers.get(id);
-  answers.delete(id);
-  useApprovals.setState((s) => ({ pending: s.pending.filter((a) => a.id !== id) }));
-  answer?.(choice);
-}
-
-export function dropApprovals(windowId: string) {
-  for (const approval of useApprovals.getState().pending.filter((a) => a.windowId === windowId)) answerApproval(approval.id, "deny");
-}
-
-function approve(windowId: string, kind: ApprovalKind, tabs: Approval["tabs"], conversation: string | null): Promise<boolean> {
-  const key = conversation ?? `window:${windowId}`;
-  if (useApprovals.getState().allowed[key]?.includes(kind)) return Promise.resolve(true);
-  const id = `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-  return new Promise((resolve) => {
-    answers.set(id, (choice) => {
-      if (choice === "always") useApprovals.setState((s) => ({ allowed: { ...s.allowed, [key]: [...(s.allowed[key] ?? []), kind] } }));
-      resolve(choice !== "deny");
-    });
-    useApprovals.setState((s) => ({ pending: [...s.pending, { id, windowId, kind, tabs }] }));
-  });
-}
+export { answerApproval, dropApprovals, useApprovals, type Approval, type ApprovalKind } from "./approvals";
 
 const TAB_IDS = { type: "array", items: { type: "string" }, minItems: 1, maxItems: 20, description: "Tab ids from the list of open tabs." };
 
@@ -139,22 +105,25 @@ async function run(windowId: string, action: AliaHostAction): Promise<AliaHostOu
     case "read_tab": {
       const tab = windowTab(windowId, input.tabId);
       if (!tab) return { outcome: "stale", detail: "That tab isn't open in this window any more." };
-      const chat = windowChat(windowId);
-      const shared =
-        (chat.currentTab && activeTabId(useBrowser.getState(), windowId) === tab.id) ||
-        chat.context.some((item) => (item.kind === "tab" && item.tabId === tab.id) || (item.kind === "group" && item.tabs.some((t) => t.tabId === tab.id)));
-      if (!shared && !(await approve(windowId, "read", [describe(tab)], conversation))) return { outcome: "rejected", detail: "The person declined." };
+      const share = shareStateOf(tab.url, chatKey(windowId, conversation));
+      if (share.state === "blocked") return { outcome: "rejected", detail: `${share.sensitivity?.host ?? "This site"} is blocked for AI by the person's organization.` };
+      if (share.state === "withheld") {
+        if (!(await consentToShare(windowId, conversation, describe(tab)))) return { outcome: "rejected", detail: "The person didn't share this site." };
+      } else if (!tabIsShared(windowId, tab.id) && !(await approve(windowId, "read", [describe(tab)], conversation))) {
+        return { outcome: "rejected", detail: "The person declined." };
+      }
       const page = await readPage(tab.id);
       if (!page) return { outcome: "failed", detail: "The tab couldn't be read." };
-      return { outcome: "inline", detail: `Read “${page.title}”.`, result: page };
+      return { outcome: "inline", detail: `Read “${page.title}”.`, result: { ...page, text: redactForModel(page.text).text, selection: redactForModel(page.selection).text } };
     }
   }
+  if (AGENT_TOOL_NAMES.has(action.name)) return runAgentTool(windowId, action);
   return { outcome: "rejected", detail: `Unknown tool ${action.name}.` };
 }
 
 export function astroHostTools(windowId: string): AliaHostTools {
   return {
-    definitions: [...DEFINITIONS, READ_TAB],
+    definitions: [...DEFINITIONS, READ_TAB, ...agentToolDefinitions()],
     execute: (action) => run(windowId, action),
   };
 }

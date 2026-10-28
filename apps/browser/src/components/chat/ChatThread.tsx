@@ -20,6 +20,7 @@ import { renderCodeBlock } from "./ChatCode";
 import { chartsOf, isChartTool } from "./charts";
 import { artifactsOfTools, type Artifact } from "../../ai/artifacts/artifacts";
 import { ArtifactCard } from "../artifacts/ArtifactCard";
+import { AGENT_CONTINUE } from "../../ai/agent/session";
 
 export type ThreadActions = {
   openLink: (url: string) => void;
@@ -49,6 +50,16 @@ const HOST_STEPS: Record<string, string> = {
   open_tabs: "Opening tabs",
   switch_to_tab: "Switching tabs",
   close_tabs: "Closing tabs",
+  page_snapshot: "Reading the page",
+  click: "Clicking",
+  type_text: "Typing",
+  press_key: "Pressing a key",
+  scroll: "Scrolling",
+  select_option: "Choosing an option",
+  navigate: "Going to a page",
+  wait_for: "Waiting for the page",
+  screenshot: "Looking at the page",
+  fill_form: "Filling in a form",
 };
 
 const stepLabel = (name: string) => {
@@ -248,7 +259,7 @@ export function ChatThreadView({
   actions: ThreadActions;
   empty: ReactNode;
 }) {
-  const shown = messages.filter((m) => m.role !== "system");
+  const shown = messages.filter((m) => m.role !== "system" && !(m.role === "user" && getTextFromContent(m.content as never).trim() === AGENT_CONTINUE));
   const lastAssistant = [...shown].reverse().find((m) => m.role === "assistant");
   const orphan = failedTurn && !shown.some((m) => m.id === failedTurn.anchorMessageId && m.role === "assistant");
   if (!shown.length) return <>{empty}</>;

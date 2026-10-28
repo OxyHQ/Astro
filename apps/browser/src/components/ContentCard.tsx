@@ -62,6 +62,7 @@ import { AutoHideBarBody, AutoHideBarRegion, useAutoHideBar } from "@oxy.so/bloo
 import { publishPaneChrome, WindowToolbar } from "./WindowToolbar";
 import { noteScroll, revealToolbar, STRIP_HEIGHT } from "./layout/toolbarAutoHide";
 import { NavigationOverlays } from "./layout/SwipeOverlay";
+import { AgentOverlay } from "./chat/AgentOverlay";
 import "./layout/devExpose";
 import { closeWebNotification, showWebNotification } from "../lib/webNotifications";
 import { isSmallWindow } from "../store/small";
@@ -465,6 +466,7 @@ const TabPane = memo(function TabPane({
                 <CastPicker tabId={tabId} paneWidth={frame.width} />
                 <NavigationOverlays tabId={tabId} windowId={windowId} geometry={geometry} />
                 <SelectionPopover tabId={tabId} zoom={zoom} />
+                <AgentOverlay windowId={windowId} tabId={tabId} radius={0} />
               </>
             )}
           </View>
