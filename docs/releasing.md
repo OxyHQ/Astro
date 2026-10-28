@@ -114,7 +114,7 @@ so the standard runners cost nothing, and the logs and artifacts are public too:
 - **The engine** builds on `macos-15-intel` (4 vCPUs, 14 GB, about 100 GB free after
   `scripts/ci/macos-runner-prep.sh --free-disk`) with the engine's own steps and release args, `target_cpu="x64"`
   (`docs/engine-build.md` › "For Intel Macs"). Each job builds until 5 hours in, then packs `~/chromium-build`
-  (`scripts/ci/macos-engine-state.sh`, about 14 GB of zstd parts) for the next; up to 8 jobs. A run whose `engine/`
+  (`scripts/ci/macos-engine-state.sh`, about 14 GB of zstd parts) for the next; up to 12 jobs (a run that runs out resumes in the next one). A run whose `engine/`
   and offline game match an earlier run's reuses that engine (the artifact is keyed by their trees); one whose patch
   series matches resumes the newest packed tree, with its layers updated, instead of syncing Chromium again.
 - **The app** builds on `xcode-27` (Apple silicon: it needs the macOS 27 SDK, and Xcode 27 doesn't run on Intel) with
