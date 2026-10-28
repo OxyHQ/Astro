@@ -2253,6 +2253,69 @@ hook(["std::vector<std::u16string> (*g_astro_selection_items)(\n",
       "  if (g_astro_selection_item_run && id >= kAstroSelectionFirst &&\n"], edit)
 PY
 
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_web_contents_delegate.h" "the page's microphone (header)" <<'PY'
+old = """  bool IsWaitingForPointerLockPrompt(
+      content::WebContents* web_contents) override;
+"""
+new = old + """  // Astro: AstroCore's page records the person's dictation from the microphone.
+  void RequestMediaAccessPermission(
+      content::WebContents* web_contents,
+      const content::MediaStreamRequest& request,
+      content::MediaResponseCallback callback) override;
+  bool CheckMediaAccessPermission(content::RenderFrameHost* render_frame_host,
+                                  const url::Origin& security_origin,
+                                  blink::mojom::MediaStreamType type) override;
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["  // Astro: AstroCore's page records the person's dictation from the microphone.\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_web_contents_delegate.cc" "the page's microphone" <<'PY'
+at = """WebUIBrowserWebContentsDelegate::WebUIBrowserWebContentsDelegate(
+    WebUIBrowserWindow* window)
+"""
+decl = """// Astro: AstroCore's page records the person's dictation from the microphone.
+void (*g_astro_ui_media_access)(content::WebContents* web_contents,
+                                const content::MediaStreamRequest& request,
+                                content::MediaResponseCallback callback) =
+    nullptr;
+bool (*g_astro_ui_media_check)(content::RenderFrameHost* render_frame_host,
+                               const url::Origin& security_origin,
+                               blink::mojom::MediaStreamType type) = nullptr;
+
+"""
+methods = """
+void WebUIBrowserWebContentsDelegate::RequestMediaAccessPermission(
+    content::WebContents* web_contents,
+    const content::MediaStreamRequest& request,
+    content::MediaResponseCallback callback) {
+  if (g_astro_ui_media_access) {
+    g_astro_ui_media_access(web_contents, request, std::move(callback));
+    return;
+  }
+  content::WebContentsDelegate::RequestMediaAccessPermission(
+      web_contents, request, std::move(callback));
+}
+
+bool WebUIBrowserWebContentsDelegate::CheckMediaAccessPermission(
+    content::RenderFrameHost* render_frame_host,
+    const url::Origin& security_origin,
+    blink::mojom::MediaStreamType type) {
+  return g_astro_ui_media_check &&
+         g_astro_ui_media_check(render_frame_host, security_origin, type);
+}
+"""
+def edit(s):
+    assert s.count(at) == 1
+    i = s.index(at)
+    s = s[:i] + decl + s[i:]
+    return s.rstrip("\n") + "\n" + methods
+hook(["void (*g_astro_ui_media_access)(content::WebContents* web_contents,\n",
+      "void WebUIBrowserWebContentsDelegate::RequestMediaAccessPermission(\n"], edit)
+PY
+
 if [[ $mode == check ]]; then
   exit "$drift"
 fi

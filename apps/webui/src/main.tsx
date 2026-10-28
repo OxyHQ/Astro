@@ -16,10 +16,12 @@ import { setStoreBatching, useBrowser } from "../../browser/src/store/browser";
 import { useChat } from "../../browser/src/ai/chat/state";
 import { useChatEntry } from "../../browser/src/ai/chatEntry";
 import { useOxySession } from "../../browser/src/oxy/session";
+import { dictationDebug } from "../../browser/src/ai/dictation/dictation";
 import { emitCommand, loadDocuments } from "./shims/shell";
 import { OverlayHost } from "../../demo/src/shims/web/overlays";
 import "../../demo/src/shims/web/motion/shortcuts";
 import { startAppActivity } from "./host/appActive";
+import { startDictationCapture } from "./host/dictation";
 import { startDragPreview } from "./host/dragPreview";
 import { installEngineFetch } from "./host/fetch";
 import { startEngineKeys } from "./host/keys";
@@ -47,10 +49,11 @@ void startEngineKeys();
 startSelectionMenu();
 void startAppActivity();
 startDragPreview();
+startDictationCapture();
 startTabDragShare();
 setStoreBatching(unstable_batchedUpdates);
 
-Object.assign(globalThis, { astro: { store: useBrowser, emitCommand, oneShot: oneShotDebug, chat: useChat, chatEntry: useChatEntry, oxy: useOxySession, skills: useSkills, apps: useApps, artifacts: useArtifacts, agent: agentDebug } });
+Object.assign(globalThis, { astro: { store: useBrowser, emitCommand, oneShot: oneShotDebug, chat: useChat, chatEntry: useChatEntry, oxy: useOxySession, skills: useSkills, apps: useApps, artifacts: useArtifacts, dictation: dictationDebug, agent: agentDebug } });
 
 const startPage = () =>
   startWindows(

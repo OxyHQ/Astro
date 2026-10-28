@@ -49,6 +49,7 @@
 #include "chrome/browser/astro/ac_tab_transfer.h"
 #include "chrome/browser/astro/ac_translate.h"
 #include "chrome/browser/astro/ac_updater.h"
+#include "chrome/browser/astro/ac_ui_media.h"
 #include "chrome/browser/astro/ac_ui_source.h"
 #include "chrome/browser/astro/ac_window_keys.h"
 #include "chrome/browser/astro/ac_window_title.h"
@@ -337,6 +338,7 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       InstallCastDialog();
       InstallDisplayMediaPicker();
       InstallDockedDevTools();
+      InstallUiMedia();
       g_astro_window_close_requested = &WindowCloseRequested;
       static base::NoDestructor<base::CallbackListSubscription> closing_all(
           chrome::AddClosingAllBrowsersCallback(base::BindRepeating(

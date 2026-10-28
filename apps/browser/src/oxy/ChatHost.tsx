@@ -1,6 +1,7 @@
 import { AliaRuntimeProvider, useAliaApi } from "@alia.onl/sdk/runtime";
 import { Portal } from "@astro-browser/shell";
 import { ButtonGroup, ButtonGroupItem } from "@oxy.so/bloom/button-group";
+import { useOxy } from "@oxy.so/services";
 import { EmptyState } from "@oxy.so/bloom/empty-state";
 import { RiCloseLine } from "@oxy.so/bloom/icons/RiCloseLine";
 import { RiSparklingLine } from "@oxy.so/bloom/icons/RiSparklingLine";
@@ -12,6 +13,8 @@ import { startOAuthReturns } from "../ai/apps/oauthReturn";
 import { closeChat, isChatTabUrl, openChatFromEntry } from "../ai/chat/actions";
 import { useChat } from "../ai/chat/state";
 import { registerChatOpener } from "../ai/chatEntry";
+import { aliaTranscriber } from "../ai/dictation/alia";
+import { registerDictationTranscriber } from "../ai/dictation/dictation";
 import { forgetSkills, refreshSkills } from "../ai/skills/skills";
 import { ArtifactPage } from "../components/artifacts/ArtifactPage";
 import { ChatFrame } from "../components/chat/ChatFrame";
@@ -48,15 +51,24 @@ export function ChatHost({ windowId, aliaURL, streamFetch, children }: ChatHostP
   useEffect(() => registerChatOpener(openChatFromEntry), []);
   return (
     <AliaRuntimeProvider apiUrl={aliaURL} streamFetch={streamFetch} app="astro">
-      <AliaApiBridge />
+      <AliaApiBridge aliaURL={aliaURL} />
       {children}
       {windowId ? <WindowChat key={windowId} windowId={windowId} /> : null}
     </AliaRuntimeProvider>
   );
 }
 
-function AliaApiBridge() {
+function AliaApiBridge({ aliaURL }: { aliaURL: string }) {
   const api = useAliaApi();
+  const { oxyServices } = useOxy();
+  useEffect(() => {
+    const linked = oxyServices.createLinkedClient({ baseURL: aliaURL });
+    const unregister = registerDictationTranscriber(aliaTranscriber(aliaURL, linked.fetch));
+    return () => {
+      unregister();
+      linked.dispose();
+    };
+  }, [oxyServices, aliaURL]);
   const account = useOxySession((s) => s.account?.id ?? null);
   useEffect(() => registerAliaApi(api), [api]);
   useEffect(() => startOAuthReturns(), []);

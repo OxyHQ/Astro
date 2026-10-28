@@ -106,6 +106,8 @@ source_set("astro") {
     "ac_trash.h",
     "ac_translate.cc",
     "ac_translate.h",
+    "ac_ui_media.cc",
+    "ac_ui_media.h",
     "ac_ui_source.cc",
     "ac_ui_source.h",
     "ac_updater.cc",

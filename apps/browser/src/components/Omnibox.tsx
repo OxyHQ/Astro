@@ -26,6 +26,9 @@ import { useInlineCompletion } from "./omnibox/useInlineCompletion";
 import { keywordScope, offeredScope, useSuggestions } from "./omnibox/useSuggestions";
 import { setPopover } from "./layout/pageState";
 import { IconButton, useHover } from "./primitives";
+import { beginDictation, cancelDictation, dictating, endDictation, useDictationAvailable, useDictationPhase, type DictationMode } from "../ai/dictation/dictation";
+import { forCommandBar, spliceDictation } from "../ai/dictation/transcript";
+import { DictationMic, useDictationField } from "./dictation/DictationMic";
 
 type Variant = "panel" | "hero" | "sidebar";
 
@@ -139,6 +142,35 @@ export function Omnibox({
     if (!editing.current && fieldText.current) focusEcho.current = true;
     input.current?.focus();
   };
+  const dictationKey = `bar:${windowId}:${variant}:${tabId}`;
+  const dictationAvailable = useDictationAvailable();
+  const dictationPhase = useDictationPhase(dictationKey);
+  const showDictated = (text: string, caret: number) => {
+    setTyped(text);
+    setEdited(true);
+    setSuppressCompletion(true);
+    setSelected(0);
+    setPendingSelection({ start: caret, end: caret });
+  };
+  const beginBarDictation = (mode: DictationMode) => {
+    focusField();
+    const original = fieldText.current;
+    const { start, end } = selection.current;
+    const before = original.slice(0, start);
+    const after = original.slice(end);
+    void beginDictation(
+      dictationKey,
+      {
+        apply: (text) => {
+          const { value: next, caret } = spliceDictation(before, forCommandBar(text), after);
+          showDictated(next, caret);
+        },
+        restore: () => showDictated(original, end),
+      },
+      mode,
+    );
+  };
+  useDictationField(dictationKey, () => input.current, beginBarDictation);
   useEffect(() => {
     if (!hero) return;
     const focus = () => {
@@ -267,6 +299,11 @@ export function Omnibox({
   const onKeyDown = (e: { nativeEvent: { key: string; metaKey?: boolean; altKey?: boolean; shiftKey?: boolean; ctrlKey?: boolean } }) => {
     const { key, metaKey, altKey, shiftKey, ctrlKey } = e.nativeEvent;
     bangEnter.cancel();
+    if (key === "Escape" && dictating(dictationKey)) return cancelDictation(dictationKey);
+    if (key === "Enter" && dictating(dictationKey)) {
+      void endDictation(dictationKey).then(() => requestAnimationFrame(() => latest.current.onKeyDown(e)));
+      return;
+    }
     if (key === "Escape") {
       if (scope) return leaveScope(null);
       if (!hero) return onDone?.("escape");
@@ -417,11 +454,11 @@ export function Omnibox({
         }
       }}
       onChangeText={onChangeText}
-      placeholder={scope ? `Search ${scope.name}` : "Search or enter address"}
+      placeholder={dictationPhase === "listening" || dictationPhase === "starting" ? "Listening…" : scope ? `Search ${scope.name}` : "Search or enter address"}
       placeholderTextColor={theme.placeholder}
       selectionColor={theme.selection}
       enableFocusRing={false}
-      onSubmitEditing={() => choose(current, "current", true)}
+      onSubmitEditing={() => (dictating(dictationKey) ? submitAfterDictation() : choose(current, "current", true))}
       onFocus={() => {
         editing.current = true;
         setListAway(false);
@@ -443,11 +480,14 @@ export function Omnibox({
     />
   );
 
-  const latest = useRef({ choose, profileId, go, current, onCancel, tabId });
-  latest.current = { choose, profileId, go, current, onCancel, tabId };
+  const submitAfterDictation = () =>
+    void endDictation(dictationKey).then(() => requestAnimationFrame(() => latest.current.choose(latest.current.current, "current", true)));
+  const latest = useRef({ choose, profileId, go, current, onCancel, tabId, onKeyDown, dictationKey, submitAfterDictation });
+  latest.current = { choose, profileId, go, current, onCancel, tabId, onKeyDown, dictationKey, submitAfterDictation };
   const [barActions] = useState(() => ({
     go: (url: string) => latest.current.go(url),
-    choose: () => latest.current.choose(latest.current.current, "current", true),
+    choose: () =>
+      dictating(latest.current.dictationKey) ? latest.current.submitAfterDictation() : latest.current.choose(latest.current.current, "current", true),
     dictate: () => {
       focusField();
       startDictation();
@@ -484,7 +524,7 @@ export function Omnibox({
     >
       <AddChip tabId={tabId} onGo={barActions.go} />
       <View style={{ flex: 1 }} />
-      <IconButton icon="mic" size={14} color={theme.textTertiary} tooltip="Dictate" onPress={barActions.dictate} />
+      <DictationMic dictationKey={dictationKey} ready={dictationAvailable} begin={beginBarDictation} fallback={barActions.dictate} />
       <GoButton label={destinationLabel(current)} enabled={!hero || !!typed.trim()} onPress={barActions.choose} />
     </View>
   );

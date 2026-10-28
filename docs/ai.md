@@ -5,6 +5,7 @@ Astro's AI follows Oxy's two paths (`~/Oxy/docs/kaana-inference.md`, `~/Oxy/oxy/
 ```text
 one-shot feature   Astro -> kaana.ai (Oxy grants it) -> provider      apps/browser/src/ai/ (this page)
 Chat               Astro -> Alia -> Oxy -> Kaana                      apps/browser/src/ai/chat/ (the Chat section)
+Dictation          Astro -> Alia -> Oxy -> Kaana                      apps/browser/src/ai/dictation/ (the Dictation section)
 ```
 
 Astro never holds a provider key, never names a model, never retries, fails over or switches models: Kaana retries
@@ -107,6 +108,103 @@ While nothing is registered, the bar shows no Chat row and no prompt actions, an
   `account` in `useOxySession` in an instance that can reach production: the calendar then polls production Nilo with no
   session (2026-10-27, a test did, and Nilo logged a refusal every 20–30 s). Run test instances with
   `--host-resolver-rules="MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.alia.onl ~NOTFOUND, MAP kaana.ai ~NOTFOUND"`.
+
+## Dictation
+
+The command bar's mic and the Chat composer's mic turn speech into text while you speak (Dia's streaming dictation).
+It goes through **Alia's dictation**, `POST {alia}/v1/audio/transcriptions` (Alia ADR 0017 §7, `docs/voice.mdx`): the
+surface `@alia.onl/sdk` ships for Oxy apps' dictation. Alia transcribes with a model it computes from Kaana's catalogue,
+under Oxy's `alia-kaana` `audio_transcriptions` terms (at most 300 000 ms and USD 0.05 a request,
+`~/Oxy/oxy/docs/inference/kaana-grants.md`), free on every plan, for a person's session only. So Astro needs no speech
+terms of its own on its `product_session` lane (ADR 0050 gives it `responses` only) and names no model. The browser's and
+the operating system's recognizers are not used, as in Alia since SDK 15.
+
+**Why phrases, not words.** Oxy's stack has no streaming transcription yet: Kaana serves no `transcription` session
+(`~/Oxy/oxy/docs/inference/realtime.md` › "What is not served yet"), and its realtime input transcription exists only
+inside a spoken conversation with a realtime model, which is a call, not dictation. Alia's route is batch. Astro makes
+it stream by cutting the recording at your pauses and sending each phrase as it ends, while you go on speaking, so the
+text arrives phrase by phrase. Each millisecond of audio is sent once, as one batch dictation would send it. Word by
+word partials can come when Kaana serves transcription sessions and Alia carries them (a new Alia record).
+
+| What | Where |
+| --- | --- |
+| The session: start, phrases in order, finish, cancel, hold or toggle, errors, the call log | `ai/dictation/dictation.ts` |
+| Cutting at pauses (20 ms frames, an adaptive noise floor) | `ai/dictation/segmenter.ts` |
+| WAV encoding and the level meter | `ai/dictation/audio.ts` |
+| Alia's request and its refusals | `ai/dictation/alia.ts` (registered by `oxy/ChatHost.tsx` with the session's linked fetch for Alia) |
+| Joining phrases, putting them at the caret, the language | `ai/dictation/transcript.ts` |
+| The bar's mic (live level bars, spinner, error), the composer's strip | `components/dictation/DictationMic.tsx`, `components/chat/ChatComposer.tsx` |
+| The microphone and the hold shortcut (Windows, Linux) | `apps/webui/src/host/dictation.ts`, `apps/webui/public/dictation-worklet.js` |
+| The interface page's microphone permission | `ac_ui_media.cc`, the hook in `WebUIBrowserWebContentsDelegate` (`engine/astrocore/apply.sh`) |
+
+**Recording.** `getUserMedia` with echo cancellation, noise suppression and automatic gain, read at 16 kHz mono by an
+AudioWorklet (Chromium resamples the device into the 16 kHz `AudioContext`). A phrase ends at **600 ms** of silence
+once it holds 1.2 s of speech, and a run of speech is cut at 15 s at its quietest moment. A phrase keeps 300 ms before
+the speech and 240 ms after it; silence on its own is never sent, nor is a click or a cough (less than 240 ms of voice).
+Each phrase is a 16-bit WAV (32 KB a second) with the app's language (BCP 47) and its duration. Phrases go out in
+parallel and show in order; a phrase that starts in lowercase drops the period the one before it ended with. At most 8
+pause cuts a minute, so a dictation stays inside Alia's `/v1` rate limit (20 requests a minute on the free plan, shared
+with Chat); a dictation lasts at most 5 minutes.
+
+**Using it.**
+
+- A click on the mic starts it and another stops it; holding the mic (400 ms or more) records until you let go.
+  Ctrl+Shift+Space does the same in the focused bar or composer: tap to toggle, hold to talk.
+- The text goes in at the caret (the bar) or after the draft (the composer), with spaces around it; the bar drops a lone
+  sentence's final period, never a question mark. Esc cancels: the microphone stops, what's in flight is dropped and
+  the field is back as it was. ↩ (the bar's Go, the composer's send) finishes, waits for the last phrase and submits.
+- The bar's mic becomes a red capsule of five live level bars while it records, the field reads "Listening…" while
+  empty, and a spinner shows while the last phrase is transcribed. The composer shows Bloom's `VoiceRecorder` above
+  the pill (the recording dot, the time, the live waveform, cancel) and the pill's mic in its recording state.
+- Errors keep what was transcribed and say why for 6 s, beside the bar's mic or as a banner over the composer:
+
+| Cause | Says |
+| --- | --- |
+| The system refused the microphone (`NotAllowedError`) | Astro can't use the microphone. Allow it in your system's privacy settings. |
+| No microphone | No microphone is available. |
+| Signed out (the bar's mic then opens Sign in with Oxy) | Sign in with Oxy to dictate. |
+| `TRANSCRIPTION_UNAVAILABLE` | Dictation isn't available right now. |
+| `TRANSCRIPTION_LIMITED`, 429 | Dictation has reached its limit for now. Try again later. |
+| `CLIP_TOO_LONG` | A dictation can be at most 5 minutes long. |
+| `TRANSCRIPTION_FAILED`, the network | Transcription failed. Try again. |
+
+  A phrase Alia rejects (`TRANSCRIPTION_REJECTED`) is skipped and the dictation goes on. Nothing is retried.
+
+**Privacy.** The microphone opens only when you start dictating and its track stops when it ends or is cancelled, or
+when the bar or the composer goes away. Nothing is sent before then, nor while you're silent; the audio goes only to
+Alia (and through it to Kaana and the serving provider), one phrase at a time, and Astro keeps none of it.
+
+**The engine.** Webium's window had no media handler, so `getUserMedia` in `chrome://webui-browser` answered "Not
+supported". `WebUIBrowserWebContentsDelegate` now hands the page's media requests to AstroCore, which grants the
+microphone, and only the microphone, to the interface's own origin through Chrome's `MediaCaptureDevicesDispatcher`
+(content settings allow `chrome://` the microphone; the operating system's privacy setting still applies); a camera
+request is refused.
+
+**macOS** has no microphone module for the interface yet, so its mic still starts macOS dictation in the bar and the
+composer shows no mic. Windows and Linux run the above.
+
+**Production.** Alia's route has to be live: Alia's `docs/voice.mdx` (main, 2026-10-27) lists Kaana's public
+`/v1/audio/transcriptions` among what is left, and until then Alia answers `TRANSCRIPTION_UNAVAILABLE`, which Astro shows
+as "Dictation isn't available right now."
+
+**Testing.**
+
+- `npm test` in `apps/browser`: `ai/dictation/dictation.test.mjs` (the WAV, the cuts, silence and clicks never sent,
+  the budget, joining and placing text, Alia's request and refusals, the session: in order, finish, cancel, a refusal,
+  a skipped phrase, a refused microphone, hold and toggle, a field going away).
+- In a Windows or Linux build, `globalThis.astro.dictation` holds the state and the call log (`state.getState().calls`:
+  audio ms, bytes, round trip, text) and `setTestEndpoint(url, bearer)` for a fake Alia: a localhost URL and its own
+  bearer, used instead of the session's. Run the instance with Chromium's fake microphone,
+  `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<16-bit wav>`, and the host resolver rules above.
+- 2026-10-28, Linux `dev` build on a private Xvfb, a 20.7 s clip of three sentences (Windows SAPI's voice, 1.8 s
+  pauses between them, one 0.45 s pause at a comma) into a local stand-in for Alia's route running faster-whisper: the
+  bar and the composer got all 38 words right (word error rate 0, with `small.en` and with `base.en`), the comma pause
+  didn't cut its sentence, and the text matched the whole clip transcribed at once. Each phrase was cut 555–639 ms
+  after it ended and reached the field 1.0–1.3 s after it ended: the 600 ms pause, 13–14 ms of Astro (encoding, the
+  engine's fetch, HTTP) and 428–678 ms of the stand-in. Production adds the network and Kaana's transcription. Holding
+  the mic for 6.2 s gave the first sentence; Ctrl+Shift+Space held for 6 s with real keys (XTest) did too; Esc
+  restored the field; the microphone's track stopped once at the end; the stand-in got nothing before the first phrase
+  ended (5.2 s in).
 
 ## Chat
 

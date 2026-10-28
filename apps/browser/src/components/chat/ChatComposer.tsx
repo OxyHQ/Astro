@@ -1,4 +1,4 @@
-import { ComposerBanner, SuggestionList, type ChatComposerSuggestion } from "@oxy.so/bloom/chat-composer";
+import { ComposerBanner, SuggestionList, VoiceRecorder, type ChatComposerSuggestion } from "@oxy.so/bloom/chat-composer";
 import { Chip, ChipRow } from "@oxy.so/bloom/chip";
 import { RiLockLine } from "@oxy.so/bloom/icons/RiLockLine";
 import { chatKey } from "../../ai/chat/approvals";
@@ -13,6 +13,7 @@ import { RiCheckboxCircleLine } from "@oxy.so/bloom/icons/RiCheckboxCircleLine";
 import { RiCropLine } from "@oxy.so/bloom/icons/RiCropLine";
 import { RiDoubleQuotesL } from "@oxy.so/bloom/icons/RiDoubleQuotesL";
 import { RiFileImageLine } from "@oxy.so/bloom/icons/RiFileImageLine";
+import { RiMicOffLine } from "@oxy.so/bloom/icons/RiMicOffLine";
 import { RiGlobalLine } from "@oxy.so/bloom/icons/RiGlobalLine";
 import { RiSearchLine } from "@oxy.so/bloom/icons/RiSearchLine";
 import { RiSparklingLine } from "@oxy.so/bloom/icons/RiSparklingLine";
@@ -23,7 +24,20 @@ import { RiUserLine } from "@oxy.so/bloom/icons/RiUserLine";
 import { Text } from "@oxy.so/bloom/typography";
 import { useEffect, useMemo, useState, type ReactNode, type RefObject } from "react";
 import { View, type TextInput, type TextInputKeyPressEvent } from "react-native";
-import { addChatContext, chatItemId, removeChatContext, updateWindowChat, useWindowChat, type ChatContextItem } from "../../ai/chat/state";
+import { addChatContext, chatItemId, removeChatContext, updateWindowChat, useWindowChat, windowChat, type ChatContextItem } from "../../ai/chat/state";
+import {
+  beginDictation,
+  cancelDictation,
+  clearDictationError,
+  dictating,
+  endDictation,
+  useDictation,
+  useDictationPhase,
+  useDictationReady,
+  type DictationMode,
+} from "../../ai/dictation/dictation";
+import { spliceDictation } from "../../ai/dictation/transcript";
+import { useDictationField, useDictationSeconds, useShownDictationError } from "../dictation/DictationMic";
 import { refreshSkills, SLASH, slashCandidates, useSkills, type AstroCommand, type SlashCandidate } from "../../ai/skills/skills";
 import { useBrowser } from "../../store/browser";
 import { activeTabId } from "../../store/model";
@@ -128,7 +142,35 @@ export function ChatComposer({
     ]);
   };
 
+  const dictationKey = `composer:${windowId}`;
+  const dictationReady = useDictationReady();
+  const dictationPhase = useDictationPhase(dictationKey);
+  const listening = dictationPhase === "starting" || dictationPhase === "listening";
+  const beginComposerDictation = (mode: DictationMode) => {
+    inputRef.current?.focus();
+    const base = windowChat(windowId).draft;
+    void beginDictation(
+      dictationKey,
+      {
+        apply: (text) => updateWindowChat(windowId, { draft: spliceDictation(base, text, "").value }),
+        restore: () => updateWindowChat(windowId, { draft: base }),
+      },
+      mode,
+    );
+  };
+  useDictationField(dictationKey, () => inputRef.current, beginComposerDictation);
+  const submitAfterDictation = () =>
+    void endDictation(dictationKey).then(() => {
+      const text = windowChat(windowId).draft;
+      if (text.trim()) onSubmit(text);
+    });
+
   const onKeyPress = (event: TextInputKeyPressEvent) => {
+    if (dictating(dictationKey) && event.nativeEvent.key === "Escape") {
+      event.preventDefault();
+      cancelDictation(dictationKey);
+      return;
+    }
     if (slashQuery !== null && skills.length) {
       const key = event.nativeEvent.key;
       if (key === "ArrowDown" || key === "ArrowUp") {
@@ -188,6 +230,7 @@ export function ChatComposer({
           maxHeight={listing === "command" ? 300 : 248}
         />
       )}
+      <DictationStatus dictationKey={dictationKey} />
       <ContextChips windowId={windowId} />
       <ComposerLoader active={busy}>
         <ComposerPill
@@ -197,29 +240,53 @@ export function ChatComposer({
           onValueChange={(value) => updateWindowChat(windowId, { draft: value })}
           onSubmit={(value) => {
             if (listing) return;
+            if (dictating(dictationKey)) return submitAfterDictation();
             onSubmit(value);
           }}
           onStop={onStop}
           busy={busy}
           disabled={disabled}
-          placeholder={onWebTab ? "Ask about this tab, or anything" : "Ask anything"}
+          placeholder={listening ? "Listening…" : onWebTab ? "Ask about this tab, or anything" : "Ask anything"}
           compactPlaceholder="Ask anything"
           addMenu={addMenu}
           onAddMenuSelect={(id) => onAction(id as ComposerAction)}
           permissions={POWER_LEVEL_OPTIONS}
           permission={powerLevel}
           onPermissionChange={onPowerLevel}
-          showVoice={false}
+          showVoice={dictationReady}
+          voiceState={listening ? "recording" : dictationPhase === "finishing" ? "transcribing" : "idle"}
+          onVoiceStateChange={(next) => (next === "recording" ? beginComposerDictation("toggle") : void endDictation(dictationKey))}
           attachments={attachments}
           onRemoveAttachment={(id) => removeChatContext(windowId, id)}
           maxLines={10}
           onKeyPress={onKeyPress}
           inputRef={inputRef as never}
-          labels={{ permissions: "Power Level", permissionMode: "Power level" }}
+          labels={{ permissions: "Power Level", permissionMode: "Power level", voice: listening ? "Stop Dictating" : "Dictate", transcribing: "Transcribing…" }}
         />
       </ComposerLoader>
     </View>
   );
+}
+
+function DictationStatus({ dictationKey }: { dictationKey: string }) {
+  const phase = useDictationPhase(dictationKey);
+  const levels = useDictation((s) => (s.key === dictationKey ? s.levels : null));
+  const seconds = useDictationSeconds(dictationKey);
+  const error = useShownDictationError(dictationKey);
+  if (phase === "starting" || phase === "listening")
+    return (
+      <VoiceRecorder
+        state="recording"
+        seconds={seconds}
+        amplitudes={levels ?? []}
+        slideToCancel={false}
+        onCancel={() => cancelDictation(dictationKey)}
+        labels={{ cancel: "Cancel Dictation", recording: "Dictating" }}
+      />
+    );
+  if (error)
+    return <ComposerBanner kind="note" icon={RiMicOffLine} title={error.message} onClose={() => clearDictationError(dictationKey)} closeLabel="Dismiss" />;
+  return null;
 }
 
 const COMMAND_ICONS: Record<AstroCommand, typeof RiSearchLine> = {
