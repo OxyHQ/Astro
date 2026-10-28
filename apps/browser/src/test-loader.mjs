@@ -1,4 +1,5 @@
-import { registerHooks } from "node:module";
+import { readFileSync } from "node:fs";
+import { registerHooks, stripTypeScriptTypes } from "node:module";
 
 const stub = new URL("./test-native-stub.mjs", import.meta.url).href;
 const native = new Set(["@astro-browser/shell", "@astro-browser/astrocore", "expo-modules-core", "react-native"]);
@@ -18,5 +19,11 @@ registerHooks({
       }
       throw error;
     }
+  },
+  load(url, context, next) {
+    if (url.startsWith("file:") && url.includes("/node_modules/@alia.onl/sdk/") && url.endsWith(".ts")) {
+      return { format: "module", source: stripTypeScriptTypes(readFileSync(new URL(url), "utf8")), shortCircuit: true };
+    }
+    return next(url, context);
   },
 });

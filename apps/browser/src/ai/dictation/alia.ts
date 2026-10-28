@@ -1,3 +1,5 @@
+import { DictationError, requestTranscription, type AudioRequestAuthentication, type DictationErrorCode as SdkDictationErrorCode } from "@alia.onl/sdk/dictation";
+
 export type DictationErrorCode =
   | "mic-denied"
   | "mic-unavailable"
@@ -35,7 +37,7 @@ export type DictationClip = { wav: Uint8Array<ArrayBuffer>; durationMs: number }
 
 export type Transcriber = (clip: DictationClip, language: string, signal: AbortSignal) => Promise<string>;
 
-const SERVER_CODES: Record<string, DictationErrorCode> = {
+const SDK_CODES: Record<SdkDictationErrorCode, DictationErrorCode> = {
   TRANSCRIPTION_UNAVAILABLE: "unavailable",
   TRANSCRIPTION_LIMITED: "limited",
   TRANSCRIPTION_REJECTED: "rejected",
@@ -46,31 +48,25 @@ const SERVER_CODES: Record<string, DictationErrorCode> = {
   CREDENTIAL_NOT_SUPPORTED: "not-signed-in",
 };
 
-const AUTH_CODES = new Set(["AUTH_REQUIRED", "AUTH_SESSION_CHANGED"]);
+const failureOf = (error: DictationError): DictationFailure => {
+  const code = error.code !== null ? SDK_CODES[error.code] : error.status === 429 ? "limited" : "failed";
+  return new DictationFailure(code, error.retryable);
+};
 
-export function aliaTranscriber(apiUrl: string, send: typeof fetch, headers: () => Record<string, string> = () => ({})): Transcriber {
+export function aliaTranscriber(apiUrl: string, auth: AudioRequestAuthentication): Transcriber {
   return async (clip, language, signal) => {
-    const form = new FormData();
-    form.append("file", new Blob([clip.wav], { type: "audio/wav" }), "dictation.wav");
-    form.append("language", language);
-    form.append("durationMs", String(Math.max(0, Math.round(clip.durationMs))));
-    let response: Response;
     try {
-      response = await send(`${apiUrl}/v1/audio/transcriptions`, { method: "POST", headers: headers(), body: form, redirect: "error", credentials: "omit", signal });
+      const result = await requestTranscription({
+        ...auth,
+        apiUrl,
+        clip: { file: new Blob([clip.wav], { type: "audio/wav" }), mediaType: "audio/wav", durationMs: clip.durationMs },
+        language,
+        signal,
+      });
+      return result.text;
     } catch (error) {
-      if ((error as { name?: unknown } | null)?.name === "AbortError") throw error;
-      if (AUTH_CODES.has(String((error as { code?: unknown } | null)?.code))) throw new DictationFailure("not-signed-in");
-      throw new DictationFailure("failed", true);
+      if (error instanceof DictationError) throw failureOf(error);
+      throw error;
     }
-    const body: unknown = await response.json().catch(() => null);
-    if (!response.ok) {
-      const envelope = (body as { error?: { code?: unknown; retryable?: unknown } } | null)?.error;
-      const named = typeof envelope?.code === "string" ? SERVER_CODES[envelope.code] : undefined;
-      const code = named ?? (response.status === 401 ? "not-signed-in" : response.status === 413 ? "too-long" : response.status === 429 ? "limited" : "failed");
-      throw new DictationFailure(code, envelope?.retryable === true);
-    }
-    const text = (body as { text?: unknown } | null)?.text;
-    if (typeof text !== "string") throw new DictationFailure("failed");
-    return text;
   };
 }

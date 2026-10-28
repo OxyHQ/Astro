@@ -155,7 +155,7 @@ word partials can come when Kaana serves transcription sessions and Alia carries
 | The session: start, phrases in order, finish, cancel, hold or toggle, errors, the call log | `ai/dictation/dictation.ts` |
 | Cutting at pauses (20 ms frames, an adaptive noise floor) | `ai/dictation/segmenter.ts` |
 | WAV encoding and the level meter | `ai/dictation/audio.ts` |
-| Alia's request and its refusals | `ai/dictation/alia.ts` (registered by `oxy/ChatHost.tsx` with the session's linked fetch for Alia) |
+| Alia's request and its refusals | `@alia.onl/sdk/dictation` (`requestTranscription`, the request Alia's own composer makes); `ai/dictation/alia.ts` turns its refusals into Astro's codes and is registered by `oxy/ChatHost.tsx` with the session's linked fetch for Alia |
 | Joining phrases, putting them at the caret, the language | `ai/dictation/transcript.ts` |
 | The bar's mic (live level bars, spinner, error), the composer's strip | `components/dictation/DictationMic.tsx`, `components/chat/ChatComposer.tsx` |
 | The microphone and the hold shortcut (Windows, Linux) | `apps/webui/src/host/dictation.ts`, `apps/webui/public/dictation-worklet.js` |

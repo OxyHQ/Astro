@@ -66,7 +66,7 @@ function AliaApiBridge({ aliaURL }: { aliaURL: string }) {
   const { oxyServices } = useOxy();
   useEffect(() => {
     const linked = oxyServices.createLinkedClient({ baseURL: aliaURL });
-    const unregister = registerDictationTranscriber(aliaTranscriber(aliaURL, linked.fetch));
+    const unregister = registerDictationTranscriber(aliaTranscriber(aliaURL, { transport: { fetch: linked.fetch } }));
     return () => {
       unregister();
       linked.dispose();
