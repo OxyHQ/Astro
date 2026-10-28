@@ -32,6 +32,7 @@ import { patchPage, pageOf, setBrowserId, setPopover, useFullscreenTab, usePages
 import { useTabDrag } from "./layout/tabDrag";
 import { SadTab, StatusBubble } from "./layout/PaneOverlays";
 import { notePaneRect, SplitToast, usePaneDrop } from "./layout/SplitChrome";
+import { publishPaneLayout } from "./layout/paneLayout";
 import { AppShellPanels } from "@oxy.so/bloom/app-shell";
 import { SplitEmptyState } from "./layout/SplitEmptyState";
 import { pagerFor } from "./layout/profilePager";
@@ -247,6 +248,10 @@ export function ContentCard() {
   };
   const visibleSet = useMemo(() => new Set(panes), [panes]);
   const layoutKey = JSON.stringify([slots, split?.sizes, split?.stack?.sizes, split?.orientation]);
+  useEffect(
+    () => publishPaneLayout(windowId, { visible: panes, behind: shown.map((key) => key.slice(0, key.indexOf("|"))).filter((id) => warmIds.has(id) && !visibleSet.has(id)) }),
+    [windowId, panes, shown, warmIds, visibleSet],
+  );
   const panels = useMemo(() => {
     const order = [...paneKeys.visible, ...shown.filter((key) => !paneKeys.visible.includes(key))];
     return order.map((key) => {

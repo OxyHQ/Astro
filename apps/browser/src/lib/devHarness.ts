@@ -88,6 +88,9 @@ export function startDevHarness() {
     get preload(): typeof import("./preload") {
       return require("./preload");
     },
+    get paneLayout(): typeof import("../components/layout/paneLayout").usePaneLayout {
+      return require("../components/layout/paneLayout").usePaneLayout;
+    },
     get live(): { store: typeof import("../live/store"); engine: typeof import("../live/engine") } {
       return { store: require("../live/store"), engine: require("../live/engine") };
     },
