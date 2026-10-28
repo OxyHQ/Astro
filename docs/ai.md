@@ -388,7 +388,7 @@ tab's page session and answers its whole result; only the 17 commands the tools 
   submitted: a submit is a click, which asks again.
 - **Screenshots.** `screenshot` answers an image result (`{ type: "image", mediaType, data, text }`, Alia #917),
   which reaches the model as an inline image: Oxy admits image input on the routes whose Kaana catalogue bounds what
-  an image costs (Oxy ADR 0051, Kaana ADR 0006). A level with no such route answers `unsupported_modality`.
+  an image costs (Oxy ADR 0051, Kaana ADR 0007). A level with no such route answers `unsupported_modality`.
   `IMAGE_RESULTS` in `tools.ts` declares the tool; it ships after production serves images.
 - Tested on Linux in a hidden instance against local pages (2026-10-28): a snapshot of a shop page; Add to Cart after
   "Let Alia use shop.example?"; Place Order refused, then allowed (both clicks `isTrusted`); a search submitted without
