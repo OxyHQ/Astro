@@ -400,6 +400,14 @@ Rules for editing the tree after the first build:
      which. A patch whose file moved is rewritten for the new path, and the new path's file goes into the series
      base (`series-base/`) as steps 3 and 4 left it.
 
+### For Intel Macs
+
+`AC_MAC_TARGET_CPU=x64` (macOS only; default `arm64`) makes the same steps build `target_cpu="x64"` into
+`out/Release_GN_x64`, with the same release args (official, ThinLTO, PGO with Chromium's `mac.pgo.txt`). Nobody builds
+it on a Mac here: the `macOS Intel build` workflow (`.github/workflows/macos-intel.yml`, `docs/releasing.md` ›
+"Intel Macs") runs steps 1, 3, 4 and 2 (`scripts/ci/macos-engine-prepare.sh`) and step 5 on GitHub's
+`macos-15-intel` runners, a chain of jobs that hands the tree from one to the next.
+
 ### On Linux
 
 The same steps build the engine on Linux (x64); `env.sh` picks the platform from `uname`. What differs:

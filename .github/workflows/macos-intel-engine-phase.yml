@@ -40,22 +40,19 @@ jobs:
     steps:
       - name: Start the clock
         run: echo "AC_CI_START=$(date +%s)" >> "$GITHUB_ENV"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Prepare the runner
         run: scripts/ci/macos-runner-prep.sh --free-disk
-      - name: Download the tree
-        if: inputs.state_run != ''
-        uses: actions/download-artifact@v4
-        with:
-          name: engine-state-${{ inputs.state_key }}
-          path: ${{ runner.temp }}/state
-          run-id: ${{ inputs.state_run }}
-          github-token: ${{ github.token }}
       - name: Wait for disk
         if: inputs.state_run != ''
         run: scripts/ci/macos-runner-prep.sh --wait-free
+      - name: Download the tree
+        if: inputs.state_run != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/ci/macos-engine-state.sh fetch "$RUNNER_TEMP/state" "${{ inputs.state_run }}" "engine-state-${{ inputs.state_key }}"
       - name: Unpack the tree
         if: inputs.state_run != ''
         run: scripts/ci/macos-engine-state.sh unpack "$RUNNER_TEMP/state"
@@ -73,7 +70,7 @@ jobs:
         run: scripts/ci/macos-engine-framework.sh "$RUNNER_TEMP/framework"
       - name: Upload the framework
         if: steps.build.outputs.status == 'finished'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: astrocore-macos-x64-${{ inputs.engine_key }}
           path: ${{ runner.temp }}/framework
@@ -86,7 +83,7 @@ jobs:
         run: scripts/ci/macos-engine-state.sh pack "$RUNNER_TEMP/state-out"
       - name: Upload the tree
         if: always() && steps.pack.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: engine-state-${{ inputs.state_key }}
           path: ${{ runner.temp }}/state-out
@@ -105,7 +102,7 @@ jobs:
           df -h / > "$RUNNER_TEMP/logs/df.txt"
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: engine-logs-${{ github.run_attempt }}-phase-${{ inputs.phase }}
           path: ${{ runner.temp }}/logs
