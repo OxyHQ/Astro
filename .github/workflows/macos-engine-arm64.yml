@@ -1,0 +1,138 @@
+name: macOS engine (arm64)
+
+on:
+  push:
+    branches: [macos/new-arch]
+    paths:
+      - engine/**
+      - apps/browser/assets/offline-game/**
+      - apps/browser/assets/offline-game-pipeline/**
+      - .github/workflows/macos-engine-arm64.yml
+      - .github/workflows/macos-engine-phase.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: macos-engine-arm64-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      arm64_key: ${{ steps.keys.outputs.arm64_key }}
+      arm64_state_key: ${{ steps.keys.outputs.arm64_state_key }}
+      arm64_run: ${{ steps.lookup.outputs.arm64_run }}
+      arm64_state_run: ${{ steps.lookup.outputs.arm64_state_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: keys
+        run: |
+          engine=$(git rev-parse HEAD:engine HEAD:apps/browser/assets/offline-game HEAD:apps/browser/assets/offline-game-pipeline | shasum -a 256 | cut -c1-16)
+          state=$(git rev-parse HEAD:engine/patches HEAD:engine/astrocore/apply.sh | shasum -a 256 | cut -c1-16)
+          echo "arm64_key=$engine" >> "$GITHUB_OUTPUT"
+          echo "arm64_state_key=$state" >> "$GITHUB_OUTPUT"
+      - id: lookup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired | not) | [.created_at, .name, (.workflow_run.id | tostring)] | @tsv' | sort >"$RUNNER_TEMP/artifacts.tsv"
+          newest() { awk -F'\t' -v want="$1" '$2 == want { run = $3 } END { print run }' "$RUNNER_TEMP/artifacts.tsv"; }
+          arm64_run=$(newest "astrocore-macos-arm64-${{ steps.keys.outputs.arm64_key }}")
+          arm64_state_run=""
+          [ -n "$arm64_run" ] || arm64_state_run=$(newest "engine-state-arm64-${{ steps.keys.outputs.arm64_state_key }}")
+          echo "arm64_run=$arm64_run" >> "$GITHUB_OUTPUT"
+          echo "arm64_state_run=$arm64_state_run" >> "$GITHUB_OUTPUT"
+          echo "engine from run: ${arm64_run:-none (build it)}; tree from run: ${arm64_state_run:-none (sync it)}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  engine_arm64_1:
+    needs: plan
+    if: needs.plan.outputs.arm64_run == ''
+    uses: ./.github/workflows/macos-engine-phase.yml
+    with:
+      cpu: arm64
+      phase: 1
+      engine_key: ${{ needs.plan.outputs.arm64_key }}
+      state_key: ${{ needs.plan.outputs.arm64_state_key }}
+      state_run: ${{ needs.plan.outputs.arm64_state_run }}
+  engine_arm64_2:
+    needs: [plan, engine_arm64_1]
+    if: needs.engine_arm64_1.outputs.status == 'running'
+    uses: ./.github/workflows/macos-engine-phase.yml
+    with:
+      cpu: arm64
+      phase: 2
+      engine_key: ${{ needs.plan.outputs.arm64_key }}
+      state_key: ${{ needs.plan.outputs.arm64_state_key }}
+      state_run: ${{ github.run_id }}
+  engine_arm64_3:
+    needs: [plan, engine_arm64_2]
+    if: needs.engine_arm64_2.outputs.status == 'running'
+    uses: ./.github/workflows/macos-engine-phase.yml
+    with:
+      cpu: arm64
+      phase: 3
+      engine_key: ${{ needs.plan.outputs.arm64_key }}
+      state_key: ${{ needs.plan.outputs.arm64_state_key }}
+      state_run: ${{ github.run_id }}
+  engine_arm64_4:
+    needs: [plan, engine_arm64_3]
+    if: needs.engine_arm64_3.outputs.status == 'running'
+    uses: ./.github/workflows/macos-engine-phase.yml
+    with:
+      cpu: arm64
+      phase: 4
+      engine_key: ${{ needs.plan.outputs.arm64_key }}
+      state_key: ${{ needs.plan.outputs.arm64_state_key }}
+      state_run: ${{ github.run_id }}
+  engine_arm64_5:
+    needs: [plan, engine_arm64_4]
+    if: needs.engine_arm64_4.outputs.status == 'running'
+    uses: ./.github/workflows/macos-engine-phase.yml
+    with:
+      cpu: arm64
+      phase: 5
+      engine_key: ${{ needs.plan.outputs.arm64_key }}
+      state_key: ${{ needs.plan.outputs.arm64_state_key }}
+      state_run: ${{ github.run_id }}
+  engine_arm64_6:
+    needs: [plan, engine_arm64_5]
+    if: needs.engine_arm64_5.outputs.status == 'running'
+    uses: ./.github/workflows/macos-engine-phase.yml
+    with:
+      cpu: arm64
+      phase: 6
+      engine_key: ${{ needs.plan.outputs.arm64_key }}
+      state_key: ${{ needs.plan.outputs.arm64_state_key }}
+      state_run: ${{ github.run_id }}
+  engine_arm64_7:
+    needs: [plan, engine_arm64_6]
+    if: needs.engine_arm64_6.outputs.status == 'running'
+    uses: ./.github/workflows/macos-engine-phase.yml
+    with:
+      cpu: arm64
+      phase: 7
+      engine_key: ${{ needs.plan.outputs.arm64_key }}
+      state_key: ${{ needs.plan.outputs.arm64_state_key }}
+      state_run: ${{ github.run_id }}
+  engine_arm64_8:
+    needs: [plan, engine_arm64_7]
+    if: needs.engine_arm64_7.outputs.status == 'running'
+    uses: ./.github/workflows/macos-engine-phase.yml
+    with:
+      cpu: arm64
+      phase: 8
+      engine_key: ${{ needs.plan.outputs.arm64_key }}
+      state_key: ${{ needs.plan.outputs.arm64_state_key }}
+      state_run: ${{ github.run_id }}
+

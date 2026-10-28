@@ -1,6 +1,6 @@
-import { APP_MENU_BUTTON_ROOM, ContextMenuArea, FadeLabel, raiseView, setTrafficLightsCenter, Surface, Symbol, WindowDragRegion } from "@astro-browser/shell";
+import { APP_MENU_BUTTON_ROOM, ContextMenuArea, FadeLabel, setTrafficLightsCenter, Surface, Symbol, WindowDragRegion } from "@astro-browser/shell";
 import { createContext, Fragment, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, findNodeHandle, PanResponder, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { Animated, Easing, PanResponder, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { closeTab, toggleMute } from "../../lib/actions";
 import { hex, layout, ThemeScope, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
@@ -19,7 +19,8 @@ import { ProfileSwipeArea } from "./ProfileSwipe";
 import { openNewTabInSplit } from "./splitActions";
 import { toggleNewTabBar } from "../omnibox/newTabBar";
 import { setMeasuredWidth, useMeasuredWidths } from "./measuredWidths";
-import { usePeek } from "./usePeek";
+import { useAppShell } from "@oxy.so/bloom/app-shell";
+import { WindowButtonsHost } from "./windowButtons";
 import { lightsCenter, TOP_STRIP_LIGHTS_CENTER } from "./dockMotion";
 import {
   dragGeometry,
@@ -357,7 +358,6 @@ type StripDrag = {
   range?: [number, number] | ((grab: number) => [number, number]);
   drop?: (dx: number, ids: string[]) => boolean;
   cross?: Cross;
-  levels?: number;
   local?: boolean;
 };
 
@@ -369,6 +369,8 @@ type Strip = { dock: Dock | null; top: DragGeometry; chip: number; grow: Animate
 const CELL_STEP = PINNED_CELL + PINNED_SPACING;
 const dockWidth = (cells: number) => cells * CELL_STEP - PINNED_SPACING;
 const DockContext = createContext<Strip | null>(null);
+const StripRaise = createContext<((raised: boolean) => void) | null>(null);
+const RAISED_Z = 10;
 
 const growTargets = new WeakMap<Animated.Value, number>();
 function growDock(grow: Animated.Value, to: number) {
@@ -523,11 +525,14 @@ function useStripDrag(item: StripDrag) {
     setCrossed(on);
   };
   const owns = useRef(false);
-  const raised = useRef<number | null>(null);
+  const raiseAncestor = useContext(StripRaise);
+  const ancestor = useRef(raiseAncestor);
+  ancestor.current = raiseAncestor;
+  const raised = useRef<((raised: boolean) => void) | null>(null);
   const raise = (on: boolean) => {
-    const tag = on ? findNodeHandle(view.current) : raised.current;
-    raiseView(tag, latest.current.levels ?? (latest.current.groupId ? 1 : 0), on);
-    raised.current = on ? tag : null;
+    raised.current?.(false);
+    raised.current = on ? ancestor.current : null;
+    raised.current?.(true);
   };
   const reset = () => {
     owns.current = false;
@@ -577,6 +582,7 @@ function useStripDrag(item: StripDrag) {
   useEffect(
     () => () => {
       settle.current?.land();
+      raise(false);
       if (!owns.current) return;
       if (drag.current.crossed) latest.current.cross?.clear();
       settleRoom(latest.current.geometry);
@@ -955,8 +961,9 @@ function PinnedDock({ tabIds }: { tabIds: string[] }) {
   const geometry = strip.dock!.geometry;
   const width = dockWidth(tabIds.length);
   const box = useMemo(() => Animated.add(strip.grow, width), [strip.grow, width]);
+  const [raised, setRaised] = useState(false);
   return (
-    <View style={{ marginTop: ITEM_TOP, marginRight: DOCK_GAP - GAP, zIndex: 2, width, height: ITEM_HEIGHT, flexDirection: "row", alignItems: "center" }}>
+    <View style={{ marginTop: ITEM_TOP, marginRight: DOCK_GAP - GAP, zIndex: raised ? RAISED_Z : 2, width, height: ITEM_HEIGHT, flexDirection: "row", alignItems: "center" }}>
       <Animated.View
         pointerEvents="none"
         style={{
@@ -972,11 +979,13 @@ function PinnedDock({ tabIds }: { tabIds: string[] }) {
           backgroundColor: theme.pinnedResting,
         }}
       />
-      <View style={{ flexDirection: "row", gap: PINNED_SPACING }}>
-        {tabIds.map((id, i) => (
-          <PinnedCell key={id} tabId={id} geometry={geometry} from={i} />
-        ))}
-      </View>
+      <StripRaise.Provider value={setRaised}>
+        <View style={{ flexDirection: "row", gap: PINNED_SPACING }}>
+          {tabIds.map((id, i) => (
+            <PinnedCell key={id} tabId={id} geometry={geometry} from={i} />
+          ))}
+        </View>
+      </StripRaise.Provider>
     </View>
   );
 }
@@ -1031,7 +1040,6 @@ function PinnedCell({ tabId, geometry, from }: { tabId: string; geometry: DragGe
     gap: PINNED_SPACING,
     range,
     cross: dock ? pinOut(() => latestStrip.current, from) : undefined,
-    levels: 2,
   });
   if (!tab) return null;
   return (
@@ -1225,6 +1233,7 @@ function GroupMember({
   useEffect(() => {
     Animated.timing(shownValue, { toValue: shown ? 1 : 0, duration: TUCK_FADE_MS, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
   }, [shown]);
+  const [raised, setRaised] = useState(false);
   const left = useMemo(() => open.interpolate({ inputRange: [0, 1], outputRange: [start, start + offset] }), [start, offset]);
   const opacity = useMemo(
     () =>
@@ -1236,12 +1245,17 @@ function GroupMember({
     [],
   );
   return (
-    <Animated.View pointerEvents={interactive ? "box-none" : "none"} style={{ position: "absolute", top: 0, left, width, height: TOP_STRIP_HEIGHT, opacity, zIndex: shown ? 2 : 1 }}>
-      {member.kind === "split" ? (
-        <SplitChip tabIds={member.tabIds} width={width} geometry={geometry} from={from} group={member.group} />
-      ) : (
-        <DraggableChip tabId={member.id} width={width} geometry={geometry} from={from} group={member.group} tuck={tuck} out={out} />
-      )}
+    <Animated.View
+      pointerEvents={interactive ? "box-none" : "none"}
+      style={{ position: "absolute", top: 0, left, width, height: TOP_STRIP_HEIGHT, opacity, zIndex: raised ? RAISED_Z : shown ? 2 : 1 }}
+    >
+      <StripRaise.Provider value={setRaised}>
+        {member.kind === "split" ? (
+          <SplitChip tabIds={member.tabIds} width={width} geometry={geometry} from={from} group={member.group} />
+        ) : (
+          <DraggableChip tabId={member.id} width={width} geometry={geometry} from={from} group={member.group} tuck={tuck} out={out} />
+        )}
+      </StripRaise.Provider>
     </Animated.View>
   );
 }
@@ -1333,64 +1347,47 @@ function NewTabButton({ windowId, geometry }: { windowId: string; geometry: Drag
 
 const HOVER_HEIGHT = 6;
 const PEEK_LEFT = 6;
-const PEEK_TOP = 4;
+export const TOP_PEEK_TOP = 4;
 
-export function TopStripPeek({ windowWidth, enabled }: { windowWidth: number; enabled: boolean }) {
-  const theme = useTheme();
+export function TopStripRegion({ width, fullscreen }: { width: number; fullscreen: boolean }) {
   const windowId = useWindowId();
-  const { slide, live, show, hide } = usePeek(enabled);
+  const { topBarDock: dock } = useAppShell();
+  const floating = dock.peeking && !fullscreen;
+  const away = dock.hidden && !floating;
+  const lightsAway = dock.hidden && !fullscreen;
   useEffect(() => {
-    if (!enabled) return;
+    if (!lightsAway) return;
     void setTrafficLightsCenter(windowId, lightsCenter(layout.sidebarWidth));
     return () => void setTrafficLightsCenter(windowId, null);
-  }, [enabled, windowId]);
-  const leaveStrip = (e: { nativeEvent: { clientY: number } }) => {
-    if (live && e.nativeEvent.clientY < HOVER_HEIGHT) hide();
-  };
+  }, [lightsAway, windowId]);
   const leavePanel = (e: { nativeEvent: { clientX: number; clientY: number } }) => {
-    const x = e.nativeEvent.clientX + PEEK_LEFT;
-    const y = e.nativeEvent.clientY + PEEK_TOP;
-    if (!(y >= 0 && y < HOVER_HEIGHT && x >= layout.trafficLightsWidth)) hide();
+    const { clientX: x, clientY: y } = e.nativeEvent;
+    if (!(y >= 0 && y < HOVER_HEIGHT && x >= layout.trafficLightsWidth)) dock.peek(false);
   };
   return (
-    <>
-      {enabled ? (
-        <View
-          onMouseEnter={show}
-          onMouseLeave={leaveStrip}
-          style={{ position: "absolute", left: layout.trafficLightsWidth, right: PEEK_LEFT, top: 0, height: HOVER_HEIGHT }}
-        />
-      ) : null}
-      <Animated.View
-        pointerEvents={live ? "auto" : "none"}
-        onMouseEnter={live ? show : undefined}
-        onMouseLeave={live ? leavePanel : undefined}
-        style={{
-          position: "absolute",
-          left: PEEK_LEFT,
-          width: windowWidth - PEEK_LEFT * 2,
-          top: live ? PEEK_TOP : -10_000,
-          height: PEEK_HEIGHT,
-          opacity: slide,
-          transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [-PEEK_HEIGHT - 8, 0] }) }],
-        }}
-      >
-        <Surface
-          fill={hex(theme.windowTint[0])}
-          cornerRadius={12}
-          borderColor={hex(theme.panelBorder)}
-          borderWidth={PEEK_BORDER}
-          shadowColor="#000000"
-          shadowOpacity={theme.panelShadowOpacity}
-          shadowRadius={20}
-          shadowOffset={[0, 6]}
-          style={{ flex: 1 }}
-        >
-          <View style={{ position: "absolute", left: 0, right: 0, top: PEEK_PAD - ITEM_TOP, height: TOP_STRIP_HEIGHT }}>
-            <TopTabStrip floating swipe={live} width={windowWidth - 12 - PEEK_BORDER * 2} />
-          </View>
-        </Surface>
-      </Animated.View>
-    </>
+    <View
+      pointerEvents={fullscreen ? "none" : "box-none"}
+      onMouseEnter={floating ? () => dock.peek(true) : undefined}
+      onMouseLeave={floating ? leavePanel : undefined}
+      style={{ height: floating ? PEEK_HEIGHT : TOP_STRIP_HEIGHT }}
+    >
+      <View style={floating ? { position: "absolute", left: 0, right: 0, top: PEEK_PAD - ITEM_TOP, height: TOP_STRIP_HEIGHT } : { flex: 1 }}>
+        <TopTabStrip floating={floating} hidden={away || fullscreen} swipe={!away} width={floating ? width - PEEK_LEFT * 2 - PEEK_BORDER * 2 : width} />
+      </View>
+      <WindowButtonsHost />
+    </View>
+  );
+}
+
+export function TopStripEdge() {
+  const { topBarDock: dock } = useAppShell();
+  return (
+    <View
+      onMouseEnter={() => dock.peek(true)}
+      onMouseLeave={(e: { nativeEvent: { clientY: number } }) => {
+        if (dock.peeking && e.nativeEvent.clientY < HOVER_HEIGHT) dock.peek(false);
+      }}
+      style={{ position: "absolute", left: layout.trafficLightsWidth, right: PEEK_LEFT, top: 0, height: HOVER_HEIGHT }}
+    />
   );
 }

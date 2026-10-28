@@ -1,28 +1,27 @@
+import type { MotionSpec, SpringSpec } from "@oxy.so/bloom/motion";
 import { create } from "zustand";
 
-export const DOCK_SPRING = { response: 0.215, damping: 0.79 } as const;
+export const DOCK_SPRING: SpringSpec = { response: 0.215, dampingRatio: 0.79 };
 
-export const ARC_PEEK_SPRING = { response: 0.185, damping: 0.77 } as const;
+export const ARC_PEEK_SPRING: SpringSpec = { response: 0.185, dampingRatio: 0.77 };
 export const ARC_PEEK_OUT_MS = 150;
 export const ARC_HIDE_MS = 100;
+export const PEEK_SLIDE_MS = 180;
 
-export const easeOutCubic = (u: number) => 1 - (1 - u) ** 3;
-export const easeInOutCubic = (u: number) => (u < 0.5 ? 4 * u ** 3 : 1 - (-2 * u + 2) ** 3 / 2);
+export const EASE_OUT_CUBIC = [0.215, 0.61, 0.355, 1] as const;
+export const EASE_IN_OUT_CUBIC = [0.645, 0.045, 0.355, 1] as const;
 
-export function springConfig({ response, damping }: { response: number; damping: number }) {
-  const omega = (2 * Math.PI) / response;
-  return { stiffness: omega * omega, damping: 2 * damping * omega, mass: 1 };
+const INSTANT: MotionSpec = { duration: 0 };
+const PEEK_SLIDE: MotionSpec = { duration: PEEK_SLIDE_MS, easing: EASE_OUT_CUBIC };
+
+export function sidebarMotion(o: { arc: boolean; instant: boolean }) {
+  const dock = o.instant ? { show: INSTANT, hide: INSTANT } : { show: DOCK_SPRING, hide: o.arc ? { duration: ARC_HIDE_MS, easing: EASE_OUT_CUBIC } : DOCK_SPRING };
+  return o.arc
+    ? { ...dock, peekIn: ARC_PEEK_SPRING, peekOut: { duration: ARC_PEEK_OUT_MS, easing: EASE_IN_OUT_CUBIC } }
+    : { ...dock, peekIn: PEEK_SLIDE, peekOut: PEEK_SLIDE };
 }
 
-export function springAt(
-  t: number,
-  { response, damping }: { response: number; damping: number } = DOCK_SPRING,
-): number {
-  if (t <= 0) return 0;
-  const omega = (2 * Math.PI) / response;
-  const wd = omega * Math.sqrt(1 - damping * damping);
-  return 1 - Math.exp(-damping * omega * t) * (Math.cos(wd * t) + ((damping * omega) / wd) * Math.sin(wd * t));
-}
+export const TOP_STRIP_MOTION = { show: INSTANT, hide: INSTANT, peekIn: PEEK_SLIDE, peekOut: PEEK_SLIDE };
 
 export const LIGHTS_CENTER: readonly [number, number] = [25, 27];
 export const ARC_LIGHTS_CENTER: readonly [number, number] = [25, 24];

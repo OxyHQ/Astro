@@ -309,6 +309,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       void watchTab(opening.ref, tabEvents(latest, browserId, setDevTools, opening.ref, page, emitZoom)).then(({ snapshot, stop }) => {
         if (closed) return stop();
         stopWatching = stop;
+        page.announce();
         if (!snapshot) return;
         latest.current.onMedia?.(snapshot.media as MediaState);
         if (snapshot.mediaAccess) latest.current.onMediaAccess?.(snapshot.mediaAccess as MediaAccess);

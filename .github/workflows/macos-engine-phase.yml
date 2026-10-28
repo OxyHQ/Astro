@@ -1,0 +1,112 @@
+name: macOS engine phase
+
+on:
+  workflow_call:
+    inputs:
+      cpu:
+        type: string
+        required: true
+      phase:
+        type: number
+        required: true
+      engine_key:
+        type: string
+        required: true
+      state_key:
+        type: string
+        required: true
+      state_run:
+        type: string
+        default: ""
+    outputs:
+      status:
+        value: ${{ jobs.build.outputs.status }}
+
+permissions:
+  contents: read
+  actions: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Engine ${{ inputs.cpu }} ${{ inputs.phase }}
+    runs-on: macos-15-intel
+    timeout-minutes: 358
+    outputs:
+      status: ${{ steps.build.outputs.status }}
+    env:
+      AC_MAC_TARGET_CPU: ${{ inputs.cpu }}
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+    steps:
+      - name: Start the clock
+        run: echo "AC_CI_START=$(date +%s)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: CI scripts
+        run: scripts/ci/tools-from-branch.sh
+      - name: Prepare the runner
+        run: scripts/ci/macos-runner-prep.sh --free-disk
+      - name: Download the tree
+        if: inputs.state_run != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: engine-state-${{ inputs.cpu }}-${{ inputs.state_key }}
+          path: ${{ runner.temp }}/state
+          run-id: ${{ inputs.state_run }}
+          github-token: ${{ github.token }}
+      - name: Wait for disk
+        run: scripts/ci/macos-runner-prep.sh --wait-free
+      - name: Unpack the tree
+        if: inputs.state_run != ''
+        run: scripts/ci/macos-engine-state.sh unpack "$RUNNER_TEMP/state"
+      - name: Sync, patch and configure Chromium
+        if: inputs.state_run == ''
+        run: scripts/ci/macos-engine-prepare.sh
+      - name: Build
+        id: build
+        run: scripts/ci/macos-engine-build.sh --deadline $((AC_CI_START + 300 * 60))
+      - name: Pack the framework
+        if: steps.build.outputs.status == 'finished'
+        run: scripts/ci/macos-engine-framework.sh "$RUNNER_TEMP/framework"
+      - name: Upload the framework
+        if: steps.build.outputs.status == 'finished'
+        uses: actions/upload-artifact@v4
+        with:
+          name: astrocore-macos-${{ inputs.cpu }}-${{ inputs.engine_key }}
+          path: ${{ runner.temp }}/framework
+          compression-level: 0
+          retention-days: 30
+          if-no-files-found: error
+      - name: Pack the tree for the next phase
+        id: pack
+        if: always() && steps.build.outputs.status == 'running'
+        run: scripts/ci/macos-engine-state.sh pack "$RUNNER_TEMP/state-out"
+      - name: Upload the tree
+        if: always() && steps.pack.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-state-${{ inputs.cpu }}-${{ inputs.state_key }}
+          path: ${{ runner.temp }}/state-out
+          compression-level: 0
+          retention-days: 3
+          overwrite: true
+          if-no-files-found: error
+      - name: Collect logs
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/logs"
+          cp -R "$HOME/chromium-build/logs/." "$RUNNER_TEMP/logs/" 2>/dev/null || true
+          out="$HOME/chromium-build/chromium_git/chromium/src/out/Release_GN_$AC_MAC_TARGET_CPU"
+          cp "$out/args.gn" "$out/siso_output" "$out/.siso_failed_targets" "$RUNNER_TEMP/logs/" 2>/dev/null || true
+          df -h / > "$RUNNER_TEMP/logs/df.txt"
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-logs-${{ inputs.cpu }}-${{ github.run_attempt }}-phase-${{ inputs.phase }}
+          path: ${{ runner.temp }}/logs
+          retention-days: 14

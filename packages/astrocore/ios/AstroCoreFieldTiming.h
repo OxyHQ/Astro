@@ -17,4 +17,14 @@ void AstroCoreWebViewsSetFieldTiming(BOOL on);
 }
 #endif
 
+@interface ACFieldTiming : NSObject
+
++ (void)setEnabled:(BOOL)enabled owner:(id)owner NS_SWIFT_NAME(setEnabled(_:owner:));
++ (void)releaseOwner:(id)owner NS_SWIFT_NAME(releaseOwner(_:));
++ (void)markFrame:(NSString *)key kind:(NSString *)kind NS_SWIFT_NAME(markFrame(_:kind:));
++ (NSArray<NSNumber *> *)lastInput;
++ (NSArray<NSArray *> *)drain;
+
+@end
+
 NS_ASSUME_NONNULL_END

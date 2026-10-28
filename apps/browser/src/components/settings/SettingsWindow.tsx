@@ -195,9 +195,8 @@ function AccountSidebarItem({ selected, onPress }: { selected: boolean; onPress:
   const colors = useFormColors();
   const { hovered, hoverProps } = useHover();
   const account = useOxySession((s) => s.account);
-  const available = useOxySession((s) => s.available);
-  const title = account ? account.name : available ? "Sign In" : "Oxy Account";
-  const subtitle = account ? "Oxy Account" : available ? "with your Oxy account" : "Not available yet";
+  const title = account ? account.name : "Sign In";
+  const subtitle = account ? "Oxy Account" : "with your Oxy account";
   return (
     <View {...hoverProps} style={{ marginBottom: 8 }}>
       <Pressable onPress={onPress}>

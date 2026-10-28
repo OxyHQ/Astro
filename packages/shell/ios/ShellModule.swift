@@ -240,7 +240,6 @@ public class ShellModule: Module {
     OnCreate {
       _ = installTextFieldSelectAll
       _ = installInputSourceKeys
-      _ = installScrollViewInsetFix
       _ = installOutsidePressMonitor
       DispatchQueue.main.async { [weak self] in
         MenuTarget.shared.handler = { command, arg, windowId in
@@ -252,8 +251,9 @@ public class ShellModule: Module {
         }
         WindowManager.shared.emit = { name, body in self?.sendEvent(name, body) }
         FocusHandoff.shared.install()
-        if let queue = self?.appContext?.reactBridge?.uiManager.methodQueue {
-          FocusHandoff.shared.afterPendingUI = { block in queue.async { DispatchQueue.main.async(execute: block) } }
+        FocusHandoff.shared.afterPendingUI = { block in
+          guard let context = self?.appContext, context.reactBridge != nil else { return DispatchQueue.main.async(execute: block) }
+          context.executeOnJavaScriptThread { DispatchQueue.main.async(execute: block) }
         }
         LeftEdgeWatcher.shared.emit = { name, body in self?.sendEvent(name, body) }
         WindowManager.shared.runtime = self.map(ObjectIdentifier.init)
@@ -337,26 +337,6 @@ public class ShellModule: Module {
       DragPreview.shared.update(shape: shape, at: NSPoint(x: point[0], y: point[1]))
     }.runOnQueue(.main)
     AsyncFunction("dragPreviewCancel") { DragPreview.shared.cancel() }.runOnQueue(.main)
-    AsyncFunction("raiseView") { (tag: Int, levels: Int, raised: Bool) in
-      guard var view = self.appContext?.findView(withTag: tag, ofType: NSView.self) else { return }
-      for _ in 0...max(0, levels) {
-        guard let parent = view.superview else { return }
-        let layers = view.layer.flatMap { layer in parent.layer.flatMap { $0 === layer.superlayer ? (layer, $0) : nil } }
-        if raised {
-          if parent.subviews.last !== view { parent.addSubview(view, positioned: .above, relativeTo: nil) }
-          if let (layer, host) = layers, host.sublayers?.last !== layer { host.addSublayer(layer) }
-        } else if let order = parent.value(forKey: "reactSubviews") as? [NSView], let index = order.firstIndex(where: { $0 === view }) {
-          if let next = order[(index + 1)...].first(where: { $0.superview === parent }) {
-            parent.addSubview(view, positioned: .below, relativeTo: next)
-            if let (layer, host) = layers, let below = next.layer, below.superlayer === host { host.insertSublayer(layer, below: below) }
-          } else if parent.subviews.last !== view {
-            parent.addSubview(view, positioned: .above, relativeTo: nil)
-            if let (layer, host) = layers { host.addSublayer(layer) }
-          }
-        }
-        view = parent
-      }
-    }.runOnQueue(.main)
     AsyncFunction("dragPreviewPlaceholder") { (title: String, favicon: String?) in
       DragPreview.shared.setPlaceholder(title: title, favicon: favicon)
     }.runOnQueue(.main)
@@ -653,11 +633,11 @@ final class FadeLabel: ExpoView {
   private let field = NSTextField(labelWithString: "")
   private let fade = CAGradientLayer()
 
-  var text = "" { didSet { update() } }
-  var fontSize: Double = 13 { didSet { update() } }
-  var weight = "regular" { didSet { update() } }
-  var color: NSColor = .labelColor { didSet { field.textColor = color } }
-  var fadeWidth: Double = 24 { didSet { relayout() } }
+  var text = "" { didSet { if text != oldValue { update() } } }
+  var fontSize: Double = 13 { didSet { if fontSize != oldValue { update() } } }
+  var weight = "regular" { didSet { if weight != oldValue { update() } } }
+  var color: NSColor = .labelColor { didSet { if color != oldValue { field.textColor = color } } }
+  var fadeWidth: Double = 24 { didSet { if fadeWidth != oldValue { relayout() } } }
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -811,9 +791,9 @@ enum ServerWindowDrag {
 
   private static let lastWindow = NSMapTable<NSView, NSWindow>.weakToWeakObjects()
 
-  static func track(_ region: NSView, bridge: AnyObject? = nil) {
+  static func track(_ region: NSView) {
     guard enabled, capable else { return }
-    if let bridge { observeMounting(bridge) }
+    observeMounting()
     if let old = lastWindow.object(forKey: region), old !== region.window { refresh(old) }
     if let window = region.window {
       regions.add(region)
@@ -880,19 +860,17 @@ enum ServerWindowDrag {
     }
   }
 
-  private static var mounting: MountWatcher?
+  private static let mounting = MountWatcher()
+  private static weak var observedPresenter: AnyObject?
   private static var eventMonitor: Any?
 
-  private static func observeMounting(_ bridge: AnyObject) {
-    guard mounting == nil,
-          let manager = bridge.value(forKey: "uiManager") as AnyObject?,
-          let coordinator = manager.value(forKey: "observerCoordinator") as AnyObject?
-    else { return }
-    let watcher = MountWatcher()
+  private static func observeMounting() {
+    guard let presenter = WindowHost.surfacePresenter?(), presenter !== observedPresenter else { return }
     let add = NSSelectorFromString("addObserver:")
-    guard coordinator.responds(to: add) else { return }
-    _ = coordinator.perform(add, with: watcher)
-    mounting = watcher
+    guard presenter.responds(to: add) else { return }
+    _ = presenter.perform(add, with: mounting)
+    observedPresenter = presenter
+    guard eventMonitor == nil else { return }
     eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp, .rightMouseUp, .otherMouseUp, .keyUp, .flagsChanged]) { event in
       if let window = event.window { scheduleRefresh(window) }
       return event
@@ -923,12 +901,6 @@ enum ServerWindowDrag {
     return !CATransform3DIsIdentity(layer.transform) || !layer.affineTransform().isIdentity
   }
 
-  private static func zOrdered(_ view: NSView) -> [NSView] {
-    let sorted = NSSelectorFromString("reactZIndexSortedSubviews")
-    if view.responds(to: sorted), let subviews = view.perform(sorted)?.takeUnretainedValue() as? [NSView] { return subviews }
-    return view.subviews
-  }
-
   private enum Layer { case region, beneath, above, inert }
 
   private static func classify(_ window: NSWindow) -> (blocking: [ObjectIdentifier: Bool], open: [NSRect]) {
@@ -936,10 +908,10 @@ enum ServerWindowDrag {
     if let cached = targets[key] { return cached }
     let open = openRects(window)
     var blocking: [ObjectIdentifier: Bool] = [:]
-    let rn: AnyClass? = NSClassFromString("RCTView")
-    func pointerEvents(_ view: NSView) -> Int {
-      guard let rn, view.isKind(of: rn) else { return 0 }
-      return (view.value(forKey: "pointerEvents") as? NSNumber)?.intValue ?? 0
+    let rn: AnyClass? = NSClassFromString("RCTViewComponentView")
+    func ignoresPointer(_ view: NSView) -> Bool {
+      guard let rn, view.isKind(of: rn) else { return false }
+      return (view.value(forKey: "userInteractionEnabled") as? NSNumber)?.boolValue == false
     }
     var moving = false
     func visit(_ view: NSView, _ layer: Layer) {
@@ -954,7 +926,7 @@ enum ServerWindowDrag {
       case .region:
         blocking[ObjectIdentifier(view)] = false
         var passed = false
-        for child in zOrdered(view) {
+        for child in view.subviews {
           if leadsToRegion(child) {
             passed = true
             visit(child, .region)
@@ -966,7 +938,7 @@ enum ServerWindowDrag {
       case .beneath, .inert:
         blocking[ObjectIdentifier(view)] = false
       case .above:
-        if pointerEvents(view) == 1 {
+        if ignoresPointer(view) {
           blocking[ObjectIdentifier(view)] = false
           children = .inert
         } else if takesPresses(view, in: frame, open) {
@@ -976,7 +948,7 @@ enum ServerWindowDrag {
           blocking[ObjectIdentifier(view)] = false
         }
       }
-      for child in zOrdered(view) { visit(child, children) }
+      for child in view.subviews { visit(child, children) }
     }
     if let root = embeddedRoot(window), leadsToRegion(root) { visit(root, .region) }
     if moving {
@@ -1061,7 +1033,7 @@ enum ServerWindowDrag {
 
   private static let capable: Bool = {
     let noArguments = { (types: String) in types.hasSuffix("@0:8") }
-    guard let host = NSClassFromString("BridgedContentView"), NSClassFromString("RCTView") != nil,
+    guard let host = NSClassFromString("BridgedContentView"), NSClassFromString("RCTViewComponentView") != nil,
           host.instancesRespond(to: embeddedSelector),
           matches(NSView.self, opaqueRectSelector, { $0.hasPrefix("{CGRect=") && noArguments($0) }),
           matches(host, opaqueRectSelector, { $0.hasPrefix("{CGRect=") && noArguments($0) }),
@@ -1080,7 +1052,7 @@ enum ServerWindowDrag {
       guard inRoot(view) else { return original() }
       return !allOpen && blocks(view) ? view.bounds : .zero
     }
-    for name in ["NSView", "RCTUIView", "RCTView"] {
+    for name in ["NSView", "RCTUIView", "RCTViewComponentView"] {
       guard let cls = NSClassFromString(name) else { continue }
       replaceCanMove(cls) { view, original in
         if inRoot(view) { return allOpen || !blocks(view) ? true : original() }
@@ -1107,8 +1079,8 @@ enum ServerWindowDrag {
 }
 
 final class MountWatcher: NSObject {
-  @objc func uiManagerDidPerformMounting(_ manager: AnyObject) {
-    DispatchQueue.main.async { ServerWindowDrag.scheduleRefreshAll() }
+  @objc(didMountComponentsWithRootTag:) func didMountComponents(withRootTag rootTag: Int) {
+    ServerWindowDrag.scheduleRefreshAll()
   }
 }
 
@@ -1160,7 +1132,7 @@ final class WindowDragRegion: ExpoView {
 
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
-    ServerWindowDrag.track(self, bridge: appContext?.reactBridge)
+    ServerWindowDrag.track(self)
     if let monitor { NSEvent.removeMonitor(monitor) }
     monitor = nil
     doubleClickDown = false
@@ -1196,7 +1168,8 @@ final class WindowDragRegion: ExpoView {
           let hit = window.contentView?.superview?.hitTest(event.locationInWindow)
     else { return false }
     if hit === self { return true }
-    let background = hit is NSClipView || (hit.superview as? NSClipView)?.documentView === hit
+    let isDocument = { (view: NSView) in (view.superview as? NSClipView)?.documentView === view }
+    let background = hit is NSClipView || isDocument(hit) || hit.superview.map(isDocument) == true
     guard background, let container = superview, hit.isDescendant(of: container) else { return false }
     var view = hit.superview
     while let v = view, v !== container {
@@ -1296,10 +1269,10 @@ let installOutsidePressMonitor: Void = {
 
 final class SymbolView: ExpoView {
   private let imageView = NSImageView()
-  var name = "questionmark" { didSet { update() } }
-  var pointSize: Double = 14 { didSet { update() } }
-  var weight = "regular" { didSet { update() } }
-  var tint: NSColor? { didSet { imageView.contentTintColor = tint } }
+  var name = "questionmark" { didSet { if name != oldValue { update() } } }
+  var pointSize: Double = 14 { didSet { if pointSize != oldValue { update() } } }
+  var weight = "regular" { didSet { if weight != oldValue { update() } } }
+  var tint: NSColor? { didSet { if tint != oldValue { imageView.contentTintColor = tint } } }
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -1364,22 +1337,6 @@ let installInputSourceKeys: Void = {
   if !class_addMethod(NSTextView.self, keyDown, imp, method_getTypeEncoding(method)) { method_setImplementation(method, imp) }
 }()
 
-let installScrollViewInsetFix: Void = {
-  guard let cls = NSClassFromString("RCTCustomScrollView"),
-        let method = class_getInstanceMethod(cls, #selector(NSView.init(frame:))) else { return }
-  typealias Init = @convention(c) (AnyObject, Selector, NSRect) -> AnyObject
-  let original = unsafeBitCast(method_getImplementation(method), to: Init.self)
-  let block: @convention(block) (AnyObject, NSRect) -> AnyObject = { receiver, frame in
-    let view = original(receiver, #selector(NSView.init(frame:)), frame)
-    (view as? NSScrollView)?.automaticallyAdjustsContentInsets = false
-    return view
-  }
-  let imp = imp_implementationWithBlock(block)
-  if !class_addMethod(cls, #selector(NSView.init(frame:)), imp, method_getTypeEncoding(method)) {
-    method_setImplementation(method, imp)
-  }
-}()
-
 public class ContextMenuAreaModule: Module {
   public func definition() -> ModuleDefinition {
     Name("AstroContextMenuArea")
@@ -1424,7 +1381,8 @@ public class VisualEffectModule: Module {
     View(VisualEffect.self) {
       Prop("material") { (view: VisualEffect, name: String) in view.setMaterial(name) }
       Prop("blendingMode") { (view: VisualEffect, name: String) in
-        view.effect.blendingMode = name == "behindWindow" ? .behindWindow : .withinWindow
+        let mode: NSVisualEffectView.BlendingMode = name == "behindWindow" ? .behindWindow : .withinWindow
+        if view.effect.blendingMode != mode { view.effect.blendingMode = mode }
       }
       Prop("cornerRadius") { (view: VisualEffect, v: Double) in view.cornerRadius = v }
     }
@@ -1433,7 +1391,7 @@ public class VisualEffectModule: Module {
 
 final class VisualEffect: ExpoView {
   let effect = NSVisualEffectView()
-  var cornerRadius: Double = 0 { didSet { applyCorners() } }
+  var cornerRadius: Double = 0 { didSet { if cornerRadius != oldValue { applyCorners() } } }
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -1451,7 +1409,8 @@ final class VisualEffect: ExpoView {
       "underWindowBackground": .underWindowBackground, "contentBackground": .contentBackground,
       "fullScreenUI": .fullScreenUI, "toolTip": .toolTip, "titlebar": .titlebar, "selection": .selection,
     ]
-    effect.material = materials[name] ?? .hudWindow
+    let material = materials[name] ?? .hudWindow
+    if effect.material != material { effect.material = material }
   }
 
   private func applyCorners() {
@@ -1482,7 +1441,10 @@ public class GlassEffectModule: Module {
       Prop("cornerRadius") { (view: GlassEffect, v: Double) in view.cornerRadius = v }
       Prop("tint") { (view: GlassEffect, hex: String?) in view.tint = hex.flatMap(NSColor.init(hex:)) }
       Prop("glassStyle") { (view: GlassEffect, style: String?) in view.clear = style == "clear" }
-      Prop("dark") { (view: GlassEffect, dark: Bool?) in view.appearance = dark.map { NSAppearance(named: $0 ? .darkAqua : .aqua) } ?? nil }
+      Prop("dark") { (view: GlassEffect, dark: Bool?) in
+        let name: NSAppearance.Name? = dark.map { $0 ? .darkAqua : .aqua }
+        if view.appearance?.name != name { view.appearance = name.flatMap(NSAppearance.init(named:)) }
+      }
     }
   }
 }
@@ -1490,9 +1452,9 @@ public class GlassEffectModule: Module {
 final class GlassEffect: ExpoView {
   private let effect: NSView
   private let tintLayer = CALayer()
-  var cornerRadius: Double = 0 { didSet { apply() } }
-  var tint: NSColor? { didSet { apply() } }
-  var clear = false { didSet { apply() } }
+  var cornerRadius: Double = 0 { didSet { if cornerRadius != oldValue { apply() } } }
+  var tint: NSColor? { didSet { if tint != oldValue { apply() } } }
+  var clear = false { didSet { if clear != oldValue { apply() } } }
 
   required init(appContext: AppContext? = nil) {
     if #available(macOS 26.0, *) {
@@ -1554,15 +1516,15 @@ public class SurfaceModule: Module {
 }
 
 final class Surface: ExpoView {
-  var surfaceFill: NSColor? { didSet { apply() } }
-  var surfaceRadius: Double = 0 { didSet { apply() } }
-  var surfaceBorderColor: NSColor? { didSet { apply() } }
-  var surfaceBorderWidth: Double = 0 { didSet { apply() } }
-  var surfaceBorderColors: [NSColor] = [] { didSet { apply() } }
-  var surfaceShadowColor: NSColor? { didSet { apply() } }
-  var surfaceShadowOpacity: Double = 0 { didSet { apply() } }
-  var surfaceShadowRadius: Double = 0 { didSet { apply() } }
-  var surfaceShadowOffset: CGSize = .zero { didSet { apply() } }
+  var surfaceFill: NSColor? { didSet { if surfaceFill != oldValue { apply() } } }
+  var surfaceRadius: Double = 0 { didSet { if surfaceRadius != oldValue { apply() } } }
+  var surfaceBorderColor: NSColor? { didSet { if surfaceBorderColor != oldValue { apply() } } }
+  var surfaceBorderWidth: Double = 0 { didSet { if surfaceBorderWidth != oldValue { apply() } } }
+  var surfaceBorderColors: [NSColor] = [] { didSet { if surfaceBorderColors != oldValue { apply() } } }
+  var surfaceShadowColor: NSColor? { didSet { if surfaceShadowColor != oldValue { apply() } } }
+  var surfaceShadowOpacity: Double = 0 { didSet { if surfaceShadowOpacity != oldValue { apply() } } }
+  var surfaceShadowRadius: Double = 0 { didSet { if surfaceShadowRadius != oldValue { apply() } } }
+  var surfaceShadowOffset: CGSize = .zero { didSet { if surfaceShadowOffset != oldValue { apply() } } }
 
   private let plate = CALayer()
   private let shadowLayer = CALayer()

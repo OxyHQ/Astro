@@ -18,6 +18,8 @@ NS_ASSUME_NONNULL_BEGIN
 @interface ACSwipe : NSObject
 
 + (void)performHaptic:(NSString *)pattern;
++ (void)notifyAnimatedEvent:(NSString *)name view:(NSView *)view body:(NSDictionary<NSString *, id> *)body
+    NS_SWIFT_NAME(notifyAnimatedEvent(_:view:body:));
 
 + (void)addTarget:(NSView<ACSwipeTarget> *)target;
 + (void)removeTarget:(NSView<ACSwipeTarget> *)target;

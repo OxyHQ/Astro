@@ -15,13 +15,12 @@ import { OnboardingOverlay } from "./components/onboarding";
 import { CreateProfileHost } from "./components/profiles/CreateProfile";
 import { useFullscreenTab } from "./components/layout/pageState";
 import { ProfileTint } from "./components/layout/ProfileSwipe";
-import { TOP_CARD_INSET, TOP_STRIP_HEIGHT, TopStripPeek, TopTabStrip } from "./components/layout/TopTabStrip";
 import { useTabLayout } from "./components/layout/windowLayout";
 import { WindowProfile } from "./components/layout/WindowProfile";
-import { DockedLayout } from "./components/layout/SidebarDock";
+import { WindowShell } from "./components/layout/WindowShell";
 import { LittleAstroWindow } from "./components/littleAstro/LittleAstroWindow";
 import { SidebarOverlays } from "./components/sidebar/Overlays";
-import { layout, ThemeScope, useTheme } from "./lib/theme";
+import { ThemeScope, useTheme } from "./lib/theme";
 import { useBrowser } from "./store/browser";
 import { useWindowId, WindowContext } from "./store/hooks";
 
@@ -51,7 +50,6 @@ function BrowserWindow() {
   const theme = useTheme();
   const windowId = useWindowId();
   const topTabs = useTabLayout() === "top";
-  const showStrip = useBrowser((s) => topTabs && !!s.windows[windowId]?.sidebarOpen);
   const fullscreen = !!useFullscreenTab(windowId);
   const [area, setArea] = useState({ width: 0, height: 0 });
   const width = area.width;
@@ -68,23 +66,9 @@ function BrowserWindow() {
       <WindowBackdrop vibrancy {...theme.backdrop} colors={theme.windowTint} grainOpacity={theme.grain} style={StyleSheet.absoluteFill} />
       <WindowProfile />
       <ProfileTint />
-      <DockedLayout
-        fullscreen={fullscreen}
-        topTabs={topTabs}
-        inset={
-          showStrip
-            ? { top: TOP_STRIP_HEIGHT, right: TOP_CARD_INSET, bottom: TOP_CARD_INSET, left: TOP_CARD_INSET }
-            : { top: layout.cardTop, right: layout.cardInset, bottom: layout.cardInset, left: layout.cardInset }
-        }
-      >
+      <WindowShell fullscreen={fullscreen} topTabs={topTabs} width={width}>
         {card}
-      </DockedLayout>
-      {showStrip && (
-        <View pointerEvents={fullscreen ? "none" : "auto"} style={[{ position: "absolute", left: 0, right: 0 }, fullscreen ? { bottom: "100%" } : { top: 0 }]}>
-          <TopTabStrip width={width} hidden={fullscreen} />
-        </View>
-      )}
-      {topTabs && !showStrip && <TopStripPeek windowWidth={width} enabled={!fullscreen} />}
+      </WindowShell>
       {!fullscreen && <ChatFloating area={area} />}
       <CommandPanel windowWidth={width} />
       <DownloadsPopover />

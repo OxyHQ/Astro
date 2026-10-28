@@ -50,7 +50,7 @@ final class PowerUpView: MetalSurface {
     } else {
       srgb = value.compactMap { SIMD4<Float>(hex: $0) }
     }
-    if !srgb.isEmpty {
+    if !srgb.isEmpty, srgb != srgbColors {
       colors = Self.oklab(srgb)
       srgbColors = srgb
       halo?.setColors(srgb)

@@ -12,7 +12,6 @@ import { activeTabId, engineProfile, isIncognitoProfile, wake } from "../store/m
 import { holderOf } from "../store/pinShare";
 import { splitOf } from "../store/splits";
 import { switchOn } from "./killSwitches";
-import { applyHeldReports } from "./nativeEvents";
 import { everySlowly, reschedule } from "./slowTimers";
 import { webviews } from "./webviews";
 
@@ -148,7 +147,6 @@ export async function sleepTab(id: string): Promise<boolean> {
   const handle = webviews.get(id);
   if (!handle || useLifecycle.getState().discarded[id]) return false;
   if ((await hasUnsavedInput(handle)) !== false) return false;
-  applyHeldReports();
   const s = store();
   if (shownTabIds(s).has(id) || keepAliveReason(s, id) || webviews.get(id) !== handle) return false;
   return (await handle.discard()) === "discarded";
@@ -367,7 +365,6 @@ async function freezeBusyTabs(overrides: Partial<typeof POLICY> = {}): Promise<s
 export async function freezeTab(id: string): Promise<boolean> {
   const handle = webviews.get(id);
   if (!handle || !useLifecycle.getState().batterySaver) return false;
-  applyHeldReports();
   const s = store();
   if (shownTabIds(s).has(id) || keepAliveReason(s, id)) return false;
   await handle.setFrozen(true);

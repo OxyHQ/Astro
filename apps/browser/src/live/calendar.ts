@@ -20,7 +20,7 @@ export function openNiloCalendarSubscriptions() {
   void focusWindow(windowId);
 }
 
-export type CalendarAccess = "unavailable" | "pending" | "signedOut" | "connected" | "fixture";
+export type CalendarAccess = "pending" | "signedOut" | "connected" | "fixture";
 
 type CalendarData = {
   access: CalendarAccess;
@@ -32,7 +32,7 @@ type CalendarData = {
 };
 
 export const useCalendar = create<CalendarData>()(() => ({
-  access: "unavailable",
+  access: "pending",
   calendars: [],
   events: [],
   loading: false,
@@ -125,7 +125,6 @@ export function refreshCalendar(): Promise<void> {
 
 function sessionAccess(): CalendarAccess {
   const session = useOxySession.getState();
-  if (!session.available) return "unavailable";
   if (!session.resolved) return "pending";
   return session.account ? "connected" : "signedOut";
 }
@@ -153,7 +152,7 @@ export function startCalendar() {
   startNiloLive(() => void refreshCalendar());
   void refreshCalendar();
   useOxySession.subscribe((s, prev) => {
-    if (s.available !== prev.available || s.resolved !== prev.resolved || s.account?.id !== prev.account?.id || s.niloFetch !== prev.niloFetch) {
+    if (s.resolved !== prev.resolved || s.account?.id !== prev.account?.id || s.niloFetch !== prev.niloFetch) {
       if (!s.account) useCalendar.setState({ calendars: [], events: [], lastFetch: null });
       void refreshCalendar();
     }

@@ -100,16 +100,13 @@ don't re-render every tab.
 - Tests: `pnpm --filter @astro-browser/browser test` (`docs/testing.md`).
 
 ## Native events (lib/nativeEvents.ts)
-Every native→JS call is its own task, and React Native commits after each, so a page's reports used to cost a commit
-apiece (about ten per new tab). A WebView's page reports (`HELD_EVENTS`: navigation, progress, favicon, media, now
-playing, status, security, blocked count, media access, load error) are held until the calls already queued behind
-them have run (a 0 ms timer), then applied in arrival order in one React batch. Anything else that reaches JS first
-applies them before it runs: any other event (touches, layout, a page opening a window, focus, activation, commands,
-find, zoom, a new page's ready report), a timer, a callback, and every native module listener (Expo's EventEmitter, so
-a tab strip transaction or a download), which also runs as one commit with them. Nothing is reordered or dropped, and
-nothing a user action waits on is held. Work JSI delivers without a listener (an Expo promise settling) can run before
-held reports, as it already could before a view event's own dispatch hop: code that decides from a page's live state
-after awaiting the engine calls `applyHeldReports()` first (tabLifecycle's sleep and freeze, closeTab). A flush
+Fabric delivers the events queued in a beat together and React renders them in one microtask, but each event still
+applied its own store writes, about ten per new tab. A WebView's page reports (`HELD_EVENTS`: navigation, progress,
+favicon, media, now playing, status, security, blocked count, media access, load error) are held (`deliverWebViewEvents`
+in packages/astrocore) and applied in arrival order in a microtask. Any other Fabric event (touches, layout, a page
+opening a window, focus, commands, a new page's ready report) applies them first (React Native's `RawEventEmitter`), so
+nothing is reordered or dropped, and every later task runs after the microtask, so code that awaited the engine sees
+them applied. A flush
 also runs as one store transaction (`storeTransaction`, store/transaction.ts): its writes apply at once, and the store's
 listeners and subscriptions hear them together at the end, except a write that changes a tab's address or starts or
 ends its load, which is heard as it lands (a value that flips back within the flush stays visible to the listeners

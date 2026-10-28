@@ -99,7 +99,7 @@ export const useOneShotReady = () => {
   return signedIn && !stopped;
 };
 
-export const useSignInOffered = () => useOxySession((s) => s.available && s.resolved && !s.account);
+export const useSignInOffered = () => useOxySession((s) => s.resolved && !s.account);
 
 let inFlight = 0;
 const waiting: (() => void)[] = [];

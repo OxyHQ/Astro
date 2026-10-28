@@ -3,7 +3,23 @@ import { completeOAuth, oauthReturnOf } from "./apps";
 
 export const APPS_URL = "astro://apps";
 
+let watchers = 0;
+let stopWatching: (() => void) | null = null;
+
 export function startOAuthReturns(): () => void {
+  if (watchers++ === 0) stopWatching = watchOAuthReturns();
+  let stopped = false;
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    if (--watchers === 0) {
+      stopWatching?.();
+      stopWatching = null;
+    }
+  };
+}
+
+function watchOAuthReturns(): () => void {
   const seen = new Map<string, string>();
   const check = () => {
     const s = useBrowser.getState();

@@ -34,9 +34,8 @@ import { tabHub } from "./host/tabs";
 import { endTelemetry, leadTelemetry, reportUncaught, startPageTelemetry, windowShown } from "./host/telemetry";
 import { startUpdater } from "./host/updater";
 import { startWindows, usePageWindowId } from "./host/windows";
-import { AppMenuButton } from "./AppMenu";
 import { UtilityWindows } from "./UtilityWindows";
-import { WindowControls } from "./WindowControls";
+import { WindowButtons } from "./WindowControls";
 import { useApps } from "../../browser/src/ai/apps/apps";
 import { useArtifacts } from "../../browser/src/ai/artifacts/artifacts";
 import { useSkills } from "../../browser/src/ai/skills/skills";
@@ -100,8 +99,7 @@ function PageWindow() {
       <div className="astro-window">
         <WindowRoot windowId={windowId} />
         <LaunchMarks />
-        <WindowControls />
-        <AppMenuButton />
+        <WindowButtons windowId={windowId} />
       </div>
       <UtilityWindows />
       <OverlayHost />

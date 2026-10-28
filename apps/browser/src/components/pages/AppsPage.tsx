@@ -18,7 +18,6 @@ import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { aliaErrorMessage, useAliaReady } from "../../ai/alia/api";
 import { ALIA_CONNECTORS_URL, APPS, connectUrl, disconnect, refreshApps, useApps, type AppEntry, type Connection } from "../../ai/apps/apps";
-import { useOxySession } from "../../oxy/session";
 import { useBrowser } from "../../store/browser";
 import { AiPageHeader, PAGE_COLUMN, SignedOutState } from "./AiPageChrome";
 import { internalQuery, tabDestination } from "./urls";
@@ -38,7 +37,6 @@ export function AppsPage({ tabId }: { tabId: string }) {
   const url = useBrowser((s) => (s.tabs[tabId] ? tabDestination(s.tabs[tabId]!) : ""));
   const windowId = useBrowser((s) => s.tabs[tabId]?.windowId ?? "");
   const ready = useAliaReady();
-  const available = useOxySession((s) => s.available);
   const loading = useApps((s) => s.loading && !s.loadedAt);
   const [query, setQuery] = useState("");
   const outcome = internalQuery(url);
@@ -53,7 +51,7 @@ export function AppsPage({ tabId }: { tabId: string }) {
     <View style={{ flex: 1 }}>
       <AiPageHeader title="Apps" query={query} onQuery={setQuery} placeholder="Search apps" />
       {!ready ? (
-        <SignedOutState icon={RiPuzzleLine} available={available} title="Sign in with Oxy to connect apps to Chat" unavailable="Apps aren't available on this Mac yet" />
+        <SignedOutState icon={RiPuzzleLine} title="Sign in with Oxy to connect apps to Chat" />
       ) : (
         <ScrollView contentContainerStyle={{ alignItems: "center", paddingTop: 4, paddingBottom: 40 }}>
           <View style={[PAGE_COLUMN, { gap: 10 }]}>

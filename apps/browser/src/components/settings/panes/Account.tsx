@@ -12,15 +12,10 @@ const AVATAR = 64;
 
 export function AccountPane() {
   const theme = useTheme();
-  const available = useOxySession((s) => s.available);
   const resolved = useOxySession((s) => s.resolved);
   const account = useOxySession((s) => s.account);
   const go = useSettingsNav((s) => s.go);
   const [busy, setBusy] = useState(false);
-
-  if (!available) {
-    return <Text style={{ marginTop: 20, fontSize: 12.5, color: theme.textSecondary }}>Sign in with Oxy isn’t available in this build yet.</Text>;
-  }
 
   const signIn = async () => {
     setBusy(true);

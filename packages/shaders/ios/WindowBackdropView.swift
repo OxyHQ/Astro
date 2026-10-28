@@ -28,8 +28,10 @@ final class WindowBackdropView: MetalSurface {
   func setColors(_ hex: [String]) {
     let rgba = hex.compactMap { SIMD4<Float>(hex: $0) }
     guard let first = rgba.first else { return }
-    uniforms.labA = Self.oklab(first)
-    uniforms.labB = Self.oklab(rgba.last ?? first)
+    let labA = Self.oklab(first), labB = Self.oklab(rgba.last ?? first)
+    guard labA != uniforms.labA || labB != uniforms.labB else { return }
+    uniforms.labA = labA
+    uniforms.labB = labB
     metalView.needsDisplay = true
   }
 
@@ -79,11 +81,14 @@ final class WindowBackdropView: MetalSurface {
 
   func setAngle(_ degrees: Double) {
     let r = Float(degrees) * .pi / 180
-    uniforms.direction = SIMD2(sin(r), -cos(r))
+    let direction = SIMD2(sin(r), -cos(r))
+    guard direction != uniforms.direction else { return }
+    uniforms.direction = direction
     metalView.needsDisplay = true
   }
 
   func set(_ key: WritableKeyPath<Uniforms, Float>, _ value: Float) {
+    guard uniforms[keyPath: key] != value else { return }
     uniforms[keyPath: key] = value
     metalView.needsDisplay = true
   }
@@ -511,6 +516,7 @@ final class ThemeSwatchView: ExpoView {
   private let grain = GrainLayer()
   private let pad = CALayer()
   private var padLightness: Double = -1
+  private var colors: [SIMD4<Float>]?
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -525,11 +531,15 @@ final class ThemeSwatchView: ExpoView {
   override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
   func setColors(_ flat: [Double]) {
-    themeLayer.setColors(ThemeGradient.parse(flat))
+    let parsed = ThemeGradient.parse(flat)
+    guard parsed != colors else { return }
+    colors = parsed
+    themeLayer.setColors(parsed)
   }
 
   func setGrain(_ value: Double) {
-    grain.opacity = Float(min(max(value, 0), 1))
+    let opacity = Float(min(max(value, 0), 1))
+    if grain.opacity != opacity { grain.opacity = opacity }
   }
 
   func setTexture(_ value: String) {

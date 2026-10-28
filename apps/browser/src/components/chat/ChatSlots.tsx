@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, PanResponder, StyleSheet, View } from "react-native";
+import { PortalHost } from "@astro-browser/shell";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, PanResponder, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { create } from "zustand";
 import { isChatTabUrl } from "../../ai/chat/actions";
 import { useWindowChat } from "../../ai/chat/state";
 import { activeTabId } from "../../store/model";
 import { layout } from "../../lib/theme";
-import { DOCK_SPRING, springConfig } from "../layout/dockMotion";
+import { springPhysics } from "@oxy.so/bloom/motion";
+import { DOCK_SPRING } from "../layout/dockMotion";
 import { useBrowser } from "../../store/browser";
 import { useWindowId } from "../../store/hooks";
 
@@ -14,35 +16,25 @@ export const CHAT_MAX_WIDTH = 640;
 export const CHAT_DEFAULT_WIDTH = 400;
 const FLOATING_DEFAULT = { width: 420, height: 560 };
 const FLOATING_MARGIN = 16;
-const SIDEBAR_SPRING = { ...springConfig(DOCK_SPRING), restDisplacementThreshold: 0.001, restSpeedThreshold: 0.001 };
+const SIDEBAR_SPRING = { ...springPhysics(DOCK_SPRING), restDisplacementThreshold: 0.001, restSpeedThreshold: 0.001 };
 
-type Slots = { slots: Record<string, unknown> };
+type Slots = { slots: Record<string, number> };
 
 export const useChatSlots = create<Slots>()(() => ({ slots: {} }));
 
 export const windowSlotKey = (windowId: string) => `window:${windowId}`;
 export const tabSlotKey = (tabId: string) => `tab:${tabId}`;
 
-function useSlotRef(key: string) {
-  const current = useRef<unknown>(null);
-  useEffect(
-    () => () => {
-      if (useChatSlots.getState().slots[key] !== current.current) return;
+function ChatSlot({ slotKey, style }: { slotKey: string; style: StyleProp<ViewStyle> }) {
+  useEffect(() => {
+    useChatSlots.setState((s) => ({ slots: { ...s.slots, [slotKey]: (s.slots[slotKey] ?? 0) + 1 } }));
+    return () =>
       useChatSlots.setState((s) => {
-        const { [key]: _gone, ...rest } = s.slots;
-        return { slots: rest };
+        const { [slotKey]: held = 0, ...rest } = s.slots;
+        return { slots: held > 1 ? { ...rest, [slotKey]: held - 1 } : rest };
       });
-    },
-    [key],
-  );
-  return useCallback(
-    (element: unknown) => {
-      if (!element) return;
-      current.current = element;
-      useChatSlots.setState((s) => (s.slots[key] === element ? s : { slots: { ...s.slots, [key]: element } }));
-    },
-    [key],
-  );
+  }, [slotKey]);
+  return <PortalHost name={slotKey} style={style} />;
 }
 
 const useChatTabActive = (windowId: string) =>
@@ -67,7 +59,6 @@ export function ChatSidebar() {
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const appear = useRef(new Animated.Value(open ? 1 : 0)).current;
   const [shown, setShown] = useState(open);
-  const slot = useSlotRef(windowSlotKey(windowId));
 
   useEffect(() => {
     if (open) setShown(true);
@@ -113,7 +104,7 @@ export function ChatSidebar() {
   return (
     <Animated.View style={{ width: appear.interpolate({ inputRange: [0, 1], outputRange: [0, room] }), overflow: "hidden" }}>
       <Animated.View style={{ position: "absolute", top: 0, bottom: 0, left: room - width, width }}>
-        <View ref={slot as never} style={{ flex: 1 }} />
+        <ChatSlot slotKey={windowSlotKey(windowId)} style={{ flex: 1 }} />
         <View
           {...responder.panHandlers}
           onDoubleClick={() => useBrowser.getState().updateSettings({ chatWidth: CHAT_DEFAULT_WIDTH })}
@@ -151,7 +142,6 @@ export function ChatFloating({ area }: { area: { width: number; height: number }
   const open = useWindowChat(windowId, (c) => c.open && c.placement === "floating") && !inTab;
   const saved = useBrowser((s) => s.settings.chatFloatingFrame);
   const drag = useFloatingDrag((s) => s.drag);
-  const slot = useSlotRef(windowSlotKey(windowId));
   const appear = useRef(new Animated.Value(0)).current;
   const [shown, setShown] = useState(open);
   const base = placeFloating(saved, area);
@@ -188,12 +178,11 @@ export function ChatFloating({ area }: { area: { width: number; height: number }
         transform: [{ scale: appear.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) }],
       }}
     >
-      <View ref={slot as never} style={{ flex: 1 }} />
+      <ChatSlot slotKey={windowSlotKey(windowId)} style={{ flex: 1 }} />
     </Animated.View>
   );
 }
 
 export function ChatTabSlot({ tabId }: { tabId: string }) {
-  const slot = useSlotRef(tabSlotKey(tabId));
-  return <View ref={slot as never} style={StyleSheet.absoluteFill} />;
+  return <ChatSlot slotKey={tabSlotKey(tabId)} style={StyleSheet.absoluteFill} />;
 }

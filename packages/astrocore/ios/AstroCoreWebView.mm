@@ -725,7 +725,7 @@ static void ExpireLaunchTab(AstroCoreTab *tab) {
                                                                              committed:![note.userInfo[@"speculative"] boolValue]];
                                               }];
   static NSUInteger reloads = 0;
-  [NSNotificationCenter.defaultCenter addObserverForName:@"RCTBridgeWillReloadNotification"
+  [NSNotificationCenter.defaultCenter addObserverForName:@"RCTTriggerReloadCommandNotification"
                                                   object:nil
                                                    queue:nil
                                               usingBlock:^(NSNotification *) {

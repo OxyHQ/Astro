@@ -1,6 +1,7 @@
 #import "ACSwipe.h"
 #import "ACChromeWindow.h"
 
+#import <React/RCTEventDispatcherProtocol.h>
 #import <dlfcn.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
@@ -35,6 +36,40 @@ NSArray *RectValue(NSRect r) {
 }
 
 }
+
+@interface ACAnimatedViewEvent : NSObject <RCTEvent>
+- (instancetype)initWithName:(NSString *)name tag:(NSNumber *)tag body:(NSDictionary *)body;
+@end
+
+@implementation ACAnimatedViewEvent {
+  NSDictionary *_body;
+}
+
+@synthesize viewTag = _viewTag;
+@synthesize eventName = _eventName;
+
+- (instancetype)initWithName:(NSString *)name tag:(NSNumber *)tag body:(NSDictionary *)body {
+  if ((self = [super init])) {
+    _eventName = [name copy];
+    _viewTag = tag;
+    _body = [body copy];
+  }
+  return self;
+}
+
+- (BOOL)canCoalesce {
+  return NO;
+}
+
++ (NSString *)moduleDotMethod {
+  return @"RCTEventEmitter.receiveEvent";
+}
+
+- (NSArray *)arguments {
+  return @[ _viewTag, _eventName, _body ];
+}
+
+@end
 
 @interface ACRendererScrollObserver : NSObject
 - (instancetype)initWithOriginal:(nullable NSObject *)original;
@@ -715,6 +750,15 @@ NSEvent *SyntheticScroll(NSWindow *window, NSPoint point, NSDictionary *step, ui
 }
 
 @implementation ACSwipe
+
++ (void)notifyAnimatedEvent:(NSString *)name view:(NSView *)view body:(NSDictionary<NSString *, id> *)body {
+  id tag = [view valueForKey:@"reactTag"];
+  if (![tag isKindOfClass:NSNumber.class] || ![tag integerValue]) return;
+  ACAnimatedViewEvent *event = [[ACAnimatedViewEvent alloc] initWithName:name tag:tag body:body];
+  [NSNotificationCenter.defaultCenter postNotificationName:@"RCTNotifyEventDispatcherObserversOfEvent_DEPRECATED"
+                                                    object:nil
+                                                  userInfo:@{@"event" : event}];
+}
 
 + (void)performHaptic:(NSString *)pattern {
   NSHapticFeedbackPattern p = [pattern isEqualToString:@"levelChange"] ? NSHapticFeedbackPatternLevelChange

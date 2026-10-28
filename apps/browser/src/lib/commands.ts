@@ -47,7 +47,7 @@ import { groupOf } from "../store/organize";
 import { isSmall, mainWindowFor, originalProfile } from "../store/small";
 import { closeLittleAstro, openInMainWindow, openLittleAstro } from "../components/littleAstro/actions";
 import { expectFocus, findFocus } from "./focusClaims";
-import { chatSupported, focusChat, toggleChat } from "../ai/chat/actions";
+import { focusChat, toggleChat } from "../ai/chat/actions";
 
 export function runCommand({ command, arg, windowId: requested }: CommandEvent) {
   const s = useBrowser.getState();
@@ -177,9 +177,9 @@ export function runCommand({ command, arg, windowId: requested }: CommandEvent) 
     case "jumpToSelection":
       return page ? void jumpToSelection(page.id) : undefined;
     case "toggleChat":
-      return chatSupported() ? toggleChat(windowId) : undefined;
+      return toggleChat(windowId);
     case "focusChat":
-      return chatSupported() ? focusChat(windowId) : undefined;
+      return focusChat(windowId);
     case "useSelectionForFind":
       if (!page || !web) return;
       return void web.evaluate<string>("post('result', JSON.stringify(String(getSelection() || '').trim().slice(0, 500)))").then((query) => {

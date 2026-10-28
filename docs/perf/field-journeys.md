@@ -18,8 +18,8 @@ the start unless noted. All clocks are epoch ms on the same Mac: JS's `Date.now(
 `performance.timeOrigin + startTime`.
 
 - **On screen** means the Core Animation transaction carrying the change has committed (a post-commit handler); the
-  display shows it at the next refresh, ≤ 1 frame later. A JS step's frame is marked through the UI manager's queue
-  (`ACFieldTiming.markFrame`), so it rides the same batch as the commit's view updates.
+  display shows it at the next refresh, ≤ 1 frame later. A JS step's frame is marked on the next Fabric mount
+  (`ACFieldTiming.markFrame`, a surface presenter observer), so it rides the same transaction as the commit's view updates.
 - **Engine steps** come from `AstroCoreWebView`: `request` (we asked the engine to load), `start` (Chrome's loading
   began), `commit` (`tabDidCommitDocument:`), `fcp` (the page's first-contentful-paint entry, Chrome's presentation
   time) and `shown` (a page that was hidden: two `requestAnimationFrame`s after it became visible, as native-bench's

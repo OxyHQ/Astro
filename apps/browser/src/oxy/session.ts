@@ -5,9 +5,9 @@ export type OxyAccount = { id: string; name: string; handle: string; email: stri
 export type NiloSocketAccess = { url: string; token: () => Promise<string> };
 
 type OxySession = {
-  available: boolean;
   wanted: boolean;
   resolved: boolean;
+  accountDialogOpen: boolean;
   account: OxyAccount | null;
   niloFetch: typeof fetch | null;
   niloSocket: NiloSocketAccess | null;
@@ -19,9 +19,9 @@ type OxySession = {
 };
 
 export const useOxySession = create<OxySession>()(() => ({
-  available: false,
   wanted: false,
   resolved: false,
+  accountDialogOpen: false,
   account: null,
   niloFetch: null,
   niloSocket: null,
@@ -32,7 +32,65 @@ export const useOxySession = create<OxySession>()(() => ({
   closeSession: null,
 }));
 
-export const oxySignInAvailable = () => useOxySession.getState().available;
+type WindowSession = Pick<
+  OxySession,
+  "resolved" | "accountDialogOpen" | "account" | "niloFetch" | "niloSocket" | "sessionBearer" | "clientId" | "openSignIn" | "openAccountDialog" | "closeSession"
+>;
+
+const SIGNED_OUT: WindowSession = {
+  resolved: false,
+  accountDialogOpen: false,
+  account: null,
+  niloFetch: null,
+  niloSocket: null,
+  sessionBearer: null,
+  clientId: null,
+  openSignIn: null,
+  openAccountDialog: null,
+  closeSession: null,
+};
+
+const windowSessions = new Map<string, WindowSession>();
+let windowFocusOrder: string[] = [];
+
+export const useOxyGenerations = create<Record<string, number>>()(() => ({}));
+
+function sessionWindow(): string | null {
+  for (const id of windowFocusOrder) if (windowSessions.has(id)) return id;
+  return windowSessions.keys().next().value ?? null;
+}
+
+function projectSession() {
+  const id = sessionWindow();
+  const next = id ? windowSessions.get(id)! : SIGNED_OUT;
+  const now = useOxySession.getState();
+  if ((Object.keys(next) as (keyof WindowSession)[]).every((key) => now[key] === next[key])) return;
+  useOxySession.setState(next);
+}
+
+const accountIdOf = (session: WindowSession | undefined) => session?.account?.id ?? null;
+
+export function publishOxyWindow(windowId: string, session: WindowSession) {
+  const before = windowSessions.get(windowId);
+  windowSessions.set(windowId, session);
+  if (before?.resolved && session.resolved && accountIdOf(before) !== accountIdOf(session)) {
+    windowFocusOrder = [windowId, ...windowFocusOrder.filter((id) => id !== windowId)];
+    const stale = [...windowSessions].filter(([id, other]) => id !== windowId && accountIdOf(other) !== accountIdOf(session)).map(([id]) => id);
+    if (stale.length) useOxyGenerations.setState((g) => Object.fromEntries([...Object.entries(g), ...stale.map((id) => [id, (g[id] ?? 0) + 1])]));
+  }
+  projectSession();
+}
+
+export function withdrawOxyWindow(windowId: string) {
+  if (!windowSessions.delete(windowId)) return;
+  projectSession();
+}
+
+export function noteOxyWindowFocus(windowId: string) {
+  if (windowFocusOrder[0] === windowId) return;
+  windowFocusOrder = [windowId, ...windowFocusOrder.filter((id) => id !== windowId)];
+  projectSession();
+}
 
 export const wantOxy = () => {
   if (!useOxySession.getState().wanted) useOxySession.setState({ wanted: true });
@@ -52,7 +110,6 @@ function whenReady(): Promise<OxySession> {
 }
 
 export async function signInWithOxy(): Promise<boolean> {
-  if (!oxySignInAvailable()) return false;
   wantOxy();
   const session = await whenReady();
   if (session.account) return true;
@@ -61,7 +118,6 @@ export async function signInWithOxy(): Promise<boolean> {
 }
 
 export async function manageOxyAccount(): Promise<void> {
-  if (!oxySignInAvailable()) return;
   wantOxy();
   (await whenReady()).openAccountDialog?.();
 }

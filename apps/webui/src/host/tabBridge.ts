@@ -41,10 +41,10 @@ const listen = () =>
 export const startTabEvents = () => void listen();
 
 export async function watchTab(ref: string, listener: TabEventListener): Promise<{ snapshot: TabSnapshot | null; stop: () => void }> {
-  await listen();
   const set = listeners.get(ref) ?? new Set();
   set.add(listener);
   listeners.set(ref, set);
+  await listen();
   const stop = () => {
     set.delete(listener);
     if (!set.size) listeners.delete(ref);

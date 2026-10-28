@@ -97,6 +97,10 @@ export class PageChannel {
     if (ref) void callTab(ref, "callPage", { kind, json: JSON.stringify(data), ...(frame != null ? { frame } : {}) });
   }
 
+  announce() {
+    this.call("announce", {});
+  }
+
   private reset() {
     const had = this.nowPlaying.size > 0;
     this.nowPlaying.clear();

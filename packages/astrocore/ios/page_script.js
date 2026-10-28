@@ -623,8 +623,11 @@
     if (config.fieldTiming) setFieldTiming(true);
     if (config.fixedAudioPoll) fixedAudioPoll = true;
     if (config.broadThemeObserver) broadThemeObserver = true;
+    resendTheme();
   };
-  send("hello", { top: isTop, url: location.href });
+  const hello = () => send("hello", { top: isTop, url: location.href });
+  handlers.announce = hello;
+  hello();
 
   const receive = (kind, json) => {
     const handler = handlers[kind];

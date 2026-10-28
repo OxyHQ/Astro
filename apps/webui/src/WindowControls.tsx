@@ -1,10 +1,13 @@
 import { TRAFFIC_LIGHT_DIAMETER, TRAFFIC_LIGHT_SPACING, TrafficLights, useTrafficLightsCenter } from "../../demo/src/shims/web/windowChrome";
+import { windowButtonsHost } from "../../browser/src/components/layout/windowButtons";
+import { Portal, usePortalHostPresent } from "../../demo/src/shims/web/portal";
+import { AppMenuButton } from "./AppMenu";
 import { confirmWindowClose } from "./host/quit";
 import { tabHub } from "./host/tabs";
 import { pageWindowId } from "./host/windows";
 import { emitWindowEvent } from "./shims/shell";
 
-let maximized = false;
+const fillsScreen = () => window.outerWidth >= window.screen.availWidth && window.outerHeight >= window.screen.availHeight;
 
 const ACTIONS = [
   {
@@ -20,9 +23,8 @@ const ACTIONS = [
     name: "zoom",
     run: () =>
       void tabHub().then((hub) => {
-        maximized = !maximized;
-        if (maximized) hub.page.maximize();
-        else hub.page.restore();
+        if (fillsScreen()) hub.page.restore();
+        else hub.page.maximize();
       }),
   },
 ];
@@ -49,5 +51,25 @@ export function WindowControls() {
         />
       ))}
     </>
+  );
+}
+
+const passThrough = (container: HTMLElement | null) => container?.style.setProperty("pointer-events", "none");
+
+export function WindowButtons({ windowId }: { windowId: string }) {
+  const host = windowButtonsHost(windowId);
+  const inRegion = usePortalHostPresent(host);
+  const buttons = (
+    <>
+      <WindowControls />
+      <AppMenuButton />
+    </>
+  );
+  return inRegion ? (
+    <Portal host={host} containerRef={passThrough}>
+      {buttons}
+    </Portal>
+  ) : (
+    buttons
   );
 }

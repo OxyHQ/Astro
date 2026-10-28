@@ -6,6 +6,7 @@ export * from "./app";
 export * from "./live";
 export * from "./cli";
 export * from "./userScripts";
+export * from "./portal";
 
 export type BrowserCommand =
   | "newTab"
@@ -241,7 +242,6 @@ const Shell = requireNativeModule<{
   dragPreviewPage?(base64: string, frame: Rect4): Promise<void>;
   dragPreviewUpdate?(shape: DragPreviewShape, point: [number, number]): Promise<void>;
   dragPreviewCancel?(): Promise<void>;
-  raiseView?(tag: number, levels: number, raised: boolean): Promise<void>;
   dragPreviewPlaceholder?(title: string, favicon: string | null): Promise<void>;
   windowFrame?(id: string): Promise<Rect4 | null>;
   dragPreviewEnd?(windowId: string | null, frame: Rect4 | null): Promise<void>;
@@ -307,9 +307,6 @@ export const dragPreview = {
   end: (windowId: string | null = null, frame: Rect4 | null = null) => void Shell.dragPreviewEnd?.(windowId, frame),
   cancel: () => void Shell.dragPreviewCancel?.(),
   placeholder: (title: string, favicon: string | null) => void Shell.dragPreviewPlaceholder?.(title, favicon),
-};
-export const raiseView = (tag: number | null, levels: number, raised: boolean) => {
-  if (tag != null) void Shell.raiseView?.(tag, levels, raised);
 };
 export const windowFrame = (id: string): Promise<Rect4 | null> => Shell.windowFrame?.(id) ?? Promise.resolve(null);
 export const windowIds = () => Shell.windowIds();

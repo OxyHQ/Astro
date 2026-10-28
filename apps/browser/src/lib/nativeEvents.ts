@@ -1,13 +1,8 @@
-export type Bridge = {
-  __callFunction(module: string, method: string, args: unknown[]): void;
-  __invokeCallback(id: number, args: unknown[]): void;
-};
-export type Emitter = {
-  addListener(this: unknown, name: string, listener: (...args: unknown[]) => unknown): unknown;
-  removeListener(this: unknown, name: string, listener: unknown): unknown;
+export type Delivery = (event: string, run: () => void) => void;
+export type RawEvents = {
+  addListener(channel: "*", listener: (event: { eventName: string }) => void): { remove(): void };
 };
 type Options = {
-  batch: (update: () => void) => void;
   schedule: (callback: () => void) => void;
   report: (error: unknown) => void;
   transaction?: (run: () => void) => void;
@@ -26,7 +21,8 @@ export const HELD_EVENTS: ReadonlySet<string> = new Set([
   "topMediaAccess",
   "topLoadError",
 ]);
-export function createHold({ batch, schedule, report, transaction = (run) => run() }: Options) {
+
+export function createHold({ schedule, report, transaction = (run) => run() }: Options) {
   let held: (() => void)[] = [];
   let next = 0;
   let flushing = false;
@@ -47,15 +43,13 @@ export function createHold({ batch, schedule, report, transaction = (run) => run
     else {
       flushing = true;
       try {
-        batch(() => {
-          while (next < held.length) {
-            try {
-              transaction(() => drain(errors));
-            } catch (error) {
-              errors.push(error);
-            }
+        while (next < held.length) {
+          try {
+            transaction(() => drain(errors));
+          } catch (error) {
+            errors.push(error);
           }
-        });
+        }
       } finally {
         held = [];
         next = 0;
@@ -68,68 +62,30 @@ export function createHold({ batch, schedule, report, transaction = (run) => run
     if (!held.length) schedule(flush);
     held.push(run);
   };
-  return { hold, flush, batch };
+  return { hold, flush };
 }
 
-export function holdPageReports(bridge: Bridge, { hold, flush }: Hold) {
-  const call = bridge.__callFunction.bind(bridge);
-  const invoke = bridge.__invokeCallback.bind(bridge);
-  bridge.__callFunction = (module, method, args) => {
-    if (module === "RCTEventEmitter" && method === "receiveEvent" && HELD_EVENTS.has(args[1] as string)) {
-      hold(() => call(module, method, args));
-      return;
-    }
-    flush();
-    call(module, method, args);
-  };
-  bridge.__invokeCallback = (id, args) => {
-    flush();
-    invoke(id, args);
-  };
+export function holdPageReports(deliverEvents: (delivery: Delivery) => void, { hold }: Hold) {
+  deliverEvents((event, run) => (HELD_EVENTS.has(`top${event.slice(2)}`) ? hold(run) : run()));
 }
 
-export function afterHeldReports(emitter: Emitter, { flush, batch }: Hold) {
-  const add = emitter.addListener;
-  const remove = emitter.removeListener;
-  const wrapped = new WeakMap<object, Map<string, (...args: unknown[]) => unknown>>();
-  emitter.addListener = function (name, listener) {
-    if (typeof listener !== "function") return add.call(this, name, listener);
-    let byName = wrapped.get(listener);
-    if (!byName) wrapped.set(listener, (byName = new Map()));
-    let wrapper = byName.get(name);
-    if (!wrapper) {
-      wrapper = function (this: unknown, ...args: unknown[]) {
-        let result: unknown;
-        batch(() => {
-          flush();
-          result = listener.apply(this, args);
-        });
-        return result;
-      };
-      byName.set(name, wrapper);
-    }
-    return add.call(this, name, wrapper);
-  };
-  emitter.removeListener = function (name, listener) {
-    return remove.call(this, name, (typeof listener === "function" && wrapped.get(listener)?.get(name)) || listener);
-  };
+export function flushBeforeOtherEvents(events: RawEvents, { flush }: Hold) {
+  return events.addListener("*", ({ eventName }) => {
+    if (!HELD_EVENTS.has(eventName)) flush();
+  });
 }
 
 const g = globalThis as unknown as {
-  __acApplyHeldReports?: () => void;
-  __fbBatchedBridge?: Bridge;
-  expo?: { EventEmitter?: { prototype: Emitter } };
+  RN$Bridgeless?: boolean;
+  __acHeldReports?: { remove(): void };
   ErrorUtils?: { reportFatalError(error: unknown): void };
 };
-const bridge = g.__fbBatchedBridge;
-const emitter = g.expo?.EventEmitter?.prototype;
-if (!g.__acApplyHeldReports && bridge && emitter && typeof bridge.__callFunction === "function" && typeof bridge.__invokeCallback === "function") {
-  const batch = (update: () => void) => (require("react-native") as typeof import("react-native")).unstable_batchedUpdates(update);
+if (g.RN$Bridgeless === true) {
+  g.__acHeldReports?.remove();
+  const { deliverWebViewEvents } = require("@astro-browser/astrocore") as typeof import("@astro-browser/astrocore");
+  const rawEvents = (require("react-native/Libraries/Core/RawEventEmitter") as { default: RawEvents }).default;
   const transaction = (run: () => void) => (require("../store/browser") as typeof import("../store/browser")).storeTransaction(run);
-  const held = createHold({ batch, transaction, schedule: (callback) => setTimeout(callback, 0), report: (error) => g.ErrorUtils?.reportFatalError(error) });
-  holdPageReports(bridge, held);
-  afterHeldReports(emitter, held);
-  g.__acApplyHeldReports = held.flush;
+  const held = createHold({ transaction, schedule: (callback) => queueMicrotask(callback), report: (error) => g.ErrorUtils?.reportFatalError(error) });
+  holdPageReports(deliverWebViewEvents, held);
+  g.__acHeldReports = flushBeforeOtherEvents(rawEvents, held);
 }
-
-export const applyHeldReports = () => g.__acApplyHeldReports?.();

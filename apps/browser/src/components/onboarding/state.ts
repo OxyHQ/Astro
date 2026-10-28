@@ -1,6 +1,5 @@
 import { launchEnvironment, readDocument, stopIntroMusic, writeDocument } from "@astro-browser/shell";
 import { create } from "zustand";
-import { oxySignInAvailable } from "../../oxy/session";
 import { useBrowser } from "../../store/browser";
 import { resolveWindowId } from "../../store/model";
 import { pinSites } from "./sites";
@@ -10,7 +9,7 @@ export type OnboardingStep = "intro" | "defaultBrowser" | "personalize" | "impor
 
 const ALL_STEPS: OnboardingStep[] = ["intro", "defaultBrowser", "personalize", "import", "account", "pinnedTabs", "privacy", "cli", "outro"];
 
-export const onboardingSteps = () => ALL_STEPS.filter((s) => s !== "account" || oxySignInAvailable());
+export const onboardingSteps = () => ALL_STEPS;
 
 type OnboardingState = {
   windowId: string | null;

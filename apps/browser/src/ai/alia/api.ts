@@ -14,10 +14,17 @@ type AliaApiState = { api: AliaRest | null };
 
 export const useAliaRest = create<AliaApiState>()(() => ({ api: null }));
 
+const registered: { api: AliaRest }[] = [];
+
 export function registerAliaApi(api: AliaRest): () => void {
+  const entry = { api };
+  registered.push(entry);
   useAliaRest.setState({ api });
   return () => {
-    if (useAliaRest.getState().api === api) useAliaRest.setState({ api: null });
+    const index = registered.indexOf(entry);
+    if (index < 0) return;
+    registered.splice(index, 1);
+    useAliaRest.setState({ api: registered.at(-1)?.api ?? null });
   };
 }
 

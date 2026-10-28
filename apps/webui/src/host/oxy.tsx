@@ -5,8 +5,6 @@ import { oxyEndpoints as endpoints } from "./oxyEndpoints";
 
 const OxyLayer = lazy(() => import("./OxyLayer"));
 
-if (endpoints.clientId) useOxySession.setState({ available: true });
-
 let deferred = false;
 
 export function OxyHost() {

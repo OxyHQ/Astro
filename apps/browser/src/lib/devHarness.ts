@@ -55,6 +55,12 @@ export function startDevHarness() {
     get themes(): typeof import("../components/import/apply") & typeof import("../components/settings/ThemeEditor") {
       return { ...require("../components/import/apply"), ...require("../components/settings/ThemeEditor") };
     },
+    get oxy(): typeof import("../oxy/session") {
+      return require("../oxy/session");
+    },
+    get chat(): typeof import("../ai/chat/actions") & typeof import("../ai/chat/state") & typeof import("../components/chat/ChatSlots") {
+      return { ...require("../ai/chat/actions"), ...require("../ai/chat/state"), ...require("../components/chat/ChatSlots") };
+    },
     get bangs(): typeof import("../components/omnibox/bangs") {
       return require("../components/omnibox/bangs");
     },
@@ -81,6 +87,9 @@ export function startDevHarness() {
     },
     get preload(): typeof import("./preload") {
       return require("./preload");
+    },
+    get paneLayout(): typeof import("../components/layout/paneLayout").usePaneLayout {
+      return require("../components/layout/paneLayout").usePaneLayout;
     },
     get live(): { store: typeof import("../live/store"); engine: typeof import("../live/engine") } {
       return { store: require("../live/store"), engine: require("../live/engine") };

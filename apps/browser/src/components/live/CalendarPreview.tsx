@@ -40,7 +40,7 @@ export function CalendarPreview({ tabId, windowId, anchor }: { tabId: string; wi
 
   let body: React.ReactNode;
   if (access === "pending") body = <Empty text="Checking your Oxy account" />;
-  else if (!connected) body = <SignIn available={access !== "unavailable"} />;
+  else if (!connected) body = <SignIn />;
   else if (!lastFetch && loading) body = <Empty text="Loading events" />;
   else if (error && !lastFetch) body = <Empty text="Couldn't load events" />;
   else if (!today.length) body = <Empty text="No events today" />;
@@ -91,16 +91,9 @@ function Empty({ text }: { text: string }) {
   return <Text style={{ fontSize: 12.5, color: theme.textSecondary, paddingVertical: 6 }}>{text}</Text>;
 }
 
-function SignIn({ available }: { available: boolean }) {
+function SignIn() {
   const theme = useTheme();
   const { hovered, hoverProps } = useHover();
-  if (!available) {
-    return (
-      <Text style={{ fontSize: 12.5, lineHeight: 17, color: theme.textSecondary, paddingVertical: 4 }}>
-        Your meetings come from your Nilo calendar. Sign in with Oxy isn't available in this build yet.
-      </Text>
-    );
-  }
   return (
     <View {...hoverProps} style={{ paddingVertical: 4 }}>
       <Text style={{ fontSize: 12.5, lineHeight: 17, color: theme.textSecondary }}>

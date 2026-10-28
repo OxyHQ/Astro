@@ -30,7 +30,7 @@ import {
   type StoredArtifact,
 } from "../../ai/artifacts/artifacts";
 import { openChat } from "../../ai/chatEntry";
-import { signInWithOxy, useOxySession } from "../../oxy/session";
+import { signInWithOxy } from "../../oxy/session";
 import { useBrowser } from "../../store/browser";
 import { tabDestination } from "../pages/urls";
 import { ArtifactBodyView, Presenter } from "./ArtifactView";
@@ -67,7 +67,6 @@ export function ArtifactPage({ tabId }: { tabId: string }) {
   const windowId = useBrowser((s) => s.tabs[tabId]?.windowId ?? "");
   const where = parseArtifactUrl(url);
   const ready = useAliaReady();
-  const available = useOxySession((s) => s.available);
   const all = useArtifacts((s) => s.byId);
   const versions = useMemo(() => (where ? versionsOf(all, where.conversationId, where.id) : []), [all, where?.conversationId, where?.id]);
   const artifact = versions.find((v) => v.id === where?.id) ?? null;
@@ -127,8 +126,8 @@ export function ArtifactPage({ tabId }: { tabId: string }) {
   if (!where) return <Centered title="This artifact's address isn't complete." />;
   if (!ready)
     return (
-      <Centered title={available ? "Sign in with Oxy to open this artifact" : "Artifacts aren't available on this Mac yet"}>
-        {available ? { label: "Sign In with Oxy…", onPress: () => void signInWithOxy() } : undefined}
+      <Centered title="Sign in with Oxy to open this artifact">
+        {{ label: "Sign In with Oxy…", onPress: () => void signInWithOxy() }}
       </Centered>
     );
   if (!artifact) return error ? <Centered title={error} /> : <Loading variant="spinner" style={{ marginTop: 80 }} />;
