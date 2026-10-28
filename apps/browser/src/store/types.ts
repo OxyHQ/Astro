@@ -32,6 +32,7 @@ export type Profile = {
   createdAt: number;
   dataId?: string;
   theme?: ProfileTheme | null;
+  morningBrief?: { enabled: boolean; at: string } | null;
 };
 
 export type BrowserWindow = {
