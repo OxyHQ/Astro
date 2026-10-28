@@ -361,7 +361,7 @@ happened in the same turn:
 | `navigate` | loads an address in the tab, or goes back, forward or reloads |
 | `wait_for` | waits for text to appear or the page to load (15 s at most) |
 | `fill_form` | fills many fields at once: text, selects and checkboxes (below) |
-| `screenshot` | the visible part as a JPEG of 40 000 base64 characters at most; declared only once Alia can show images to the model (`IMAGE_RESULTS`, below) |
+| `screenshot` | the visible part as a JPEG of 40 000 base64 characters at most, which the model sees as an image (below) |
 
 Each action answers with the page's new snapshot, so a step is one call, not two. The calls go through one engine
 method, `devTools` on the tab (`TabBridge::CallProtocol`, `ac_tab_bridge.cc`), which sends a DevTools command to the
@@ -386,9 +386,10 @@ tab's page session and answers its whole result; only the 17 commands the tools 
   conversation and the snapshot. The question lists every field with its label and value ("Fill 5 fields on
   example.com?", Fill / Don't Fill, "Nothing is submitted."); nothing is typed before Fill, and the form isn't
   submitted: a submit is a click, which asks again.
-- **Screenshots.** Alia #917 gives the model an image result (`{ type: "image", mediaType, data, text }`), but Oxy's
-  inference edge refuses image input today (`unsupported_modality`), so `screenshot` stays undeclared
-  (`IMAGE_RESULTS = false` in `tools.ts`) until it doesn't.
+- **Screenshots.** `screenshot` answers an image result (`{ type: "image", mediaType, data, text }`, Alia #917),
+  which reaches the model as an inline image: Oxy admits image input on the routes whose Kaana catalogue bounds what
+  an image costs (Oxy ADR 0051, Kaana ADR 0007). A level with no such route answers `unsupported_modality`.
+  `IMAGE_RESULTS` in `tools.ts` declares the tool; it ships after production serves images.
 - Tested on Linux in a hidden instance against local pages (2026-10-28): a snapshot of a shop page; Add to Cart after
   "Let Alia use shop.example?"; Place Order refused, then allowed (both clicks `isTrusted`); a search submitted without
   asking; scrolling; `fill_form` on a contact form (5 fields shown and filled, the password refused, no submit until the
@@ -399,8 +400,8 @@ tab's page session and answers its whole result; only the 17 commands the tools 
 - **PDF tabs.** A tab showing a PDF (Chromium's viewer) has no page text, so Astro attaches the PDF itself to the
   message: the page fetches its own bytes (with its cookies, so a signed-in PDF works; 15 MB at most) and the file goes
   through Oxy Files like an attached one, once per conversation (`pageContext.ts` `readPdf`, `clientContext.ts`).
-  Alia reads its text; a scanned PDF's pages go to the model as images (Alia #918), which waits on the same Oxy change
-  as screenshots.
+  Alia reads its text; a scanned PDF's pages go to the model as images (Alia #918), on the same Oxy image input as
+  screenshots.
 - **Attached files.** PDF, Word, PowerPoint and Excel files (+ › Files…, drop, paste) are uploaded as they are; Alia
   #918 reads `.docx` (paragraphs and tables), `.pptx` (each slide and its notes) and `.xlsx` (each sheet as CSV).
   Astro names the type from the extension when the system doesn't (`files.ts` `mimeOf`).
