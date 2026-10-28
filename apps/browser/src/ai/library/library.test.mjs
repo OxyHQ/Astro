@@ -130,3 +130,11 @@ test("results group by day as Chat's history does", () => {
     ],
   );
 });
+
+test("previews read as text, not Markdown", async () => {
+  const { readableText } = await import("./library.ts");
+  assert.equal(
+    readableText("Hi.\n\n| Item | Value |\n| --- | --- |\n| Size | 30 |\n\n```py\nx = 1\n```\n\n## Next\n\n- See **[IANA](https://iana.org)** and `code`"),
+    "Hi. Item Value Size 30 Next See IANA and code",
+  );
+});

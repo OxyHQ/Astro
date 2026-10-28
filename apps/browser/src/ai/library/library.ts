@@ -227,6 +227,21 @@ export type ChatHit = { id: string; title: string; at: number; match: ChatMatch 
 
 const SNIPPET = 120;
 
+export function readableText(markdown: string): string {
+  return markdown
+    .replace(/```[\s\S]*?(```|$)/g, " ")
+    .replace(/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/gm, " ")
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, "")
+    .replace(/\s*\|\s*/g, " · ")
+    .replace(/(\*\*|__|\*|_|`|~~)(?=\S)([^\n]*?\S)\1/g, "$2")
+    .replace(/(^|\s)·(\s·)*(?=\s|$)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const preview = (text: string | null | undefined) => readableText(text ?? "");
+
 function snippetAround(text: string, word: string): string {
   const at = text.toLowerCase().indexOf(word);
   if (at < 0) return "";
@@ -243,7 +258,7 @@ export function searchChats(conversations: readonly LibraryConversation[], index
     if (!inSpan(at, span)) continue;
     const title = c.title || "New Chat";
     if (!words.length) {
-      hits.push({ id: c.id, title, at, match: null, snippet: c.lastMessage ?? "" });
+      hits.push({ id: c.id, title, at, match: null, snippet: preview(c.lastMessage) });
       continue;
     }
     const entry = index[c.id];
@@ -254,20 +269,20 @@ export function searchChats(conversations: readonly LibraryConversation[], index
     const files = (entry?.files ?? []).map((f) => f.title).join(" ").toLowerCase();
     if (!words.every((w) => titleText.includes(w) || body.includes(w) || urlText.includes(w) || files.includes(w))) continue;
     if (words.every((w) => titleText.includes(w))) {
-      hits.push({ id: c.id, title, at, match: "title", snippet: c.lastMessage ?? "" });
+      hits.push({ id: c.id, title, at, match: "title", snippet: preview(c.lastMessage) });
       continue;
     }
     const url = urls.find((u) => words.some((w) => u.toLowerCase().includes(w)));
     const textWord = words.find((w) => !titleText.includes(w) && body.includes(w));
     if (textWord) {
-      hits.push({ id: c.id, title, at, match: "message", snippet: snippetAround(entry?.text || c.lastMessage || "", textWord) || (c.lastMessage ?? "") });
+      hits.push({ id: c.id, title, at, match: "message", snippet: snippetAround(preview(entry?.text || c.lastMessage), textWord) || preview(c.lastMessage) });
       continue;
     }
     if (url) {
       hits.push({ id: c.id, title, at, match: "url", snippet: url, url });
       continue;
     }
-    hits.push({ id: c.id, title, at, match: "file", snippet: c.lastMessage ?? "" });
+    hits.push({ id: c.id, title, at, match: "file", snippet: preview(c.lastMessage) });
   }
   return hits.sort((a, b) => b.at - a.at);
 }
