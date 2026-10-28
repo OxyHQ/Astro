@@ -10,7 +10,7 @@ import { clickConsequence, consequenceLabel, enterConsequence, hostOf, parseKey,
 import { agentStopped, beginStep, endStep } from "./session";
 import { webviews } from "../../lib/webviews";
 
-export const IMAGE_RESULTS = false;
+export const IMAGE_RESULTS = true;
 
 const TAB_ID = { type: "string", description: "The tab's id from the list of open tabs. Leave it out for the tab the person is on." };
 const REF = { type: "string", description: "An element ref from page_snapshot, like e123." };
