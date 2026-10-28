@@ -170,7 +170,14 @@ the bridge's internal DevTools client: `Page.addScriptToEvaluateOnNewDocument` i
 answers through `Runtime.addBinding` under a random name that the installer catches with a non-enumerable accessor first,
 so the page never holds the binding. `Runtime.enable` would carry bindings into new documents by itself, but it made a
 page logging 20,000 objects take 690 ms instead of 82; the bridge re-adds the binding on frame events instead and the
-page queues its messages until then. `host/pageChannel.ts` is the macOS dispatcher (`AstroCoreWebView`'s
+page queues its messages until then. The queue is sent a microtask after the binding arrives, not inside its setter:
+V8 marks a binding live in a DevTools session only once its setter returns, and a document in a new process (every
+first navigation away from about:blank or the new tab page, every cross-site one) has a new session, so the
+document's first messages (`hello`, the theme colour) were silently dropped. A page entering the back/forward cache
+queues again until the restored frame's session binds it anew. `apps/webui/scripts/page-messages.mjs` checks this in a
+hidden instance (`DISPLAY=:83 node apps/webui/scripts/page-messages.mjs --chrome <engine>`). Prerendering never runs in
+a tab: Chromium refuses it while a DevTools session is attached to the page itself rather than through its tab target
+(`PrerenderingDisabledByDevTools`), and the bridge's is. `host/pageChannel.ts` is the macOS dispatcher (`AstroCoreWebView`'s
 `didReceivePageMessage`) ported: selection (the Search popover), scroll (hiding the toolbar while scrolling), the page's
 theme colour (the toolbar tint), Now Playing and its controls (`mediaCommand` to the frame that plays), Picture in
 Picture, pinch zoom, dropped links, autoplay blocking from the site setting, and notifications.
