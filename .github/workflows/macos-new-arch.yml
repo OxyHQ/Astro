@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       arm64_key: ${{ steps.keys.outputs.arm64_key }}
+      arm64_name: ${{ steps.lookup.outputs.arm64_name }}
       arm64_run: ${{ steps.lookup.outputs.arm64_run }}
       x64_name: ${{ steps.lookup.outputs.x64_name }}
       x64_run: ${{ steps.lookup.outputs.x64_run }}
@@ -43,13 +44,19 @@ jobs:
           }
           artifacts | sort >"$RUNNER_TEMP/artifacts.tsv"
           newest() { awk -F'\t' -v want="$1" '$2 == want { run = $3 } END { print run }' "$RUNNER_TEMP/artifacts.tsv"; }
-          arm64_run=$(newest "astrocore-macos-arm64-${{ steps.keys.outputs.arm64_key }}")
+          arm64_name="astrocore-macos-arm64-${{ steps.keys.outputs.arm64_key }}"
+          arm64_run=$(newest "$arm64_name")
+          if [ -z "$arm64_run" ]; then
+            arm64=$(awk -F'\t' '$2 ~ /^astrocore-macos-arm64-/ { name = $2; run = $3 } END { print name "\t" run }' "$RUNNER_TEMP/artifacts.tsv")
+            arm64_name=$(cut -f1 <<<"$arm64") arm64_run=$(cut -f2 <<<"$arm64")
+          fi
           x64=$(awk -F'\t' '$2 ~ /^astrocore-macos-x64-/ { name = $2; run = $3 } END { print name "\t" run }' "$RUNNER_TEMP/artifacts.tsv")
+          echo "arm64_name=$arm64_name" >> "$GITHUB_OUTPUT"
           echo "arm64_run=$arm64_run" >> "$GITHUB_OUTPUT"
           echo "x64_name=$(cut -f1 <<<"$x64")" >> "$GITHUB_OUTPUT"
           echo "x64_run=$(cut -f2 <<<"$x64")" >> "$GITHUB_OUTPUT"
           {
-            echo "arm64 engine (macos-engine-arm64.yml): ${arm64_run:-none yet}"
+            echo "arm64 engine (macos-engine-arm64.yml): $([ -n "$arm64_run" ] && echo "$arm64_name from run $arm64_run" || echo "none yet")"
             echo "x86_64 engine (ci/macos-intel pipeline): ${x64:-none yet}"
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
@@ -163,7 +170,7 @@ jobs:
       - run: npm install -g "pnpm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
       - uses: actions/download-artifact@v4
         with:
-          name: astrocore-macos-arm64-${{ needs.plan.outputs.arm64_key }}
+          name: ${{ needs.plan.outputs.arm64_name }}
           path: ${{ runner.temp }}/engine
           run-id: ${{ needs.plan.outputs.arm64_run }}
           github-token: ${{ github.token }}
