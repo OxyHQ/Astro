@@ -16,7 +16,7 @@
     "@astro-browser/shaders": "workspace:*",
     "@astro-browser/shell": "workspace:*",
     "@astro-browser/sync": "workspace:*",
-    "@alia.onl/sdk": "^22.2.0",
+    "@alia.onl/sdk": "^22.5.0",
     "@oxy.so/bloom": "^15.59.0",
     "@oxy.so/core": "^7.2.0",
     "@oxy.so/services": "^13.4.0",

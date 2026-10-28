@@ -6,10 +6,9 @@ import { EmptyState } from "@oxy.so/bloom/empty-state";
 import { RiCloseLine } from "@oxy.so/bloom/icons/RiCloseLine";
 import { RiSparklingLine } from "@oxy.so/bloom/icons/RiSparklingLine";
 import { BloomThemeProvider } from "@oxy.so/bloom/theme";
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { View } from "react-native";
 import { registerAliaApi } from "../ai/alia/api";
-import { aliaPut, type LinkableOxy } from "../ai/alia/put";
 import { startOAuthReturns } from "../ai/apps/oauthReturn";
 import { closeChat, isChatTabUrl, openChatFromEntry } from "../ai/chat/actions";
 import { useChat } from "../ai/chat/state";
@@ -65,7 +64,6 @@ export function ChatHost({ windowId, aliaURL, streamFetch, children }: ChatHostP
 function AliaApiBridge({ aliaURL }: { aliaURL: string }) {
   const sdk = useAliaApi();
   const { oxyServices } = useOxy();
-  const api = useMemo(() => ({ ...sdk, put: aliaPut(oxyServices as unknown as LinkableOxy, aliaURL) }), [sdk, oxyServices, aliaURL]);
   useEffect(() => {
     const linked = oxyServices.createLinkedClient({ baseURL: aliaURL });
     const unregister = registerDictationTranscriber(aliaTranscriber(aliaURL, linked.fetch));
@@ -75,12 +73,12 @@ function AliaApiBridge({ aliaURL }: { aliaURL: string }) {
     };
   }, [oxyServices, aliaURL]);
   const account = useOxySession((s) => s.account?.id ?? null);
-  useEffect(() => registerAliaApi(api), [api]);
+  useEffect(() => registerAliaApi(sdk), [sdk]);
   useEffect(() => startOAuthReturns(), []);
   useEffect(() => {
     forgetSkills();
     if (account) void refreshSkills({ force: true });
-  }, [account, api]);
+  }, [account, sdk]);
   return null;
 }
 
