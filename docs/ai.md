@@ -291,7 +291,9 @@ connections, so a connection made in Astro works in the Alia app and back.
 | Inbox, Nilo and the other Oxy apps | first party (`oxy_<app>__*` tools) | nothing to connect: the page says so |
 | Gmail | channel account (`POST /accounts/gmail/connect`, `GET /accounts`, `DELETE /accounts/:id`) | Google's consent in a tab; Alia's callback finishes it |
 | Google Calendar, Google Drive | OAuth integrations (`GET /integrations/:service/oauth-url`, `POST /integrations/:service/complete`) | consent in a tab, finished by Astro (below) |
+| Outlook, Microsoft Teams, SharePoint and OneDrive | the same, on Microsoft Graph (`microsoft-outlook`, `microsoft-teams`, `microsoft-sharepoint`) | the same |
 | Notion, GitHub, Linear | remote MCP connectors (`POST /mcp/install { registryId }`, `POST /mcp/:id/oauth/start`, `POST /mcp/oauth/complete`) | the same |
+| Atlassian (Jira, Confluence, Loom), Trello, Figma, Canva, Zoom, Granola, Amplitude (US and EU), Salesforce | the same: each vendor's official remote MCP server | the same |
 | Slack, and Alia's other connectors | stdio MCP servers that take a token | **Set Up in Alia…** opens `alia.onl/settings/connectors` |
 
 - **Finishing OAuth.** Alia's callbacks hand the code to its web app (`alia.onl/settings/integrations?…int_oauth_code`,
@@ -299,9 +301,13 @@ connections, so a connection made in Astro works in the Alia app and back.
   addresses while a connect it started is pending (15 min, `ai/apps/oauthReturn.ts`), finishes the link itself with the
   Oxy session (Alia checks the state was issued to that person), and goes back to the Apps tab with "Connected". Only
   `https://alia.onl` matches.
-- Each app lists its accounts (Gmail and Google can have several: **Add Account**), each with **Disconnect**; a
-  connector that lost its sign-in says so and offers **Reconnect**. An integration Alia hasn't configured reads "Not
-  available yet".
+- Each app lists its accounts (Gmail, Google and Microsoft can have several: **Add Account**), each with
+  **Disconnect**; a connector that lost its sign-in says so and offers **Reconnect**. An app Alia can't connect yet
+  reads "Not available yet": an integration `GET /integrations/available` lists as not configured, or a connector
+  `GET /mcp/registry` lists with `configured: false` (Zoom, Canva and Salesforce until their vendors issue Alia a
+  client, Figma until it approves Alia, Microsoft until the Entra app exists; Alia's `docs/integrations.mdx` ›
+  Connected apps). Disconnecting a connector revokes its tokens at the vendor where the vendor allows it.
+- LinkedIn isn't offered: its API terms forbid automated posting and keep reading posts to approved partners.
 - These routes (`/skills`, `/integrations`, `/mcp`, `/accounts`, `/suggestions`) are Alia's own, outside `/v1`: they
   answer Alia's origins only to a browser, and Astro reaches them through the engine (`astroAccountFetch`, no Origin).
 - **Write actions with approval** (Dia's "Always allow for this chat") aren't possible for these apps: Alia runs every
@@ -338,8 +344,8 @@ is Expo's `expo/fetch`. On macOS Metro maps `expo-secure-store` to Astro's keych
   links, mentions, the turn context), `components/chat/highlight.test.mjs`, `components/chat/charts.test.mjs`,
   `ai/skills/skills.test.mjs` (slugs, the `/` list, `/name` parsing, the Alia routes the shelf calls),
   `ai/work/brief.test.mjs` (brief, prep, recap), `ai/artifacts/artifacts.test.mjs` (canvas results to artifacts,
-  versions, addresses, the revision request, exports), `ai/apps/apps.test.mjs` (the apps list, connecting, finishing
-  OAuth once and only after a connect) and `ai/work/suggestions.test.mjs`.
+  versions, addresses, the revision request, exports), `ai/apps/apps.test.mjs` (the apps list, which apps are
+  available, connecting, finishing OAuth once and only after a connect) and `ai/work/suggestions.test.mjs`.
 - A Windows or Linux build against a local stack: `ASTRO_OXY_API_URL`, `ASTRO_NILO_API_URL`, `ASTRO_ALIA_API_URL` and
   `ASTRO_KAANA_URL` move together (`apps/webui/vite.config.ts` refuses a mix, so a local session never reaches a
   production origin; point one you don't run at a closed port such as `http://127.0.0.1:9`). `globalThis.astro.chat` is the chat store and `astro.oxy` the session;
