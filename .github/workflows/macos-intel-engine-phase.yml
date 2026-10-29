@@ -56,6 +56,9 @@ jobs:
       - name: Unpack the tree
         if: inputs.state_run != ''
         run: scripts/ci/macos-engine-state.sh unpack "$RUNNER_TEMP/state"
+      - name: Make the build volume
+        if: inputs.state_run == ''
+        run: scripts/ci/macos-engine-state.sh mount
       - name: Sync, patch and configure Chromium
         if: inputs.state_run == ''
         run: scripts/ci/macos-engine-prepare.sh
@@ -76,6 +79,15 @@ jobs:
           path: ${{ runner.temp }}/framework
           retention-days: 30
           if-no-files-found: error
+      - name: Collect logs
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/logs"
+          cp -R "$HOME/chromium-build/logs/." "$RUNNER_TEMP/logs/" 2>/dev/null || true
+          out="$HOME/chromium-build/chromium_git/chromium/src/out/Release_GN_x64"
+          cp "$out/args.gn" "$out/.ninja_log" "$RUNNER_TEMP/logs/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/ac-free-disk.log "$RUNNER_TEMP/logs/" 2>/dev/null || true
+          df -h / > "$RUNNER_TEMP/logs/df.txt"
       - name: Pack the tree for the next phase
         id: pack
         if: always() && steps.build.outputs.status == 'running'
@@ -90,15 +102,6 @@ jobs:
           retention-days: 3
           overwrite: true
           if-no-files-found: error
-      - name: Collect logs
-        if: always()
-        run: |
-          mkdir -p "$RUNNER_TEMP/logs"
-          cp -R "$HOME/chromium-build/logs/." "$RUNNER_TEMP/logs/" 2>/dev/null || true
-          out="$HOME/chromium-build/chromium_git/chromium/src/out/Release_GN_x64"
-          cp "$out/args.gn" "$out/siso_output" "$out/siso_metrics.json" "$out/.siso_failed_targets" "$RUNNER_TEMP/logs/" 2>/dev/null || true
-          cp "$RUNNER_TEMP"/ac-free-disk.log "$RUNNER_TEMP/logs/" 2>/dev/null || true
-          df -h / > "$RUNNER_TEMP/logs/df.txt"
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v7
