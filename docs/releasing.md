@@ -112,11 +112,14 @@ smoke test's screenshot and logs (`smoke-test`) and the engine (`astrocore-macos
 so the standard runners cost nothing, and the logs and artifacts are public too: never give the workflow a secret.
 
 - **The engine** builds on `macos-15-intel` (4 vCPUs, 14 GB, about 100 GB free after
-  `scripts/ci/macos-runner-prep.sh --free-disk`) with the engine's own steps and release args, `target_cpu="x64"`
-  (`docs/engine-build.md` › "For Intel Macs"). Each job builds until 5 hours in, then packs `~/chromium-build`
-  (`scripts/ci/macos-engine-state.sh`, about 14 GB of zstd parts) for the next; up to 12 jobs (a run that runs out resumes in the next one). A run whose `engine/`
-  and offline game match an earlier run's reuses that engine (the artifact is keyed by their trees); one whose patch
-  series matches resumes the newest packed tree, with its layers updated, instead of syncing Chromium again.
+  `scripts/ci/macos-runner-prep.sh --free-disk`) with the engine's own steps and release args, `target_cpu="x64"`,
+  built with ninja (`docs/engine-build.md` › "For Intel Macs"). The tree lives on a volume in a sparse disk image;
+  each job builds until 5 hours in, then hands that image to the next (`scripts/ci/macos-engine-state.sh`, about
+  14 GB of zstd parts), up to 12 jobs, and a run that runs out leaves it for the next run. The first full build
+  (2026-10-28/29) took 8 jobs, about 33 hours of compiling: Blink's core and `chrome/browser` are the slow part
+  (15 to 25 steps a minute), the framework's ThinLTO link 66 minutes. A run whose `engine/` and offline game match an
+  earlier run's reuses that engine (the artifact is keyed by their trees); one whose patch series matches resumes the
+  newest packed tree, with its layers updated, instead of syncing Chromium again.
 - **The app** builds on `xcode-27` (Apple silicon: it needs the macOS 27 SDK, and Xcode 27 doesn't run on Intel) with
   `ARCHS=x86_64` and `AdHoc.xcconfig`, and `scripts/ci/macos-app-build.sh` packages it as `release.sh` does: licences,
   stripped and pruned engine, the same disk image. It's signed ad hoc, without the hardened runtime or entitlements:
@@ -124,7 +127,8 @@ so the standard runners cost nothing, and the logs and artifacts are public too:
   Sparkle key isn't in the build, so Settings says updates aren't set up; install a newer build by hand).
 - **The smoke test** installs the disk image into `/Applications` on a fresh `macos-15-intel` runner, starts Astro on a
   scratch profile with DevTools on, and keeps a screenshot, the app's stderr, the system log and any crash report
-  (`scripts/ci/macos-smoke-test.sh`).
+  (`scripts/ci/macos-smoke-test.sh`). The runner's VM has no GPU Chromium can use, so its log shows the GPU process
+  failing to initialize EGL and Chromium drawing in software; a real Mac doesn't.
 - **Installing it.** Download the artifact, open the disk image and drag Astro to Applications. macOS refuses to open
   it the first time ("Apple could not verify…"): click Done, then System Settings › Privacy & Security › Open Anyway
   (macOS 15 dropped the right-click › Open bypass), or run `xattr -dr com.apple.quarantine /Applications/Astro.app`.
