@@ -15,12 +15,14 @@ export CHROMIUM_VERSION=155.0.8059.84
 export HELIUM_TAG=0.19.4
 export HELIUM_DIR="$CB/helium"
 # The platform the engine is built for: this host's. Helium's platform series and our output dir follow it.
-# AC_TARGET_PLATFORM=windows cross-builds Windows from a Linux host (docs/engine-build.md › "Windows").
+# AC_TARGET_PLATFORM=windows cross-builds Windows from a Linux host (docs/engine-build.md › "Windows"); oxyos builds the
+# Linux engine for OxyOS, its own platform alone, from the same tree (docs/engine-build.md › "OxyOS").
 case "$(uname -s)/${AC_TARGET_PLATFORM:-}" in
   Darwin/) export AC_PLATFORM=macos AC_TARGET_OS=mac AC_TARGET_CPU=arm64 ;;
   Linux/) export AC_PLATFORM=linux AC_TARGET_OS=linux AC_TARGET_CPU=x64 ;;
   Linux/windows) export AC_PLATFORM=windows AC_TARGET_OS=win AC_TARGET_CPU=x64 ;;
-  *) echo "env.sh: the engine builds on macOS and Linux, and Windows from Linux, not $(uname -s)/${AC_TARGET_PLATFORM:-}" >&2; return 64 2>/dev/null || exit 64 ;;
+  Linux/oxyos) export AC_PLATFORM=oxyos AC_TARGET_OS=linux AC_TARGET_CPU=x64 ;;
+  *) echo "env.sh: the engine builds on macOS and Linux, and Windows and OxyOS from Linux, not $(uname -s)/${AC_TARGET_PLATFORM:-}" >&2; return 64 2>/dev/null || exit 64 ;;
 esac
 export HELIUM_MACOS_TAG=0.19.4.1
 export HELIUM_MACOS_DIR="$CB/helium-macos"
@@ -30,11 +32,11 @@ export HELIUM_WINDOWS_TAG=0.19.4.1
 export HELIUM_WINDOWS_DIR="$CB/helium-windows"
 case $AC_PLATFORM in
   macos) export HELIUM_PLATFORM_TAG=$HELIUM_MACOS_TAG HELIUM_PLATFORM_DIR=$HELIUM_MACOS_DIR ;;
-  linux) export HELIUM_PLATFORM_TAG=$HELIUM_LINUX_TAG HELIUM_PLATFORM_DIR=$HELIUM_LINUX_DIR ;;
+  linux | oxyos) export HELIUM_PLATFORM_TAG=$HELIUM_LINUX_TAG HELIUM_PLATFORM_DIR=$HELIUM_LINUX_DIR ;;
   windows) export HELIUM_PLATFORM_TAG=$HELIUM_WINDOWS_TAG HELIUM_PLATFORM_DIR=$HELIUM_WINDOWS_DIR ;;
 esac
-if [[ $AC_PLATFORM == windows ]]; then
-  export GN_OUT_CONFIGS="Release_GN_win_$AC_TARGET_CPU${AC_ENGINE_PROFILE:+_$AC_ENGINE_PROFILE}"
+if [[ $AC_PLATFORM == windows || $AC_PLATFORM == oxyos ]]; then
+  export GN_OUT_CONFIGS="Release_GN_${AC_PLATFORM/windows/win}_$AC_TARGET_CPU${AC_ENGINE_PROFILE:+_$AC_ENGINE_PROFILE}"
 else
   export GN_OUT_CONFIGS="Release_GN_$AC_TARGET_CPU${AC_ENGINE_PROFILE:+_$AC_ENGINE_PROFILE}"
 fi

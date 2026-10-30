@@ -1,0 +1,88 @@
+# Copyright 2026 Oxy. Apache-2.0.
+
+visibility = [ "//ui/ozone/*" ]
+
+assert(is_linux)
+
+config("oxyos_client_headers") {
+  include_dirs = [ "//third_party/oxyos_client/include" ]
+}
+
+source_set("oxyos_client") {
+  sources = [ "//third_party/oxyos_client/oxyos_client.o" ]
+  public_configs = [ ":oxyos_client_headers" ]
+}
+
+source_set("oxyos") {
+  sources = [
+    "client_native_pixmap_factory_oxyos.cc",
+    "client_native_pixmap_factory_oxyos.h",
+    "oxyos_canvas_surface.cc",
+    "oxyos_canvas_surface.h",
+    "oxyos_configure_queue.cc",
+    "oxyos_configure_queue.h",
+    "oxyos_connection.cc",
+    "oxyos_connection.h",
+    "oxyos_conversions.cc",
+    "oxyos_conversions.h",
+    "oxyos_gpu.cc",
+    "oxyos_gpu.h",
+    "oxyos_keyboard.cc",
+    "oxyos_keyboard.h",
+    "oxyos_screen.cc",
+    "oxyos_screen.h",
+    "oxyos_surface_factory.cc",
+    "oxyos_surface_factory.h",
+    "oxyos_surface_host.cc",
+    "oxyos_surface_host.h",
+    "oxyos_window.cc",
+    "oxyos_window.h",
+    "ozone_platform_oxyos.cc",
+    "ozone_platform_oxyos.h",
+  ]
+
+  defines = [ "OZONE_IMPLEMENTATION" ]
+
+  public_deps = [ ":oxyos_client" ]
+
+  deps = [
+    "mojom",
+    "//base",
+    "//mojo/public/cpp/bindings",
+    "//mojo/public/cpp/system",
+    "//skia",
+    "//ui/base",
+    "//ui/base/cursor",
+    "//ui/base/cursor/mojom:cursor_type",
+    "//ui/base/ime",
+    "//ui/display",
+    "//ui/events",
+    "//ui/events:dom_keycode_converter",
+    "//ui/events/ozone/layout",
+    "//ui/events/platform",
+    "//ui/gfx",
+    "//ui/gfx/geometry",
+    "//ui/ozone:ozone_base",
+    "//ui/ozone/common",
+    "//ui/platform_window",
+    "//ui/platform_window/wm",
+  ]
+}
+
+source_set("oxyos_unittests") {
+  testonly = true
+  sources = [
+    "oxyos_configure_queue_unittest.cc",
+    "oxyos_conversions_unittest.cc",
+    "oxyos_keyboard_unittest.cc",
+  ]
+  deps = [
+    ":oxyos",
+    "//base",
+    "//testing/gtest",
+    "//ui/base/cursor/mojom:cursor_type",
+    "//ui/events",
+    "//ui/events:dom_keycode_converter",
+    "//ui/gfx/geometry",
+  ]
+}

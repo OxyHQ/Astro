@@ -6,6 +6,7 @@ source "$(dirname "$0")/step-guard.sh" "$@"
 source "$(dirname "$0")/env.sh"
 CHROMIUM_SRC="$CB/chromium_git/chromium/src" "$(dirname "$0")/game-resource.sh" --apply
 CHROMIUM_SRC="$CB/chromium_git/chromium/src" "$(dirname "$0")/ui-resource.sh" --apply
+CHROMIUM_SRC="$CB/chromium_git/chromium/src" "$(dirname "$0")/oxyos-client.sh" --apply
 cd "$CB/chromium_git/chromium/src"
 # On macOS, AstroCore is Chrome's own framework (the app stages it from out/Release_GN_arm64); elsewhere it is chrome.
 if [[ $AC_PLATFORM == macos ]]; then default_targets=chrome_framework; else default_targets=chrome; fi

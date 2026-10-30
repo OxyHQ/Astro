@@ -1,0 +1,18 @@
+diff --git a/build/config/ui.gni b/build/config/ui.gni
+--- a/build/config/ui.gni
++++ b/build/config/ui.gni
+@@ -39,7 +39,13 @@ declare_args() {
+ 
+ assert(!use_glib || (is_linux && !is_castos))
+ 
+-use_atk = use_glib && current_toolchain == default_toolchain
++declare_args() {
++  # Astro: whether accessibility goes through ATK and AT-SPI. OxyOS has its own
++  # accessibility protocol and no AT-SPI, so its engine builds without them.
++  use_atk = use_glib
++}
++
++use_atk = use_atk && current_toolchain == default_toolchain
+ 
+ # Whether using Xvfb to provide a display server for a test might be
+ # necessary.

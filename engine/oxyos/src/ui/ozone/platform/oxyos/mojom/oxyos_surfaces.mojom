@@ -1,0 +1,30 @@
+// Copyright 2026 Oxy. Apache-2.0.
+
+module ui.ozone.mojom;
+
+import "mojo/public/mojom/base/shared_memory.mojom";
+import "ui/gfx/geometry/mojom/geometry.mojom";
+import "ui/gfx/mojom/accelerated_widget.mojom";
+
+interface OxyOSSurfaceHost {
+  CreateSurface(gfx.mojom.AcceleratedWidget widget,
+                pending_receiver<OxyOSSurface> surface,
+                pending_remote<OxyOSSurfaceClient> client);
+};
+
+interface OxyOSSurface {
+  AttachBuffer(uint32 buffer,
+               mojo_base.mojom.UnsafeSharedMemoryRegion pixels,
+               gfx.mojom.Size size);
+  DetachBuffer(uint32 buffer);
+  Present(uint32 buffer, array<gfx.mojom.Rect> damage, int64 viz_seq);
+};
+
+interface OxyOSSurfaceClient {
+  OnPresented(uint32 buffer, bool shown);
+  OnBufferReleased(uint32 buffer);
+};
+
+interface OxyOSGpu {
+  Initialize(pending_remote<OxyOSSurfaceHost> host);
+};
