@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Astro
+Icon=/opt/astro-browser/astro.png
+Exec=/opt/astro-browser/astro-browser --ozone-platform=oxyos
