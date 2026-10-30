@@ -447,6 +447,205 @@ index 3edcc9670a8ccb5eef44524e78445117d2416ed8..e6f22dcd329f680af60b323573d84e28
    _sendIdleEvents = sendIdleEvents;
    if (sendIdleEvents) {
      [self startTimers];
+diff --git a/React/Fabric/Mounting/ComponentViews/Modal/RCTModalHostViewComponentView.mm b/React/Fabric/Mounting/ComponentViews/Modal/RCTModalHostViewComponentView.mm
+index 636292b8502153545e2921a60423107bbcb77dea..8541fc8b9889a684d74bb39ebc3d94a0c3b39617 100644
+--- a/React/Fabric/Mounting/ComponentViews/Modal/RCTModalHostViewComponentView.mm
++++ b/React/Fabric/Mounting/ComponentViews/Modal/RCTModalHostViewComponentView.mm
+@@ -19,6 +19,10 @@
+ 
+ #import "RCTFabricModalHostViewController.h"
+ 
++#if TARGET_OS_OSX // [Astro: macOS has no presented view controller to host a Modal; it draws over its window's React root. Astro]
++#import <React/RCTRootComponentView.h>
++#endif // Astro]
++
+ using namespace facebook::react;
+ 
+ #if !TARGET_OS_OSX // [macOS]
+@@ -96,6 +100,38 @@ static ModalHostViewEventEmitter::OnOrientationChange onOrientationChangeStruct(
+ }
+ #endif // [macOS]
+ 
++#if TARGET_OS_OSX // [Astro: the layer a macOS Modal's children draw in, over the window's React root: it takes every click the children don't, so nothing behind the Modal is reachable, and Escape (cancelOperation:) asks the Modal to close. Astro]
++@interface RCTModalHostContainerView : RCTUIView
++@property (nonatomic, copy) void (^onCancel)(void);
++@property (nonatomic, copy) void (^onResize)(CGSize size);
++@end
++
++@implementation RCTModalHostContainerView
++
++- (BOOL)isFlipped
++{
++  return YES;
++}
++
++- (void)setFrameSize:(NSSize)newSize
++{
++  BOOL changed = !NSEqualSizes(newSize, self.frame.size);
++  [super setFrameSize:newSize];
++  if (changed && self.onResize) {
++    self.onResize(newSize);
++  }
++}
++
++- (void)cancelOperation:(id)sender
++{
++  if (self.onCancel) {
++    self.onCancel();
++  }
++}
++
++@end
++#endif // Astro]
++
+ @interface RCTModalHostViewComponentView () <RCTFabricModalHostViewControllerDelegate>
+ 
+ @property (nonatomic, weak) RCTPlatformView *accessibilityFocusedView; // [macOS]
+@@ -108,6 +144,9 @@ static ModalHostViewEventEmitter::OnOrientationChange onOrientationChangeStruct(
+   BOOL _shouldAnimatePresentation;
+   BOOL _shouldPresent;
+   BOOL _isPresented;
++#if TARGET_OS_OSX // [Astro]
++  RCTModalHostContainerView *_container;
++#endif // Astro]
+ }
+ 
+ #if !TARGET_OS_OSX // [macOS]
+@@ -325,6 +364,134 @@ static ModalHostViewEventEmitter::OnOrientationChange onOrientationChangeStruct(
+ }
+ #endif // [macOS]
+ 
++#if TARGET_OS_OSX // [Astro: a Modal on macOS. Fabric had none: the class kept RCTViewComponentView's descriptor provider (View's), so a mounted <Modal> had no view class (Bloom's dialogs and sheets are Modals). While visible and in a window, its children are mounted in a layer over the window's React root (RCTRootComponentView), laid out at the root's size through ModalHostViewState, and onShow and onDismiss are sent as on iOS; Escape sends onRequestClose. Astro]
++- (instancetype)initWithFrame:(CGRect)frame
++{
++  if (self = [super initWithFrame:frame]) {
++    _props = ModalHostViewShadowNode::defaultSharedProps();
++    _container = [[RCTModalHostContainerView alloc] initWithFrame:CGRectZero];
++    _container.wantsLayer = YES;
++    _container.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++    __weak __typeof(self) weakSelf = self;
++    _container.onCancel = ^{
++      auto eventEmitter = [weakSelf modalEventEmitter];
++      if (eventEmitter) {
++        eventEmitter->onRequestClose({});
++      }
++    };
++    _container.onResize = ^(CGSize size) {
++      [weakSelf updateStateSize:size];
++    };
++  }
++  return self;
++}
++
++- (std::shared_ptr<const ModalHostViewEventEmitter>)modalEventEmitter
++{
++  if (!_eventEmitter) {
++    return nullptr;
++  }
++  return std::static_pointer_cast<const ModalHostViewEventEmitter>(_eventEmitter);
++}
++
++- (RCTPlatformView *)hostRootView
++{
++  for (RCTPlatformView *view = self.superview; view; view = view.superview) {
++    if ([view isKindOfClass:[RCTRootComponentView class]]) {
++      return view;
++    }
++  }
++  return nil;
++}
++
++- (void)updateStateSize:(CGSize)size
++{
++  if (_state != nullptr && size.width > 0 && size.height > 0) {
++    _state->updateState(ModalHostViewState{RCTSizeFromCGSize(size)});
++  }
++}
++
++- (void)ensurePresentedOnlyIfNeeded
++{
++  RCTPlatformView *root = _shouldPresent && self.window ? [self hostRootView] : nil;
++  if (root) {
++    if (_container.superview != root) {
++      _container.frame = root.bounds;
++      [root addSubview:_container positioned:NSWindowAbove relativeTo:nil];
++    }
++    [self updateStateSize:root.bounds.size];
++    if (!_isPresented) {
++      _isPresented = YES;
++      auto eventEmitter = [self modalEventEmitter];
++      if (eventEmitter) {
++        eventEmitter->onShow(ModalHostViewEventEmitter::OnShow{});
++      }
++    }
++    return;
++  }
++  [_container removeFromSuperview];
++  if (_isPresented) {
++    _isPresented = NO;
++    auto eventEmitter = [self modalEventEmitter];
++    if (eventEmitter) {
++      eventEmitter->onDismiss(ModalHostViewEventEmitter::OnDismiss{});
++    }
++  }
++}
++
++- (void)viewDidMoveToWindow
++{
++  [super viewDidMoveToWindow];
++  [self ensurePresentedOnlyIfNeeded];
++}
++
++- (void)viewDidMoveToSuperview
++{
++  [super viewDidMoveToSuperview];
++  [self ensurePresentedOnlyIfNeeded];
++}
++
+++ (ComponentDescriptorProvider)componentDescriptorProvider
++{
++  return concreteComponentDescriptorProvider<ModalHostViewComponentDescriptor>();
++}
++
++- (void)prepareForRecycle
++{
++  [super prepareForRecycle];
++  _shouldPresent = NO;
++  [self ensurePresentedOnlyIfNeeded];
++  _state.reset();
++}
++
++- (void)updateProps:(const Props::Shared &)props oldProps:(const Props::Shared &)oldProps
++{
++  const auto &newProps = static_cast<const ModalHostViewProps &>(*props);
++  _shouldPresent = newProps.visible;
++  [super updateProps:props oldProps:oldProps];
++  [self ensurePresentedOnlyIfNeeded];
++}
++
++- (void)updateState:(const facebook::react::State::Shared &)state
++           oldState:(const facebook::react::State::Shared &)oldState
++{
++  _state = std::static_pointer_cast<const ModalHostViewShadowNode::ConcreteState>(state);
++  if (_container.superview) {
++    [self updateStateSize:_container.superview.bounds.size];
++  }
++}
++
++- (void)mountChildComponentView:(RCTUIView<RCTComponentViewProtocol> *)childComponentView index:(NSInteger)index
++{
++  [_container insertSubview:childComponentView atIndex:index];
++}
++
++- (void)unmountChildComponentView:(RCTUIView<RCTComponentViewProtocol> *)childComponentView index:(NSInteger)index
++{
++  [childComponentView removeFromSuperview];
++}
++#endif // Astro]
++
+ @end
+ 
+ #ifdef __cplusplus
 diff --git a/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm b/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm
 index a14a8641e13dd3c10f0047c1b81d15cbd789a038..255eab6684f98460de9fa694f26a09558dccd67f 100644
 --- a/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm
