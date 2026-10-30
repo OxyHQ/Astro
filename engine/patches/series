@@ -72,3 +72,4 @@ chromium chromium-astro-windows-identity.patch
 
 layer engine/chromium
 layer engine/astrocore
+layer engine/oxyos

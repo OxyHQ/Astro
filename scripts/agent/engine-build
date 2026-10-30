@@ -84,10 +84,12 @@ step() {
 [[ -d "$src/$out" ]] || { echo "engine-build: FAILED: no $src/$out (this script only builds incrementally)" >&2; exit 1; }
 step "engine/chromium/apply.sh" "$repo/engine/chromium/apply.sh"
 step "engine/astrocore/apply.sh" "$repo/engine/astrocore/apply.sh"
+step "engine/oxyos/apply.sh" "$repo/engine/oxyos/apply.sh"
 step "offline-game-pipeline/inline.py" python3 "$repo/apps/browser/assets/offline-game-pipeline/inline.py" \
   "$src/components/neterror/resources/game/game.html"
 step "engine/chromium/apply.sh --check" "$repo/engine/chromium/apply.sh" --check
 step "engine/astrocore/apply.sh --check" "$repo/engine/astrocore/apply.sh" --check
+step "engine/oxyos/apply.sh --check" "$repo/engine/oxyos/apply.sh" --check
 if [[ -n "$series_check" ]]; then
   step "engine/patches/series.py check" python3 "$repo/engine/patches/series.py" check
 fi

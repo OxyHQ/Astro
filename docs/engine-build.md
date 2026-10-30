@@ -435,6 +435,16 @@ The same steps build the engine on Linux (x64); `env.sh` picks the platform from
   picture-in-picture bounds, fade and input frame-rate hold do nothing. AstroCore's `ChromeMain` delegate stays
   macOS-only; Linux keeps Chromium's.
 - **Times** (32 cores, `dev`): steps 3 and 4 take 2 min; the first build, 2 h 13 min (57,000 actions).
+- **OxyOS** (`docs/port-windows-linux.md` › OxyOS): the layer `engine/oxyos` copies Chromium's Ozone platform `oxyos`
+  into `ui/ozone/platform/oxyos`, and `gn_defines.sh` points Chromium's hook for platforms outside its tree at it
+  (`ozone_extra_path`), so no Chromium file changes and `--ozone-platform=oxyos` selects it. Its client is OxyOS's C ABI:
+  step 5 runs `oxyos-client.sh`, which builds OxyOS's `oxyos-client-ffi` at the commit `engine/oxyos/oxyos-pin` names
+  (the checkout `OXYOS_DIR`, default `~/chromium-build/oxyos`, at that commit with no changes; cargo from rustup) and
+  links it with Chromium's `ld.lld -r` into `third_party/oxyos_client/oxyos_client.o`, whose only global symbols are
+  the ABI's (`llvm-objcopy`), so the client's Rust runtime stays private beside Chromium's; the header goes beside it.
+  GN links the object as a source, so a new pin relinks `chrome`. The platform's unit tests are `ozone_unittests
+  --gtest_filter='OxyOS*'`. Adding the platform to the `dev` build: 32 s for `chrome`, 69 s for `ozone_unittests`
+  (2026-10-30); a change to one of its files, about 17 s.
 
 ### Windows
 

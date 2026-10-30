@@ -63,6 +63,7 @@ else
     use_vaapi=true
     rtc_use_pipewire=true
     use_kerberos=false
+    'ozone_extra_path="//ui/ozone/platform/oxyos/ozone_extra.gni"'
   )
 fi
 # AC_ENGINE_PROFILE=dev: no official build, PGO or LTO, and line tables for backtraces; much faster to build and link.

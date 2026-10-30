@@ -345,6 +345,33 @@ hash, since it must match that loader. A paragraph is one HTML text whose pieces
 its own part back, as Apple's attributed strings do on macOS. The interface's CSP allows `'wasm-unsafe-eval'` and
 same-origin workers for this.
 
+## OxyOS
+
+OxyOS (Oxy's own Linux platform) has no X11 or Wayland, so Astro reaches it through an Ozone platform of its own,
+`oxyos` (`engine/oxyos/src/ui/ozone/platform/oxyos`; the design is OxyOS's ADR 0029, "Chromium on OxyOS"). Run the
+Linux engine with `--ozone-platform=oxyos` where `OXYOS_COMPOSITOR_SOCKET` names the compositor (a session sets it,
+as does OxyOS's development compositor for the program it launches): the Webium window is an OxyOS toplevel with the
+compositor's corners, shadow and edge resizing, and no frame of Chromium's.
+
+- **Windows:** the compositor configures the window's size, scale and state; each configure is applied as a
+  `PlatformWindowDelegate` state and answered by the frame viz draws for it (its sequence number), so a resize keeps
+  one configure in flight and never shows a frame of another size. `app-region: drag` moves the window with the
+  press's serial; close, minimize, zoom and full screen are the protocol's; popups (`<select>`, menus, tooltips) are
+  popup surfaces placed by Chromium's own anchor.
+- **Input:** pointer, precise scrolling and keys. Each key arrives with the text the session's layout typed with it
+  (OxyOS's `SetKeyText`), so a keydown carries its `key` and text is inserted once; text no key typed comes as
+  characters.
+- **Pixels:** Chromium's software compositing (its path without a GPU) draws in the GPU process into sealed shared
+  memory, which the browser attaches to its OxyOS connection and submits with the damage, unchanged; a swap completes
+  when the compositor presents or discards the frame. The GPU path (DMA-BUF with explicit sync) is ADR 0029's step 3.
+- **Not yet:** the GPU, an engine without the X11 and Wayland platforms (the current `chrome` needs `libX11`,
+  `libxcb` and the rest, which OxyOS never installs) and its package with the `so.oxy.astro` launch entry, the menu bar,
+  text input, the clipboard, accessibility, cursor images, drag and drop and file choosers. Chromium starts in its GPU
+  modes and falls back to software until the platform has GL.
+
+Its test is OxyOS's `tools/rn-host-spike/scenarios/astro.json` (`regress.py --client <out>/chrome`), on OxyOS's
+development compositor.
+
 ## Native surface (audit, 2026-10-24)
 
 What `apps/browser/src` calls in the native modules, and what it gets on Windows and Linux. A static pass listed every
