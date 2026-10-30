@@ -994,6 +994,21 @@ index 6e20d03f64385e3729a7517c6fb8b31f6177d52d..1788d4e1e091f4205e40a1fd050e811a
    _hasMouseOver = YES;
    [self emitMouseEvent:MouseEnter];
  }
+diff --git a/React/Fabric/Mounting/RCTComponentViewFactory.mm b/React/Fabric/Mounting/RCTComponentViewFactory.mm
+index 034f1a4c9d30a9b066ae057ebaace7e3502e1aae..a239c1d8c28c40c06c9161d943af8efe873413bc 100644
+--- a/React/Fabric/Mounting/RCTComponentViewFactory.mm
++++ b/React/Fabric/Mounting/RCTComponentViewFactory.mm
+@@ -215,6 +215,10 @@ static Class<RCTComponentViewProtocol> RCTComponentViewClassWithName(const char
+       @"ComponentView with componentHandle `%lli` (`%s`) not found.",
+       componentHandle,
+       (char *)componentHandle);
++  if (iterator == _componentViewClasses.end()) { // [Astro: Release compiles the assert out and dereferenced end(), a segfault with no name. Say which component has no view class and draw it as a plain view. Astro]
++    NSLog(@"[astro] Fabric has no view class for component `%s`", (char *)componentHandle);
++    return RCTComponentViewDescriptor{.view = [RCTViewComponentView new]};
++  }
+   auto componentViewClassDescriptor = iterator->second;
+   Class viewClass = componentViewClassDescriptor.viewClass;
+ 
 diff --git a/React/Fabric/RCTSurfaceTouchHandler.mm b/React/Fabric/RCTSurfaceTouchHandler.mm
 index 2d83643533d0edee832797e7e1c86536fec7b19f..cefe3f623e8011ea1fdf3e6f13cdd8d3ebb4d2b8 100644
 --- a/React/Fabric/RCTSurfaceTouchHandler.mm
