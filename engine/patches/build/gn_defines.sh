@@ -60,11 +60,27 @@ else
   # Chromium allows CDM host verification, storage ids and RLZ only on Windows and macOS. The rest is Helium's Linux set.
   _gn_args+=(
     use_sysroot=true
-    use_vaapi=true
     rtc_use_pipewire=true
     use_kerberos=false
     'ozone_extra_path="//ui/ozone/platform/oxyos/ozone_extra.gni"'
   )
+  if [[ $AC_PLATFORM == oxyos ]]; then
+    # OxyOS has no X11, Wayland, GTK, Qt, CUPS, VA-API or AT-SPI (its accessibility is its own protocol): its platform
+    # alone, so nothing of theirs is linked.
+    _gn_args+=(
+      'ozone_platform="oxyos"'
+      ozone_platform_x11=false
+      ozone_platform_wayland=false
+      use_gtk=false
+      use_qt5=false
+      use_qt6=false
+      use_cups=false
+      use_atk=false
+      use_vaapi=false
+    )
+  else
+    _gn_args+=(use_vaapi=true)
+  fi
 fi
 # AC_ENGINE_PROFILE=dev: no official build, PGO or LTO, and line tables for backtraces; much faster to build and link.
 if [[ ${AC_ENGINE_PROFILE:-release} == dev ]]; then

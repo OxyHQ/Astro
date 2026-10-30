@@ -69,6 +69,7 @@ chromium chromium-astro-guest-gone.patch
 chromium chromium-astro-bfcache-inner-contents.patch
 chromium chromium-astro-linux-identity.patch
 chromium chromium-astro-windows-identity.patch
+chromium chromium-astro-oxyos-no-atk.patch
 
 layer engine/chromium
 layer engine/astrocore

@@ -437,7 +437,7 @@ The same steps build the engine on Linux (x64); `env.sh` picks the platform from
 - **Times** (32 cores, `dev`): steps 3 and 4 take 2 min; the first build, 2 h 13 min (57,000 actions).
 - **OxyOS** (`docs/port-windows-linux.md` › OxyOS): the layer `engine/oxyos` copies Chromium's Ozone platform `oxyos`
   into `ui/ozone/platform/oxyos`, and `gn_defines.sh` points Chromium's hook for platforms outside its tree at it
-  (`ozone_extra_path`), so no Chromium file changes and `--ozone-platform=oxyos` selects it. Its client is OxyOS's C ABI:
+  (`ozone_extra_path`), so `--ozone-platform=oxyos` selects it with no change to Chromium's code. Its client is OxyOS's C ABI:
   step 5 runs `oxyos-client.sh`, which builds OxyOS's `oxyos-client-ffi` at the commit `engine/oxyos/oxyos-pin` names
   (the checkout `OXYOS_DIR`, default `~/chromium-build/oxyos`, at that commit with no changes; cargo from rustup) and
   links it with Chromium's `ld.lld -r` into `third_party/oxyos_client/oxyos_client.o`, whose only global symbols are
@@ -445,6 +445,14 @@ The same steps build the engine on Linux (x64); `env.sh` picks the platform from
   GN links the object as a source, so a new pin relinks `chrome`. The platform's unit tests are `ozone_unittests
   --gtest_filter='OxyOS*'`. Adding the platform to the `dev` build: 32 s for `chrome`, 69 s for `ozone_unittests`
   (2026-10-30); a change to one of its files, about 17 s.
+- **The OxyOS engine**: `AC_TARGET_PLATFORM=oxyos` (with `AC_ENGINE_PROFILE` as for Linux) builds the same tree into
+  its own output directory, `out/Release_GN_oxyos_x64` (`_dev`), with the `oxyos` platform alone: no X11 or Wayland
+  platform, GTK, Qt, CUPS, VA-API or AT-SPI (`gn_defines.sh`; `use_atk` is an argument through
+  `chromium-astro-oxyos-no-atk.patch`, false here: OxyOS's accessibility is its own protocol). Its `chrome` links no X11,
+  xcb, Wayland, GTK, Qt, ATK, Cairo, Pango or CUPS library, so it runs on OxyOS's image. Steps 2 and 5 take it as any
+  other build (`AC_TARGET_PLATFORM=oxyos AC_ENGINE_PROFILE=dev engine/patches/build/02-gn-args.sh --apply`).
+  Its first `dev` build took 2 h 40 min on the shared 32-core machine (2026-10-30), and turning AT-SPI off afterwards
+  48 min. `AC_TARGET_PLATFORM=oxyos scripts/linux-package.sh` packages it (`docs/port-windows-linux.md` › OxyOS).
 
 ### Windows
 

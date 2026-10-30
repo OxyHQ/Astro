@@ -13,7 +13,7 @@ case "${1:-}" in
 esac
 [[ -n "${CHROMIUM_SRC:-}" ]] || { echo "oxyos-client.sh: set CHROMIUM_SRC to the tree to write" >&2; exit 64; }
 source "$(dirname "$0")/env.sh"
-[[ $AC_PLATFORM == linux ]] || exit 0
+[[ $AC_PLATFORM == linux || $AC_PLATFORM == oxyos ]] || exit 0
 tree="$(cd "$CHROMIUM_SRC" 2>/dev/null && pwd -P)" || { echo "oxyos-client.sh: no tree at $CHROMIUM_SRC" >&2; exit 64; }
 out="$tree/third_party/oxyos_client"
 if ! python3 "$(dirname "$0")/pathguard.py" classify "$CHROMIUM_SRC" "$out/oxyos_client.o" >/dev/null; then
