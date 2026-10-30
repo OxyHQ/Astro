@@ -22,7 +22,7 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - '@alia.onl/sdk@22.8.0'
-  - '@oxy.so/bloom@15.59.0'
+  - '@oxy.so/bloom@15.65.0'
   - '@oxy.so/contracts@6.0.0'
   - '@oxy.so/core@7.1.0 || 7.2.0'
   - '@oxy.so/protocol@1.5.1'
