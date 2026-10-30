@@ -220,6 +220,7 @@ jobs:
 
   smoke:
     needs: app
+    if: always() && needs.app.result == 'success'
     runs-on: macos-15-intel
     timeout-minutes: 20
     steps:
