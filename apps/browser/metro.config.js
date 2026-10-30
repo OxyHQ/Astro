@@ -10,6 +10,12 @@ const config = getDefaultConfig(projectRoot);
 
 config.watchFolders = [workspaceRoot];
 config.server = { ...config.server, unstable_serverRoot: projectRoot };
+
+const reactNativeDir = path.dirname(require.resolve("react-native/package.json", { paths: [projectRoot] }));
+const reactNativeMacosDir = path.dirname(require.resolve("react-native-macos/package.json", { paths: [projectRoot] }));
+const runBeforeMain = config.serializer.getModulesRunBeforeMainModule;
+config.serializer.getModulesRunBeforeMainModule = (entryFilePath) =>
+  runBeforeMain(entryFilePath).map((file) => (file.startsWith(reactNativeDir + path.sep) ? reactNativeMacosDir + file.slice(reactNativeDir.length) : file));
 config.resolver.nodeModulesPaths = [path.resolve(projectRoot, "node_modules"), path.resolve(workspaceRoot, "node_modules")];
 config.resolver.platforms = [...new Set([...config.resolver.platforms, "macos"])];
 config.resolver.unstable_enablePackageExports = true;
