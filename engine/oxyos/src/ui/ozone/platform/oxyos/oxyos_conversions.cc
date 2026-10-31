@@ -218,6 +218,33 @@ OxyOSPositioner OxyOSPopupPositioner(const OwnedWindowAnchor& anchor,
   return positioner;
 }
 
+static_assert(kOxyOSNoMenuParent == OXYOS_NO_MENU_PARENT);
+static_assert(static_cast<uint8_t>(OxyOSMenuKind::kMenu) == OXYOS_MENU_MENU);
+static_assert(static_cast<uint8_t>(OxyOSMenuKind::kItem) == OXYOS_MENU_ITEM);
+static_assert(static_cast<uint8_t>(OxyOSMenuKind::kSubmenu) ==
+              OXYOS_MENU_SUBMENU);
+static_assert(static_cast<uint8_t>(OxyOSMenuKind::kSeparator) ==
+              OXYOS_MENU_SEPARATOR);
+static_assert(kOxyOSMenuDisabled == OXYOS_MENU_DISABLED);
+static_assert(kOxyOSMenuCheckable == OXYOS_MENU_CHECKABLE);
+static_assert(kOxyOSMenuChecked == OXYOS_MENU_CHECKED);
+
+std::vector<OxyOSMenuItem> OxyOSMenuItemsOf(
+    const std::vector<OxyOSMenuEntry>& entries) {
+  std::vector<OxyOSMenuItem> items;
+  items.reserve(entries.size());
+  for (const OxyOSMenuEntry& entry : entries) {
+    items.push_back(
+        {.parent = entry.parent,
+         .kind = static_cast<uint8_t>(entry.kind),
+         .flags = entry.flags,
+         .label = entry.label.empty() ? nullptr : entry.label.c_str(),
+         .shortcut =
+             entry.shortcut.empty() ? nullptr : entry.shortcut.c_str()});
+  }
+  return items;
+}
+
 std::string OxyOSTitle(std::u16string_view title, size_t limit) {
   std::string utf8 = base::UTF16ToUTF8(title);
   if (utf8.size() <= limit) {

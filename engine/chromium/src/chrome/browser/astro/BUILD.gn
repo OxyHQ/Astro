@@ -261,6 +261,8 @@ source_set("astro") {
 
   if (is_linux) {
     sources += [
+      "ac_menu_bar.cc",
+      "ac_menu_bar.h",
       "ac_polkit_authenticator.cc",
       "ac_polkit_authenticator.h",
       "ac_reauth.cc",
@@ -268,6 +270,8 @@ source_set("astro") {
     deps += [
       "//components/dbus",
       "//dbus",
+      "//ui/ozone/platform/oxyos:menu_bar",
+      "//ui/platform_window",
     ]
     configs += [ "//build/linux:gio_config" ]
   }

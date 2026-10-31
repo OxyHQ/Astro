@@ -2,6 +2,8 @@
 
 #include "chrome/browser/astro/ac_engine_webui.h"
 
+#include "build/build_config.h"
+
 #include <map>
 #include <memory>
 #include <optional>
@@ -43,6 +45,9 @@
 #include "chrome/browser/astro/ac_profiles.h"
 #include "chrome/browser/astro/ac_selection_menu.h"
 #include "chrome/browser/astro/ac_import.h"
+#if BUILDFLAG(IS_LINUX)
+#include "chrome/browser/astro/ac_menu_bar.h"
+#endif
 #include "chrome/browser/astro/ac_sync_files.h"
 #include "chrome/browser/astro/ac_system.h"
 #include "chrome/browser/astro/ac_tab_bridge.h"
@@ -365,6 +370,13 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     web_ui()->RegisterMessageCallback(
         "astroFetch", base::BindRepeating(&EngineWebUIHandler::HandleFetch,
                                           base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroMenuBar", base::BindRepeating(&EngineWebUIHandler::HandleMenuBar,
+                                            base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "astroEditCommand",
+        base::BindRepeating(&EngineWebUIHandler::HandleEditCommand,
+                            base::Unretained(this)));
     web_ui()->RegisterMessageCallback(
         "astroAccountFetch",
         base::BindRepeating(&EngineWebUIHandler::HandleAccountFetch,
@@ -1032,6 +1044,36 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
     if (args.size() == 1 && args[0].is_list()) {
       SetSelectionMenuItems(args[0].GetList());
     }
+  }
+
+  void HandleMenuBar(const base::ListValue& args) {
+    AllowJavascript();
+    if (args.size() != 2 || !args[1].is_list()) {
+      return;
+    }
+    bool shown = false;
+#if BUILDFLAG(IS_LINUX)
+    shown = SetWindowMenuBar(
+        web_ui()->GetWebContents(), args[1].GetList(),
+        base::BindRepeating(
+            [](base::WeakPtr<EngineWebUIHandler> self, int index) {
+              if (self) {
+                self->DeliverHostEvent(
+                    "menuBarItem", base::DictValue().Set("index", index));
+              }
+            },
+            weak_factory_.GetWeakPtr()));
+#endif
+    ResolveJavascriptCallback(args[0], base::Value(shown));
+  }
+
+  void HandleEditCommand(const base::ListValue& args) {
+    if (args.size() != 1 || !args[0].is_string()) {
+      return;
+    }
+#if BUILDFLAG(IS_LINUX)
+    RunEditCommand(web_ui()->GetWebContents(), args[0].GetString());
+#endif
   }
 
   void HandleKeyCapture(const base::ListValue& args) {
