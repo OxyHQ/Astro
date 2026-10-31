@@ -19,6 +19,7 @@
 #include "ui/gfx/gpu_fence_handle.h"
 #include "ui/gfx/native_pixmap.h"
 #include "ui/gfx/native_ui_types.h"
+#include "ui/gfx/presentation_feedback.h"
 #include "ui/gl/presenter.h"
 #include "ui/ozone/platform/oxyos/mojom/oxyos_surfaces.mojom.h"
 
@@ -108,8 +109,18 @@ class OxyOSPresenter : public gl::Presenter,
   std::string renderer_;
   std::string last_buffer_;
   OxyOSFrameLedger ledger_;
-  base::circular_deque<SwapCompletionCallback> completions_;
-  base::circular_deque<PresentationCallback> presentations_;
+  struct Pending {
+    Pending(SwapCompletionCallback completion,
+            PresentationCallback presentation);
+    Pending(Pending&&);
+    Pending& operator=(Pending&&);
+    ~Pending();
+
+    SwapCompletionCallback completion;
+    PresentationCallback presentation;
+    std::optional<gfx::PresentationFeedback> feedback;
+  };
+  base::circular_deque<Pending> pending_;
   base::TimeDelta interval_ = base::Hertz(60);
 };
 

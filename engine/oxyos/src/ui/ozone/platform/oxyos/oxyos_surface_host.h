@@ -47,6 +47,8 @@ class OxyOSSurfaceHost : public GpuPlatformSupportHost,
  private:
   const raw_ptr<OxyOSConnection> connection_;
   int host_id_ = -1;
+  bool drew_on_gpu_ = false;
+  bool gpu_buffers_lost_ = false;
   mojo::Remote<ozone::mojom::OxyOSGpu> gpu_;
   mojo::ReceiverSet<ozone::mojom::OxyOSSurfaceHost> receivers_;
   mojo::UniqueReceiverSet<ozone::mojom::OxyOSSurface> surfaces_;

@@ -6,18 +6,22 @@
 #include <linux/dma-heap.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/environment.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/numerics/checked_math.h"
 #include "base/posix/eintr_wrapper.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "components/viz/common/resources/shared_image_format.h"
@@ -39,6 +43,26 @@ constexpr base::TimeDelta kTableWait = base::Seconds(10);
 constexpr uint64_t kLinear = 0;
 constexpr uint32_t kLinearStrideAlignment = 256;
 constexpr char kLinearHeap[] = "/dev/dma_heap/system";
+constexpr char kVulkanDriversSelect[] = "VK_LOADER_DRIVERS_SELECT";
+
+void LoadOnlyThisDevicesVulkanDriver(dev_t device) {
+  std::unique_ptr<base::Environment> environment = base::Environment::Create();
+  if (environment->HasVar(kVulkanDriversSelect)) {
+    return;
+  }
+  base::FilePath driver;
+  if (!base::ReadSymbolicLink(
+          base::FilePath(base::StringPrintf("/sys/dev/char/%u:%u/device/driver",
+                                            major(device), minor(device))),
+          &driver)) {
+    return;
+  }
+  if (std::optional<std::string> icds =
+          OxyOSVulkanDriversFor(driver.BaseName().value())) {
+    environment->SetVar(kVulkanDriversSelect, *icds);
+    VLOG(1) << "OxyOS loads only the Vulkan drivers " << *icds;
+  }
+}
 
 scoped_refptr<gfx::NativePixmap> AllocateLinear(const gfx::Size& size,
                                                 viz::SharedImageFormat format) {
@@ -107,6 +131,37 @@ base::ScopedFD OxyOSOpenRenderNode(const base::FilePath& preferred) {
   return base::ScopedFD();
 }
 
+std::optional<std::string> OxyOSVulkanDriversFor(std::string_view drm_driver) {
+  static constexpr std::pair<std::string_view, std::string_view> kDrivers[] = {
+      {"i915", "*intel*"},       {"xe", "*intel*"},
+      {"amdgpu", "*radeon*"},    {"radeon", "*radeon*"},
+      {"nouveau", "*nouveau*"},  {"virtio_gpu", "*virtio*"},
+      {"msm", "*freedreno*"},    {"panfrost", "*panfrost*"},
+      {"panthor", "*panfrost*"}, {"v3d", "*broadcom*"},
+  };
+  for (const auto& [driver, icds] : kDrivers) {
+    if (driver == drm_driver) {
+      return std::string(icds);
+    }
+  }
+  return std::nullopt;
+}
+
+std::vector<uint64_t> OxyOSRenderable(
+    const std::vector<uint64_t>& offered,
+    const std::optional<std::vector<uint64_t>>& renderable) {
+  if (!renderable) {
+    return offered;
+  }
+  std::vector<uint64_t> kept;
+  for (uint64_t modifier : offered) {
+    if (std::ranges::contains(*renderable, modifier)) {
+      kept.push_back(modifier);
+    }
+  }
+  return kept;
+}
+
 std::vector<uint64_t> OxyOSModifiersFor(
     const std::vector<OxyOSGpuTableEntry>& table,
     uint32_t format) {
@@ -131,6 +186,7 @@ OxyOSGpu::OxyOSGpu()
   if (render_node_.is_valid() && fstat(render_node_.get(), &node) == 0) {
     render_device_ = node.st_rdev;
     gbm_ = CreateGbmDevice(render_node_.get());
+    LoadOnlyThisDevicesVulkanDriver(node.st_rdev);
   }
   LOG_IF(ERROR, !gbm_) << "No GBM device for OxyOS's GPU buffers";
   supports_native_pixmaps_ = gbm_ || access(kLinearHeap, R_OK) == 0;
@@ -187,12 +243,37 @@ bool OxyOSGpu::WaitForTable() {
   return true;
 }
 
+void OxyOSGpu::SetRenderableModifiers(RenderableModifiers renderable) {
+  base::AutoLock hold(lock_);
+  if (renderable_) {
+    return;
+  }
+  renderable_ = std::move(renderable);
+  rendered_.clear();
+}
+
+std::vector<uint64_t> OxyOSGpu::CandidatesFor(uint32_t fourcc) {
+  auto it = rendered_.find(fourcc);
+  if (it == rendered_.end()) {
+    it = rendered_
+             .emplace(fourcc,
+                      renderable_ ? renderable_.Run(fourcc) : std::nullopt)
+             .first;
+  }
+  std::vector<uint64_t> kept =
+      OxyOSRenderable(OxyOSModifiersFor(table_, fourcc), it->second);
+  std::erase_if(kept, [this, fourcc](uint64_t modifier) {
+    return rejected_.contains({fourcc, modifier});
+  });
+  return kept;
+}
+
 bool OxyOSGpu::CanAllocate(uint32_t fourcc) {
   if (!WaitForTable()) {
     return false;
   }
   base::AutoLock hold(lock_);
-  const std::vector<uint64_t> modifiers = OxyOSModifiersFor(table_, fourcc);
+  const std::vector<uint64_t> modifiers = CandidatesFor(fourcc);
   const bool gbm = gbm_ && gbm_->CanCreateBufferForFormat(fourcc);
   const bool linear = std::ranges::contains(modifiers, kLinear) &&
                       access(kLinearHeap, R_OK) == 0;
@@ -211,7 +292,7 @@ scoped_refptr<gfx::NativePixmap> OxyOSGpu::Allocate(
   }
   const uint32_t fourcc = GetFourCCFormatFromSharedImageFormat(format);
   base::AutoLock hold(lock_);
-  const std::vector<uint64_t> modifiers = OxyOSModifiersFor(table_, fourcc);
+  const std::vector<uint64_t> modifiers = CandidatesFor(fourcc);
   if (modifiers.empty()) {
     return nullptr;
   }
@@ -220,15 +301,29 @@ scoped_refptr<gfx::NativePixmap> OxyOSGpu::Allocate(
     if (usage == gfx::BufferUsage::SCANOUT) {
       flags |= GBM_BO_USE_SCANOUT;
     }
-    std::unique_ptr<GbmBuffer> buffer =
-        gbm_->CreateBufferWithModifiers(fourcc, size, flags, modifiers);
-    if (buffer) {
-      VLOG(1) << "OxyOS GPU buffer " << size.ToString() << " modifier "
-              << buffer->GetFormatModifier();
-      return base::MakeRefCounted<gfx::NativePixmapDmaBuf>(
-          size, format, buffer->ExportHandle());
+    std::vector<uint64_t> candidates = modifiers;
+    while (!candidates.empty()) {
+      std::unique_ptr<GbmBuffer> buffer =
+          gbm_->CreateBufferWithModifiers(fourcc, size, flags, candidates);
+      if (!buffer) {
+        break;
+      }
+      const uint64_t modifier = buffer->GetFormatModifier();
+      if (buffer->GetNumPlanes() <= format.NumberOfPlanes()) {
+        VLOG(1) << "OxyOS GPU buffer " << size.ToString() << " modifier "
+                << modifier;
+        return base::MakeRefCounted<gfx::NativePixmapDmaBuf>(
+            size, format, buffer->ExportHandle());
+      }
+      VLOG(1) << "OxyOS leaves out modifier " << modifier << ": "
+              << buffer->GetNumPlanes() << " memory planes";
+      rejected_.insert({fourcc, modifier});
+      std::erase(candidates, modifier);
     }
-    LOG(ERROR) << "GBM allocated no buffer the compositor imports";
+    if (!std::ranges::contains(modifiers, kLinear)) {
+      LOG(ERROR) << "GBM allocated no buffer the compositor imports";
+      return nullptr;
+    }
   }
   if (!std::ranges::contains(modifiers, kLinear)) {
     return nullptr;

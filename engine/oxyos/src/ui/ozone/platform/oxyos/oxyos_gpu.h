@@ -5,10 +5,17 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
+#include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_file.h"
+#include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
@@ -44,6 +51,12 @@ std::vector<OxyOSGpuTableEntry> OxyOSLinearOnly(
 
 base::ScopedFD OxyOSOpenRenderNode(const base::FilePath& preferred);
 
+std::optional<std::string> OxyOSVulkanDriversFor(std::string_view drm_driver);
+
+std::vector<uint64_t> OxyOSRenderable(
+    const std::vector<uint64_t>& offered,
+    const std::optional<std::vector<uint64_t>>& renderable);
+
 std::vector<uint64_t> OxyOSModifiersFor(
     const std::vector<OxyOSGpuTableEntry>& table,
     uint32_t format);
@@ -67,8 +80,14 @@ class OxyOSGpu : public ozone::mojom::OxyOSGpu {
       uint64_t device,
       std::vector<ozone::mojom::OxyOSGpuFormatPtr> formats) override;
 
+  using RenderableModifiers =
+      base::RepeatingCallback<std::optional<std::vector<uint64_t>>(
+          uint32_t fourcc)>;
+  void SetRenderableModifiers(RenderableModifiers renderable);
+
   bool WaitForTable();
   bool supports_native_pixmaps() const { return supports_native_pixmaps_; }
+
   int render_node() const { return render_node_.get(); }
   bool CanAllocate(uint32_t fourcc);
   scoped_refptr<gfx::NativePixmap> Allocate(const gfx::Size& size,
@@ -76,6 +95,8 @@ class OxyOSGpu : public ozone::mojom::OxyOSGpu {
                                             gfx::BufferUsage usage);
 
  private:
+  std::vector<uint64_t> CandidatesFor(uint32_t fourcc)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void Bind(mojo::PendingReceiver<ozone::mojom::OxyOSGpu> receiver);
 
   mojo::ReceiverSet<ozone::mojom::OxyOSGpu> receivers_;
@@ -90,6 +111,10 @@ class OxyOSGpu : public ozone::mojom::OxyOSGpu {
 
   mutable base::Lock lock_;
   std::vector<OxyOSGpuTableEntry> table_ GUARDED_BY(lock_);
+  RenderableModifiers renderable_ GUARDED_BY(lock_);
+  base::flat_map<uint32_t, std::optional<std::vector<uint64_t>>> rendered_
+      GUARDED_BY(lock_);
+  base::flat_set<std::pair<uint32_t, uint64_t>> rejected_ GUARDED_BY(lock_);
   bool same_device_ GUARDED_BY(lock_) = false;
 };
 
