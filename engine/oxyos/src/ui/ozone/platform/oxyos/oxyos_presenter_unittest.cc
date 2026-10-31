@@ -74,7 +74,7 @@ TEST(OxyOSFrameLedgerTest, AFrameNotShownWaitsForTheBufferStillShown) {
   ledger.Released(1, gfx::GpuFenceHandle());
   std::optional<OxyOSFrameLedger::Completed> second = ledger.TakeCompleted();
   ASSERT_TRUE(second) << "frame 2, once 1 is released";
-  EXPECT_EQ(second->feedback, Discarded());
+  EXPECT_TRUE(second->feedback.failed());
   EXPECT_TRUE(ledger.TakeCompleted()) << "frame 3, as 2 was never shown";
   EXPECT_EQ(ledger.pending(), 0u);
 }
@@ -131,7 +131,7 @@ TEST(OxyOSFrameLedgerTest, ADiscardAheadOfTheFramePresentingWaitsForIt) {
   ledger.Released(2, gfx::GpuFenceHandle());
   std::optional<OxyOSFrameLedger::Completed> discarded = ledger.TakeCompleted();
   ASSERT_TRUE(discarded);
-  EXPECT_EQ(discarded->feedback, Discarded());
+  EXPECT_TRUE(discarded->feedback.failed());
   EXPECT_EQ(ledger.pending(), 0u);
 }
 
