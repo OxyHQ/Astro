@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "oxyos_client.h"
 #include "ui/events/event_target.h"
@@ -23,6 +24,7 @@
 
 namespace ui {
 
+class BitmapCursor;
 class OxyOSConnection;
 
 class OxyOSWindow : public PlatformWindow,
@@ -110,6 +112,7 @@ class OxyOSWindow : public PlatformWindow,
   OxyOSPositioner Positioner() const;
   void SendTitle();
   void SendSizeLimits();
+  void SendCursor();
 
   const raw_ptr<PlatformWindowDelegate> delegate_;
   const raw_ptr<OxyOSConnection> connection_;
@@ -124,7 +127,7 @@ class OxyOSWindow : public PlatformWindow,
   OxyOSConfigureQueue configures_;
   gfx::Rect restored_bounds_dip_;
   std::u16string title_;
-  uint8_t pointer_shape_ = OXYOS_POINTER_ARROW;
+  scoped_refptr<BitmapCursor> cursor_;
   std::optional<gfx::Size> submitted_size_;
   std::vector<gfx::Rect> unsubmitted_damage_;
   bool created_ = false;

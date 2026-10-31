@@ -27,6 +27,8 @@ source_set("oxyos") {
     "oxyos_connection.h",
     "oxyos_conversions.cc",
     "oxyos_conversions.h",
+    "oxyos_cursor_factory.cc",
+    "oxyos_cursor_factory.h",
     "oxyos_gpu.cc",
     "oxyos_gpu.h",
     "oxyos_input_method_context.cc",
@@ -105,6 +107,7 @@ source_set("oxyos_unittests") {
     "//ui/events:dom_keycode_converter",
     "//ui/events/keycodes:xkb",
     "//ui/events/ozone/layout",
+    "//skia",
     "//ui/gfx/geometry",
     "//ui/gfx/range",
   ]

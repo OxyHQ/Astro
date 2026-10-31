@@ -51,8 +51,52 @@ TEST(OxyOSConversionsTest, CursorsBecomeTheCompositorsPointerShapes) {
             OXYOS_POINTER_GRABBING);
   EXPECT_EQ(OxyOSPointerShape(mojom::CursorType::kNoDrop),
             OXYOS_POINTER_NOT_ALLOWED);
-  EXPECT_EQ(OxyOSPointerShape(mojom::CursorType::kProgress),
-            OXYOS_POINTER_WAIT);
+  EXPECT_EQ(OxyOSPointerShape(mojom::CursorType::kDndMove), OXYOS_POINTER_MOVE);
+}
+
+TEST(OxyOSConversionsTest, CursorsOxyOSHasNoShapeForAreImages) {
+  for (mojom::CursorType type :
+       {mojom::CursorType::kProgress, mojom::CursorType::kCopy,
+        mojom::CursorType::kAlias, mojom::CursorType::kContextMenu,
+        mojom::CursorType::kCell, mojom::CursorType::kVerticalText,
+        mojom::CursorType::kMiddlePanning, mojom::CursorType::kDndLink,
+        mojom::CursorType::kNone, mojom::CursorType::kCustom}) {
+    EXPECT_EQ(OxyOSPointerShape(type), std::nullopt);
+  }
+}
+
+TEST(OxyOSConversionsTest, ACursorsBitmapIsAPremultipliedImageAtItsScale) {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(4, 2);
+  bitmap.eraseColor(SkColorSetARGB(0x80, 0xff, 0x00, 0x00));
+  std::optional<OxyOSPointerImage> image =
+      OxyOSPointerImageOf(bitmap, gfx::Point(3, 1), 2.0f);
+  ASSERT_TRUE(image);
+  EXPECT_EQ(image->width, 4u);
+  EXPECT_EQ(image->height, 2u);
+  EXPECT_EQ(image->hotspot_x, 3u);
+  EXPECT_EQ(image->hotspot_y, 1u);
+  EXPECT_EQ(image->scale_120, 240u);
+  ASSERT_EQ(image->pixels.size(), 32u);
+  EXPECT_EQ(image->pixels[0], 0x00);
+  EXPECT_EQ(image->pixels[1], 0x00);
+  EXPECT_NEAR(image->pixels[2], 0x80, 1);
+  EXPECT_EQ(image->pixels[3], 0x80);
+}
+
+TEST(OxyOSConversionsTest,
+     ACursorLargerThanAPlaneTakesIsShownSmallerAtItsSize) {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(384, 192);
+  bitmap.eraseColor(SK_ColorBLUE);
+  std::optional<OxyOSPointerImage> image =
+      OxyOSPointerImageOf(bitmap, gfx::Point(300, 0), 3.0f);
+  ASSERT_TRUE(image);
+  EXPECT_EQ(image->width, 256u);
+  EXPECT_EQ(image->height, 128u);
+  EXPECT_EQ(image->hotspot_x, 200u);
+  EXPECT_EQ(image->scale_120, 240u);
+  EXPECT_FALSE(OxyOSPointerImageOf(SkBitmap(), gfx::Point(), 1.0f));
 }
 
 TEST(OxyOSConversionsTest, AnOwnedWindowsAnchorIsThePopupsPositioner) {

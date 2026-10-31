@@ -363,6 +363,10 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   characters. Every input event carries its device's time (OxyOS's protocol v3, `time_ns`), which
   Chromium's events are stamped with, so a page's `event.timeStamp` and double clicks follow the hand, not when the
   browser read the event.
+- **Cursors:** a cursor type OxyOS has a shape for is that shape; for the others (copy, alias, a context menu, progress,
+  a cell, vertical text, panning) Chromium draws its own image, and that image, a page's custom cursor and
+  `cursor: none` (a transparent pixel) go to the compositor with their hotspot and scale (OxyOS's `SetPointerImage`).
+  Its scenario is OxyOS's `astro-cursors.json`.
 - **Text input:** a focused field is OxyOS's text input (ADR 0008): Chromium's `InputMethodAuraLinux` with an `oxyos`
   input method context tells the compositor its purpose, hints, text (without the composition, in UTF-8 bytes) and
   caret, and applies the input method's transactions (deletions, commits, compositions with their segments and cursor).
@@ -389,7 +393,7 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   install -Dm644 /opt/astro-browser/so.oxy.astro.desktop /usr/share/oxyos/applications/so.oxy.astro.desktop`: the
   session's registry then lists Astro and launches `/opt/astro-browser/astro-browser --ozone-platform=oxyos`. The
   renderer sandbox needs unprivileged user namespaces, which Debian's kernel allows.
-- **Not yet:** the GPU, the menu bar, accessibility, cursor images, drag and drop and file
+- **Not yet:** the GPU, the menu bar, accessibility, drag and drop and file
   choosers. Chromium starts in its GPU modes and falls back to software until the platform has GL.
 
 Its test is OxyOS's `tools/rn-host-spike/scenarios/astro.json` (`regress.py --client <out>/chrome`), on OxyOS's
