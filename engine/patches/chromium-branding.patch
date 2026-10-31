@@ -13,3 +13,18 @@ new file mode 100644
 +MAC_BUNDLE_ID=so.oxy.Astro
 +MAC_CREATOR_CODE=Cr24
 +MAC_TEAM_ID=XXXXXXXXXX
+diff --git a/chrome/app/theme/astro/win/BRANDING b/chrome/app/theme/astro/win/BRANDING
+new file mode 100644
+--- /dev/null
++++ b/chrome/app/theme/astro/win/BRANDING
+@@ -0,0 +1,10 @@
++COMPANY_FULLNAME=Oxy
++COMPANY_SHORTNAME=Oxy
++PRODUCT_FULLNAME=Astro
++PRODUCT_SHORTNAME=Astro
++PRODUCT_INSTALLER_FULLNAME=Astro Installer
++PRODUCT_INSTALLER_SHORTNAME=Astro Installer
++COPYRIGHT=Copyright @LASTCHANGE_YEAR@ Oxy. All rights reserved.
++MAC_BUNDLE_ID=so.oxy.Astro
++MAC_CREATOR_CODE=Cr24
++MAC_TEAM_ID=XXXXXXXXXX

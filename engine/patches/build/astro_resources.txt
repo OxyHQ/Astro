@@ -34,6 +34,8 @@ engine/patches/build/chromium-originals/chrome/app/theme/default_200_percent/com
 engine/patches/build/astro-icons/chrome/app/vector_icons/browser_logo.icon chrome/app/vector_icons/browser_logo.icon
 engine/patches/build/astro-icons/chrome/app/vector_icons/browser_logo_old.icon chrome/app/vector_icons/browser_logo_old.icon
 engine/patches/build/astro-icons/chrome/app/vector_icons/chrome_product.icon chrome/app/vector_icons/chrome_product.icon
+engine/chromium/src/chrome/app/theme/chromium/win/chromium.ico chrome/installer/mini_installer/mini_installer.ico
+engine/chromium/src/chrome/app/theme/chromium/win/chromium.ico chrome/installer/setup/setup.ico
 engine/patches/build/astro-icons/components/omnibox/browser/vector_icons/chrome_product.icon components/omnibox/browser/vector_icons/chrome_product.icon
 engine/patches/build/astro-icons/components/omnibox/browser/vector_icons/product_chrome_refresh.icon components/omnibox/browser/vector_icons/product_chrome_refresh.icon
 engine/patches/build/astro-icons/components/omnibox/browser/vector_icons/product_chrome_refresh_old.icon components/omnibox/browser/vector_icons/product_chrome_refresh_old.icon

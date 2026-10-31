@@ -56,3 +56,34 @@ diff --git a/chrome/install_static/chromium_install_modes.h b/chrome/install_sta
          .elevator_clsid = {0xD133B120,
                             0x6DB4,
                             0x4D6B,
+diff --git a/chrome/installer/util/BUILD.gn b/chrome/installer/util/BUILD.gn
+--- a/chrome/installer/util/BUILD.gn
++++ b/chrome/installer/util/BUILD.gn
+@@ -188,6 +188,7 @@ static_library("with_no_strings") {
+       "//base:i18n",
+       "//base/win:pe_image",
+       "//build:branding_buildflags",
++      "//chrome/common:version_header",  # Astro
+       "//chrome/install_static:install_static_util",
+       "//components/app_launch_prefetch",
+       "//components/base32",
+diff --git a/chrome/installer/util/install_util.cc b/chrome/installer/util/install_util.cc
+--- a/chrome/installer/util/install_util.cc
++++ b/chrome/installer/util/install_util.cc
+@@ -36,6 +36,7 @@
+ #include "base/win/windows_version.h"
+ #include "chrome/common/chrome_constants.h"
+ #include "chrome/common/chrome_paths.h"
++#include "chrome/common/chrome_version.h"  // Astro
+ #include "chrome/install_static/install_details.h"
+ #include "chrome/install_static/install_modes.h"
+ #include "chrome/install_static/install_util.h"
+@@ -576,7 +577,7 @@ std::wstring InstallUtil::GetAppDescription() {
+ 
+ // static
+ std::wstring InstallUtil::GetPublisherName() {
+-  return installer::GetLocalizedString(IDS_ABOUT_VERSION_COMPANY_NAME_BASE);
++  return L"" COMPANY_FULLNAME_STRING;  // Astro
+ }
+ 
+ // static
