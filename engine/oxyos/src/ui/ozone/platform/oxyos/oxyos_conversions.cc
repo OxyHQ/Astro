@@ -8,6 +8,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
 #include "ui/events/event_constants.h"
+#include "ui/events/event_utils.h"
 
 namespace ui {
 
@@ -123,6 +124,13 @@ uint8_t OxyOSPointerShape(mojom::CursorType type) {
       return OXYOS_POINTER_ARROW;
   }
   return OXYOS_POINTER_ARROW;
+}
+
+base::TimeTicks OxyOSEventTime(uint64_t time_ns) {
+  if (!time_ns) {
+    return EventTimeForNow();
+  }
+  return base::TimeTicks() + base::Nanoseconds(static_cast<int64_t>(time_ns));
 }
 
 int OxyOSButtonFlag(uint32_t code) {
