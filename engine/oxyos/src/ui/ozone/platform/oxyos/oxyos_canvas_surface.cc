@@ -105,7 +105,11 @@ void OxyOSCanvasSurface::PresentCanvas(const gfx::Rect& damage) {
 }
 
 std::unique_ptr<gfx::VSyncProvider> OxyOSCanvasSurface::CreateVSyncProvider() {
-  return nullptr;
+  return std::make_unique<OxyOSVSyncProvider>(refresh_);
+}
+
+void OxyOSCanvasSurface::OnRefresh(uint32_t refresh_mhz) {
+  refresh_->set_refresh_mhz(refresh_mhz);
 }
 
 bool OxyOSCanvasSurface::SupportsAsyncBufferSwap() const {

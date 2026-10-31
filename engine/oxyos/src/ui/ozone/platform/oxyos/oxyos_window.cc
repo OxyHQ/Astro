@@ -179,7 +179,7 @@ void OxyOSWindow::OnConfigure(const OxyOSEvent& event) {
   next.window_scale = OxyOSScale(event.scale_120);
   next.size_px = OxyOSBufferSize(logical, event.scale_120);
   if (is_toplevel()) {
-    next.bounds_dip = gfx::Rect(logical);
+    next.bounds_dip = gfx::Rect(ToplevelOrigin(), logical);
     configured_window_state_ = (event.flag & OXYOS_CONFIGURE_FULLSCREEN)
                                    ? PlatformWindowState::kFullScreen
                                : (event.flag & OXYOS_CONFIGURE_MAXIMIZED)
@@ -246,6 +246,33 @@ void OxyOSWindow::OnMenuItemActivated(uint32_t menus, uint32_t index) {
   if (menus == menus_serial_ && index < menus_.size() && menu_activated_) {
     menu_activated_.Run(index);
   }
+}
+
+gfx::Point OxyOSWindow::ToplevelOrigin() const {
+  OxyOSScreen* screen = connection_->screen();
+  return screen ? screen->OriginOf(output_) : gfx::Point();
+}
+
+void OxyOSWindow::OnOutput(uint32_t output) {
+  output_ = output;
+  OnOutputPlaced();
+}
+
+void OxyOSWindow::OnOutputPlaced() {
+  if (!is_toplevel() || !created_) {
+    return;
+  }
+  const gfx::Point origin = ToplevelOrigin();
+  if (state_.bounds_dip.origin() == origin) {
+    return;
+  }
+  PlatformWindowDelegate::State next = state_;
+  next.bounds_dip.set_origin(origin);
+  ApplyState(next, std::nullopt);
+}
+
+void OxyOSWindow::OnRefresh(uint32_t refresh_mhz) {
+  refresh_mhz_ = refresh_mhz;
 }
 
 void OxyOSWindow::OnLostCapture() {
@@ -335,7 +362,7 @@ void OxyOSWindow::SetBoundsInDIP(const gfx::Rect& bounds) {
   PlatformWindowDelegate::State next = state_;
   next.bounds_dip = bounds;
   if (is_toplevel()) {
-    next.bounds_dip.set_origin(gfx::Point());
+    next.bounds_dip.set_origin(ToplevelOrigin());
   }
   next.size_px = gfx::ScaleToCeiledSize(bounds.size(), scale());
   if (next == state_) {

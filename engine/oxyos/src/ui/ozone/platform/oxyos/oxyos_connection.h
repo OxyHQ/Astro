@@ -19,12 +19,13 @@
 #include "ui/gfx/native_ui_types.h"
 #include "ui/ozone/platform/oxyos/oxyos_clipboard.h"
 #include "ui/ozone/platform/oxyos/oxyos_keyboard.h"
+#include "ui/ozone/platform/oxyos/oxyos_screen.h"
 
 namespace ui {
 
 class Event;
 class OxyOSInputMethodContext;
-class OxyOSScreen;
+class OxyOSSurfaceHost;
 class OxyOSWindow;
 
 class OxyOSConnection : public PlatformEventSource,
@@ -56,6 +57,8 @@ class OxyOSConnection : public PlatformEventSource,
 
   void set_screen(OxyOSScreen* screen) { screen_ = screen; }
   OxyOSScreen* screen() const { return screen_; }
+  void set_surface_host(OxyOSSurfaceHost* host) { surface_host_ = host; }
+  const std::vector<OxyOSOutput>& outputs() const { return outputs_; }
 
   uint64_t last_press_serial() const { return last_press_serial_; }
   const gfx::PointF& pointer_location() const { return pointer_location_; }
@@ -95,6 +98,8 @@ class OxyOSConnection : public PlatformEventSource,
   void HandleText(std::string_view text, OxyOSWindow* window);
   void HandleFeedback(const OxyOSEvent& event);
   void HandleTextInput(const OxyOSEvent& event);
+  void HandleOutput(const OxyOSEvent& event);
+  void OutputsChanged();
   void HandleKeyboardLayout(const OxyOSEvent& event);
   void DispatchTo(OxyOSWindow* window, Event* event);
   void OnCompositorGone();
@@ -105,6 +110,8 @@ class OxyOSConnection : public PlatformEventSource,
   uint32_t last_surface_id_ = 0;
   base::flat_map<uint32_t, raw_ptr<OxyOSWindow>> windows_;
   raw_ptr<OxyOSScreen> screen_ = nullptr;
+  raw_ptr<OxyOSSurfaceHost> surface_host_ = nullptr;
+  std::vector<OxyOSOutput> outputs_;
 
   OxyOSKeyboard keyboard_;
   OxyOSClipboard clipboard_{this};

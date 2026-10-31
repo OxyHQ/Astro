@@ -45,6 +45,8 @@ class OxyOSWindow : public PlatformWindow,
 
   uint32_t surface() const { return surface_; }
   float scale() const { return state_.window_scale; }
+  uint32_t output() const { return output_; }
+  uint32_t refresh_mhz() const { return refresh_mhz_; }
   bool is_toplevel() const { return type_ == PlatformWindowType::kWindow; }
   bool shown() const { return created_; }
   PlatformWindowDelegate* delegate() const { return delegate_; }
@@ -58,6 +60,9 @@ class OxyOSWindow : public PlatformWindow,
   void OnCompositorCloseRequest();
   void OnLostCapture();
   void OnMenuItemActivated(uint32_t menus, uint32_t index);
+  void OnOutput(uint32_t output);
+  void OnOutputPlaced();
+  void OnRefresh(uint32_t refresh_mhz);
 
   bool SetMenus(std::vector<OxyOSMenuEntry> entries,
                 Activated activated) override;
@@ -116,6 +121,7 @@ class OxyOSWindow : public PlatformWindow,
   void ApplyState(const PlatformWindowDelegate::State& next,
                   std::optional<uint64_t> serial);
   OxyOSPositioner Positioner() const;
+  gfx::Point ToplevelOrigin() const;
   void SendTitle();
   void SendSizeLimits();
   void SendCursor();
@@ -138,6 +144,8 @@ class OxyOSWindow : public PlatformWindow,
   std::vector<OxyOSMenuEntry> menus_;
   Activated menu_activated_;
   uint32_t menus_serial_ = 0;
+  uint32_t output_ = 0;
+  uint32_t refresh_mhz_ = 0;
   std::optional<gfx::Size> submitted_size_;
   std::vector<gfx::Rect> unsubmitted_damage_;
   bool created_ = false;

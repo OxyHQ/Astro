@@ -23,6 +23,7 @@ interface OxyOSSurface {
 interface OxyOSSurfaceClient {
   OnPresented(uint32 buffer, bool shown);
   OnBufferReleased(uint32 buffer);
+  OnRefresh(uint32 refresh_mhz);
 };
 
 interface OxyOSGpu {
