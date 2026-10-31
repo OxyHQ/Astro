@@ -16,6 +16,7 @@
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 #include "ui/gfx/native_ui_types.h"
+#include "ui/ozone/platform/oxyos/oxyos_clipboard.h"
 #include "ui/ozone/platform/oxyos/oxyos_keyboard.h"
 
 namespace ui {
@@ -25,7 +26,8 @@ class OxyOSScreen;
 class OxyOSWindow;
 
 class OxyOSConnection : public PlatformEventSource,
-                        public base::MessagePumpForUI::FdWatcher {
+                        public base::MessagePumpForUI::FdWatcher,
+                        public OxyOSClipboard::Transport {
  public:
   using FeedbackCallback = base::OnceCallback<void(bool shown)>;
 
@@ -37,6 +39,7 @@ class OxyOSConnection : public PlatformEventSource,
   ~OxyOSConnection() override;
 
   OxyOSClient* client() const { return client_; }
+  OxyOSClipboard* clipboard() { return &clipboard_; }
 
   void StartProcessingEvents(base::OnceClosure shutdown);
 
@@ -63,6 +66,12 @@ class OxyOSConnection : public PlatformEventSource,
   void ForgetRelease(uint64_t buffer);
 
  private:
+  void Copy(const std::vector<std::pair<std::string, PlatformClipboard::Data>>&
+                contents) override;
+  void ClearClipboard() override;
+  base::ScopedFD Paste(uint32_t selection,
+                       const std::string& mime_type) override;
+
   void OnFileCanReadWithoutBlocking(int fd) override;
   void OnFileCanWriteWithoutBlocking(int fd) override;
 
@@ -83,6 +92,7 @@ class OxyOSConnection : public PlatformEventSource,
   raw_ptr<OxyOSScreen> screen_ = nullptr;
 
   OxyOSKeyboard keyboard_;
+  OxyOSClipboard clipboard_{this};
   uint32_t pointer_surface_ = 0;
   gfx::PointF pointer_location_;
   gfx::Vector2dF scrolled_;

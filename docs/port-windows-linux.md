@@ -363,6 +363,11 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   characters. Every input event carries its device's time (OxyOS's protocol v3, `time_ns`), which
   Chromium's events are stamped with, so a page's `event.timeStamp` and double clicks follow the hand, not when the
   browser read the event.
+- **Clipboard:** Chromium's clipboard is OxyOS's (ADR 0007): a copy offers every type Chromium writes (text, HTML,
+  PNG images, web custom data, the source URL; not X11's text atoms) with the serial of the input that made it, and a
+  paste reads its type through the owner's pipe on a worker thread (5 s at most; Chromium's GLib pump never reports a
+  pipe that ends empty). `text/plain` is pasted from whichever plain text type the clipboard holds. There is no primary
+  selection, as OxyOS has none. Its scenario is OxyOS's `astro-clipboard.json`.
 - **Pixels:** Chromium's software compositing (its path without a GPU) draws in the GPU process into sealed shared
   memory, which the browser attaches to its OxyOS connection and submits with the damage, unchanged; a swap completes
   when the compositor presents or discards the frame. The GPU path (DMA-BUF with explicit sync) is ADR 0029's step 3.
@@ -376,7 +381,7 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   install -Dm644 /opt/astro-browser/so.oxy.astro.desktop /usr/share/oxyos/applications/so.oxy.astro.desktop`: the
   session's registry then lists Astro and launches `/opt/astro-browser/astro-browser --ozone-platform=oxyos`. The
   renderer sandbox needs unprivileged user namespaces, which Debian's kernel allows.
-- **Not yet:** the GPU, the menu bar, text input, the clipboard, accessibility, cursor images, drag and drop and file
+- **Not yet:** the GPU, the menu bar, text input, accessibility, cursor images, drag and drop and file
   choosers. Chromium starts in its GPU modes and falls back to software until the platform has GL.
 
 Its test is OxyOS's `tools/rn-host-spike/scenarios/astro.json` (`regress.py --client <out>/chrome`), on OxyOS's

@@ -144,6 +144,34 @@ void OxyOSConnection::ForgetRelease(uint64_t buffer) {
   releases_.erase(buffer);
 }
 
+void OxyOSConnection::Copy(
+    const std::vector<std::pair<std::string, PlatformClipboard::Data>>&
+        contents) {
+  std::vector<OxyOSClipboardEntry> entries;
+  entries.reserve(contents.size());
+  for (const auto& [type, data] : contents) {
+    entries.push_back({.mime = type.data(),
+                       .mime_length = type.size(),
+                       .data = data ? data->data() : nullptr,
+                       .length = data ? data->size() : 0});
+  }
+  if (oxyos_client_copy(client_, last_press_serial_, entries.data(),
+                        entries.size()) != 0) {
+    LOG(ERROR) << "OxyOS refused a copy: " << oxyos_last_error();
+  }
+}
+
+void OxyOSConnection::ClearClipboard() {
+  oxyos_client_clear_clipboard(client_, last_press_serial_);
+}
+
+base::ScopedFD OxyOSConnection::Paste(uint32_t selection,
+                                      const std::string& mime_type) {
+  const int fd = oxyos_client_paste(client_, selection, mime_type.data(),
+                                    mime_type.size(), last_press_serial_);
+  return base::ScopedFD(fd >= 0 ? fd : -1);
+}
+
 void OxyOSConnection::OnFileCanReadWithoutBlocking(int fd) {
   OxyOSEvent event;
   for (;;) {
@@ -224,6 +252,16 @@ void OxyOSConnection::HandleEvent(const OxyOSEvent& event) {
       break;
     case OXYOS_EVENT_FEEDBACK:
       HandleFeedback(event);
+      break;
+    case OXYOS_EVENT_CLIPBOARD_TYPES:
+      clipboard_.OnTypes(static_cast<uint32_t>(event.serial), event.detail);
+      break;
+    case OXYOS_EVENT_CLIPBOARD_TYPE:
+      clipboard_.OnType(static_cast<uint32_t>(event.serial),
+                        std::string(TextOf(event)));
+      break;
+    case OXYOS_EVENT_CLIPBOARD_EMPTY:
+      clipboard_.OnEmpty();
       break;
     case OXYOS_EVENT_RELEASED: {
       auto it = releases_.find(event.serial);
