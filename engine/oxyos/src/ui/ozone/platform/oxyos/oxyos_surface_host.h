@@ -41,6 +41,8 @@ class OxyOSSurfaceHost : public GpuPlatformSupportHost,
       mojo::PendingRemote<ozone::mojom::OxyOSSurfaceClient> client) override;
 
   void OnRefresh(gfx::AcceleratedWidget widget, uint32_t refresh_mhz);
+  void OnGpuTable();
+  void NameRenderNode();
 
  private:
   const raw_ptr<OxyOSConnection> connection_;
