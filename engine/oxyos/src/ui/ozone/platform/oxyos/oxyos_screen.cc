@@ -4,8 +4,11 @@
 
 #include <algorithm>
 
+#include "components/viz/common/resources/shared_image_format.h"
 #include "ui/display/display.h"
 #include "ui/display/display_finder.h"
+#include "ui/gfx/color_space.h"
+#include "ui/gfx/display_color_spaces.h"
 #include "ui/gfx/geometry/point_conversions.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/vector2d_conversions.h"
@@ -19,9 +22,18 @@ namespace {
 constexpr int64_t kDisplayId = 1;
 constexpr gfx::Size kUnconfiguredSize(1280, 800);
 
+void UseCompositorFormats(display::Display& display) {
+  gfx::DisplayColorSpaces color_spaces(gfx::ColorSpace::CreateSRGB(),
+                                       viz::SinglePlaneFormat::kBGRA_8888);
+  color_spaces.SetOutputFormats(viz::SinglePlaneFormat::kBGRX_8888,
+                                viz::SinglePlaneFormat::kBGRA_8888);
+  display.SetColorSpaces(color_spaces);
+}
+
 display::Display MakeDisplay(const gfx::Size& logical, float scale) {
   display::Display display(kDisplayId, gfx::Rect(logical));
   display.set_device_scale_factor(scale);
+  UseCompositorFormats(display);
   return display;
 }
 
@@ -37,6 +49,7 @@ std::vector<display::Display> OxyOSDisplaysOf(
     display::Display display(output.id,
                              gfx::Rect(gfx::Point(x, 0), output.size));
     display.set_device_scale_factor(output.scale_120 / 120.0f);
+    UseCompositorFormats(display);
     display.set_display_frequency(output.refresh_mhz / 1000.0f);
     if (output.work_area) {
       display.set_work_area(*output.work_area + gfx::Vector2d(x, 0));

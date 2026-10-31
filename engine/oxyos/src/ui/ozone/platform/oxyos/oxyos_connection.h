@@ -78,7 +78,8 @@ class OxyOSConnection : public PlatformEventSource,
   void ExpectFeedback(OxyOSWindow* window,
                       int64_t sequence,
                       FeedbackCallback callback);
-  void WatchRelease(uint64_t buffer, base::RepeatingClosure released);
+  using BufferCallback = base::RepeatingCallback<void(bool failed)>;
+  void WatchRelease(uint64_t buffer, BufferCallback released);
   void ForgetRelease(uint64_t buffer);
 
  private:
@@ -130,7 +131,7 @@ class OxyOSConnection : public PlatformEventSource,
     FeedbackCallback callback;
   };
   base::flat_map<int64_t, Expected> feedback_;
-  base::flat_map<uint64_t, base::RepeatingClosure> releases_;
+  base::flat_map<uint64_t, BufferCallback> releases_;
 };
 
 }
