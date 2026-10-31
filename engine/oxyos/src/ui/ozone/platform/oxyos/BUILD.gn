@@ -29,14 +29,20 @@ source_set("oxyos") {
     "oxyos_conversions.h",
     "oxyos_gpu.cc",
     "oxyos_gpu.h",
+    "oxyos_input_method_context.cc",
+    "oxyos_input_method_context.h",
     "oxyos_keyboard.cc",
     "oxyos_keyboard.h",
+    "oxyos_keymap.cc",
+    "oxyos_keymap.h",
     "oxyos_screen.cc",
     "oxyos_screen.h",
     "oxyos_surface_factory.cc",
     "oxyos_surface_factory.h",
     "oxyos_surface_host.cc",
     "oxyos_surface_host.h",
+    "oxyos_text_input.cc",
+    "oxyos_text_input.h",
     "oxyos_window.cc",
     "oxyos_window.h",
     "ozone_platform_oxyos.cc",
@@ -44,6 +50,8 @@ source_set("oxyos") {
   ]
 
   defines = [ "OZONE_IMPLEMENTATION" ]
+
+  configs += [ "//ui/events/ozone/layout:xkbcommon" ]
 
   public_deps = [ ":oxyos_client" ]
 
@@ -58,9 +66,11 @@ source_set("oxyos") {
     "//ui/base/cursor",
     "//ui/base/cursor/mojom:cursor_type",
     "//ui/base/ime",
+    "//ui/base/ime/linux",
     "//ui/display",
     "//ui/events",
     "//ui/events:dom_keycode_converter",
+    "//ui/events/keycodes:xkb",
     "//ui/events/ozone/layout",
     "//ui/events/platform",
     "//ui/gfx",
@@ -79,7 +89,10 @@ source_set("oxyos_unittests") {
     "oxyos_configure_queue_unittest.cc",
     "oxyos_conversions_unittest.cc",
     "oxyos_keyboard_unittest.cc",
+    "oxyos_keymap_unittest.cc",
+    "oxyos_text_input_unittest.cc",
   ]
+  configs += [ "//ui/events/ozone/layout:xkbcommon" ]
   deps = [
     ":oxyos",
     "//base",
@@ -87,7 +100,12 @@ source_set("oxyos_unittests") {
     "//testing/gtest",
     "//ui/base/cursor/mojom:cursor_type",
     "//ui/events",
+    "//ui/base/ime",
+    "//ui/base/ime/linux",
     "//ui/events:dom_keycode_converter",
+    "//ui/events/keycodes:xkb",
+    "//ui/events/ozone/layout",
     "//ui/gfx/geometry",
+    "//ui/gfx/range",
   ]
 }

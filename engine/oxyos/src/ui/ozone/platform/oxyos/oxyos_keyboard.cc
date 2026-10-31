@@ -9,6 +9,7 @@
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/dom/keycode_converter.h"
 #include "ui/events/keycodes/keyboard_code_conversion.h"
+#include "ui/events/ozone/layout/keyboard_layout_engine.h"
 
 namespace ui {
 
@@ -73,6 +74,14 @@ int OxyOSKeyboard::ModifiersWith(DomCode code, bool pressed) const {
   return flags;
 }
 
+bool OxyOSKeyboard::LookUp(DomCode code,
+                           int flags,
+                           DomKey* key,
+                           KeyboardCode* key_code) const {
+  return layout_engine_ && layout_engine_->Lookup(code, flags, key, key_code) &&
+         *key != DomKey::NONE && *key != DomKey::UNIDENTIFIED;
+}
+
 OxyOSKeyboard::Typed OxyOSKeyboard::OnKey(uint32_t evdev_code,
                                           bool pressed,
                                           std::string_view typed,
@@ -103,6 +112,12 @@ OxyOSKeyboard::Typed OxyOSKeyboard::OnKey(uint32_t evdev_code,
   const std::vector<int32_t> points = CodePoints(text);
   DomKey key = DomKey::UNIDENTIFIED;
   KeyboardCode key_code = DomCodeToUsLayoutKeyboardCode(code);
+  DomKey layout_key = DomKey::UNIDENTIFIED;
+  KeyboardCode layout_key_code = VKEY_UNKNOWN;
+  const bool looked_up = LookUp(code, flags, &layout_key, &layout_key_code);
+  if (looked_up && layout_key_code != VKEY_UNKNOWN) {
+    key_code = layout_key_code;
+  }
   std::u16string left;
   bool alt_graph = false;
   if (points.size() == 1) {
@@ -113,13 +128,16 @@ OxyOSKeyboard::Typed OxyOSKeyboard::OnKey(uint32_t evdev_code,
     left = text;
   } else if (!DomCodeToNonPrintableDomKey(code, &key, &key_code)) {
     key = DomKey::UNIDENTIFIED;
-    if (flags & (EF_CONTROL_DOWN | EF_ALT_DOWN | EF_COMMAND_DOWN)) {
-      DomKey shortcut;
-      KeyboardCode shortcut_code;
-      if (DomCodeToUsLayoutDomKey(code, flags, &shortcut, &shortcut_code)) {
-        key = shortcut;
-        key_code = shortcut_code;
-      }
+    const bool shortcut =
+        flags & (EF_CONTROL_DOWN | EF_ALT_DOWN | EF_COMMAND_DOWN);
+    DomKey us_key;
+    KeyboardCode us_key_code;
+    if (looked_up && (shortcut || !layout_key.IsCharacter())) {
+      key = layout_key;
+    } else if (shortcut &&
+               DomCodeToUsLayoutDomKey(code, flags, &us_key, &us_key_code)) {
+      key = us_key;
+      key_code = us_key_code;
     }
   }
   if (alt_graph) {
