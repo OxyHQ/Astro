@@ -17,7 +17,7 @@
     "@astro-browser/shaders": "workspace:*",
     "@astro-browser/shell": "workspace:*",
     "@astro-browser/sync": "workspace:*",
-    "@oxy.so/bloom": "^15.59.0",
+    "@oxy.so/bloom": "^15.65.0",
     "lucide-react": "^0.546.0",
     "nativewind": "5.0.0-rc.0",
     "react": "19.1.4",

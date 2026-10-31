@@ -10,7 +10,7 @@ overrides:
 patchedDependencies:
   expo-constants@18.0.14: a5c4c4d37484de084292ab5f4a845e8e7f2c8326fe1446011f9df4acd1d1c217
   expo-modules-core@3.0.30: a314e5783885afc5410be439c6890b296e668ddc6f78e33eac025ac254929cb6
-  react-native-macos@0.81.9: 158a32d5f3fba8dd47ebc9e04ca86bee81c577838c0190a47d7745e9d4d53f15
+  react-native-macos@0.81.9: c1763e4ad5e65af48b9a2c154bfbfcda77ee684bc04e7eb14691d060c2369f0c
 
 importers:
 
@@ -27,7 +27,7 @@ importers:
     dependencies:
       '@alia.onl/sdk':
         specifier: ^22.8.0
-        version: 22.8.0(4f64cb6890e41d88c36cc28d7151c785)
+        version: 22.8.0(1c4dff0a3ec1eea7946de29769725ad5)
       '@astro-browser/astrocore':
         specifier: workspace:*
         version: link:../../packages/astrocore
@@ -47,14 +47,14 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       '@oxy.so/bloom':
-        specifier: ^15.59.0
-        version: 15.59.0(980d300ea6e7a453ef0f16ced1b2057e)
+        specifier: ^15.65.0
+        version: 15.65.0(980d300ea6e7a453ef0f16ced1b2057e)
       '@oxy.so/core':
         specifier: ^7.2.0
         version: 7.2.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4)))(expo-modules-core@3.0.30(patch_hash=a314e5783885afc5410be439c6890b296e668ddc6f78e33eac025ac254929cb6)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4))
       '@oxy.so/services':
         specifier: ^13.4.0
-        version: 13.4.0(ac37fcdda4019ad5edeb29e689b0a415)
+        version: 13.4.0(52b96a6c7568b2b52cfa8efe19f01cef)
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))
@@ -96,7 +96,7 @@ importers:
         version: 2.31.2(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)
       react-native-macos:
         specifier: 0.81.9
-        version: 0.81.9(patch_hash=158a32d5f3fba8dd47ebc9e04ca86bee81c577838c0190a47d7745e9d4d53f15)(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)
+        version: 0.81.9(patch_hash=c1763e4ad5e65af48b9a2c154bfbfcda77ee684bc04e7eb14691d060c2369f0c)(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)
       react-native-qrcode-svg:
         specifier: 6.3.21
         version: 6.3.21(react-native-svg@15.16.0(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4))(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)
@@ -174,8 +174,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       '@oxy.so/bloom':
-        specifier: ^15.59.0
-        version: 15.59.0(980d300ea6e7a453ef0f16ced1b2057e)
+        specifier: ^15.65.0
+        version: 15.65.0(980d300ea6e7a453ef0f16ced1b2057e)
       lucide-react:
         specifier: ^0.546.0
         version: 0.546.0(react@19.1.4)
@@ -269,7 +269,7 @@ importers:
     dependencies:
       '@alia.onl/sdk':
         specifier: ^22.8.0
-        version: 22.8.0(4f64cb6890e41d88c36cc28d7151c785)
+        version: 22.8.0(1c4dff0a3ec1eea7946de29769725ad5)
       '@astro-browser/astrocore':
         specifier: workspace:*
         version: link:../../packages/astrocore
@@ -292,14 +292,14 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sync
       '@oxy.so/bloom':
-        specifier: ^15.59.0
-        version: 15.59.0(980d300ea6e7a453ef0f16ced1b2057e)
+        specifier: ^15.65.0
+        version: 15.65.0(980d300ea6e7a453ef0f16ced1b2057e)
       '@oxy.so/core':
         specifier: ^7.2.0
         version: 7.2.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4)))(expo-modules-core@3.0.30(patch_hash=a314e5783885afc5410be439c6890b296e668ddc6f78e33eac025ac254929cb6)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4))
       '@oxy.so/services':
         specifier: ^13.4.0
-        version: 13.4.0(ac37fcdda4019ad5edeb29e689b0a415)
+        version: 13.4.0(52b96a6c7568b2b52cfa8efe19f01cef)
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))
@@ -1312,8 +1312,8 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@oxy.so/bloom@15.59.0':
-    resolution: {integrity: sha512-kJtqAVGUT7msLt6mywL/Uts4UUfEy5F98Q6cbwkTshXPsN+tGR3vGOi5BzcPsnSphCYcaPPTBHgsEhh/TlExqw==}
+  '@oxy.so/bloom@15.65.0':
+    resolution: {integrity: sha512-fqlfZvMZ2ZAnPP6WDS4qv9NVlxmcBmbclrDbX6f3dzJKGap1SWxJrh+zXWE0aivXLHmqwJ/c7rIWNAh4lJX0og==}
     peerDependencies:
       '@lottiefiles/dotlottie-react': '>=0.13.0'
       '@react-native-community/netinfo': '>=11.1.0'
@@ -4824,12 +4824,12 @@ snapshots:
 
   '@0no-co/graphql.web@1.3.4': {}
 
-  '@alia.onl/sdk@22.8.0(4f64cb6890e41d88c36cc28d7151c785)':
+  '@alia.onl/sdk@22.8.0(1c4dff0a3ec1eea7946de29769725ad5)':
     dependencies:
       '@expo/vector-icons': 15.1.1(expo-font@14.0.12(expo@54.0.37(@babel/core@7.29.7)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)(typescript@5.9.3))(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4))(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)
-      '@oxy.so/bloom': 15.59.0(980d300ea6e7a453ef0f16ced1b2057e)
+      '@oxy.so/bloom': 15.65.0(980d300ea6e7a453ef0f16ced1b2057e)
       '@oxy.so/core': 7.2.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4)))(expo-modules-core@3.0.30(patch_hash=a314e5783885afc5410be439c6890b296e668ddc6f78e33eac025ac254929cb6)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4))
-      '@oxy.so/services': 13.4.0(ac37fcdda4019ad5edeb29e689b0a415)
+      '@oxy.so/services': 13.4.0(52b96a6c7568b2b52cfa8efe19f01cef)
       '@react-native-async-storage/async-storage': 2.2.0(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))
       '@tanstack/react-query': 5.102.8(react@19.1.4)
       clsx: 2.1.1
@@ -5983,7 +5983,7 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.3
 
-  '@oxy.so/bloom@15.59.0(980d300ea6e7a453ef0f16ced1b2057e)':
+  '@oxy.so/bloom@15.65.0(980d300ea6e7a453ef0f16ced1b2057e)':
     dependencies:
       '@tanstack/react-virtual': 3.14.22(react-dom@19.1.4(react@19.1.4))(react@19.1.4)
       expo-image: 3.0.11(expo@54.0.37(@babel/core@7.29.7)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)(typescript@5.9.3))(react-native-web@0.21.4(react-dom@19.1.4(react@19.1.4))(react@19.1.4))(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)
@@ -6043,10 +6043,10 @@ snapshots:
     optionalDependencies:
       '@react-native-async-storage/async-storage': 2.2.0(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))
 
-  '@oxy.so/services@13.4.0(ac37fcdda4019ad5edeb29e689b0a415)':
+  '@oxy.so/services@13.4.0(52b96a6c7568b2b52cfa8efe19f01cef)':
     dependencies:
       '@expo/vector-icons': 15.1.1(expo-font@14.0.12(expo@54.0.37(@babel/core@7.29.7)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)(typescript@5.9.3))(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4))(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)
-      '@oxy.so/bloom': 15.59.0(980d300ea6e7a453ef0f16ced1b2057e)
+      '@oxy.so/bloom': 15.65.0(980d300ea6e7a453ef0f16ced1b2057e)
       '@oxy.so/contracts': 6.0.0
       '@oxy.so/core': 7.2.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4)))(expo-modules-core@3.0.30(patch_hash=a314e5783885afc5410be439c6890b296e668ddc6f78e33eac025ac254929cb6)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4))
       '@peable.to/sdk': 0.4.1
@@ -9014,7 +9014,7 @@ snapshots:
       react: 19.1.4
       react-native: 0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4)
 
-  react-native-macos@0.81.9(patch_hash=158a32d5f3fba8dd47ebc9e04ca86bee81c577838c0190a47d7745e9d4d53f15)(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4):
+  react-native-macos@0.81.9(patch_hash=c1763e4ad5e65af48b9a2c154bfbfcda77ee684bc04e7eb14691d060c2369f0c)(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4):
     dependencies:
       '@jest/create-cache-key-function': 29.7.0
       '@react-native-macos/virtualized-lists': 0.81.9(@types/react@19.1.17)(react-native@0.81.6(@babel/core@7.29.7)(@react-native-community/cli@20.2.0(typescript@5.9.3))(@react-native/metro-config@0.81.6(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.4))(react@19.1.4)
