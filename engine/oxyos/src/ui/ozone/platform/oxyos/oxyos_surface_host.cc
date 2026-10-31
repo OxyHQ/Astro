@@ -67,8 +67,12 @@ class Surface : public ozone::mojom::OxyOSSurface {
  public:
   Surface(OxyOSConnection* connection,
           gfx::AcceleratedWidget widget,
-          mojo::PendingRemote<ozone::mojom::OxyOSSurfaceClient> client)
-      : connection_(connection), widget_(widget), client_(std::move(client)) {}
+          mojo::PendingRemote<ozone::mojom::OxyOSSurfaceClient> client,
+          base::RepeatingClosure drew_on_gpu)
+      : connection_(connection),
+        widget_(widget),
+        client_(std::move(client)),
+        drew_on_gpu_(std::move(drew_on_gpu)) {}
   Surface(const Surface&) = delete;
   Surface& operator=(const Surface&) = delete;
 
@@ -147,6 +151,7 @@ class Surface : public ozone::mojom::OxyOSSurface {
     }
     const uint64_t buffer = static_cast<uint64_t>(attached);
     buffers_[id] = Attached{buffer, size, static_cast<uint32_t>(timeline)};
+    drew_on_gpu_.Run();
     connection_->WatchRelease(
         buffer, base::BindRepeating(&Surface::OnReleased,
                                     weak_factory_.GetWeakPtr(), id));
@@ -245,6 +250,7 @@ class Surface : public ozone::mojom::OxyOSSurface {
   const raw_ptr<OxyOSConnection> connection_;
   const gfx::AcceleratedWidget widget_;
   mojo::Remote<ozone::mojom::OxyOSSurfaceClient> client_;
+  base::RepeatingClosure drew_on_gpu_;
   base::flat_map<uint32_t, Attached> buffers_;
   base::WeakPtrFactory<Surface> weak_factory_{this};
 };
@@ -260,6 +266,7 @@ void OxyOSSurfaceHost::OnChannelDestroyed(int host_id) {
   if (host_id != host_id_) {
     return;
   }
+  gpu_buffers_lost_ = gpu_buffers_lost_ || drew_on_gpu_;
   refreshers_.clear();
   surfaces_.Clear();
   receivers_.Clear();
@@ -274,6 +281,10 @@ void OxyOSSurfaceHost::OnGpuServiceLaunched(
   receivers_.Clear();
   gpu_.reset();
   host_id_ = host_id;
+  if (gpu_buffers_lost_) {
+    LOG(WARNING) << "OxyOS composites in software: the last GPU process ended "
+                    "while drawing in GPU buffers";
+  }
   binder.Run(ozone::mojom::OxyOSGpu::Name_,
              gpu_.BindNewPipeAndPassReceiver().PassPipe());
   mojo::PendingRemote<ozone::mojom::OxyOSSurfaceHost> host;
@@ -289,7 +300,8 @@ void OxyOSSurfaceHost::OnGpuTable() {
   }
   uint64_t device = 0;
   std::vector<ozone::mojom::OxyOSGpuFormatPtr> table;
-  if (oxyos_client_gpu_device(connection_->client(), &device) == 1) {
+  if (!gpu_buffers_lost_ &&
+      oxyos_client_gpu_device(connection_->client(), &device) == 1) {
     std::vector<OxyOSGpuFormat> formats(kMaxGpuFormats);
     const int64_t count = oxyos_client_gpu_formats(
         connection_->client(), formats.data(), formats.size());
@@ -322,8 +334,10 @@ void OxyOSSurfaceHost::CreateSurface(
   if (!window) {
     return;
   }
-  auto created =
-      std::make_unique<Surface>(connection_, widget, std::move(client));
+  auto created = std::make_unique<Surface>(
+      connection_, widget, std::move(client),
+      base::BindRepeating([](bool* drew) { *drew = true; },
+                          base::Unretained(&drew_on_gpu_)));
   base::RepeatingCallback<void(uint32_t)> refresh =
       base::BindRepeating(&Surface::Refresh, created->GetWeakPtr());
   surfaces_.Add(std::move(created), std::move(surface));

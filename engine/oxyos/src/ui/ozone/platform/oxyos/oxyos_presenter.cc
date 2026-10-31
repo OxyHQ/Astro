@@ -3,10 +3,12 @@
 #include "ui/ozone/platform/oxyos/oxyos_presenter.h"
 
 #include <algorithm>
+#include <cinttypes>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/strings/stringprintf.h"
 #include "ui/gfx/gpu_fence.h"
 #include "ui/gfx/linux/drm_util_linux.h"
 #include "ui/gfx/overlay_plane_data.h"
@@ -123,10 +125,21 @@ void OxyOSPresenter::Present(SwapCompletionCallback completion_callback,
   if (!scheduled->damage.IsEmpty()) {
     damage.push_back(scheduled->damage);
   }
-  VLOG(1) << "OxyOS presents buffer " << id << " seq " << data.seq;
+  if (!announced_) {
+    if (renderer_.empty()) {
+      const GLubyte* renderer = glGetString(GL_RENDERER);
+      renderer_ = renderer ? reinterpret_cast<const char*>(renderer) : "";
+    }
+    last_buffer_ = base::StringPrintf(
+        "%s buffers, DRM format 0x%08x, modifier 0x%016" PRIx64,
+        scheduled->pixmap->GetBufferSize().ToString().c_str(),
+        GetFourCCFormatFromSharedImageFormat(
+            scheduled->pixmap->GetSharedImageFormat()),
+        scheduled->pixmap->GetFormatModifier());
+  }
   ledger_.Submitted(id);
-  completions_.push_back(std::move(completion_callback));
-  presentations_.push_back(std::move(presentation_callback));
+  pending_.emplace_back(std::move(completion_callback),
+                        std::move(presentation_callback));
   surface_->Present(id, damage, data.seq, std::move(acquire));
   ForgetUnused();
 }
@@ -136,16 +149,20 @@ void OxyOSPresenter::SetRelyOnImplicitSync() {
 }
 
 void OxyOSPresenter::OnPresented(uint32_t buffer, bool shown) {
-  if (!ledger_.Presented(buffer) || presentations_.empty()) {
+  auto frame = std::ranges::find_if(
+      pending_, [](const Pending& pending) { return !pending.feedback; });
+  if (!ledger_.Presented(buffer) || frame == pending_.end()) {
     receiver_.ReportBadMessage("OxyOS presented a frame never sent");
     return;
   }
-  PresentationCallback presentation = std::move(presentations_.front());
-  presentations_.pop_front();
-  std::move(presentation)
-      .Run(shown
-               ? gfx::PresentationFeedback(base::TimeTicks::Now(), interval_, 0)
-               : gfx::PresentationFeedback::Failure());
+  if (shown && !announced_) {
+    announced_ = true;
+    LOG(WARNING) << "OxyOS GPU path active: " << renderer_ << ", "
+                 << last_buffer_;
+  }
+  frame->feedback =
+      shown ? gfx::PresentationFeedback(base::TimeTicks::Now(), interval_, 0)
+            : gfx::PresentationFeedback::Failure();
   Complete();
 }
 
@@ -192,30 +209,41 @@ void OxyOSPresenter::ForgetUnused() {
   });
 }
 
+OxyOSPresenter::Pending::Pending(SwapCompletionCallback completion,
+                                 PresentationCallback presentation)
+    : completion(std::move(completion)),
+      presentation(std::move(presentation)) {}
+
+OxyOSPresenter::Pending::Pending(Pending&&) = default;
+
+OxyOSPresenter::Pending& OxyOSPresenter::Pending::operator=(Pending&&) =
+    default;
+
+OxyOSPresenter::Pending::~Pending() = default;
+
 void OxyOSPresenter::Complete() {
-  while (!completions_.empty()) {
+  while (!pending_.empty() && pending_.front().feedback) {
     std::optional<gfx::GpuFenceHandle> release = ledger_.TakeCompleted();
     if (!release) {
       return;
     }
-    SwapCompletionCallback completion = std::move(completions_.front());
-    completions_.pop_front();
-    std::move(completion)
+    Pending frame = std::move(pending_.front());
+    pending_.pop_front();
+    std::move(frame.completion)
         .Run(gfx::SwapCompletionResult(gfx::SwapResult::SWAP_ACK,
                                        std::move(*release)));
+    std::move(frame.presentation).Run(*frame.feedback);
   }
 }
 
 void OxyOSPresenter::OnHostGone() {
   surface_.reset();
-  while (!presentations_.empty()) {
-    std::move(presentations_.front()).Run(gfx::PresentationFeedback::Failure());
-    presentations_.pop_front();
-  }
-  while (!completions_.empty()) {
-    std::move(completions_.front())
+  while (!pending_.empty()) {
+    Pending frame = std::move(pending_.front());
+    pending_.pop_front();
+    std::move(frame.completion)
         .Run(gfx::SwapCompletionResult(gfx::SwapResult::SWAP_FAILED));
-    completions_.pop_front();
+    std::move(frame.presentation).Run(gfx::PresentationFeedback::Failure());
   }
 }
 

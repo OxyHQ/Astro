@@ -4,8 +4,10 @@
 
 #include <sys/stat.h>
 
+#include <optional>
 #include <vector>
 
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "ui/gfx/linux/drm_util_linux.h"
@@ -50,6 +52,32 @@ EGLDeviceEXT DeviceOf(int render_node) {
   return EGL_NO_DEVICE_EXT;
 }
 
+std::optional<std::vector<uint64_t>> RenderableModifiersOf(EGLDisplay display,
+                                                           uint32_t fourcc) {
+  EGLint count = 0;
+  if (!eglQueryDmaBufModifiersEXT(display, static_cast<EGLint>(fourcc), 0,
+                                  nullptr, nullptr, &count) ||
+      count < 0) {
+    return std::nullopt;
+  }
+  std::vector<EGLuint64KHR> modifiers(count);
+  std::vector<EGLBoolean> external_only(count);
+  if (count && !eglQueryDmaBufModifiersEXT(display, static_cast<EGLint>(fourcc),
+                                           count, modifiers.data(),
+                                           external_only.data(), &count)) {
+    return std::nullopt;
+  }
+  std::vector<uint64_t> renderable;
+  for (EGLint i = 0; i < count; ++i) {
+    if (!external_only[i]) {
+      renderable.push_back(modifiers[i]);
+    }
+  }
+  VLOG(1) << "OxyOS GL renders format " << fourcc << " in " << renderable.size()
+          << " of " << count << " modifiers";
+  return renderable;
+}
+
 }
 
 OxyOSGLOzone::OxyOSGLOzone(OxyOSGpu* gpu) : gpu_(gpu) {}
@@ -88,6 +116,11 @@ scoped_refptr<gl::Presenter> OxyOSGLOzone::CreateSurfacelessViewGLSurface(
     gfx::AcceleratedWidget window) {
   if (gl::IsSoftwareGLImplementation(gl::GetGLImplementationParts())) {
     return nullptr;
+  }
+  gl::GLDisplayEGL* egl = display->GetAs<gl::GLDisplayEGL>();
+  if (egl->ext->b_EGL_EXT_image_dma_buf_import_modifiers) {
+    gpu_->SetRenderableModifiers(
+        base::BindRepeating(&RenderableModifiersOf, egl->GetDisplay()));
   }
   const char* missing = nullptr;
   if (!CanImportNativePixmap(viz::SinglePlaneFormat::kBGRA_8888)) {

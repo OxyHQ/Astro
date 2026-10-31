@@ -121,4 +121,23 @@ TEST(OxyOSGpuTest, TheTableGivesAFormatsModifiersBestFirstOnce) {
   EXPECT_TRUE(OxyOSModifiersFor(table, 0x3231564e).empty());
 }
 
+TEST(OxyOSGpuTest, OnlyModifiersTheGPURendersIntoAreKeptInTheTablesOrder) {
+  const std::vector<uint64_t> offered = {0x0100000000000008, 0x0100000000000002,
+                                         0};
+  EXPECT_EQ(OxyOSRenderable(offered, std::nullopt), offered);
+  EXPECT_EQ(
+      OxyOSRenderable(offered, std::vector<uint64_t>{0, 0x0100000000000002}),
+      (std::vector<uint64_t>{0x0100000000000002, 0}));
+  EXPECT_TRUE(OxyOSRenderable(offered, std::vector<uint64_t>{}).empty());
+}
+
+TEST(OxyOSGpuTest, TheVulkanDriversLoadedAreTheRenderNodesOwn) {
+  EXPECT_EQ(OxyOSVulkanDriversFor("i915"), "*intel*");
+  EXPECT_EQ(OxyOSVulkanDriversFor("xe"), "*intel*");
+  EXPECT_EQ(OxyOSVulkanDriversFor("amdgpu"), "*radeon*");
+  EXPECT_EQ(OxyOSVulkanDriversFor("nouveau"), "*nouveau*");
+  EXPECT_EQ(OxyOSVulkanDriversFor("virtio_gpu"), "*virtio*");
+  EXPECT_EQ(OxyOSVulkanDriversFor("nvidia-drm"), std::nullopt);
+}
+
 }

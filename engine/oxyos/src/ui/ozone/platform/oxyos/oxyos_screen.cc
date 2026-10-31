@@ -25,7 +25,7 @@ constexpr gfx::Size kUnconfiguredSize(1280, 800);
 void UseCompositorFormats(display::Display& display) {
   gfx::DisplayColorSpaces color_spaces(gfx::ColorSpace::CreateSRGB(),
                                        viz::SinglePlaneFormat::kBGRA_8888);
-  color_spaces.SetOutputFormats(viz::SinglePlaneFormat::kBGRX_8888,
+  color_spaces.SetOutputFormats(viz::SinglePlaneFormat::kBGRA_8888,
                                 viz::SinglePlaneFormat::kBGRA_8888);
   display.SetColorSpaces(color_spaces);
 }
