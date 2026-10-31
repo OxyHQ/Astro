@@ -6,6 +6,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "ui/base/cursor/cursor.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
 #include "ui/base/hit_test.h"
 #include "ui/events/event.h"
@@ -63,6 +64,7 @@ OxyOSWindow::~OxyOSWindow() {
 void OxyOSWindow::Initialize() {
   if (is_toplevel()) {
     SetOxyOSMenuBar(this, this);
+    SetWmDragHandler(this, this);
   }
   connection_->AddWindow(this);
   PlatformEventSource::GetInstance()->AddPlatformEventDispatcher(this);
@@ -70,7 +72,11 @@ void OxyOSWindow::Initialize() {
 }
 
 OxyOSWindow* OxyOSWindow::parent() const {
-  return parent_widget_ ? connection_->GetWindow(parent_widget_) : nullptr;
+  if (parent_widget_) {
+    return connection_->GetWindow(parent_widget_);
+  }
+  return type_ == PlatformWindowType::kDrag ? connection_->pressed_window()
+                                            : nullptr;
 }
 
 OxyOSWindow* OxyOSWindow::root() {
@@ -97,7 +103,10 @@ OxyOSPositioner OxyOSWindow::Positioner() const {
         OwnedWindowConstraintAdjustment::kAdjustmentSlideY;
   }
   anchor.anchor_rect.Offset(-origin.x(), -origin.y());
-  return OxyOSPopupPositioner(anchor, state_.bounds_dip.size());
+  const OxyOSPositioner positioner =
+      OxyOSPopupPositioner(anchor, state_.bounds_dip.size());
+  return owner ? OxyOSAnchoredWithin(positioner, owner->GetBoundsInDIP().size())
+               : positioner;
 }
 
 void OxyOSWindow::CreateSurface() {
@@ -570,5 +579,25 @@ void OxyOSWindow::DispatchHostWindowDragMovement(
   }
   connection_->ReleasePressedButtons(this);
 }
+
+bool OxyOSWindow::StartDrag(const OSExchangeData& data,
+                            int operations,
+                            mojom::DragEventSource source,
+                            gfx::NativeCursor cursor,
+                            bool can_grab_pointer,
+                            base::OnceClosure drag_started_callback,
+                            DragFinishedCallback drag_finished_callback,
+                            LocationDelegate* location_delegate) {
+  return connection_->RunDrag(
+      this, data, operations, std::move(drag_started_callback),
+      std::move(drag_finished_callback), location_delegate);
+}
+
+void OxyOSWindow::CancelDrag() {
+  connection_->CancelDrag();
+}
+
+void OxyOSWindow::UpdateDragImage(const gfx::ImageSkia& image,
+                                  const gfx::Vector2d& offset) {}
 
 }

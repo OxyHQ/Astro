@@ -21,6 +21,7 @@
 #include "ui/platform_window/platform_window.h"
 #include "ui/platform_window/platform_window_delegate.h"
 #include "ui/platform_window/platform_window_init_properties.h"
+#include "ui/platform_window/wm/wm_drag_handler.h"
 #include "ui/platform_window/wm/wm_move_resize_handler.h"
 
 namespace ui {
@@ -32,6 +33,7 @@ class OxyOSWindow : public PlatformWindow,
                     public PlatformEventDispatcher,
                     public EventTarget,
                     public WmMoveResizeHandler,
+                    public WmDragHandler,
                     public OxyOSMenuBar {
  public:
   OxyOSWindow(PlatformWindowDelegate* delegate,
@@ -115,6 +117,18 @@ class OxyOSWindow : public PlatformWindow,
   void DispatchHostWindowDragMovement(
       int hittest,
       const gfx::Point& pointer_location_in_px) override;
+
+  bool StartDrag(const OSExchangeData& data,
+                 int operations,
+                 mojom::DragEventSource source,
+                 gfx::NativeCursor cursor,
+                 bool can_grab_pointer,
+                 base::OnceClosure drag_started_callback,
+                 DragFinishedCallback drag_finished_callback,
+                 LocationDelegate* location_delegate) override;
+  void CancelDrag() override;
+  void UpdateDragImage(const gfx::ImageSkia& image,
+                       const gfx::Vector2d& offset) override;
 
  private:
   void CreateSurface();

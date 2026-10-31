@@ -200,6 +200,25 @@ int OxyOSButtonFlag(uint32_t code) {
   return 0;
 }
 
+OxyOSPositioner OxyOSAnchoredWithin(OxyOSPositioner positioner,
+                                    const gfx::Size& parent) {
+  const int64_t width = std::max(parent.width(), 1);
+  const int64_t height = std::max(parent.height(), 1);
+  auto clamp = [](int32_t& start, uint32_t& extent, int32_t& offset,
+                  int64_t limit) {
+    extent = static_cast<uint32_t>(std::min<int64_t>(extent, limit));
+    const int64_t inside =
+        std::clamp<int64_t>(start, 0, limit - static_cast<int64_t>(extent));
+    offset = static_cast<int32_t>(offset + (start - inside));
+    start = static_cast<int32_t>(inside);
+  };
+  clamp(positioner.anchor_x, positioner.anchor_width, positioner.offset_x,
+        width);
+  clamp(positioner.anchor_y, positioner.anchor_height, positioner.offset_y,
+        height);
+  return positioner;
+}
+
 OxyOSPositioner OxyOSPopupPositioner(const OwnedWindowAnchor& anchor,
                                      const gfx::Size& size) {
   OxyOSPositioner positioner{};

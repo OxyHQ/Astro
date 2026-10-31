@@ -134,4 +134,34 @@ TEST(OxyOSConversionsTest, AnInputEventIsTimedByItsDevice) {
   EXPECT_GE(OxyOSEventTime(0), before);
 }
 
+TEST(OxyOSConversionsTest, APopupsAnchorStaysInItsParentItsPlaceInTheOffset) {
+  OxyOSPositioner positioner{};
+  positioner.anchor_x = 300;
+  positioner.anchor_y = -60;
+  positioner.anchor_width = 1;
+  positioner.anchor_height = 1;
+  const OxyOSPositioner above =
+      OxyOSAnchoredWithin(positioner, gfx::Size(1000, 500));
+  EXPECT_EQ(above.anchor_x, 300);
+  EXPECT_EQ(above.anchor_y, 0);
+  EXPECT_EQ(above.offset_x, 0);
+  EXPECT_EQ(above.offset_y, -60);
+  positioner.anchor_x = 1200;
+  positioner.anchor_y = 10;
+  positioner.anchor_width = 50;
+  const OxyOSPositioner right =
+      OxyOSAnchoredWithin(positioner, gfx::Size(1000, 500));
+  EXPECT_EQ(right.anchor_x, 950);
+  EXPECT_EQ(right.offset_x, 250);
+  EXPECT_EQ(right.anchor_y, 10);
+  EXPECT_EQ(right.offset_y, 0);
+  positioner.anchor_x = -10;
+  positioner.anchor_width = 2000;
+  const OxyOSPositioner wide =
+      OxyOSAnchoredWithin(positioner, gfx::Size(1000, 500));
+  EXPECT_EQ(wide.anchor_x, 0);
+  EXPECT_EQ(wide.anchor_width, 1000u);
+  EXPECT_EQ(wide.offset_x, -10);
+}
+
 }
