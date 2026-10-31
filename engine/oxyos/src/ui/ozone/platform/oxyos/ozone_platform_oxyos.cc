@@ -37,6 +37,7 @@ class OzonePlatformOxyos : public OzonePlatform {
     properties_.set_parent_for_non_top_level_windows = true;
     properties_.app_modal_dialogs_use_event_blocker = true;
     properties_.supports_global_screen_coordinates = false;
+    properties_.platform_shows_drag_image = false;
     runtime_properties_.supports_server_side_window_decorations = true;
   }
   OzonePlatformOxyos(const OzonePlatformOxyos&) = delete;

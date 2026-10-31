@@ -18,8 +18,10 @@
 #include "ui/gfx/geometry/vector2d_f.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/ozone/platform/oxyos/oxyos_clipboard.h"
+#include "ui/ozone/platform/oxyos/oxyos_drag.h"
 #include "ui/ozone/platform/oxyos/oxyos_keyboard.h"
 #include "ui/ozone/platform/oxyos/oxyos_screen.h"
+#include "ui/platform_window/wm/wm_drag_handler.h"
 
 namespace ui {
 
@@ -54,6 +56,7 @@ class OxyOSConnection : public PlatformEventSource,
   void OnSurfaceDestroyed(OxyOSWindow* window);
   OxyOSWindow* GetWindow(gfx::AcceleratedWidget widget) const;
   OxyOSWindow* pointer_window() const;
+  OxyOSWindow* pressed_window() const;
 
   void set_screen(OxyOSScreen* screen) { screen_ = screen; }
   OxyOSScreen* screen() const { return screen_; }
@@ -71,6 +74,14 @@ class OxyOSConnection : public PlatformEventSource,
   void set_keyboard_layout_engine(const KeyboardLayoutEngine* engine) {
     keyboard_.set_layout_engine(engine);
   }
+
+  bool RunDrag(OxyOSWindow* source,
+               const OSExchangeData& data,
+               int operations,
+               base::OnceClosure started,
+               WmDragHandler::DragFinishedCallback finished,
+               WmDragHandler::LocationDelegate* location);
+  void CancelDrag();
 
   void SetCaptureWindow(OxyOSWindow* window);
   void ReleasePressedButtons(OxyOSWindow* window);
@@ -103,6 +114,8 @@ class OxyOSConnection : public PlatformEventSource,
   void OutputsChanged();
   void HandleKeyboardLayout(const OxyOSEvent& event);
   void DispatchTo(OxyOSWindow* window, Event* event);
+  void DragMotion(OxyOSWindow* window, const gfx::PointF& location);
+  void EndDrag(mojom::DragOperation operation, bool cancelled);
   void OnCompositorGone();
 
   const raw_ptr<OxyOSClient> client_;
@@ -124,7 +137,14 @@ class OxyOSConnection : public PlatformEventSource,
   gfx::Vector2dF scrolled_;
   int buttons_ = 0;
   uint64_t last_press_serial_ = 0;
+  uint32_t pressed_surface_ = 0;
   raw_ptr<OxyOSWindow> capture_window_ = nullptr;
+
+  std::unique_ptr<OxyOSDrag> drag_;
+  uint32_t drag_surface_ = 0;
+  WmDragHandler::DragFinishedCallback drag_finished_;
+  base::OnceClosure drag_quit_;
+  bool drag_cancelled_ = false;
 
   struct Expected {
     uint32_t surface;

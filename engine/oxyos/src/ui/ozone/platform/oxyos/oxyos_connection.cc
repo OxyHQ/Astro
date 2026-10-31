@@ -9,16 +9,20 @@
 
 #include "base/environment.h"
 #include "base/logging.h"
+#include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/current_thread.h"
 #include "ui/events/event.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/event_utils.h"
+#include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/gfx/geometry/point_conversions.h"
 #include "ui/gfx/geometry/vector2d_conversions.h"
 #include "ui/ozone/platform/oxyos/oxyos_conversions.h"
 #include "ui/ozone/platform/oxyos/oxyos_input_method_context.h"
 #include "ui/ozone/platform/oxyos/oxyos_surface_host.h"
 #include "ui/ozone/platform/oxyos/oxyos_window.h"
+#include "ui/platform_window/wm/wm_drop_handler.h"
 
 namespace ui {
 
@@ -74,6 +78,10 @@ void OxyOSConnection::AddWindow(OxyOSWindow* window) {
 }
 
 void OxyOSConnection::RemoveWindow(OxyOSWindow* window) {
+  if (drag_ && drag_surface_ == window->surface()) {
+    drag_.reset();
+    EndDrag(mojom::DragOperation::kNone, true);
+  }
   OnSurfaceDestroyed(window);
   windows_.erase(window->surface());
 }
@@ -107,6 +115,83 @@ OxyOSWindow* OxyOSConnection::GetWindow(gfx::AcceleratedWidget widget) const {
 
 OxyOSWindow* OxyOSConnection::pointer_window() const {
   return GetWindow(pointer_surface_);
+}
+
+OxyOSWindow* OxyOSConnection::pressed_window() const {
+  return GetWindow(pressed_surface_);
+}
+
+bool OxyOSConnection::RunDrag(OxyOSWindow* source,
+                              const OSExchangeData& data,
+                              int operations,
+                              base::OnceClosure started,
+                              WmDragHandler::DragFinishedCallback finished,
+                              WmDragHandler::LocationDelegate* location) {
+  if (drag_) {
+    return false;
+  }
+  OxyOSWindow* root = source->root();
+  VLOG(1) << "OxyOS drag from window " << root->surface() << ", operations "
+          << operations;
+  drag_ = std::make_unique<OxyOSDrag>(
+      GetWmDropHandler(*root), data, operations, location,
+      gfx::SizeF(root->GetBoundsInDIP().size()));
+  drag_surface_ = root->surface();
+  drag_finished_ = std::move(finished);
+  drag_cancelled_ = false;
+  std::move(started).Run();
+  if (drag_) {
+    OxyOSWindow* window = pointer_window();
+    DragMotion(window ? window : root, pointer_location_);
+  }
+  if (drag_) {
+    base::RunLoop loop(base::RunLoop::Type::kNestableTasksAllowed);
+    drag_quit_ = loop.QuitClosure();
+    loop.Run();
+  }
+  return !drag_cancelled_;
+}
+
+void OxyOSConnection::CancelDrag() {
+  if (!drag_) {
+    return;
+  }
+  drag_->Leave();
+  EndDrag(mojom::DragOperation::kNone, true);
+}
+
+void OxyOSConnection::DragMotion(OxyOSWindow* window,
+                                 const gfx::PointF& location) {
+  OxyOSWindow* root = GetWindow(drag_surface_);
+  if (!drag_ || !root) {
+    return;
+  }
+  gfx::Vector2dF offset;
+  if (window->root() == root) {
+    offset = gfx::Vector2dF(window->GetBoundsInPixels().origin() -
+                            root->GetBoundsInPixels().origin());
+  }
+  const gfx::PointF local = location + offset;
+  drag_->Motion(gfx::ScalePoint(local, 1.0f / root->scale()),
+                root->GetBoundsInPixels().origin() +
+                    gfx::ToFlooredVector2d(local.OffsetFromOrigin()),
+                keyboard_.modifiers());
+}
+
+void OxyOSConnection::EndDrag(mojom::DragOperation operation, bool cancelled) {
+  VLOG(1) << "OxyOS drag ends with operation " << operation << ", cancelled "
+          << cancelled;
+  drag_.reset();
+  drag_surface_ = 0;
+  drag_cancelled_ = cancelled;
+  WmDragHandler::DragFinishedCallback finished = std::move(drag_finished_);
+  base::OnceClosure quit = std::move(drag_quit_);
+  if (finished) {
+    std::move(finished).Run(operation);
+  }
+  if (quit) {
+    std::move(quit).Run();
+  }
 }
 
 void OxyOSConnection::AddInputMethodContext(OxyOSInputMethodContext* context) {
@@ -332,12 +417,20 @@ void OxyOSConnection::HandlePointer(const OxyOSEvent& event,
     case OXYOS_POINTER_ENTER: {
       pointer_surface_ = window->surface();
       pointer_location_ = location;
+      if (drag_) {
+        DragMotion(window, location);
+        break;
+      }
       MouseEvent enter(EventType::kMouseEntered, location, location, time,
                        buttons_ | modifiers, 0);
       DispatchTo(window, &enter);
       break;
     }
     case OXYOS_POINTER_LEAVE: {
+      if (drag_) {
+        drag_->Leave();
+        break;
+      }
       MouseEvent exit(EventType::kMouseExited, pointer_location_,
                       pointer_location_, time, buttons_ | modifiers, 0);
       DispatchTo(window, &exit);
@@ -349,6 +442,10 @@ void OxyOSConnection::HandlePointer(const OxyOSEvent& event,
     case OXYOS_POINTER_MOTION: {
       pointer_surface_ = window->surface();
       pointer_location_ = location;
+      if (drag_) {
+        DragMotion(window, location);
+        break;
+      }
       MouseEvent motion(EventType::kMouseMoved, location, location, time,
                         buttons_ | modifiers, 0);
       DispatchTo(window, &motion);
@@ -356,10 +453,11 @@ void OxyOSConnection::HandlePointer(const OxyOSEvent& event,
     }
     case OXYOS_POINTER_PRESS: {
       const int flag = OxyOSButtonFlag(event.code);
-      if (!flag) {
+      if (!flag || drag_) {
         break;
       }
       last_press_serial_ = event.serial;
+      pressed_surface_ = window->root()->surface();
       pointer_location_ = location;
       buttons_ |= flag;
       MouseEvent press(EventType::kMousePressed, location, location, time,
@@ -374,6 +472,12 @@ void OxyOSConnection::HandlePointer(const OxyOSEvent& event,
         break;
       }
       pointer_location_ = location;
+      if (drag_) {
+        DragMotion(window, location);
+        if (drag_) {
+          EndDrag(drag_->Drop(modifiers), false);
+        }
+      }
       const int flags = buttons_ | modifiers | flag;
       buttons_ &= ~flag;
       MouseEvent release(EventType::kMouseReleased, location, location, time,
@@ -383,6 +487,7 @@ void OxyOSConnection::HandlePointer(const OxyOSEvent& event,
       break;
     }
     case OXYOS_POINTER_CANCEL:
+      CancelDrag();
       buttons_ = 0;
       if (capture_window_) {
         SetCaptureWindow(nullptr);
@@ -419,6 +524,14 @@ void OxyOSConnection::HandleKey(const OxyOSEvent& event, OxyOSWindow* window) {
   const base::TimeTicks time = OxyOSEventTime(event.time_ns);
   OxyOSKeyboard::Typed typed =
       keyboard_.OnKey(event.code, event.flag, TextOf(event), time);
+  if (drag_) {
+    if (event.flag && typed.key.key_code() == VKEY_ESCAPE) {
+      CancelDrag();
+    } else if (OxyOSWindow* pointer = pointer_window()) {
+      DragMotion(pointer, pointer_location_);
+    }
+    return;
+  }
   auto weak = window->GetWeakPtr();
   DispatchTo(window, &typed.key);
   if (!typed.text.empty() && weak) {

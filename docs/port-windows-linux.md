@@ -381,6 +381,14 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   Undo, Redo, Cut, Copy, Paste and Select All act on the focused frame (`astroEditCommand`). With the bar shown, the ⋯
   button is hidden. Settings… and Import are at the end of Edit until OxyOS's application menu offers an application's
   settings. Its scenario is OxyOS's `astro-menu-bar.json`.
+- **Drag and drop:** inside a window, with nothing new from the compositor (OxyOS ADR 0029, decision 7). The platform
+  is each toplevel's `WmDragHandler`: while the press is held the compositor keeps the pointer on the window, so the
+  drag's motions drive that window's own `WmDropHandler` (enter with Chromium's `OSExchangeData`, each motion's
+  operation, the drop at the release, leave outside the window or on Escape) in a nested loop (`OxyOSDrag`). Chromium
+  draws the drag image in a popup of the window that takes no input; a popup's anchor is kept inside its parent, the
+  rest of its place in the positioner's offset, as OxyOS requires. A drag released outside the window drops nothing;
+  dragging between applications needs the protocol's drag offers (decision 7's second half). Its scenario is OxyOS's
+  `astro-drag.json`.
 - **Cursors:** a cursor type OxyOS has a shape for is that shape; for the others (copy, alias, a context menu, progress,
   a cell, vertical text, panning) Chromium draws its own image, and that image, a page's custom cursor and
   `cursor: none` (a transparent pixel) go to the compositor with their hotspot and scale (OxyOS's `SetPointerImage`).

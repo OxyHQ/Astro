@@ -61,6 +61,9 @@ int OxyOSButtonFlag(uint32_t code);
 
 base::TimeTicks OxyOSEventTime(uint64_t time_ns);
 
+OxyOSPositioner OxyOSAnchoredWithin(OxyOSPositioner positioner,
+                                    const gfx::Size& parent);
+
 OxyOSPositioner OxyOSPopupPositioner(const OwnedWindowAnchor& anchor,
                                      const gfx::Size& size);
 
