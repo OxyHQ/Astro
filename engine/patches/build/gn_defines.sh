@@ -1,4 +1,8 @@
 # GN args for the Astro engine build, all of them (02-gn-args.sh writes args.gn from this list).
+_branding_dir=
+if [[ $AC_PLATFORM == windows ]]; then
+  _branding_dir=win/
+fi
 _gn_args=(
   is_official_build=true
   chrome_pgo_phase=2
@@ -37,10 +41,11 @@ _gn_args=(
   enable_downgrade_processing=false
   enable_resource_allowlist_generation=false
   optimize_webui=true
-  # Astro's bundle and team id (webauthn/payments keychain access groups);
-  # product names stay "Chromium" (chromium-branding.patch).
-  'branding_file_path="//chrome/app/theme/astro/BRANDING"'
+  # Astro's bundle and team id (webauthn/payments keychain access groups); product names stay "Chromium" on macOS,
+  # whose bundle layout is named after them. Windows says Astro and Oxy (chromium-branding.patch).
+  "branding_file_path=\"//chrome/app/theme/astro/${_branding_dir}BRANDING\""
 )
+unset _branding_dir
 if [[ $AC_PLATFORM == macos ]]; then
   _gn_args+=(
     enable_cdm_host_verification=true
