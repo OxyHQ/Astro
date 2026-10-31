@@ -92,6 +92,13 @@ class OzonePlatformOxyos : public OzonePlatform {
   }
 
   const PlatformRuntimeProperties& GetPlatformRuntimeProperties() override {
+    if (connection_) {
+      runtime_properties_.supports_native_pixmaps =
+          oxyos_client_gpu_device(connection_->client(), nullptr) == 1;
+    } else if (gpu_) {
+      runtime_properties_.supports_native_pixmaps =
+          gpu_->supports_native_pixmaps();
+    }
     return runtime_properties_;
   }
 
@@ -127,6 +134,7 @@ class OzonePlatformOxyos : public OzonePlatform {
     overlay_manager_ = std::make_unique<StubOverlayManager>();
     surface_host_ = std::make_unique<OxyOSSurfaceHost>(connection_.get());
     connection_->set_surface_host(surface_host_.get());
+    surface_host_->NameRenderNode();
     return true;
   }
 

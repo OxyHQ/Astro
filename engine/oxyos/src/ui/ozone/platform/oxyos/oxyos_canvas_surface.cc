@@ -152,7 +152,7 @@ void OxyOSCanvasSurface::OnSwapBuffers(SwapBuffersCallback swap_ack_callback,
     surface_->AttachBuffer(frame->id, frame->region.Duplicate(), size_);
     frame->attached = true;
   }
-  surface_->Present(frame->id, {damage_}, data.seq);
+  surface_->Present(frame->id, {damage_}, data.seq, gfx::GpuFenceHandle());
   previous_ = frame;
   unanswered_.push_back(std::move(swap_ack_callback));
 }
@@ -167,13 +167,16 @@ void OxyOSCanvasSurface::OnPresented(uint32_t buffer, bool shown) {
   std::move(callback).Run(size_);
 }
 
-void OxyOSCanvasSurface::OnBufferReleased(uint32_t buffer) {
+void OxyOSCanvasSurface::OnBufferReleased(uint32_t buffer,
+                                          gfx::GpuFenceHandle release) {
   for (const auto& entry : buffers_) {
     if (entry->id == buffer && entry.get() != drawing_) {
       entry->busy = false;
     }
   }
 }
+
+void OxyOSCanvasSurface::OnBufferFailed(uint32_t buffer) {}
 
 void OxyOSCanvasSurface::OnHostGone() {
   surface_.reset();

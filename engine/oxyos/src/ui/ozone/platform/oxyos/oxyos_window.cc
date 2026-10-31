@@ -286,7 +286,8 @@ std::optional<int64_t> OxyOSWindow::SubmitFrame(
     uint64_t buffer,
     const gfx::Size& size,
     const std::vector<gfx::Rect>& damage,
-    int64_t viz_seq) {
+    int64_t viz_seq,
+    const OxyOSSync* sync) {
   if (!created_) {
     return std::nullopt;
   }
@@ -311,9 +312,9 @@ std::optional<int64_t> OxyOSWindow::SubmitFrame(
       add(rect);
     }
   }
-  const int64_t sequence =
-      oxyos_client_submit_buffer(connection_->client(), surface_, buffer,
-                                 *serial, rects.data(), rects.size());
+  const int64_t sequence = oxyos_client_submit_buffer_synced(
+      connection_->client(), surface_, buffer, *serial, rects.data(),
+      rects.size(), sync);
   if (sequence < 0) {
     LOG(ERROR) << "OxyOS refused a frame: " << oxyos_last_error();
     return std::nullopt;

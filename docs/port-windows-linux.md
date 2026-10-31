@@ -400,7 +400,19 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   selection, as OxyOS has none. Its scenario is OxyOS's `astro-clipboard.json`.
 - **Pixels:** Chromium's software compositing (its path without a GPU) draws in the GPU process into sealed shared
   memory, which the browser attaches to its OxyOS connection and submits with the damage, unchanged; a swap completes
-  when the compositor presents or discards the frame. The GPU path (DMA-BUF with explicit sync) is ADR 0029's step 3.
+  when the compositor presents or discards the frame. That is the fallback; the GPU path is ADR 0029's step 3:
+  - The GPU process renders with ANGLE (Vulkan by default; `--use-gl=egl` for the system's EGL) into DMA-BUFs it
+    allocates with GBM on the render node the browser names (`--render-node-override`, the device OxyOS composes on), in
+    a modifier from the compositor's table (best first, tiled before linear; linear from the system DMA-BUF heap when GBM
+    has none), told to the GPU process over Mojo (`OxyOSGpu.SetGpuTable`). Chromium's displays take BGRA/BGRX, the
+    formats OxyOS imports.
+  - Viz's buffer queue presents through `OxyOSPresenter`: each buffer is attached once (`AttachDmabuf`), each frame
+    submitted with its acquire fence as a point on the buffer's DRM syncobj timeline and a release point after it
+    (`oxyos_client_submit_buffer_synced`); a swap completes once the frame is presented and the buffer it replaced is
+    released, with that release point's fence (`OxyOSFrameLedger`).
+  - Without DMA-BUF import, native fences (ANGLE on Vulkan) or a buffer the compositor imports, the GPU process says so
+    once (`OxyOS composites in software: …`) and compositing stays in software; a buffer the compositor refuses
+    (`BUFFER_FAILED`) fails the swaps, and Chromium falls back the same way.
 - **The engine and the package:** the OxyOS engine is its own build (`AC_TARGET_PLATFORM=oxyos`, `docs/engine-build.md`
   › The OxyOS engine): the `oxyos` platform alone, linking no X11, Wayland, GTK, Qt, ATK or CUPS library.
   `AC_TARGET_PLATFORM=oxyos scripts/linux-package.sh` writes `~/chromium-build/release/astro-browser-<version>-oxyos-x86_64.tar.xz`:

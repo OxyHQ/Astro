@@ -70,7 +70,8 @@ class OxyOSWindow : public PlatformWindow,
   std::optional<int64_t> SubmitFrame(uint64_t buffer,
                                      const gfx::Size& size,
                                      const std::vector<gfx::Rect>& damage,
-                                     int64_t viz_seq);
+                                     int64_t viz_seq,
+                                     const OxyOSSync* sync = nullptr);
 
   void Show(bool inactive) override;
   void Hide() override;
