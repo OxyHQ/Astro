@@ -15,6 +15,7 @@
 #include "ui/events/event_utils.h"
 #include "ui/gfx/geometry/vector2d_conversions.h"
 #include "ui/ozone/platform/oxyos/oxyos_conversions.h"
+#include "ui/ozone/platform/oxyos/oxyos_input_method_context.h"
 #include "ui/ozone/platform/oxyos/oxyos_window.h"
 
 namespace ui {
@@ -104,6 +105,15 @@ OxyOSWindow* OxyOSConnection::GetWindow(gfx::AcceleratedWidget widget) const {
 
 OxyOSWindow* OxyOSConnection::pointer_window() const {
   return GetWindow(pointer_surface_);
+}
+
+void OxyOSConnection::AddInputMethodContext(OxyOSInputMethodContext* context) {
+  input_method_contexts_.insert(context);
+}
+
+void OxyOSConnection::RemoveInputMethodContext(
+    OxyOSInputMethodContext* context) {
+  input_method_contexts_.erase(context);
 }
 
 void OxyOSConnection::SetCaptureWindow(OxyOSWindow* window) {
@@ -253,6 +263,12 @@ void OxyOSConnection::HandleEvent(const OxyOSEvent& event) {
     case OXYOS_EVENT_FEEDBACK:
       HandleFeedback(event);
       break;
+    case OXYOS_EVENT_TEXT_INPUT:
+      HandleTextInput(event);
+      break;
+    case OXYOS_EVENT_KEYBOARD_LAYOUT:
+      HandleKeyboardLayout(event);
+      break;
     case OXYOS_EVENT_CLIPBOARD_TYPES:
       clipboard_.OnTypes(static_cast<uint32_t>(event.serial), event.detail);
       break;
@@ -385,6 +401,35 @@ void OxyOSConnection::HandleKey(const OxyOSEvent& event, OxyOSWindow* window) {
 void OxyOSConnection::HandleText(std::string_view text, OxyOSWindow* window) {
   for (KeyEvent& character : keyboard_.CharactersOf(text, EventTimeForNow())) {
     DispatchTo(window, &character);
+  }
+}
+
+void OxyOSConnection::HandleTextInput(const OxyOSEvent& event) {
+  OxyOSTextTransaction transaction{};
+  if (oxyos_client_text_transaction(client_, &transaction) != 1) {
+    return;
+  }
+  if (transaction.commit_length > 0) {
+    last_press_serial_ = transaction.serial;
+  }
+  OxyOSWindow* window = GetWindow(transaction.surface);
+  const uint32_t root = window ? window->root()->surface() : 0;
+  for (OxyOSInputMethodContext* context : input_method_contexts_) {
+    if (context->surface() == transaction.surface ||
+        context->surface() == root) {
+      context->OnTransaction(transaction);
+      return;
+    }
+  }
+}
+
+void OxyOSConnection::HandleKeyboardLayout(const OxyOSEvent& event) {
+  if (event.detail == 0) {
+    keyboard_layout_.clear();
+  }
+  keyboard_layout_.append(TextOf(event));
+  if (event.flag && keyboard_layout_changed_) {
+    keyboard_layout_changed_.Run(keyboard_layout_);
   }
 }
 

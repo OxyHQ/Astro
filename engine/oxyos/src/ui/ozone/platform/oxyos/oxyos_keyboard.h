@@ -9,12 +9,15 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 
 namespace ui {
+
+class KeyboardLayoutEngine;
 
 class OxyOSKeyboard {
  public:
@@ -41,6 +44,9 @@ class OxyOSKeyboard {
   std::vector<KeyEvent> CharactersOf(std::string_view text,
                                      base::TimeTicks time) const;
 
+  void set_layout_engine(const KeyboardLayoutEngine* engine) {
+    layout_engine_ = engine;
+  }
   void SetCapsLock(bool on) { caps_lock_ = on; }
   void ReleaseAll() { held_.clear(); }
   int modifiers() const;
@@ -53,9 +59,14 @@ class OxyOSKeyboard {
   };
 
   int ModifiersWith(DomCode code, bool pressed) const;
+  bool LookUp(DomCode code,
+              int flags,
+              DomKey* key,
+              KeyboardCode* key_code) const;
 
   base::flat_map<DomCode, Held> held_;
   bool caps_lock_ = false;
+  raw_ptr<const KeyboardLayoutEngine> layout_engine_ = nullptr;
 };
 
 }

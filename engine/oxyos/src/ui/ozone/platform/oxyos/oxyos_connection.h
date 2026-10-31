@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/message_loop/message_pump_for_ui.h"
@@ -22,6 +23,7 @@
 namespace ui {
 
 class Event;
+class OxyOSInputMethodContext;
 class OxyOSScreen;
 class OxyOSWindow;
 
@@ -30,6 +32,8 @@ class OxyOSConnection : public PlatformEventSource,
                         public OxyOSClipboard::Transport {
  public:
   using FeedbackCallback = base::OnceCallback<void(bool shown)>;
+  using KeyboardLayoutCallback =
+      base::RepeatingCallback<void(const std::string& names)>;
 
   static std::unique_ptr<OxyOSConnection> Connect();
 
@@ -56,6 +60,15 @@ class OxyOSConnection : public PlatformEventSource,
   uint64_t last_press_serial() const { return last_press_serial_; }
   const gfx::PointF& pointer_location() const { return pointer_location_; }
 
+  void AddInputMethodContext(OxyOSInputMethodContext* context);
+  void RemoveInputMethodContext(OxyOSInputMethodContext* context);
+  void set_keyboard_layout_callback(KeyboardLayoutCallback callback) {
+    keyboard_layout_changed_ = std::move(callback);
+  }
+  void set_keyboard_layout_engine(const KeyboardLayoutEngine* engine) {
+    keyboard_.set_layout_engine(engine);
+  }
+
   void SetCaptureWindow(OxyOSWindow* window);
   void ReleasePressedButtons(OxyOSWindow* window);
 
@@ -81,6 +94,8 @@ class OxyOSConnection : public PlatformEventSource,
   void HandleKey(const OxyOSEvent& event, OxyOSWindow* window);
   void HandleText(std::string_view text, OxyOSWindow* window);
   void HandleFeedback(const OxyOSEvent& event);
+  void HandleTextInput(const OxyOSEvent& event);
+  void HandleKeyboardLayout(const OxyOSEvent& event);
   void DispatchTo(OxyOSWindow* window, Event* event);
   void OnCompositorGone();
 
@@ -93,6 +108,9 @@ class OxyOSConnection : public PlatformEventSource,
 
   OxyOSKeyboard keyboard_;
   OxyOSClipboard clipboard_{this};
+  base::flat_set<raw_ptr<OxyOSInputMethodContext>> input_method_contexts_;
+  std::string keyboard_layout_;
+  KeyboardLayoutCallback keyboard_layout_changed_;
   uint32_t pointer_surface_ = 0;
   gfx::PointF pointer_location_;
   gfx::Vector2dF scrolled_;

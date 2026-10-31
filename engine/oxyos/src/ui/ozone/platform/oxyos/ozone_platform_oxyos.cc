@@ -5,14 +5,19 @@
 #include <memory>
 #include <utility>
 
-#include "ui/base/ime/input_method_minimal.h"
+#include "base/functional/bind.h"
+#include "ui/base/ime/linux/input_method_auralinux.h"
+#include "ui/base/ime/linux/linux_input_method_context_factory.h"
 #include "ui/display/types/native_display_delegate.h"
 #include "ui/events/ozone/layout/keyboard_layout_engine_manager.h"
-#include "ui/events/ozone/layout/stub/stub_keyboard_layout_engine.h"
+#include "ui/events/ozone/layout/xkb/xkb_evdev_codes.h"
+#include "ui/events/ozone/layout/xkb/xkb_keyboard_layout_engine.h"
 #include "ui/ozone/common/bitmap_cursor_factory.h"
 #include "ui/ozone/common/stub_overlay_manager.h"
 #include "ui/ozone/platform/oxyos/oxyos_connection.h"
 #include "ui/ozone/platform/oxyos/oxyos_gpu.h"
+#include "ui/ozone/platform/oxyos/oxyos_input_method_context.h"
+#include "ui/ozone/platform/oxyos/oxyos_keymap.h"
 #include "ui/ozone/platform/oxyos/oxyos_screen.h"
 #include "ui/ozone/platform/oxyos/oxyos_surface_factory.h"
 #include "ui/ozone/platform/oxyos/oxyos_surface_host.h"
@@ -73,7 +78,8 @@ class OzonePlatformOxyos : public OzonePlatform {
   std::unique_ptr<InputMethod> CreateInputMethod(
       ImeKeyEventDispatcher* ime_key_event_dispatcher,
       gfx::AcceleratedWidget widget) override {
-    return std::make_unique<InputMethodMinimal>(ime_key_event_dispatcher);
+    return std::make_unique<InputMethodAuraLinux>(ime_key_event_dispatcher,
+                                                  widget);
   }
   bool IsWindowCompositingSupported() const override { return true; }
 
@@ -94,9 +100,28 @@ class OzonePlatformOxyos : public OzonePlatform {
     if (!connection_) {
       return false;
     }
-    keyboard_layout_engine_ = std::make_unique<StubKeyboardLayoutEngine>();
+    keyboard_layout_engine_ =
+        std::make_unique<XkbKeyboardLayoutEngine>(xkb_evdev_codes_);
     KeyboardLayoutEngineManager::SetKeyboardLayoutEngine(
         keyboard_layout_engine_.get());
+    connection_->set_keyboard_layout_engine(keyboard_layout_engine_.get());
+    connection_->set_keyboard_layout_callback(base::BindRepeating(
+        [](XkbKeyboardLayoutEngine* engine, const std::string& names) {
+          const std::optional<std::string> keymap = OxyOSKeymapFromNames(names);
+          if (!keymap || !engine->SetCurrentLayoutFromBuffer(keymap->data(),
+                                                             keymap->size())) {
+            LOG(ERROR) << "No XKB keymap for the session's layout " << names;
+          }
+        },
+        base::Unretained(keyboard_layout_engine_.get())));
+    GetInputMethodContextFactoryForOzone() = base::BindRepeating(
+        [](OxyOSConnection* connection,
+           LinuxInputMethodContextDelegate* delegate)
+            -> std::unique_ptr<LinuxInputMethodContext> {
+          return std::make_unique<OxyOSInputMethodContext>(connection,
+                                                           delegate);
+        },
+        base::Unretained(connection_.get()));
     cursor_factory_ = std::make_unique<BitmapCursorFactory>();
     input_controller_ = std::make_unique<StubInputController>();
     overlay_manager_ = std::make_unique<StubOverlayManager>();
@@ -130,7 +155,8 @@ class OzonePlatformOxyos : public OzonePlatform {
   PlatformProperties properties_;
   PlatformRuntimeProperties runtime_properties_;
   std::unique_ptr<OxyOSConnection> connection_;
-  std::unique_ptr<KeyboardLayoutEngine> keyboard_layout_engine_;
+  XkbEvdevCodes xkb_evdev_codes_;
+  std::unique_ptr<XkbKeyboardLayoutEngine> keyboard_layout_engine_;
   std::unique_ptr<CursorFactory> cursor_factory_;
   std::unique_ptr<InputController> input_controller_;
   std::unique_ptr<OverlayManagerOzone> overlay_manager_;
