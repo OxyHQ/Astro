@@ -11,8 +11,10 @@
 
 #include "base/containers/circular_deque.h"
 #include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -34,15 +36,22 @@ class OxyOSFrameLedger {
   OxyOSFrameLedger& operator=(const OxyOSFrameLedger&) = delete;
   ~OxyOSFrameLedger();
 
+  enum class Route { kSend, kRepeat, kRefuse };
+  struct Submission {
+    uint64_t frame = 0;
+    Route route = Route::kSend;
+  };
   struct Completed {
+    bool shown = false;
     gfx::GpuFenceHandle release;
     gfx::PresentationFeedback feedback;
   };
 
-  uint64_t Submitted(uint32_t buffer);
+  Submission Submit(uint32_t buffer, bool damaged);
   bool Presented(uint64_t frame, const gfx::PresentationFeedback& feedback);
   void Released(uint32_t buffer, gfx::GpuFenceHandle fence);
   std::optional<Completed> TakeCompleted();
+  bool Held(uint32_t buffer) const { return held_.contains(buffer); }
   bool InFlight(uint32_t buffer) const;
   size_t pending() const { return frames_.size(); }
 
@@ -50,13 +59,17 @@ class OxyOSFrameLedger {
   struct Frame {
     uint64_t id = 0;
     uint32_t buffer = 0;
-    uint32_t previous = 0;
+    bool sent = true;
     std::optional<gfx::PresentationFeedback> feedback;
   };
 
+  std::optional<gfx::GpuFenceHandle> TakeRelease(uint32_t buffer);
+
   base::circular_deque<Frame> frames_;
   base::flat_map<uint32_t, gfx::GpuFenceHandle> released_;
-  uint32_t last_submitted_ = 0;
+  base::flat_set<uint32_t> held_;
+  uint32_t last_buffer_ = 0;
+  uint32_t displayed_ = 0;
   uint64_t last_frame_ = 0;
 };
 
@@ -128,6 +141,8 @@ class OxyOSPresenter : public gl::Presenter,
   };
   base::circular_deque<Pending> pending_;
   base::TimeDelta interval_ = base::Hertz(60);
+  bool told_held_ = false;
+  base::WeakPtrFactory<OxyOSPresenter> weak_factory_{this};
 };
 
 }
