@@ -140,6 +140,17 @@ function setPageWindow(id: string) {
 }
 
 export const pageWindowId = () => windowId;
+
+export const pageWindowReady = (): Promise<string> =>
+  new Promise((resolve) => {
+    if (windowId) return resolve(windowId);
+    const listener = () => {
+      if (!windowId) return;
+      pageListeners.delete(listener);
+      resolve(windowId);
+    };
+    pageListeners.add(listener);
+  });
 export const isLeaderPage = () => leader;
 
 export const usePageWindowId = () =>
