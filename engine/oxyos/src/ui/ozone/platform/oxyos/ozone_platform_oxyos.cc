@@ -15,6 +15,7 @@
 #include "ui/ozone/common/stub_overlay_manager.h"
 #include "ui/ozone/platform/oxyos/oxyos_connection.h"
 #include "ui/ozone/platform/oxyos/oxyos_cursor_factory.h"
+#include "ui/ozone/platform/oxyos/oxyos_file_chooser.h"
 #include "ui/ozone/platform/oxyos/oxyos_gpu.h"
 #include "ui/ozone/platform/oxyos/oxyos_input_method_context.h"
 #include "ui/ozone/platform/oxyos/oxyos_keymap.h"
@@ -113,6 +114,7 @@ class OzonePlatformOxyos : public OzonePlatform {
     KeyboardLayoutEngineManager::SetKeyboardLayoutEngine(
         keyboard_layout_engine_.get());
     connection_->set_keyboard_layout_engine(keyboard_layout_engine_.get());
+    SetOxyOSFileChooser(connection_->file_chooser());
     connection_->set_keyboard_layout_callback(base::BindRepeating(
         [](XkbKeyboardLayoutEngine* engine, const std::string& names) {
           const std::optional<std::string> keymap = OxyOSKeymapFromNames(names);

@@ -26,6 +26,36 @@ source_set("oxyos_client") {
   public_configs = [ ":oxyos_client_headers" ]
 }
 
+source_set("file_chooser") {
+  sources = [
+    "oxyos_file_chooser.cc",
+    "oxyos_file_chooser.h",
+  ]
+  deps = [
+    "//base",
+    "//net",
+    "//ui/gfx:native_ui_types",
+    "//url",
+  ]
+}
+
+source_set("select_file_dialog") {
+  visibility += [ "//chrome/browser/astro/*" ]
+  sources = [
+    "oxyos_select_file_dialog.cc",
+    "oxyos_select_file_dialog.h",
+  ]
+  public_deps = [
+    ":file_chooser",
+    "//ui/shell_dialogs",
+  ]
+  deps = [
+    "//base",
+    "//ui/aura",
+    "//ui/gfx:native_ui_types",
+  ]
+}
+
 source_set("oxyos") {
   sources = [
     "client_native_pixmap_factory_oxyos.cc",
@@ -79,6 +109,7 @@ source_set("oxyos") {
   configs += [ "//ui/events/ozone/layout:xkbcommon" ]
 
   public_deps = [
+    ":file_chooser",
     ":menu_bar",
     ":oxyos_client",
   ]
@@ -124,6 +155,7 @@ source_set("oxyos_unittests") {
     "oxyos_configure_queue_unittest.cc",
     "oxyos_conversions_unittest.cc",
     "oxyos_drag_unittest.cc",
+    "oxyos_file_chooser_unittest.cc",
     "oxyos_keyboard_unittest.cc",
     "oxyos_keymap_unittest.cc",
     "oxyos_menu_bar_unittest.cc",
