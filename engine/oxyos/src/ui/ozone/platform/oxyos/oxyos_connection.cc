@@ -263,6 +263,12 @@ void OxyOSConnection::HandleEvent(const OxyOSEvent& event) {
     case OXYOS_EVENT_FEEDBACK:
       HandleFeedback(event);
       break;
+    case OXYOS_EVENT_MENU_ITEM_ACTIVATED:
+      last_press_serial_ = event.serial;
+      if (window) {
+        window->OnMenuItemActivated(event.code, event.detail);
+      }
+      break;
     case OXYOS_EVENT_TEXT_INPUT:
       HandleTextInput(event);
       break;

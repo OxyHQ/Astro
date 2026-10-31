@@ -413,6 +413,38 @@ function shortcutList(): MenuShortcut[] {
   return list;
 }
 
+export type MenuBarCommand = {
+  path: string[];
+  title: string;
+  command: BrowserCommand | null;
+  arg?: string;
+  system?: string;
+  key: string;
+  mods: Mod[];
+};
+
+export function menuBarCommands(): MenuBarCommand[] {
+  const overrides = useBrowser.getState().settings.shortcuts ?? {};
+  const commands: MenuBarCommand[] = groupsOf(entries())
+    .filter(({ primary }) => !primary.hidden)
+    .map(({ id, primary }) => {
+      const override = overrides[id];
+      const key = override ? (override[0] ?? "") : primary.key;
+      return {
+        path: primary.path,
+        title: primary.title,
+        command: primary.command,
+        ...(primary.arg === undefined ? {} : { arg: primary.arg }),
+        key,
+        mods: key ? (override ? (override.slice(1) as Mod[]) : primary.mods) : [],
+      };
+    });
+  for (const entry of SYSTEM_ENTRIES) {
+    commands.push({ path: entry.path, title: entry.title, command: null, system: entry.title, key: entry.key, mods: entry.mods });
+  }
+  return commands;
+}
+
 const captureListeners = new Set<(capturing: boolean) => void>();
 const recorder = { resolve: null as ((combo: { key: string; modifiers: Mod[] } | null) => void) | null };
 const switcher = { capturing: false, holding: null as Mod | null };

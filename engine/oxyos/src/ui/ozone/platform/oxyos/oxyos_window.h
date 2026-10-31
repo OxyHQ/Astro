@@ -17,6 +17,7 @@
 #include "ui/events/platform/platform_event_dispatcher.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/ozone/platform/oxyos/oxyos_configure_queue.h"
+#include "ui/ozone/platform/oxyos/oxyos_menu_bar.h"
 #include "ui/platform_window/platform_window.h"
 #include "ui/platform_window/platform_window_delegate.h"
 #include "ui/platform_window/platform_window_init_properties.h"
@@ -30,7 +31,8 @@ class OxyOSConnection;
 class OxyOSWindow : public PlatformWindow,
                     public PlatformEventDispatcher,
                     public EventTarget,
-                    public WmMoveResizeHandler {
+                    public WmMoveResizeHandler,
+                    public OxyOSMenuBar {
  public:
   OxyOSWindow(PlatformWindowDelegate* delegate,
               OxyOSConnection* connection,
@@ -55,6 +57,10 @@ class OxyOSWindow : public PlatformWindow,
   void OnPopupDone();
   void OnCompositorCloseRequest();
   void OnLostCapture();
+  void OnMenuItemActivated(uint32_t menus, uint32_t index);
+
+  bool SetMenus(std::vector<OxyOSMenuEntry> entries,
+                Activated activated) override;
 
   std::optional<int64_t> SubmitFrame(uint64_t buffer,
                                      const gfx::Size& size,
@@ -113,6 +119,7 @@ class OxyOSWindow : public PlatformWindow,
   void SendTitle();
   void SendSizeLimits();
   void SendCursor();
+  void SendMenus();
 
   const raw_ptr<PlatformWindowDelegate> delegate_;
   const raw_ptr<OxyOSConnection> connection_;
@@ -128,6 +135,9 @@ class OxyOSWindow : public PlatformWindow,
   gfx::Rect restored_bounds_dip_;
   std::u16string title_;
   scoped_refptr<BitmapCursor> cursor_;
+  std::vector<OxyOSMenuEntry> menus_;
+  Activated menu_activated_;
+  uint32_t menus_serial_ = 0;
   std::optional<gfx::Size> submitted_size_;
   std::vector<gfx::Rect> unsubmitted_damage_;
   bool created_ = false;

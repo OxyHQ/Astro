@@ -2,6 +2,19 @@
 
 visibility = [ "//ui/ozone/*" ]
 
+source_set("menu_bar") {
+  visibility += [ "//chrome/browser/astro/*" ]
+  sources = [
+    "oxyos_menu_bar.cc",
+    "oxyos_menu_bar.h",
+  ]
+  deps = [
+    "//base",
+    "//ui/base",
+    "//ui/platform_window",
+  ]
+}
+
 assert(is_linux)
 
 config("oxyos_client_headers") {
@@ -55,7 +68,10 @@ source_set("oxyos") {
 
   configs += [ "//ui/events/ozone/layout:xkbcommon" ]
 
-  public_deps = [ ":oxyos_client" ]
+  public_deps = [
+    ":menu_bar",
+    ":oxyos_client",
+  ]
 
   deps = [
     "mojom",
@@ -92,6 +108,7 @@ source_set("oxyos_unittests") {
     "oxyos_conversions_unittest.cc",
     "oxyos_keyboard_unittest.cc",
     "oxyos_keymap_unittest.cc",
+    "oxyos_menu_bar_unittest.cc",
     "oxyos_text_input_unittest.cc",
   ]
   configs += [ "//ui/events/ozone/layout:xkbcommon" ]
@@ -110,5 +127,6 @@ source_set("oxyos_unittests") {
     "//skia",
     "//ui/gfx/geometry",
     "//ui/gfx/range",
+    "//ui/platform_window/stub",
   ]
 }

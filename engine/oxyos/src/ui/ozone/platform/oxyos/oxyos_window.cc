@@ -61,6 +61,9 @@ OxyOSWindow::~OxyOSWindow() {
 }
 
 void OxyOSWindow::Initialize() {
+  if (is_toplevel()) {
+    SetOxyOSMenuBar(this, this);
+  }
   connection_->AddWindow(this);
   PlatformEventSource::GetInstance()->AddPlatformEventDispatcher(this);
   delegate_->OnAcceleratedWidgetAvailable(surface_);
@@ -113,6 +116,7 @@ void OxyOSWindow::CreateSurface() {
     }
     SendTitle();
     SendSizeLimits();
+    SendMenus();
   } else {
     OxyOSWindow* owner = parent();
     if (!owner || !owner->shown()) {
@@ -213,6 +217,35 @@ void OxyOSWindow::OnPopupDone() {
 
 void OxyOSWindow::OnCompositorCloseRequest() {
   delegate_->OnCloseRequest();
+}
+
+bool OxyOSWindow::SetMenus(std::vector<OxyOSMenuEntry> entries,
+                           Activated activated) {
+  if (!is_toplevel()) {
+    return false;
+  }
+  menus_ = std::move(entries);
+  menu_activated_ = std::move(activated);
+  SendMenus();
+  return true;
+}
+
+void OxyOSWindow::SendMenus() {
+  if (!created_ || !is_toplevel()) {
+    return;
+  }
+  const std::vector<OxyOSMenuItem> items = OxyOSMenuItemsOf(menus_);
+  ++menus_serial_;
+  if (oxyos_client_set_menus(connection_->client(), surface_, menus_serial_,
+                             items.data(), items.size()) != 0) {
+    LOG(ERROR) << "OxyOS refused the window's menus: " << oxyos_last_error();
+  }
+}
+
+void OxyOSWindow::OnMenuItemActivated(uint32_t menus, uint32_t index) {
+  if (menus == menus_serial_ && index < menus_.size() && menu_activated_) {
+    menu_activated_.Run(index);
+  }
 }
 
 void OxyOSWindow::OnLostCapture() {

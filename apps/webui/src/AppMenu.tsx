@@ -6,7 +6,9 @@ import { manageOxyAccount, signInWithOxy, signOutOfOxy, useOxySession } from "..
 import { useBrowser } from "../../browser/src/store/browser";
 import { showMenu } from "../../demo/src/shims/web/overlays";
 import { TRAFFIC_LIGHT_DIAMETER, TRAFFIC_LIGHT_SPACING, useTrafficLightsCenter } from "../../demo/src/shims/web/windowChrome";
+import { useSyncExternalStore } from "react";
 import { displayVersion } from "./host/appcast";
+import { menuBarShown, onMenuBarShown } from "./host/menuBar";
 import { checkForUpdatesNow, installReadyUpdate, releaseNotesFor, updateMenuState } from "./host/updater";
 import { pageWindowId } from "./host/windows";
 import { APP_MENU_BUTTON_GAP, APP_MENU_BUTTON_SIZE, emitCommand, requestQuit } from "./shims/shell";
@@ -199,7 +201,8 @@ export async function openAppMenu() {
 
 export function AppMenuButton() {
   const at = useTrafficLightsCenter();
-  if (!at) return null;
+  const inMenuBar = useSyncExternalStore(onMenuBarShown, menuBarShown);
+  if (!at || inMenuBar) return null;
   return (
     <button
       type="button"

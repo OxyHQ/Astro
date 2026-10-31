@@ -363,6 +363,14 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   characters. Every input event carries its device's time (OxyOS's protocol v3, `time_ns`), which
   Chromium's events are stamped with, so a page's `event.timeStamp` and double clicks follow the hand, not when the
   browser read the event.
+- **Menu bar:** the window's menus are in the session's bar (ADR 0021). The interface builds File, Edit, View, Tabs,
+  History, Bookmarks, Extensions, Window and Help from its own command table (`apps/webui/src/host/menuBar.ts`, from
+  `menuBarCommands` in the web shortcut table), with each command's chord (OxyOS's `Mod` is Ctrl), check and disabled
+  state, and sends them through `astroMenuBar` to the engine (`ac_menu_bar.cc`), which hands them to the window's
+  `OxyOSMenuBar`; a choice comes back as a `menuBarItem` host event and runs the same command a shortcut runs. Edit's
+  Undo, Redo, Cut, Copy, Paste and Select All act on the focused frame (`astroEditCommand`). With the bar shown, the ⋯
+  button is hidden. Settings… and Import are at the end of Edit until OxyOS's application menu offers an application's
+  settings. Its scenario is OxyOS's `astro-menu-bar.json`.
 - **Cursors:** a cursor type OxyOS has a shape for is that shape; for the others (copy, alias, a context menu, progress,
   a cell, vertical text, panning) Chromium draws its own image, and that image, a page's custom cursor and
   `cursor: none` (a transparent pixel) go to the compositor with their hotspot and scale (OxyOS's `SetPointerImage`).
@@ -393,7 +401,7 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   install -Dm644 /opt/astro-browser/so.oxy.astro.desktop /usr/share/oxyos/applications/so.oxy.astro.desktop`: the
   session's registry then lists Astro and launches `/opt/astro-browser/astro-browser --ozone-platform=oxyos`. The
   renderer sandbox needs unprivileged user namespaces, which Debian's kernel allows.
-- **Not yet:** the GPU, the menu bar, accessibility, drag and drop and file
+- **Not yet:** the GPU, accessibility, drag and drop and file
   choosers. Chromium starts in its GPU modes and falls back to software until the platform has GL.
 
 Its test is OxyOS's `tools/rn-host-spike/scenarios/astro.json` (`regress.py --client <out>/chrome`), on OxyOS's

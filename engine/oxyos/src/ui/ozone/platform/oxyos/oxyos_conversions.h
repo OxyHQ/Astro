@@ -18,6 +18,7 @@
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/ozone/platform/oxyos/oxyos_menu_bar.h"
 
 namespace ui {
 
@@ -64,6 +65,9 @@ OxyOSPositioner OxyOSPopupPositioner(const OwnedWindowAnchor& anchor,
                                      const gfx::Size& size);
 
 std::string OxyOSTitle(std::u16string_view title, size_t limit);
+
+std::vector<OxyOSMenuItem> OxyOSMenuItemsOf(
+    const std::vector<OxyOSMenuEntry>& entries);
 
 }
 
