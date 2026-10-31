@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 
+#include "base/time/time.h"
 #include "oxyos_client.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-forward.h"
 #include "ui/base/owned_window_anchor.h"
@@ -29,6 +30,8 @@ gfx::PointF OxyOSPointerLocation(int32_t x_256, int32_t y_256, float scale);
 uint8_t OxyOSPointerShape(mojom::CursorType type);
 
 int OxyOSButtonFlag(uint32_t code);
+
+base::TimeTicks OxyOSEventTime(uint64_t time_ns);
 
 OxyOSPositioner OxyOSPopupPositioner(const OwnedWindowAnchor& anchor,
                                      const gfx::Size& size);

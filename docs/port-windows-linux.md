@@ -360,7 +360,9 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   popup surfaces placed by Chromium's own anchor.
 - **Input:** pointer, precise scrolling and keys. Each key arrives with the text the session's layout typed with it
   (OxyOS's `SetKeyText`), so a keydown carries its `key` and text is inserted once; text no key typed comes as
-  characters.
+  characters. Every input event carries its device's time (OxyOS's protocol v3, `time_ns`), which
+  Chromium's events are stamped with, so a page's `event.timeStamp` and double clicks follow the hand, not when the
+  browser read the event.
 - **Pixels:** Chromium's software compositing (its path without a GPU) draws in the GPU process into sealed shared
   memory, which the browser attaches to its OxyOS connection and submits with the damage, unchanged; a swap completes
   when the compositor presents or discards the frame. The GPU path (DMA-BUF with explicit sync) is ADR 0029's step 3.

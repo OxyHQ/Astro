@@ -242,19 +242,19 @@ void OxyOSConnection::HandlePointer(const OxyOSEvent& event,
   const gfx::PointF location =
       OxyOSPointerLocation(event.x, event.y, window->scale());
   const int modifiers = keyboard_.modifiers();
+  const base::TimeTicks time = OxyOSEventTime(event.time_ns);
   switch (event.detail) {
     case OXYOS_POINTER_ENTER: {
       pointer_surface_ = window->surface();
       pointer_location_ = location;
-      MouseEvent enter(EventType::kMouseEntered, location, location,
-                       EventTimeForNow(), buttons_ | modifiers, 0);
+      MouseEvent enter(EventType::kMouseEntered, location, location, time,
+                       buttons_ | modifiers, 0);
       DispatchTo(window, &enter);
       break;
     }
     case OXYOS_POINTER_LEAVE: {
       MouseEvent exit(EventType::kMouseExited, pointer_location_,
-                      pointer_location_, EventTimeForNow(),
-                      buttons_ | modifiers, 0);
+                      pointer_location_, time, buttons_ | modifiers, 0);
       DispatchTo(window, &exit);
       if (pointer_surface_ == window->surface()) {
         pointer_surface_ = 0;
@@ -264,8 +264,8 @@ void OxyOSConnection::HandlePointer(const OxyOSEvent& event,
     case OXYOS_POINTER_MOTION: {
       pointer_surface_ = window->surface();
       pointer_location_ = location;
-      MouseEvent motion(EventType::kMouseMoved, location, location,
-                        EventTimeForNow(), buttons_ | modifiers, 0);
+      MouseEvent motion(EventType::kMouseMoved, location, location, time,
+                        buttons_ | modifiers, 0);
       DispatchTo(window, &motion);
       break;
     }
@@ -277,8 +277,8 @@ void OxyOSConnection::HandlePointer(const OxyOSEvent& event,
       last_press_serial_ = event.serial;
       pointer_location_ = location;
       buttons_ |= flag;
-      MouseEvent press(EventType::kMousePressed, location, location,
-                       EventTimeForNow(), buttons_ | modifiers, flag);
+      MouseEvent press(EventType::kMousePressed, location, location, time,
+                       buttons_ | modifiers, flag);
       press.InitializeNative();
       DispatchTo(window, &press);
       break;
@@ -291,8 +291,8 @@ void OxyOSConnection::HandlePointer(const OxyOSEvent& event,
       pointer_location_ = location;
       const int flags = buttons_ | modifiers | flag;
       buttons_ &= ~flag;
-      MouseEvent release(EventType::kMouseReleased, location, location,
-                         EventTimeForNow(), flags, flag);
+      MouseEvent release(EventType::kMouseReleased, location, location, time,
+                         flags, flag);
       release.InitializeNative();
       DispatchTo(window, &release);
       break;
@@ -314,11 +314,15 @@ void OxyOSConnection::HandleScroll(const OxyOSEvent& event,
   scrolled_ += gfx::Vector2dF(-event.x / 256.0f, -event.y / 256.0f);
   const gfx::Vector2d offset = gfx::ToRoundedVector2d(scrolled_);
   scrolled_ -= gfx::Vector2dF(offset);
+  if (event.flag) {
+    scrolled_ = gfx::Vector2dF();
+  }
   if (offset.IsZero()) {
     return;
   }
+  const base::TimeTicks time = OxyOSEventTime(event.time_ns);
   MouseWheelEvent wheel(
-      offset, pointer_location_, pointer_location_, EventTimeForNow(),
+      offset, pointer_location_, pointer_location_, time,
       buttons_ | keyboard_.modifiers() | EF_PRECISION_SCROLLING_DELTA, 0);
   DispatchTo(window, &wheel);
 }
@@ -327,13 +331,14 @@ void OxyOSConnection::HandleKey(const OxyOSEvent& event, OxyOSWindow* window) {
   if (event.flag) {
     last_press_serial_ = event.serial;
   }
+  const base::TimeTicks time = OxyOSEventTime(event.time_ns);
   OxyOSKeyboard::Typed typed =
-      keyboard_.OnKey(event.code, event.flag, TextOf(event), EventTimeForNow());
+      keyboard_.OnKey(event.code, event.flag, TextOf(event), time);
   auto weak = window->GetWeakPtr();
   DispatchTo(window, &typed.key);
   if (!typed.text.empty() && weak) {
-    for (KeyEvent& character : keyboard_.CharactersOf(
-             base::UTF16ToUTF8(typed.text), EventTimeForNow())) {
+    for (KeyEvent& character :
+         keyboard_.CharactersOf(base::UTF16ToUTF8(typed.text), time)) {
       DispatchTo(window, &character);
     }
   }

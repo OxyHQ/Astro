@@ -83,4 +83,11 @@ TEST(OxyOSConversionsTest, ATitleIsCutAtACharacter) {
   EXPECT_EQ(OxyOSTitle(u"café", 5), "caf\xc3\xa9");
 }
 
+TEST(OxyOSConversionsTest, AnInputEventIsTimedByItsDevice) {
+  EXPECT_EQ(OxyOSEventTime(1'500'000'123),
+            base::TimeTicks() + base::Nanoseconds(1'500'000'123));
+  const base::TimeTicks before = base::TimeTicks::Now();
+  EXPECT_GE(OxyOSEventTime(0), before);
+}
+
 }
