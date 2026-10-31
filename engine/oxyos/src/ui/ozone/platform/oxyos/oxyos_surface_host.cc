@@ -171,6 +171,7 @@ class Surface : public ozone::mojom::OxyOSSurface {
   }
 
   void Present(uint32_t id,
+               uint64_t frame,
                const std::vector<gfx::Rect>& damage,
                int64_t viz_seq,
                gfx::GpuFenceHandle acquire) override {
@@ -200,13 +201,14 @@ class Surface : public ozone::mojom::OxyOSSurface {
     VLOG(1) << "OxyOS GPU frame of buffer " << id << " submitted "
             << sequence.has_value();
     if (!sequence) {
-      client_->OnPresented(id, false);
+      client_->OnPresented(frame, false);
       client_->OnBufferReleased(id, std::move(acquire));
       return;
     }
     connection_->ExpectFeedback(
         window, *sequence,
-        base::BindOnce(&Surface::OnFeedback, weak_factory_.GetWeakPtr(), id));
+        base::BindOnce(&Surface::OnFeedback, weak_factory_.GetWeakPtr(),
+                       frame));
   }
 
  private:
@@ -219,7 +221,9 @@ class Surface : public ozone::mojom::OxyOSSurface {
     bool failed = false;
   };
 
-  void OnFeedback(uint32_t id, bool shown) { client_->OnPresented(id, shown); }
+  void OnFeedback(uint64_t frame, bool shown) {
+    client_->OnPresented(frame, shown);
+  }
 
   void OnReleased(uint32_t id, bool failed) {
     auto it = buffers_.find(id);

@@ -45,7 +45,7 @@ class OxyOSCanvasSurface : public SurfaceOzoneCanvas,
   void OnSwapBuffers(SwapBuffersCallback swap_ack_callback,
                      gfx::FrameData data) override;
 
-  void OnPresented(uint32_t buffer, bool shown) override;
+  void OnPresented(uint64_t frame, bool shown) override;
   void OnBufferReleased(uint32_t buffer, gfx::GpuFenceHandle release) override;
   void OnBufferFailed(uint32_t buffer) override;
   void OnRefresh(uint32_t refresh_mhz) override;
@@ -64,6 +64,17 @@ class OxyOSCanvasSurface : public SurfaceOzoneCanvas,
     bool busy = false;
   };
 
+  struct Unanswered {
+    Unanswered(uint64_t frame, SwapBuffersCallback callback);
+    Unanswered(Unanswered&&);
+    Unanswered& operator=(Unanswered&&);
+    ~Unanswered();
+
+    uint64_t frame;
+    SwapBuffersCallback callback;
+    bool presented = false;
+  };
+
   Buffer* FreeBuffer();
   void CopyDirtyRegion(Buffer* to, Buffer* from);
   void DetachAll();
@@ -78,7 +89,8 @@ class OxyOSCanvasSurface : public SurfaceOzoneCanvas,
   raw_ptr<Buffer> drawing_ = nullptr;
   raw_ptr<Buffer> previous_ = nullptr;
   gfx::Rect damage_;
-  base::circular_deque<SwapBuffersCallback> unanswered_;
+  uint64_t last_frame_ = 0;
+  base::circular_deque<Unanswered> unanswered_;
   scoped_refptr<OxyOSRefresh> refresh_ = base::MakeRefCounted<OxyOSRefresh>();
 };
 

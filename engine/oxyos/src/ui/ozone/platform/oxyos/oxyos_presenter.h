@@ -34,23 +34,30 @@ class OxyOSFrameLedger {
   OxyOSFrameLedger& operator=(const OxyOSFrameLedger&) = delete;
   ~OxyOSFrameLedger();
 
-  void Submitted(uint32_t buffer);
-  bool Presented(uint32_t buffer);
+  struct Completed {
+    gfx::GpuFenceHandle release;
+    gfx::PresentationFeedback feedback;
+  };
+
+  uint64_t Submitted(uint32_t buffer);
+  bool Presented(uint64_t frame, const gfx::PresentationFeedback& feedback);
   void Released(uint32_t buffer, gfx::GpuFenceHandle fence);
-  std::optional<gfx::GpuFenceHandle> TakeCompleted();
+  std::optional<Completed> TakeCompleted();
   bool InFlight(uint32_t buffer) const;
   size_t pending() const { return frames_.size(); }
 
  private:
   struct Frame {
+    uint64_t id = 0;
     uint32_t buffer = 0;
     uint32_t previous = 0;
-    bool presented = false;
+    std::optional<gfx::PresentationFeedback> feedback;
   };
 
   base::circular_deque<Frame> frames_;
   base::flat_map<uint32_t, gfx::GpuFenceHandle> released_;
   uint32_t last_submitted_ = 0;
+  uint64_t last_frame_ = 0;
 };
 
 class OxyOSPresenter : public gl::Presenter,
@@ -74,7 +81,7 @@ class OxyOSPresenter : public gl::Presenter,
                gfx::FrameData data) override;
   void SetRelyOnImplicitSync() override;
 
-  void OnPresented(uint32_t buffer, bool shown) override;
+  void OnPresented(uint64_t frame, bool shown) override;
   void OnBufferReleased(uint32_t buffer, gfx::GpuFenceHandle release) override;
   void OnBufferFailed(uint32_t buffer) override;
   void OnRefresh(uint32_t refresh_mhz) override;
@@ -118,7 +125,6 @@ class OxyOSPresenter : public gl::Presenter,
 
     SwapCompletionCallback completion;
     PresentationCallback presentation;
-    std::optional<gfx::PresentationFeedback> feedback;
   };
   base::circular_deque<Pending> pending_;
   base::TimeDelta interval_ = base::Hertz(60);

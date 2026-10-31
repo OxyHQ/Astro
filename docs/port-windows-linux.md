@@ -428,7 +428,11 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   - Viz's buffer queue presents through `OxyOSPresenter`: each buffer is attached once (`AttachDmabuf`), each frame
     submitted with its acquire fence as a point on the buffer's DRM syncobj timeline and a release point after it
     (`oxyos_client_submit_buffer_synced`); a swap completes once the frame is presented and the buffer it replaced is
-    released, with that release point's fence (`OxyOSFrameLedger`).
+    released, with that release point's fence (`OxyOSFrameLedger`). Each submission carries a frame id that its answer
+    (`OnPresented`) names, as answers come out of order: the compositor discards a queued frame (on a configure or a
+    newer frame) while the one ahead of it is still presenting, and the browser answers at once a frame no configure
+    fits during a resize. Each frame's answer is kept whenever it comes; swaps still complete in order. The software
+    canvas does the same.
   - Without DMA-BUF import, native fences (ANGLE on Vulkan) or a buffer the compositor imports, the GPU process says so
     once (`OxyOS composites in software: …`) and compositing stays in software; a buffer the compositor refuses
     (`BUFFER_FAILED`) fails the swaps, and Chromium falls back the same way.
