@@ -363,6 +363,11 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   characters. Every input event carries its device's time (OxyOS's protocol v3, `time_ns`), which
   Chromium's events are stamped with, so a page's `event.timeStamp` and double clicks follow the hand, not when the
   browser read the event.
+- **Displays:** Chromium's display list is the session's outputs (OxyOS's `ApplicationOutput`: size, scale, refresh,
+  work area), side by side in its own space, and a window's display the output it is on (`SurfaceOutput`), so pages
+  see the real `screen.width`, `devicePixelRatio` and `availHeight`, and a window moved onto another output tells them
+  its new screen. Frames are paced at the output's refresh (`Refresh`, a VSync provider for viz's software
+  compositing). Its scenario is OxyOS's `astro-outputs.json`.
 - **Menu bar:** the window's menus are in the session's bar (ADR 0021). The interface builds File, Edit, View, Tabs,
   History, Bookmarks, Extensions, Window and Help from its own command table (`apps/webui/src/host/menuBar.ts`, from
   `menuBarCommands` in the web shortcut table), with each command's chord (OxyOS's `Mod` is Ctrl), check and disabled

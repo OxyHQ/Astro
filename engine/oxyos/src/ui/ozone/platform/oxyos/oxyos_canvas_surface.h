@@ -8,6 +8,7 @@
 
 #include "base/containers/circular_deque.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -17,6 +18,7 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/ozone/platform/oxyos/mojom/oxyos_surfaces.mojom.h"
+#include "ui/ozone/platform/oxyos/oxyos_vsync.h"
 #include "ui/ozone/public/surface_ozone_canvas.h"
 
 class SkSurface;
@@ -43,6 +45,7 @@ class OxyOSCanvasSurface : public SurfaceOzoneCanvas,
 
   void OnPresented(uint32_t buffer, bool shown) override;
   void OnBufferReleased(uint32_t buffer) override;
+  void OnRefresh(uint32_t refresh_mhz) override;
 
  private:
   struct Buffer {
@@ -73,6 +76,7 @@ class OxyOSCanvasSurface : public SurfaceOzoneCanvas,
   raw_ptr<Buffer> previous_ = nullptr;
   gfx::Rect damage_;
   base::circular_deque<SwapBuffersCallback> unanswered_;
+  scoped_refptr<OxyOSRefresh> refresh_ = base::MakeRefCounted<OxyOSRefresh>();
 };
 
 }

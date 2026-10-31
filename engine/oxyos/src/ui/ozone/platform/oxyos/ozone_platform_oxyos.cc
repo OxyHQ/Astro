@@ -126,6 +126,7 @@ class OzonePlatformOxyos : public OzonePlatform {
     input_controller_ = std::make_unique<StubInputController>();
     overlay_manager_ = std::make_unique<StubOverlayManager>();
     surface_host_ = std::make_unique<OxyOSSurfaceHost>(connection_.get());
+    connection_->set_surface_host(surface_host_.get());
     return true;
   }
 

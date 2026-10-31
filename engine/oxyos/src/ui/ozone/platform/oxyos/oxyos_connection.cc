@@ -2,6 +2,7 @@
 
 #include "ui/ozone/platform/oxyos/oxyos_connection.h"
 
+#include <algorithm>
 #include <cstring>
 #include <utility>
 #include <vector>
@@ -16,6 +17,7 @@
 #include "ui/gfx/geometry/vector2d_conversions.h"
 #include "ui/ozone/platform/oxyos/oxyos_conversions.h"
 #include "ui/ozone/platform/oxyos/oxyos_input_method_context.h"
+#include "ui/ozone/platform/oxyos/oxyos_surface_host.h"
 #include "ui/ozone/platform/oxyos/oxyos_window.h"
 
 namespace ui {
@@ -263,6 +265,24 @@ void OxyOSConnection::HandleEvent(const OxyOSEvent& event) {
     case OXYOS_EVENT_FEEDBACK:
       HandleFeedback(event);
       break;
+    case OXYOS_EVENT_APPLICATION_OUTPUT:
+    case OXYOS_EVENT_APPLICATION_OUTPUT_WORK_AREA:
+    case OXYOS_EVENT_APPLICATION_OUTPUT_REMOVED:
+      HandleOutput(event);
+      break;
+    case OXYOS_EVENT_SURFACE_OUTPUT:
+      if (window) {
+        window->OnOutput(event.code);
+      }
+      break;
+    case OXYOS_EVENT_REFRESH:
+      if (window) {
+        window->OnRefresh(event.detail);
+      }
+      if (surface_host_) {
+        surface_host_->OnRefresh(event.surface, event.detail);
+      }
+      break;
     case OXYOS_EVENT_MENU_ITEM_ACTIVATED:
       last_press_serial_ = event.serial;
       if (window) {
@@ -407,6 +427,64 @@ void OxyOSConnection::HandleKey(const OxyOSEvent& event, OxyOSWindow* window) {
 void OxyOSConnection::HandleText(std::string_view text, OxyOSWindow* window) {
   for (KeyEvent& character : keyboard_.CharactersOf(text, EventTimeForNow())) {
     DispatchTo(window, &character);
+  }
+}
+
+void OxyOSConnection::HandleOutput(const OxyOSEvent& event) {
+  auto it = std::ranges::find(outputs_, event.code, &OxyOSOutput::id);
+  switch (event.kind) {
+    case OXYOS_EVENT_APPLICATION_OUTPUT: {
+      OxyOSOutput output;
+      if (it != outputs_.end()) {
+        output = *it;
+      }
+      output.id = event.code;
+      output.size = gfx::Size(static_cast<int>(event.width),
+                              static_cast<int>(event.height));
+      output.scale_120 = event.scale_120 ? event.scale_120 : 120;
+      output.refresh_mhz = event.detail;
+      output.primary = event.flag;
+      if (output.primary) {
+        for (OxyOSOutput& other : outputs_) {
+          other.primary = false;
+        }
+      }
+      if (it != outputs_.end()) {
+        *it = output;
+      } else {
+        outputs_.push_back(output);
+      }
+      break;
+    }
+    case OXYOS_EVENT_APPLICATION_OUTPUT_WORK_AREA:
+      if (it == outputs_.end()) {
+        return;
+      }
+      it->work_area = gfx::Rect(event.x, event.y, static_cast<int>(event.width),
+                                static_cast<int>(event.height));
+      break;
+    case OXYOS_EVENT_APPLICATION_OUTPUT_REMOVED:
+      if (it == outputs_.end()) {
+        return;
+      }
+      outputs_.erase(it);
+      break;
+  }
+  OutputsChanged();
+}
+
+void OxyOSConnection::OutputsChanged() {
+  if (screen_) {
+    screen_->OnOutputsChanged(outputs_);
+  }
+  std::vector<base::WeakPtr<OxyOSWindow>> windows;
+  for (const auto& [surface, window] : windows_) {
+    windows.push_back(window->GetWeakPtr());
+  }
+  for (const base::WeakPtr<OxyOSWindow>& window : windows) {
+    if (window) {
+      window->OnOutputPlaced();
+    }
   }
 }
 

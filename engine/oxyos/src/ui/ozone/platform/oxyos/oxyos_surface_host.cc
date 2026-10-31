@@ -69,6 +69,10 @@ class Surface : public ozone::mojom::OxyOSSurface {
                                     weak_factory_.GetWeakPtr(), id));
   }
 
+  void Refresh(uint32_t refresh_mhz) { client_->OnRefresh(refresh_mhz); }
+
+  base::WeakPtr<Surface> GetWeakPtr() { return weak_factory_.GetWeakPtr(); }
+
   void DetachBuffer(uint32_t id) override {
     auto it = buffers_.find(id);
     if (it == buffers_.end()) {
@@ -127,6 +131,7 @@ void OxyOSSurfaceHost::OnChannelDestroyed(int host_id) {
   if (host_id != host_id_) {
     return;
   }
+  refreshers_.clear();
   surfaces_.Clear();
   receivers_.Clear();
   gpu_.reset();
@@ -151,12 +156,27 @@ void OxyOSSurfaceHost::CreateSurface(
     gfx::AcceleratedWidget widget,
     mojo::PendingReceiver<ozone::mojom::OxyOSSurface> surface,
     mojo::PendingRemote<ozone::mojom::OxyOSSurfaceClient> client) {
-  if (!connection_->GetWindow(widget)) {
+  OxyOSWindow* window = connection_->GetWindow(widget);
+  if (!window) {
     return;
   }
-  surfaces_.Add(
-      std::make_unique<Surface>(connection_, widget, std::move(client)),
-      std::move(surface));
+  auto created =
+      std::make_unique<Surface>(connection_, widget, std::move(client));
+  base::RepeatingCallback<void(uint32_t)> refresh =
+      base::BindRepeating(&Surface::Refresh, created->GetWeakPtr());
+  surfaces_.Add(std::move(created), std::move(surface));
+  if (window->refresh_mhz()) {
+    refresh.Run(window->refresh_mhz());
+  }
+  refreshers_[widget] = std::move(refresh);
+}
+
+void OxyOSSurfaceHost::OnRefresh(gfx::AcceleratedWidget widget,
+                                 uint32_t refresh_mhz) {
+  auto it = refreshers_.find(widget);
+  if (it != refreshers_.end()) {
+    it->second.Run(refresh_mhz);
+  }
 }
 
 }

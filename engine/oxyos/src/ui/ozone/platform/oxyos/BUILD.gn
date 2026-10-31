@@ -58,6 +58,8 @@ source_set("oxyos") {
     "oxyos_surface_host.h",
     "oxyos_text_input.cc",
     "oxyos_text_input.h",
+    "oxyos_vsync.cc",
+    "oxyos_vsync.h",
     "oxyos_window.cc",
     "oxyos_window.h",
     "ozone_platform_oxyos.cc",
@@ -109,6 +111,7 @@ source_set("oxyos_unittests") {
     "oxyos_keyboard_unittest.cc",
     "oxyos_keymap_unittest.cc",
     "oxyos_menu_bar_unittest.cc",
+    "oxyos_screen_unittest.cc",
     "oxyos_text_input_unittest.cc",
   ]
   configs += [ "//ui/events/ozone/layout:xkbcommon" ]
@@ -127,6 +130,7 @@ source_set("oxyos_unittests") {
     "//skia",
     "//ui/gfx/geometry",
     "//ui/gfx/range",
+    "//ui/display",
     "//ui/platform_window/stub",
   ]
 }
