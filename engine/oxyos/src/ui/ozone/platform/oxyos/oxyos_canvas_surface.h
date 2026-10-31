@@ -4,6 +4,7 @@
 #define UI_OZONE_PLATFORM_OXYOS_OXYOS_CANVAS_SURFACE_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/containers/circular_deque.h"
@@ -16,6 +17,7 @@
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkRegion.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/gfx/gpu_fence_handle.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/ozone/platform/oxyos/mojom/oxyos_surfaces.mojom.h"
 #include "ui/ozone/platform/oxyos/oxyos_vsync.h"
@@ -44,7 +46,8 @@ class OxyOSCanvasSurface : public SurfaceOzoneCanvas,
                      gfx::FrameData data) override;
 
   void OnPresented(uint32_t buffer, bool shown) override;
-  void OnBufferReleased(uint32_t buffer) override;
+  void OnBufferReleased(uint32_t buffer, gfx::GpuFenceHandle release) override;
+  void OnBufferFailed(uint32_t buffer) override;
   void OnRefresh(uint32_t refresh_mhz) override;
 
  private:

@@ -5,6 +5,13 @@ module ui.ozone.mojom;
 import "mojo/public/mojom/base/shared_memory.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "ui/gfx/mojom/accelerated_widget.mojom";
+import "ui/gfx/mojom/gpu_fence_handle.mojom";
+import "ui/gfx/mojom/native_handle_types.mojom";
+
+struct OxyOSGpuFormat {
+  uint32 format;
+  uint64 modifier;
+};
 
 interface OxyOSSurfaceHost {
   CreateSurface(gfx.mojom.AcceleratedWidget widget,
@@ -16,16 +23,25 @@ interface OxyOSSurface {
   AttachBuffer(uint32 buffer,
                mojo_base.mojom.UnsafeSharedMemoryRegion pixels,
                gfx.mojom.Size size);
+  AttachDmabuf(uint32 buffer,
+               gfx.mojom.NativePixmapHandle pixmap,
+               uint32 format,
+               gfx.mojom.Size size);
   DetachBuffer(uint32 buffer);
-  Present(uint32 buffer, array<gfx.mojom.Rect> damage, int64 viz_seq);
+  Present(uint32 buffer,
+          array<gfx.mojom.Rect> damage,
+          int64 viz_seq,
+          gfx.mojom.GpuFenceHandle? acquire);
 };
 
 interface OxyOSSurfaceClient {
   OnPresented(uint32 buffer, bool shown);
-  OnBufferReleased(uint32 buffer);
+  OnBufferReleased(uint32 buffer, gfx.mojom.GpuFenceHandle? release);
+  OnBufferFailed(uint32 buffer);
   OnRefresh(uint32 refresh_mhz);
 };
 
 interface OxyOSGpu {
   Initialize(pending_remote<OxyOSSurfaceHost> host);
+  SetGpuTable(uint64 device, array<OxyOSGpuFormat> formats);
 };

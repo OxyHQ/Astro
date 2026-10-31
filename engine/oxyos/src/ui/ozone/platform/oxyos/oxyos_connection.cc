@@ -147,8 +147,7 @@ void OxyOSConnection::ExpectFeedback(OxyOSWindow* window,
   feedback_[sequence] = Expected{window->surface(), std::move(callback)};
 }
 
-void OxyOSConnection::WatchRelease(uint64_t buffer,
-                                   base::RepeatingClosure released) {
+void OxyOSConnection::WatchRelease(uint64_t buffer, BufferCallback released) {
   releases_[buffer] = std::move(released);
 }
 
@@ -305,10 +304,16 @@ void OxyOSConnection::HandleEvent(const OxyOSEvent& event) {
     case OXYOS_EVENT_CLIPBOARD_EMPTY:
       clipboard_.OnEmpty();
       break;
-    case OXYOS_EVENT_RELEASED: {
+    case OXYOS_EVENT_GPU_DEVICE:
+      if (surface_host_) {
+        surface_host_->OnGpuTable();
+      }
+      break;
+    case OXYOS_EVENT_RELEASED:
+    case OXYOS_EVENT_BUFFER_FAILED: {
       auto it = releases_.find(event.serial);
       if (it != releases_.end()) {
-        it->second.Run();
+        it->second.Run(event.kind == OXYOS_EVENT_BUFFER_FAILED);
       }
       break;
     }

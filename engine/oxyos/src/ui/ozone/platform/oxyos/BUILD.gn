@@ -42,6 +42,8 @@ source_set("oxyos") {
     "oxyos_conversions.h",
     "oxyos_cursor_factory.cc",
     "oxyos_cursor_factory.h",
+    "oxyos_gl_ozone.cc",
+    "oxyos_gl_ozone.h",
     "oxyos_gpu.cc",
     "oxyos_gpu.h",
     "oxyos_input_method_context.cc",
@@ -50,6 +52,8 @@ source_set("oxyos") {
     "oxyos_keyboard.h",
     "oxyos_keymap.cc",
     "oxyos_keymap.h",
+    "oxyos_presenter.cc",
+    "oxyos_presenter.h",
     "oxyos_screen.cc",
     "oxyos_screen.h",
     "oxyos_surface_factory.cc",
@@ -64,6 +68,8 @@ source_set("oxyos") {
     "oxyos_window.h",
     "ozone_platform_oxyos.cc",
     "ozone_platform_oxyos.h",
+    "//ui/ozone/common/native_pixmap_egl_binding.cc",
+    "//ui/ozone/common/native_pixmap_egl_binding.h",
   ]
 
   defines = [ "OZONE_IMPLEMENTATION" ]
@@ -78,6 +84,11 @@ source_set("oxyos") {
   deps = [
     "mojom",
     "//base",
+    "//components/viz/common/resources:shared_image_format",
+    "//ui/gfx:memory_buffer",
+    "//ui/gfx/linux:drm",
+    "//ui/gfx/linux:gbm",
+    "//ui/gl",
     "//mojo/public/cpp/bindings",
     "//mojo/public/cpp/system",
     "//skia",
@@ -111,6 +122,7 @@ source_set("oxyos_unittests") {
     "oxyos_keyboard_unittest.cc",
     "oxyos_keymap_unittest.cc",
     "oxyos_menu_bar_unittest.cc",
+    "oxyos_presenter_unittest.cc",
     "oxyos_screen_unittest.cc",
     "oxyos_text_input_unittest.cc",
   ]
