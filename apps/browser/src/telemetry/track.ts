@@ -38,9 +38,9 @@ export const takeOmniboxLatency = () => latency.splice(0);
 
 let firstWindowAt: number | null = null;
 
-export function markFirstWindow() {
+export function markFirstWindow(at = Date.now()) {
   if (firstWindowAt !== null) return;
-  firstWindowAt = Date.now();
+  firstWindowAt = at;
   const start = appInfo().processStart;
   if (!isSharing() || !start) return;
   if (firstWindowAt - start > 0 && firstWindowAt - start < 10 * 60_000) launchFirstWindow(firstWindowAt);

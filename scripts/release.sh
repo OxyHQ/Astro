@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-usage="usage: scripts/release.sh <version> [--channel stable|nightly] [--rc] [--phased <seconds>]"
+usage="usage: scripts/release.sh <version> [--channel stable|nightly] [--rc] [--phased <seconds>] [--windows <setup.exe>]"
 version="${1:?$usage}"
 shift
 rc=0
 phased=""
 channel=stable
+windows_installer="${WINDOWS_INSTALLER:-}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --rc) rc=1 ;;
@@ -19,6 +20,11 @@ while [ $# -gt 0 ]; do
       phased="${2:-}"
       shift
       case "$phased" in '' | *[!0-9]* | 0) echo "error: --phased takes whole seconds (86400 is a day), got '$phased'" >&2; exit 1 ;; esac
+      ;;
+    --windows)
+      windows_installer="${2:-}"
+      shift
+      [ -n "$windows_installer" ] || { echo "error: --windows takes the installer scripts/windows-installer.sh built" >&2; exit 1; }
       ;;
     *) echo "error: unknown option $1 ($usage)" >&2; exit 1 ;;
   esac
@@ -141,6 +147,17 @@ else
   xcrun notarytool history "${notary_auth[@]}" 2>&1 | head -2 >&2
   exit 1
 fi
+
+if [ -n "$windows_installer" ]; then
+  [ -f "$windows_installer" ] || die "no Windows installer at $windows_installer (scripts/windows-installer.sh on the Windows build host)"
+  [ "$(basename "$windows_installer")" = "Astro-$version-windows-x64-setup.exe" ] \
+    || die "$windows_installer isn't Astro-$version-windows-x64-setup.exe: build it from this version (scripts/windows-installer.sh)"
+  windows_commit="$(cat "$windows_installer.commit" 2>/dev/null || true)"
+  if [ "$rc" = 0 ] && [ "$windows_commit" != "$(git -C "$root" rev-parse HEAD)" ]; then
+    die "the Windows installer was built from ${windows_commit:-an unknown commit}, not HEAD ($(git -C "$root" rev-parse HEAD)): rebuild it from this commit"
+  fi
+fi
+windows_feed_base="${WINDOWS_APPCAST_BASE:-https://github.com/$repo/releases/latest/download/appcast-windows.xml}"
 
 feed_base="${APPCAST_BASE:-https://github.com/$repo/releases/latest/download/appcast.xml}"
 base_feed="$(mktemp "${TMPDIR:-/tmp}/ac-appcast.XXXXXX")"
@@ -362,9 +379,11 @@ hdiutil create -volname Astro -srcfolder "$staging" -format UDRW -ov "$dmg_rw" >
 rm -rf "$staging"
 hdiutil attach "$dmg_rw" -nobrowse -noautoopen -noverify -mountpoint "$dmg_mnt" >/dev/null
 SetFile -a C "$dmg_mnt" || { hdiutil detach "$dmg_mnt" -force >/dev/null; die "couldn't flag the volume's icon"; }
+dmg_mounted() { mount | grep -qF " on $dmg_mnt ("; }
 for attempt in 1 2 3 4 5; do
   hdiutil detach "$dmg_mnt" >/dev/null 2>&1 && break
-  [ "$attempt" = 5 ] && { hdiutil detach "$dmg_mnt" -force >/dev/null || die "couldn't eject $dmg_mnt"; }
+  dmg_mounted || break
+  [ "$attempt" = 5 ] && { hdiutil detach "$dmg_mnt" -force >/dev/null || ! dmg_mounted || die "couldn't eject $dmg_mnt"; }
   sleep 2
 done
 dmg_chunks=(-imagekey udif-chunk-size=8192)
@@ -399,7 +418,9 @@ source_line="This build's source, with the engine's patches and build scripts: h
 $install_line
 
 $updates_line
-
+${windows_installer:+
+Windows 10 or later, x64: run Astro-$version-windows-x64-setup.exe. It installs for your user, without asking for an administrator, and updates itself (Settings › General › Updates).
+}
 ## Source
 
 $source_line
@@ -425,6 +446,46 @@ phased_args=()
 mv "$updates/appcast.xml" "$dist/appcast.xml"
 rm -rf "$updates"
 
+windows_files=()
+windows_note=""
+windows_feed="$dist/appcast-windows.published.xml"
+case "$windows_feed_base" in
+  none) : > "$windows_feed" ;;
+  http://* | https://*)
+    windows_status="$(curl -sL -o "$windows_feed" -w '%{http_code}' "$windows_feed_base" || true)"
+    case "$windows_status" in
+      200) ;;
+      404) : > "$windows_feed" ;;
+      *)
+        [ -z "$windows_installer" ] || die "couldn't read the published Windows appcast ($windows_feed_base: HTTP $windows_status)"
+        echo "warning: couldn't read the published Windows appcast ($windows_feed_base: HTTP $windows_status); publish it again by hand" >&2
+        : > "$windows_feed"
+        ;;
+    esac
+    ;;
+  *) cp "$windows_feed_base" "$windows_feed" ;;
+esac
+if [ -n "$windows_installer" ]; then
+  echo "==> Windows"
+  windows_setup="$dist/Astro-$version-windows-x64-setup.exe"
+  cp "$windows_installer" "$windows_setup"
+  echo "windows installer from ${windows_commit:-an unknown commit}" >> "$dist/provenance.txt"
+  windows_signed="$("$sparkle/sign_update" --ed-key-file "$key" "$windows_setup")"
+  windows_signature="$(sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' <<< "$windows_signed")"
+  [ -n "$windows_signature" ] || die "sign_update didn't sign $windows_setup: $windows_signed"
+  python3 -I "$root/scripts/windows-appcast.py" item --version "$version" --build "$release_build" --channel "$channel" \
+    --url "https://github.com/$repo/releases/download/v$version/$(basename "$windows_setup")" \
+    --length "$(stat -f %z "$windows_setup")" --signature "$windows_signature" --out "$dist/appcast-windows.item.xml"
+  python3 -I "$root/scripts/windows-appcast.py" merge --feed "$windows_feed" --item "$dist/appcast-windows.item.xml" \
+    --out "$dist/appcast-windows.xml"
+  windows_files=("$windows_setup" "$dist/appcast-windows.xml")
+elif [ -s "$windows_feed" ]; then
+  cp "$windows_feed" "$dist/appcast-windows.xml"
+  windows_files=("$dist/appcast-windows.xml")
+  windows_note=" (appcast-windows.xml carries the published Windows feed over: publish it with the release)"
+fi
+rm -f "$windows_feed"
+
 engine_files=()
 if [ -n "$engine_pack" ]; then
   wait "$engine_pack" || { cat "$dist/engine-pack.log" >&2; die "packing the engine failed ($dist/engine-pack.log)"; }
@@ -439,4 +500,5 @@ echo
 [ "$rc" = 1 ] && echo "Release candidate: never publish dist/$version-rc."
 [ "$channel" = nightly ] && [ "$rc" = 0 ] && echo "Nightly: publish it with .claude/skills/release/scripts/publish-nightly.sh $version (a prerelease; the feed and astro.oxy.so/nightly follow)."
 [ -n "$phased" ] && echo "Phased rollout: $phased s between steps (the appcast item has phasedRolloutInterval; the whole release takes $((phased * 7)) s)."
-du -sh "$app" "$dmg" "$zip" "$cli_tarball" "$dist/appcast.xml" "$dist/release-notes.md" ${engine_files[@]+"${engine_files[@]}"}
+[ -z "$windows_installer" ] && echo "No Windows installer (--windows): Windows copies won't be offered this version$windows_note."
+du -sh "$app" "$dmg" "$zip" "$cli_tarball" "$dist/appcast.xml" "$dist/release-notes.md" ${engine_files[@]+"${engine_files[@]}"} ${windows_files[@]+"${windows_files[@]}"}

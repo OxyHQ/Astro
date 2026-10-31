@@ -9,5 +9,5 @@ test("quotes ids and targets the app by bundle id", () => {
     'tell application id "so.oxy.Astro" to focus (tab id "tab-2" of window id "w-1")',
   );
   assert.equal(closeTabScript({ windowId: "w-1", tabId: "tab-2" }, "current application"), 'tell current application to close (tab id "tab-2" of window id "w-1")');
-  assert.match(listTabsScript(), /tell application id "com\.astro\.browser"/);
+  assert.match(listTabsScript(), /tell application id "so\.oxy\.Astro"/);
 });

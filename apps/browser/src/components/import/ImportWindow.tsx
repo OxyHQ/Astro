@@ -2,6 +2,7 @@ import type { BrowserProfile, BrowserSource, DiaAutomationStatus, DiaTabsResult,
 import { closeWindow, confirm, Symbol, VisualEffect, WindowDragRegion } from "@astro-browser/shell";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Animated, AppState, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { DEVICE, KEYCHAIN, ON_MAC } from "../../lib/device";
 import { useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { useProfiles } from "../../store/hooks";
@@ -165,7 +166,11 @@ export function ImportWindow() {
       void run(kinds);
     } catch {
       setUnlocking(false);
-      setError(`macOS didn't allow access to ${source.name}'s keychain item. Try again, or skip the encrypted data.`);
+      setError(
+        ON_MAC
+          ? `macOS didn't allow access to ${source.name}'s keychain item. Try again, or skip the encrypted data.`
+          : `${APP} couldn't read ${source.name}'s key from ${KEYCHAIN}. Try again, or skip the encrypted data.`,
+      );
     }
   };
 
@@ -458,7 +463,7 @@ export function ImportWindow() {
         {!api ? (
           <Note text={`Importing isn't available in this build of ${APP}.`} />
         ) : browsers.length === 0 ? (
-          <Note text="No other browsers with data to import were found on this Mac." />
+          <Note text={`No other browsers with data to import were found on this ${DEVICE}.`} />
         ) : (
           <View style={{ gap: 6 }}>
             {browsers.map((b) => (
@@ -577,12 +582,16 @@ export function ImportWindow() {
             <Symbol name="lock.fill" size={30} color={theme.icon} style={{ width: 56, height: 56 }} />
           </View>
           <Text style={{ fontSize: 13, lineHeight: 18, textAlign: "center", color: theme.textPrimary, maxWidth: 420 }}>
-            {many
-              ? `Some data is encrypted, so macOS will ask for your computer password once for each selected profile.`
-              : `Some data is encrypted, so macOS will ask for your computer password to bring it securely into ${APP}.`}
+            {!ON_MAC
+              ? `Some data is encrypted, so ${APP} reads ${source.name}'s key from ${KEYCHAIN} to bring it securely into ${APP}.`
+              : many
+                ? `Some data is encrypted, so macOS will ask for your computer password once for each selected profile.`
+                : `Some data is encrypted, so macOS will ask for your computer password to bring it securely into ${APP}.`}
           </Text>
           <Text style={{ fontSize: 12, lineHeight: 17, textAlign: "center", color: theme.textSecondary, maxWidth: 420 }}>
-            {`macOS may ask whether ${APP} can use “${source.name} Safe Storage” from your keychain: it's the key ${source.name} encrypts passwords, cookies and cards with. Click Allow. Your data stays on this Mac.`}
+            {ON_MAC
+              ? `macOS may ask whether ${APP} can use “${source.name} Safe Storage” from your keychain: it's the key ${source.name} encrypts passwords, cookies and cards with. Click Allow. Your data stays on this Mac.`
+              : `If ${KEYCHAIN} is locked, it asks for your password before ${APP} can use “${source.name} Safe Storage”: it's the key ${source.name} encrypts passwords, cookies and cards with. Your data stays on this ${DEVICE}.`}
           </Text>
         </View>
         {error && <ErrorText text={error} />}

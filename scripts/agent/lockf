@@ -1,0 +1,52 @@
+#!/usr/bin/perl
+# lockf [-s] [-k] [-t seconds] file command [arguments…]: BSD lockf(1) for Linux, which has none. Runs the command
+# holding an exclusive flock on file, which dies with this process; exits 75 when the lock stays busy past -t, and
+# with the command's status otherwise. The process shows up as `lockf …` in ps, as the BSD one does, so
+# engine/patches/build/pathguard.py and scripts/agent/locked recognise it.
+use strict;
+use warnings;
+use Fcntl qw(:flock);
+use POSIX qw(:sys_wait_h);
+use Time::HiRes qw(sleep time);
+
+my @original = @ARGV;
+my ($silent, $keep, $timeout) = (0, 0, -1);
+while (@ARGV && $ARGV[0] =~ /^-/) {
+  my $flag = shift @ARGV;
+  if ($flag eq '-s') { $silent = 1 }
+  elsif ($flag eq '-k') { $keep = 1 }
+  elsif ($flag eq '-t') { $timeout = shift @ARGV // die "lockf: -t needs a value\n" }
+  elsif ($flag eq '--') { last }
+  else { die "usage: lockf [-s] [-k] [-t seconds] file command [arguments]\n" }
+}
+my ($path, @command) = @ARGV;
+die "usage: lockf [-s] [-k] [-t seconds] file command [arguments]\n" unless defined $path && @command;
+
+$0 = join ' ', 'lockf', @original;
+if (open my $comm, '>', "/proc/self/comm") {
+  print $comm 'lockf';
+  close $comm;
+}
+
+open my $fh, '>>', $path or die "lockf: cannot open $path: $!\n";
+my $deadline = $timeout >= 0 ? time + $timeout : undef;
+until (flock $fh, LOCK_EX | LOCK_NB) {
+  if (defined $deadline && time >= $deadline) {
+    print STDERR "lockf: $path: already locked\n" unless $silent;
+    exit 75;
+  }
+  sleep 0.1;
+}
+
+my $pid = fork // die "lockf: fork: $!\n";
+if (!$pid) {
+  exec { $command[0] } @command;
+  die "lockf: cannot run $command[0]: $!\n";
+}
+for my $signal (qw(INT TERM HUP)) {
+  $SIG{$signal} = sub { kill $signal, $pid };
+}
+waitpid $pid, 0;
+my $status = $?;
+unlink $path unless $keep;
+exit(($status & 127) ? 128 + ($status & 127) : $status >> 8);

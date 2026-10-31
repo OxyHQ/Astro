@@ -23,18 +23,19 @@ type Store = {
 
 type Counter = Record<string, number>;
 
-if (!(globalThis as { expo?: unknown }).expo) {
+type NativeModule = Record<string, (...a: unknown[]) => unknown>;
+const nativeModule = (name: string): NativeModule | null => {
   try {
-    const { TurboModuleRegistry } = require("react-native") as typeof import("react-native");
-    (TurboModuleRegistry.get("ExpoModulesCore") as { installModules?: () => void } | null)?.installModules?.();
-  } catch {}
-}
-const modules = (globalThis as { expo?: { modules?: Record<string, Record<string, (...a: unknown[]) => unknown>> } }).expo?.modules;
-const shell = modules?.AstroShell;
+    return (require("expo-modules-core") as typeof import("expo-modules-core")).requireOptionalNativeModule<NativeModule>(name);
+  } catch {
+    return null;
+  }
+};
+const shell = nativeModule("AstroShell");
 
 const probeOptions = (() => {
   try {
-    const info = modules?.AstroApp?.systemInfo?.() as { isolatedInstance?: boolean } | undefined;
+    const info = nativeModule("AstroApp")?.systemInfo?.() as { isolatedInstance?: boolean } | undefined;
     if (!info?.isolatedInstance || typeof shell?.readDocument !== "function") return null;
     const file = shell.readDocument("perf-probe");
     return typeof file === "string" ? file : null;
@@ -332,34 +333,51 @@ function wrapSelectors() {
   };
 }
 
-function wrapBridge() {
-  const queue = (globalThis as { __fbBatchedBridge?: Record<string, (...a: unknown[]) => unknown> }).__fbBatchedBridge;
-  if (!queue) return;
-  const wrap = (method: string, label: (args: unknown[]) => string) => {
-    const original = queue[method];
-    if (typeof original !== "function") return;
-    queue[method] = (...args: unknown[]) => {
-      const t = now();
-      const key = label(args);
-      task = key;
-      if (key !== "JSTimers.callTimers" && stats.taskLog.length < 5000) stats.taskLog.push([key, t]);
-      try {
-        return original.apply(queue, args);
-      } finally {
-        task = null;
-        const end = now();
-        bump(stats.tasks, key);
-        bump(stats.taskMs, key, end - t);
-        if (!marks.firstWindow && startup.length < 1000) startup.push([key, Math.round(t - startedAt), Math.round((end - t) * 10) / 10]);
-      }
-    };
+function finishTask(key: string, start: number) {
+  const end = now();
+  bump(stats.tasks, key);
+  bump(stats.taskMs, key, end - start);
+  if (!marks.firstWindow && startup.length < 1000) startup.push([key, Math.round(start - startedAt), Math.round((end - start) * 10) / 10]);
+}
+
+function wrapEvents() {
+  type Open = { key: string; start: number };
+  let open: Open | null = null;
+  const close = (current: Open) => {
+    if (open !== current) return;
+    open = null;
+    if (task === current.key) task = null;
+    finishTask(current.key, current.start);
   };
-  wrap("callFunctionReturnFlushedQueue", ([module, method, args]) => {
-    if (module === "RCTEventEmitter" && Array.isArray(args)) return `event:${String(args[1])}`;
-    if (module === "RCTDeviceEventEmitter" && Array.isArray(args)) return `device:${String(args[0])}`;
-    return `${String(module)}.${String(method)}`;
+  const raw = (require("react-native/Libraries/Core/RawEventEmitter") as {
+    default: { addListener(channel: "*", listener: (event: { eventName: string }) => void): unknown };
+  }).default;
+  raw.addListener("*", ({ eventName }) => {
+    if (open) close(open);
+    const current = { key: `event:${eventName}`, start: now() };
+    open = current;
+    task = current.key;
+    if (stats.taskLog.length < 5000) stats.taskLog.push([current.key, current.start]);
+    queueMicrotask(() => queueMicrotask(() => close(current)));
   });
-  wrap("invokeCallbackAndReturnFlushedQueue", () => "callback");
+
+  const device = (require("react-native") as typeof import("react-native")).DeviceEventEmitter as unknown as {
+    emit(this: unknown, name: string, ...args: unknown[]): void;
+  };
+  const emit = device.emit;
+  device.emit = function (this: unknown, name: string, ...args: unknown[]) {
+    const key = `device:${name}`;
+    const start = now();
+    const outer = task;
+    task = key;
+    if (stats.taskLog.length < 5000) stats.taskLog.push([key, start]);
+    try {
+      return emit.call(this, name, ...args);
+    } finally {
+      task = outer;
+      finishTask(key, start);
+    }
+  };
 }
 
 function wrapModuleEvents() {
@@ -462,7 +480,7 @@ if (perfProbeEnabled) {
   marks.bundleStart = Date.now();
   installReactHook();
   wrapTimers();
-  wrapBridge();
+  wrapEvents();
   wrapModuleEvents();
   wrapWrites();
   if (probeOptions?.includes("selectors")) wrapSelectors();

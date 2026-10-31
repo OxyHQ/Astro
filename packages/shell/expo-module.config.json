@@ -17,14 +17,15 @@
       "FileDragModule",
       "FileDropModule",
       "AppModule",
-      "CalendarModule",
       "KeychainModule",
       "DockSelectionModule",
       "InlineCompletionModule",
       "TranslateModule",
       "WindowProfileModule",
       "CliModule",
-      "UserScriptsModule"
+      "UserScriptsModule",
+      "PortalHostModule",
+      "PortalModule"
     ]
   }
 }

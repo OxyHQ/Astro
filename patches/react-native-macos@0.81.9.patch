@@ -1,5 +1,5 @@
 diff --git a/Libraries/Text/TextInput/RCTBackedTextInputDelegateAdapter.mm b/Libraries/Text/TextInput/RCTBackedTextInputDelegateAdapter.mm
-index 18bbe64f657a36596563b3eb6d135284e28c674a..a4046a33e13d35cac155e306f368e04ef8d1f51e 100644
+index 18bbe64f657a36596563b3eb6d135284e28c674a..fc1716d9ac26cb56204b5ba38c38cf4545bbc047 100644
 --- a/Libraries/Text/TextInput/RCTBackedTextInputDelegateAdapter.mm
 +++ b/Libraries/Text/TextInput/RCTBackedTextInputDelegateAdapter.mm
 @@ -14,6 +14,25 @@
@@ -28,7 +28,7 @@ index 18bbe64f657a36596563b3eb6d135284e28c674a..a4046a33e13d35cac155e306f368e04e
  #if !TARGET_OS_OSX // [macOS]
  @interface RCTBackedTextFieldDelegateAdapter () <UITextFieldDelegate, UITextDropDelegate>
  #else // [macOS
-@@ -235,6 +254,9 @@ - (BOOL)control:(NSControl *)control textShouldEndEditing:(NSText *)fieldEditor
+@@ -235,6 +254,9 @@ static void *TextFieldSelectionObservingContext = &TextFieldSelectionObservingCo
  - (BOOL)control:(NSControl *)control textView:(NSTextView *)fieldEditor doCommandBySelector:(SEL)commandSelector
  {
    id<RCTBackedTextInputDelegate> textInputDelegate = [_backedTextInputView textInputDelegate];
@@ -38,7 +38,7 @@ index 18bbe64f657a36596563b3eb6d135284e28c674a..a4046a33e13d35cac155e306f368e04e
    BOOL commandHandled = NO;
    // enter/return
    if (commandSelector == @selector(insertNewline:) || commandSelector == @selector(insertNewlineIgnoringFieldEditor:)) {
-@@ -490,6 +512,9 @@ - (BOOL)textView:(NSTextView *)textView doCommandBySelector:(SEL)commandSelector
+@@ -490,6 +512,9 @@ static void *TextFieldSelectionObservingContext = &TextFieldSelectionObservingCo
  {
    BOOL commandHandled = NO;
    id<RCTBackedTextInputDelegate> textInputDelegate = [_backedTextInputView textInputDelegate];
@@ -48,98 +48,11 @@ index 18bbe64f657a36596563b3eb6d135284e28c674a..a4046a33e13d35cac155e306f368e04e
    // enter/return
    if ((commandSelector == @selector(insertNewline:) || commandSelector == @selector(insertNewlineIgnoringFieldEditor:))) {
      if ([textInputDelegate textInputShouldSubmitOnReturn]) {
-diff --git a/Libraries/Text/TextInput/RCTBaseTextInputView.mm b/Libraries/Text/TextInput/RCTBaseTextInputView.mm
-index cac171e70c9fa225cdec45b205086342a0d50f06..b9fefeceb4400f181c5a1c39b73404f8178fcb41 100644
---- a/Libraries/Text/TextInput/RCTBaseTextInputView.mm
-+++ b/Libraries/Text/TextInput/RCTBaseTextInputView.mm
-@@ -47,6 +47,10 @@ @implementation RCTBaseTextInputView {
- #if TARGET_OS_OSX // [macOS avoids duplicating effects of textInputDid(Begin|End)Editing calls
-   BOOL _isCurrentlyEditing;
- #endif // macOS]
-+#if TARGET_OS_OSX // [Astro: the edit in progress (counted), and whether a click began it with its focus props to come
-+  NSUInteger _editSession;
-+  BOOL _clickFocused;
-+#endif // Astro]
- }
- 
- #if !TARGET_OS_OSX // [macOS]
-@@ -521,6 +525,11 @@ - (void)textInputDidBeginEditing
-     return;
-   }
-   _isCurrentlyEditing = YES;
-+  // [Astro
-+  _editSession++;
-+  NSEventType began = NSApp.currentEvent.type;
-+  _clickFocused = began == NSEventTypeLeftMouseDown || began == NSEventTypeRightMouseDown || began == NSEventTypeOtherMouseDown;
-+  // Astro]
- #endif // macOS]
-   
-   [_eventDispatcher sendTextEventWithType:RCTTextEventTypeFocus
-@@ -894,8 +903,49 @@ - (RCTUIView *)reactAccessibilityElement // [macOS]
- 
- #pragma mark - Focus Control
- 
-+#if TARGET_OS_OSX // [Astro
-+// Being edited: its window's first responder is the field editor (single line) or the view itself (multiline).
-+- (BOOL)ac_isEditing
-+{
-+  NSView *backed = self.backedTextInputView;
-+  NSResponder *responder = backed.window.firstResponder;
-+  return responder && (responder == backed ||
-+                       ([backed isKindOfClass:[NSTextField class]] && responder == [(NSTextField *)backed currentEditor]));
-+}
-+
-+- (void)ac_applyFocusPropsInSession:(NSUInteger)session
-+{
-+  if (session != _editSession || ![self ac_isEditing]) {
-+    return;
-+  }
-+  if (_clearTextOnFocus) {
-+    self.backedTextInputView.attributedText = [NSAttributedString new];
-+  }
-+  if (_selectTextOnFocus) {
-+    [self.backedTextInputView selectAll:nil];
-+  }
-+}
-+#endif // Astro]
-+
- - (void)reactFocus
- {
-+#if TARGET_OS_OSX // [Astro: focus() on a field already being edited leaves the edit as it is. A press in a TextInput
-+  // calls focus() (TextInput.js skips its "already focused" check on macOS), and making an editing NSTextField first
-+  // responder again ends its edit (a blur), starts a new one and selects all: a click in the command bar closed it.
-+  // A field a click just focused (AppKit, on mouse-down) gets its focus props once, after that click: run inside the
-+  // click's mouse tracking, the caret it places would land after them.
-+  if ([self ac_isEditing]) {
-+    if (_clickFocused) {
-+      _clickFocused = NO;
-+      NSUInteger session = _editSession;
-+      __weak RCTBaseTextInputView *weakSelf = self;
-+      [[NSRunLoop mainRunLoop] performInModes:@[ NSDefaultRunLoopMode ] block:^{
-+        [weakSelf ac_applyFocusPropsInSession:session];
-+      }];
-+    }
-+    return;
-+  }
-+#endif // Astro]
-   [self.backedTextInputView reactFocus];
- 
-   if (_clearTextOnFocus) {
-@@ -909,6 +959,9 @@ - (void)reactFocus
-     [self.backedTextInputView setSelectedTextRange:NSMakeRange(NSNotFound, 0) notifyDelegate:NO];
- #endif // macOS]
-   }
-+#if TARGET_OS_OSX // [Astro: applied here
-+  _clickFocused = NO;
-+#endif // Astro]
- }
- 
- - (void)reactBlur
 diff --git a/Libraries/Text/TextInput/Singleline/RCTUITextField.mm b/Libraries/Text/TextInput/Singleline/RCTUITextField.mm
-index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..a7c532f3f77e38595e92764d05148cb988eb8ea9 100644
+index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..4eac9b756af70b41c0d6436474747f8cf8d554a7 100644
 --- a/Libraries/Text/TextInput/Singleline/RCTUITextField.mm
 +++ b/Libraries/Text/TextInput/Singleline/RCTUITextField.mm
-@@ -330,7 +330,9 @@ - (void)setPlaceholder:(NSString *)placeholder
+@@ -330,7 +330,9 @@
  #if !TARGET_OS_OSX // [macOS]
    [super setPlaceholder:placeholder];
  #else // [macOS
@@ -149,7 +62,7 @@ index 137d0ee9f51616ea27c397a8bf595fe2c0ff5e91..a7c532f3f77e38595e92764d05148cb9
  #endif // macOS]
    [self _updatePlaceholder];
  }
-@@ -385,6 +387,9 @@ - (void)_updatePlaceholder
+@@ -385,6 +387,9 @@
    _isUpdatingPlaceholderText = YES;
    self.placeholderAttributedString = [[NSAttributedString alloc] initWithString:self.placeholder ?: @""
  																	 attributes:[self _placeholderTextAttributes]];
@@ -175,7 +88,7 @@ index 6f332dc1701cada0aff0e9a2678fa7bdcea0ef85..462853ec8b76f004cd5b9e92291473bc
  @interface RCTUISecureTextFieldCell : NSSecureTextFieldCell
  
  @property (nonatomic, assign) UIEdgeInsets textContainerInset;
-@@ -71,13 +76,53 @@ - (NSText *)setUpFieldEditorAttributes:(NSText *)textObj
+@@ -71,13 +76,53 @@
  
  #pragma mark - RCTUISecureTextField
  
@@ -230,119 +143,11 @@ index 6f332dc1701cada0aff0e9a2678fa7bdcea0ef85..462853ec8b76f004cd5b9e92291473bc
  @end
  
  #endif // TARGET_OS_OSX
-diff --git a/React/Base/RCTTouchHandler.m b/React/Base/RCTTouchHandler.m
-index b85ee3dd203f88bf2daaa47e912031ea200ff910..c252cfa97deb7b7cc0533105f604fa50985e144b 100644
---- a/React/Base/RCTTouchHandler.m
-+++ b/React/Base/RCTTouchHandler.m
-@@ -100,6 +100,36 @@ - (void)detachFromView:(RCTPlatformView *)view // [macOS]
- 
- #pragma mark - Bookkeeping for touch indices
- 
-+#if TARGET_OS_OSX // [Astro: a mouse down and its drags and up share an event number, but each button counts on its own and synthesized events all carry 0, so a match also needs the same button and an index not matched yet; two touches mapped to one index sent JS a null touch (getTouchIdentifier, a fatal error)
-+static NSInteger AstroMouseButton(NSEvent *event)
-+{
-+  switch (event.type) {
-+    case NSEventTypeLeftMouseDown:
-+    case NSEventTypeLeftMouseUp:
-+    case NSEventTypeLeftMouseDragged:
-+      return 0;
-+    case NSEventTypeRightMouseDown:
-+    case NSEventTypeRightMouseUp:
-+    case NSEventTypeRightMouseDragged:
-+      return 1;
-+    default:
-+      return event.buttonNumber;
-+  }
-+}
-+
-+- (NSInteger)astro_indexOfNativeTouch:(NSEvent *)touch excluding:(NSIndexSet *)taken
-+{
-+  NSUInteger same = [_nativeTouches indexOfObject:touch];
-+  if (same != NSNotFound && ![taken containsIndex:same]) {
-+    return same;
-+  }
-+  NSInteger button = AstroMouseButton(touch);
-+  return [_nativeTouches indexOfObjectPassingTest:^BOOL(NSEvent *event, NSUInteger idx, __unused BOOL *stop) {
-+    return ![taken containsIndex:idx] && touch.eventNumber == event.eventNumber && AstroMouseButton(event) == button;
-+  }];
-+}
-+#endif // Astro]
-+
- - (void)_recordNewTouches:(NSSet *)touches
- {
- #if !TARGET_OS_OSX // [macOS]
-@@ -108,7 +138,13 @@ - (void)_recordNewTouches:(NSSet *)touches
-   for (NSEvent *touch in touches) {
- #endif // macOS]
- 
-+#if !TARGET_OS_OSX // [Astro: AppKit can hand the same mouse down over twice; recording it again put a second React touch behind one native touch
-     RCTAssert(![_nativeTouches containsObject:touch], @"Touch is already recorded. This is a critical bug.");
-+#else
-+    if ([_nativeTouches containsObject:touch]) {
-+      continue;
-+    }
-+#endif // Astro]
- 
-     // Find closest React-managed touchable view
-     
-@@ -204,19 +240,27 @@ - (void)_recordRemovedTouches:(NSSet *)touches
-   for (UITouch *touch in touches) {
-     NSInteger index = [_nativeTouches indexOfObject:touch];
- #else // [macOS
--    for (NSEvent *touch in touches) {
--      NSInteger index = [_nativeTouches indexOfObjectPassingTest:^BOOL(NSEvent *event, __unused NSUInteger idx, __unused BOOL *stop) {
--        return touch.eventNumber == event.eventNumber;
--      }];
-+  NSMutableIndexSet *removed = [NSMutableIndexSet new]; // [Astro]
-+  for (NSEvent *touch in touches) {
-+    NSInteger index = [self astro_indexOfNativeTouch:touch excluding:removed]; // [Astro]
- #endif // macOS]
-     if (index == NSNotFound) {
-       continue;
-     }
- 
-+#if !TARGET_OS_OSX // [Astro]
-     [_touchViews removeObjectAtIndex:index];
-     [_nativeTouches removeObjectAtIndex:index];
-     [_reactTouches removeObjectAtIndex:index];
-+#else
-+    [removed addIndex:index];
-+#endif // Astro]
-   }
-+#if TARGET_OS_OSX // [Astro]
-+  [_touchViews removeObjectsAtIndexes:removed];
-+  [_nativeTouches removeObjectsAtIndexes:removed];
-+  [_reactTouches removeObjectsAtIndexes:removed];
-+#endif // Astro]
- }
- 
- - (void)_updateReactTouchAtIndex:(NSInteger)touchIndex
-@@ -303,15 +347,17 @@ - (void)_updateAndDispatchTouches:(NSSet<NSEvent *> *)touches eventName:(NSStrin
-   for (UITouch *touch in touches) {
-     NSInteger index = [_nativeTouches indexOfObject:touch];
- #else // [macOS
-+  NSMutableIndexSet *taken = [NSMutableIndexSet new]; // [Astro]
-   for (NSEvent *touch in touches) {
--    NSInteger index = [_nativeTouches indexOfObjectPassingTest:^BOOL(NSEvent *event, __unused NSUInteger idx, __unused BOOL *stop) {
--      return touch.eventNumber == event.eventNumber;
--    }];
-+    NSInteger index = [self astro_indexOfNativeTouch:touch excluding:taken]; // [Astro]
- #endif // macOS]
-     
-     if (index == NSNotFound) {
-       continue;
-     }
-+#if TARGET_OS_OSX // [Astro]
-+    [taken addIndex:index];
-+#endif // Astro]
-     
- #if TARGET_OS_OSX // [macOS
-     _nativeTouches[index] = touch;
 diff --git a/React/Base/macOS/RCTUIKit.m b/React/Base/macOS/RCTUIKit.m
-index a37a1c106a04752c1baeb6dd2170402ce5f34f71..be88b42f1cd4bc0521055d97eb948c28e012c402 100644
+index a37a1c106a04752c1baeb6dd2170402ce5f34f71..5800211d42489045ad4a7f9c9fb6f5f4d27f383d 100644
 --- a/React/Base/macOS/RCTUIKit.m
 +++ b/React/Base/macOS/RCTUIKit.m
-@@ -284,20 +284,53 @@ - (CATransform3D)transform3D
+@@ -284,20 +284,53 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
    return _transform3D;
  }
  
@@ -404,7 +209,7 @@ index a37a1c106a04752c1baeb6dd2170402ce5f34f71..be88b42f1cd4bc0521055d97eb948c28
  
  - (NSView *)hitTest:(NSPoint)point
  {
-@@ -308,7 +341,11 @@ - (NSView *)hitTest:(NSPoint)point
+@@ -308,7 +341,11 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
    if (self.layer.superlayer) {
      localPoint = [self.layer convertPoint:point fromLayer:self.layer.superlayer];
    } else {
@@ -417,7 +222,7 @@ index a37a1c106a04752c1baeb6dd2170402ce5f34f71..be88b42f1cd4bc0521055d97eb948c28
    }
    return [self hitTest:localPoint withEvent:nil];
  }
-@@ -331,8 +368,8 @@ - (void)updateLayer
+@@ -331,8 +368,8 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
    // On macOS, AppKit's layer-backed view system resets layer.transform to identity
    // during its layout/display cycle because NSView has no built-in transform property
    // (unlike UIView on iOS). We must re-apply the stored transform after each cycle.
@@ -428,7 +233,7 @@ index a37a1c106a04752c1baeb6dd2170402ce5f34f71..be88b42f1cd4bc0521055d97eb948c28
    }
  
    if (_respondsToDisplayLayer) {
-@@ -822,6 +859,13 @@ - (instancetype)initWithFrame:(CGRect)frame
+@@ -822,6 +859,13 @@ static RCTUIView *RCTUIViewCommonInit(RCTUIView *self)
    return self;
  }
  
@@ -443,7 +248,7 @@ index a37a1c106a04752c1baeb6dd2170402ce5f34f71..be88b42f1cd4bc0521055d97eb948c28
  {
    _contentMode = contentMode;
 diff --git a/React/CoreModules/RCTTiming.mm b/React/CoreModules/RCTTiming.mm
-index 3edcc9670a8ccb5eef44524e78445117d2416ed8..1f7951f616996941706f11b380c12051def474f4 100644
+index 3edcc9670a8ccb5eef44524e78445117d2416ed8..e6f22dcd329f680af60b323573d84e287d5219cf 100644
 --- a/React/CoreModules/RCTTiming.mm
 +++ b/React/CoreModules/RCTTiming.mm
 @@ -18,7 +18,9 @@
@@ -457,7 +262,7 @@ index 3edcc9670a8ccb5eef44524e78445117d2416ed8..1f7951f616996941706f11b380c12051
  
  // These timing contants should be kept in sync with the ones in `JSTimers.js`.
  // The duration of a frame. This assumes that we want to run at 60 fps.
-@@ -26,6 +28,17 @@
+@@ -26,6 +28,17 @@ static const NSTimeInterval kFrameDuration = 1.0 / 60.0;
  // The minimum time left in a frame to trigger the idle callback.
  static const NSTimeInterval kIdleCallbackFrameDeadline = 0.001;
  
@@ -475,7 +280,7 @@ index 3edcc9670a8ccb5eef44524e78445117d2416ed8..1f7951f616996941706f11b380c12051
  @interface _RCTTimer : NSObject
  
  @property (nonatomic, strong, readonly) NSDate *target;
-@@ -101,6 +114,12 @@ @implementation RCTTiming {
+@@ -101,6 +114,12 @@ static const NSTimeInterval kIdleCallbackFrameDeadline = 0.001;
    BOOL _sendIdleEvents;
    BOOL _inBackground;
    id<RCTTimingDelegate> _timingDelegate;
@@ -488,7 +293,7 @@ index 3edcc9670a8ccb5eef44524e78445117d2416ed8..1f7951f616996941706f11b380c12051
  }
  
  @synthesize bridge = _bridge;
-@@ -133,11 +152,22 @@ - (void)setup
+@@ -133,11 +152,22 @@ RCT_EXPORT_MODULE()
       if (!self->_inBackground &&
          ([RCTSharedApplication() applicationState] == UIApplicationStateBackground ||
           [UIDevice currentDevice].proximityState)) {
@@ -514,7 +319,7 @@ index 3edcc9670a8ccb5eef44524e78445117d2416ed8..1f7951f616996941706f11b380c12051
    });
  
  #if !TARGET_OS_OSX // [macOS]
-@@ -166,6 +196,49 @@ - (void)setup
+@@ -166,6 +196,49 @@ RCT_EXPORT_MODULE()
  #endif // [macOS]
  }
  
@@ -564,7 +369,7 @@ index 3edcc9670a8ccb5eef44524e78445117d2416ed8..1f7951f616996941706f11b380c12051
  - (void)dealloc
  {
    [_sleepTimer invalidate];
-@@ -325,6 +398,14 @@ - (void)didUpdateFrame:(RCTFrameUpdate *)update
+@@ -325,6 +398,14 @@ RCT_EXPORT_MODULE()
  
  - (void)scheduleSleepTimer:(NSDate *)sleepTarget
  {
@@ -579,7 +384,7 @@ index 3edcc9670a8ccb5eef44524e78445117d2416ed8..1f7951f616996941706f11b380c12051
    @synchronized(self) {
      if (!_sleepTimer || !_sleepTimer.valid) {
        _sleepTimer = [[NSTimer alloc] initWithFireDate:sleepTarget
-@@ -344,12 +425,42 @@ - (void)timerDidFire
+@@ -344,12 +425,42 @@ RCT_EXPORT_MODULE()
  {
    _sleepTimer = nil;
    if (_paused) {
@@ -622,7 +427,7 @@ index 3edcc9670a8ccb5eef44524e78445117d2416ed8..1f7951f616996941706f11b380c12051
  
  /**
   * A method used for asynchronously creating a timer. If the timer has already expired,
-@@ -391,6 +502,9 @@ - (void)createTimerForNextFrame:(nonnull NSNumber *)callbackID
+@@ -391,6 +502,9 @@ RCT_EXPORT_METHOD(createTimer
                 jsSchedulingTime:(NSDate *)jsSchedulingTime
                          repeats:(BOOL)repeats
  {
@@ -632,7 +437,7 @@ index 3edcc9670a8ccb5eef44524e78445117d2416ed8..1f7951f616996941706f11b380c12051
    NSTimeInterval jsSchedulingOverhead = MAX(-jsSchedulingTime.timeIntervalSinceNow, 0);
  
    NSTimeInterval targetTime = jsDuration - jsSchedulingOverhead;
-@@ -429,6 +543,9 @@ - (void)createTimerForNextFrame:(nonnull NSNumber *)callbackID
+@@ -429,6 +543,9 @@ RCT_EXPORT_METHOD(deleteTimer : (double)timerID)
  
  RCT_EXPORT_METHOD(setSendIdleEvents : (BOOL)sendIdleEvents)
  {
@@ -642,21 +447,386 @@ index 3edcc9670a8ccb5eef44524e78445117d2416ed8..1f7951f616996941706f11b380c12051
    _sendIdleEvents = sendIdleEvents;
    if (sendIdleEvents) {
      [self startTimers];
-diff --git a/React/Views/RCTView.m b/React/Views/RCTView.m
-index 0a4efc1fff0a6e32ea1634ab5f863c211f452409..34447fbb3fe6fd5e16c1320e5395090665bcc402 100644
---- a/React/Views/RCTView.m
-+++ b/React/Views/RCTView.m
-@@ -136,6 +136,24 @@ - (RCTPlatformView *)react_findClipView // [macOS]
-   return str;
+diff --git a/React/Fabric/Mounting/ComponentViews/Modal/RCTModalHostViewComponentView.mm b/React/Fabric/Mounting/ComponentViews/Modal/RCTModalHostViewComponentView.mm
+index 636292b8502153545e2921a60423107bbcb77dea..8541fc8b9889a684d74bb39ebc3d94a0c3b39617 100644
+--- a/React/Fabric/Mounting/ComponentViews/Modal/RCTModalHostViewComponentView.mm
++++ b/React/Fabric/Mounting/ComponentViews/Modal/RCTModalHostViewComponentView.mm
+@@ -19,6 +19,10 @@
+ 
+ #import "RCTFabricModalHostViewController.h"
+ 
++#if TARGET_OS_OSX // [Astro: macOS has no presented view controller to host a Modal; it draws over its window's React root. Astro]
++#import <React/RCTRootComponentView.h>
++#endif // Astro]
++
+ using namespace facebook::react;
+ 
+ #if !TARGET_OS_OSX // [macOS]
+@@ -96,6 +100,38 @@ static ModalHostViewEventEmitter::OnOrientationChange onOrientationChangeStruct(
+ }
+ #endif // [macOS]
+ 
++#if TARGET_OS_OSX // [Astro: the layer a macOS Modal's children draw in, over the window's React root: it takes every click the children don't, so nothing behind the Modal is reachable, and Escape (cancelOperation:) asks the Modal to close. Astro]
++@interface RCTModalHostContainerView : RCTUIView
++@property (nonatomic, copy) void (^onCancel)(void);
++@property (nonatomic, copy) void (^onResize)(CGSize size);
++@end
++
++@implementation RCTModalHostContainerView
++
++- (BOOL)isFlipped
++{
++  return YES;
++}
++
++- (void)setFrameSize:(NSSize)newSize
++{
++  BOOL changed = !NSEqualSizes(newSize, self.frame.size);
++  [super setFrameSize:newSize];
++  if (changed && self.onResize) {
++    self.onResize(newSize);
++  }
++}
++
++- (void)cancelOperation:(id)sender
++{
++  if (self.onCancel) {
++    self.onCancel();
++  }
++}
++
++@end
++#endif // Astro]
++
+ @interface RCTModalHostViewComponentView () <RCTFabricModalHostViewControllerDelegate>
+ 
+ @property (nonatomic, weak) RCTPlatformView *accessibilityFocusedView; // [macOS]
+@@ -108,6 +144,9 @@ static ModalHostViewEventEmitter::OnOrientationChange onOrientationChangeStruct(
+   BOOL _shouldAnimatePresentation;
+   BOOL _shouldPresent;
+   BOOL _isPresented;
++#if TARGET_OS_OSX // [Astro]
++  RCTModalHostContainerView *_container;
++#endif // Astro]
  }
  
-+#if TARGET_OS_OSX // [macOS
-+// [Astro: hover follows layout. AppKit sends mouseEntered/mouseExited only when the pointer moves, so a view that
-+// lays out or scrolls under a still pointer (the next sidebar row after a close) kept its old hover state. Every view
-+// with hover handlers is kept here; layout and scrolling mark hover dirty, and one coalesced check on the main queue,
-+// after the layout that asked for it, compares the pointer with their frames.
-+// Dev-only overrides stand in for the pointer and the mouse buttons in hidden test instances. Astro]
-+static NSHashTable *AstroHoverViews;
+ #if !TARGET_OS_OSX // [macOS]
+@@ -325,6 +364,134 @@ static ModalHostViewEventEmitter::OnOrientationChange onOrientationChangeStruct(
+ }
+ #endif // [macOS]
+ 
++#if TARGET_OS_OSX // [Astro: a Modal on macOS. Fabric had none: the class kept RCTViewComponentView's descriptor provider (View's), so a mounted <Modal> had no view class (Bloom's dialogs and sheets are Modals). While visible and in a window, its children are mounted in a layer over the window's React root (RCTRootComponentView), laid out at the root's size through ModalHostViewState, and onShow and onDismiss are sent as on iOS; Escape sends onRequestClose. Astro]
++- (instancetype)initWithFrame:(CGRect)frame
++{
++  if (self = [super initWithFrame:frame]) {
++    _props = ModalHostViewShadowNode::defaultSharedProps();
++    _container = [[RCTModalHostContainerView alloc] initWithFrame:CGRectZero];
++    _container.wantsLayer = YES;
++    _container.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
++    __weak __typeof(self) weakSelf = self;
++    _container.onCancel = ^{
++      auto eventEmitter = [weakSelf modalEventEmitter];
++      if (eventEmitter) {
++        eventEmitter->onRequestClose({});
++      }
++    };
++    _container.onResize = ^(CGSize size) {
++      [weakSelf updateStateSize:size];
++    };
++  }
++  return self;
++}
++
++- (std::shared_ptr<const ModalHostViewEventEmitter>)modalEventEmitter
++{
++  if (!_eventEmitter) {
++    return nullptr;
++  }
++  return std::static_pointer_cast<const ModalHostViewEventEmitter>(_eventEmitter);
++}
++
++- (RCTPlatformView *)hostRootView
++{
++  for (RCTPlatformView *view = self.superview; view; view = view.superview) {
++    if ([view isKindOfClass:[RCTRootComponentView class]]) {
++      return view;
++    }
++  }
++  return nil;
++}
++
++- (void)updateStateSize:(CGSize)size
++{
++  if (_state != nullptr && size.width > 0 && size.height > 0) {
++    _state->updateState(ModalHostViewState{RCTSizeFromCGSize(size)});
++  }
++}
++
++- (void)ensurePresentedOnlyIfNeeded
++{
++  RCTPlatformView *root = _shouldPresent && self.window ? [self hostRootView] : nil;
++  if (root) {
++    if (_container.superview != root) {
++      _container.frame = root.bounds;
++      [root addSubview:_container positioned:NSWindowAbove relativeTo:nil];
++    }
++    [self updateStateSize:root.bounds.size];
++    if (!_isPresented) {
++      _isPresented = YES;
++      auto eventEmitter = [self modalEventEmitter];
++      if (eventEmitter) {
++        eventEmitter->onShow(ModalHostViewEventEmitter::OnShow{});
++      }
++    }
++    return;
++  }
++  [_container removeFromSuperview];
++  if (_isPresented) {
++    _isPresented = NO;
++    auto eventEmitter = [self modalEventEmitter];
++    if (eventEmitter) {
++      eventEmitter->onDismiss(ModalHostViewEventEmitter::OnDismiss{});
++    }
++  }
++}
++
++- (void)viewDidMoveToWindow
++{
++  [super viewDidMoveToWindow];
++  [self ensurePresentedOnlyIfNeeded];
++}
++
++- (void)viewDidMoveToSuperview
++{
++  [super viewDidMoveToSuperview];
++  [self ensurePresentedOnlyIfNeeded];
++}
++
+++ (ComponentDescriptorProvider)componentDescriptorProvider
++{
++  return concreteComponentDescriptorProvider<ModalHostViewComponentDescriptor>();
++}
++
++- (void)prepareForRecycle
++{
++  [super prepareForRecycle];
++  _shouldPresent = NO;
++  [self ensurePresentedOnlyIfNeeded];
++  _state.reset();
++}
++
++- (void)updateProps:(const Props::Shared &)props oldProps:(const Props::Shared &)oldProps
++{
++  const auto &newProps = static_cast<const ModalHostViewProps &>(*props);
++  _shouldPresent = newProps.visible;
++  [super updateProps:props oldProps:oldProps];
++  [self ensurePresentedOnlyIfNeeded];
++}
++
++- (void)updateState:(const facebook::react::State::Shared &)state
++           oldState:(const facebook::react::State::Shared &)oldState
++{
++  _state = std::static_pointer_cast<const ModalHostViewShadowNode::ConcreteState>(state);
++  if (_container.superview) {
++    [self updateStateSize:_container.superview.bounds.size];
++  }
++}
++
++- (void)mountChildComponentView:(RCTUIView<RCTComponentViewProtocol> *)childComponentView index:(NSInteger)index
++{
++  [_container insertSubview:childComponentView atIndex:index];
++}
++
++- (void)unmountChildComponentView:(RCTUIView<RCTComponentViewProtocol> *)childComponentView index:(NSInteger)index
++{
++  [childComponentView removeFromSuperview];
++}
++#endif // Astro]
++
+ @end
+ 
+ #ifdef __cplusplus
+diff --git a/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm b/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm
+index a14a8641e13dd3c10f0047c1b81d15cbd789a038..255eab6684f98460de9fa694f26a09558dccd67f 100644
+--- a/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm
++++ b/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm
+@@ -892,6 +892,15 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+                              name:NSPreferredScrollerStyleDidChangeNotification
+                            object:nil];
+   } else {
++    // [Astro: AppKit calls this again when a view already in the window is added again (a clipping parent's
++    // addSubview: of its visible children, a container view swap), and each call added another observer: register once.
++    [defaultCenter removeObserver:self
++                             name:NSViewBoundsDidChangeNotification
++                           object:_scrollView.contentView];
++    [defaultCenter removeObserver:self
++                             name:NSPreferredScrollerStyleDidChangeNotification
++                           object:nil];
++    // Astro]
+     // Register for scrollview's clipview bounds change notifications so we can track scrolling
+     [defaultCenter addObserver:self
+                       selector:@selector(scrollViewDocumentViewBoundsDidChange:)
+diff --git a/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm b/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm
+index e7254907271b70783e886d378c7824df46e04e93..9ea71e08cda60dc80d7dbdc92c34f77d7b81c447 100644
+--- a/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm
++++ b/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm
+@@ -107,6 +107,13 @@ static NSSet<NSNumber *> *returnKeyTypesSet;
+   NSString *_ghostText;
+   NSInteger _ghostTextPosition;
+ #endif // macOS]
++#if TARGET_OS_OSX // [Astro: whether an edit is in progress (AppKit reports a begin and an end more than once: a multiline
++  // field begins again with its first typed character, Escape ends it before the window lets it go), that edit (counted),
++  // and whether a click began it with its focus props to come
++  BOOL _astroEditing;
++  NSUInteger _astroEditSession;
++  BOOL _astroClickFocused;
++#endif // Astro]
+ }
+ 
+ #pragma mark - UIView overrides
+@@ -522,6 +529,10 @@ static NSSet<NSNumber *> *returnKeyTypesSet;
+   _ghostText = nil;
+   _ghostTextPosition = 0;
+ #endif // macOS]
++#if TARGET_OS_OSX // [Astro
++  _astroEditing = NO;
++  _astroClickFocused = NO;
++#endif // Astro]
+   [_backedTextInputView resignFirstResponder];
+ }
+ 
+@@ -534,6 +545,15 @@ static NSSet<NSNumber *> *returnKeyTypesSet;
+ 
+ - (void)textInputDidBeginEditing
+ {
++#if TARGET_OS_OSX // [Astro: one focus per edit, as the old architecture's text input sent
++  if (_astroEditing) {
++    return;
++  }
++  _astroEditing = YES;
++  _astroEditSession++;
++  NSEventType began = NSApp.currentEvent.type;
++  _astroClickFocused = began == NSEventTypeLeftMouseDown || began == NSEventTypeRightMouseDown || began == NSEventTypeOtherMouseDown;
++#endif // Astro]
+   if (_eventEmitter) {
+     static_cast<const TextInputEventEmitter &>(*_eventEmitter).onFocus([self _textInputMetrics]);
+   }
+@@ -546,6 +566,12 @@ static NSSet<NSNumber *> *returnKeyTypesSet;
+ 
+ - (void)textInputDidEndEditing
+ {
++#if TARGET_OS_OSX // [Astro: one blur per edit
++  if (!_astroEditing) {
++    return;
++  }
++  _astroEditing = NO;
++#endif // Astro]
+ #if TARGET_OS_OSX // [macOS
+   [self setGhostText:nil];
+ #endif // macOS]
+@@ -811,6 +837,20 @@ static NSSet<NSNumber *> *returnKeyTypesSet;
+   return ![self handleKeyboardEvent:event];
+ }
+ 
++// [Astro: the delegate protocol requires it and the adapter asks it (Escape, and the command keys JS handles), but only
++// the old architecture's text input had it: Escape in a field raised an unrecognized selector. Any modifiers count, as
++// they did there.
++- (BOOL)hasKeyDownEventOrKeyUpEvent:(nonnull NSString *)key {
++  const std::string keyString = RCTStringFromNSString(key);
++  auto names = [&keyString](const std::vector<HandledKey> &handledKeys) {
++    return std::any_of(handledKeys.begin(), handledKeys.end(), [&keyString](const HandledKey &handledKey) {
++      return handledKey.key == keyString;
++    });
++  };
++  return names(_props->keyDownEvents) || names(_props->keyUpEvents);
++}
++// Astro]
++
+ - (BOOL)textInputShouldHandlePaste:(nonnull id<RCTBackedTextInputViewProtocol>)sender {
+   NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+   NSPasteboardType fileType = [pasteboard availableTypeFromArray:@[NSFilenamesPboardType, NSPasteboardTypePNG, NSPasteboardTypeTIFF]];
+@@ -958,8 +998,57 @@ static NSSet<NSNumber *> *returnKeyTypesSet;
+   RCTTextInputHandleCommand(self, commandName, args);
+ }
+ 
++#if TARGET_OS_OSX // [Astro
++- (BOOL)astro_isEditing
++{
++  NSResponder *responder = _backedTextInputView.window.firstResponder;
++  if (responder == nil) {
++    return NO;
++  }
++  if (responder == _backedTextInputView || responder == _backedTextInputView.responder) {
++    return YES;
++  }
++  return [_backedTextInputView isKindOfClass:[NSTextField class]] &&
++      responder == [(NSTextField *)_backedTextInputView currentEditor];
++}
++
++- (void)astro_applyFocusPropsInSession:(NSUInteger)session
++{
++  if (session != _astroEditSession || ![self astro_isEditing]) {
++    return;
++  }
++  const auto &props = static_cast<const TextInputProps &>(*_props);
++  if (props.traits.clearTextOnFocus) {
++    _backedTextInputView.attributedText = nil;
++    [self textInputDidChange];
++  }
++  if (props.traits.selectTextOnFocus) {
++    [_backedTextInputView selectAll:nil];
++    [self textInputDidChangeSelection];
++  }
++}
++#endif // Astro]
++
+ - (void)focus
+ {
++#if TARGET_OS_OSX // [Astro: focus() on a field already being edited leaves the edit as it is. A press in a TextInput
++  // calls focus() (TextInput.js skips its "already focused" check on macOS), and making an editing NSTextField first
++  // responder again ends its edit (a blur), starts a new one and selects all: a click in the command bar closed it.
++  // A field a click just focused (AppKit, on mouse-down) gets its focus props once, after that click: run inside the
++  // click's mouse tracking, the caret it places would land after them.
++  if ([self astro_isEditing]) {
++    if (_astroClickFocused) {
++      _astroClickFocused = NO;
++      NSUInteger session = _astroEditSession;
++      __weak RCTTextInputComponentView *weakSelf = self;
++      [[NSRunLoop mainRunLoop] performInModes:@[ NSDefaultRunLoopMode ]
++                                        block:^{
++                                          [weakSelf astro_applyFocusPropsInSession:session];
++                                        }];
++    }
++    return;
++  }
++#endif // Astro]
+ #if !TARGET_OS_OSX // [macOS]
+   [_backedTextInputView becomeFirstResponder];
+ #else // [macOS
+@@ -983,6 +1072,9 @@ static NSSet<NSNumber *> *returnKeyTypesSet;
+   }
+ 
+   [self scrollCursorIntoView];
++#if TARGET_OS_OSX // [Astro: applied here
++  _astroClickFocused = NO;
++#endif // Astro]
+ }
+ 
+ - (void)blur
+diff --git a/React/Fabric/Mounting/ComponentViews/View/RCTViewComponentView.mm b/React/Fabric/Mounting/ComponentViews/View/RCTViewComponentView.mm
+index 6e20d03f64385e3729a7517c6fb8b31f6177d52d..1788d4e1e091f4205e40a1fd050e811aabfcf1ac 100644
+--- a/React/Fabric/Mounting/ComponentViews/View/RCTViewComponentView.mm
++++ b/React/Fabric/Mounting/ComponentViews/View/RCTViewComponentView.mm
+@@ -44,6 +44,23 @@ using namespace facebook::react;
+ 
+ const CGFloat BACKGROUND_COLOR_ZPOSITION = -1024.0f;
+ 
++#if TARGET_OS_OSX // [Astro: hover follows layout. AppKit sends mouseEntered/mouseExited only when the pointer moves, so a
++// view that lays out, mounts or scrolls under a still pointer (the next sidebar row after a close) kept its old hover
++// state. Every view with hover handlers is kept here; layout, mounting and scrolling mark hover dirty, and one coalesced
++// check on the main queue, after the mount that asked for it, compares the pointer with their frames. Dev-only
++// overrides stand in for the pointer and the mouse buttons in hidden test instances.
++static NSHashTable<RCTViewComponentView *> *AstroHoverViews;
 +static BOOL AstroHoverDirty;
 +static BOOL AstroHoverHeld;
 +static BOOL AstroHoverInstalled;
@@ -666,190 +836,154 @@ index 0a4efc1fff0a6e32ea1634ab5f863c211f452409..34447fbb3fe6fd5e16c1320e53950906
 +static NSInteger AstroHoverPasses;
 +static NSMutableArray *AstroHoverLog;
 +#endif
-+#endif // macOS]
++#endif // Astro]
 +
- @implementation RCTView {
+ @implementation RCTViewComponentView {
    RCTUIColor *_backgroundColor; // [macOS]
-   id<RCTEventDispatcherProtocol> _eventDispatcher; // [macOS]
-@@ -143,6 +161,9 @@ @implementation RCTView {
-   NSTrackingArea *_trackingArea;
-   BOOL _hasMouseOver;
-   BOOL _mouseDownCanMoveWindow;
-+  // [Astro: the clip view whose bounds changes this view observes, if any (viewDidMoveToWindow). Astro]
-+  __weak NSClipView *_observedClipView;
-+  BOOL _observesBounds;
- #endif // macOS]
-   NSMutableDictionary<NSString *, NSDictionary *> *accessibilityActionsNameMap;
-   NSMutableDictionary<NSString *, NSDictionary *> *accessibilityActionsLabelMap;
-@@ -784,60 +805,39 @@ - (void)viewDidMoveToWindow
-   // scroll event occurs either due to trackpad/gesture based scrolling or a scrollwheel event
-   // both of which would not cause the mouseExited to be invoked.
- 
--  if ([self window] == nil) {
-+  // [Astro: one registration per view. AppKit calls this again whenever a view already in the window is
-+  // re-added (didUpdateReactSubviews re-adds every subview each time a container's children change), and each call
-+  // added another observer: a long-lived row in a scroll view piled up dozens, every removal scans them all, so
-+  // each view leaving the window cost a little more the longer the app ran (profile switches, which mount and unmount
-+  // views, slowed with every switch).
-+  NSClipView *clipView = [self window] != nil ? [[self enclosingScrollView] contentView] : nil;
-+  if (_observesBounds && (clipView == nil || clipView != _observedClipView)) {
-     [[NSNotificationCenter defaultCenter] removeObserver:self
-                                                     name:NSViewBoundsDidChangeNotification
--                                                  object:nil];
-+                                                  object:_observedClipView]; // nil (gone) removes them all
-+    _observesBounds = NO;
-+    _observedClipView = nil;
+   CALayer *_backgroundColorLayer;
+@@ -202,6 +219,9 @@ const CGFloat BACKGROUND_COLOR_ZPOSITION = -1024.0f;
+   } else {
+     [self.currentContainerView insertSubview:childComponentView atIndex:index];
    }
--  else if ([[self enclosingScrollView] contentView] != nil) {
-+  if (!_observesBounds && clipView != nil) {
-     [[NSNotificationCenter defaultCenter] addObserver:self
-                                              selector:@selector(viewBoundsChanged:)
-                                                  name:NSViewBoundsDidChangeNotification
--                                               object:[[self enclosingScrollView] contentView]];
-+                                               object:clipView];
-+    _observesBounds = YES;
-+    _observedClipView = clipView;
-   }
-+  // Astro]
- 
-   [self reactViewDidMoveToWindow]; // [macOS] Github#1412
- 
-   [super viewDidMoveToWindow];
++#if TARGET_OS_OSX // [Astro: hover follows layout. Astro]
++  [RCTViewComponentView astro_markHoverDirty];
++#endif // Astro]
  }
  
-+// [Astro: hover follows layout: a scroll goes through the same check as everything else, so a row under a window
-+// that covers the pointer isn't entered (the old rule looked at bounds alone). Astro]
- - (void)viewBoundsChanged:(NSNotification*)__unused inNotif
+ - (void)unmountChildComponentView:(RCTUIView<RCTComponentViewProtocol> *)childComponentView index:(NSInteger)index // [macOS]
+@@ -227,6 +247,9 @@ const CGFloat BACKGROUND_COLOR_ZPOSITION = -1024.0f;
+   }
+ 
+   [childComponentView removeFromSuperview];
++#if TARGET_OS_OSX // [Astro: hover follows layout. Astro]
++  [RCTViewComponentView astro_markHoverDirty];
++#endif // Astro]
+ }
+ 
+ - (void)updateClippedSubviewsWithClipRect:(CGRect)clipRect relativeToView:(RCTUIView *)clipView // [macOS]
+@@ -672,7 +695,24 @@ const CGFloat BACKGROUND_COLOR_ZPOSITION = -1024.0f;
+ 
+   _needsInvalidateLayer = _needsInvalidateLayer || needsInvalidateLayer;
+ 
++#if TARGET_OS_OSX // [Astro: AppKit asks for tracking areas only when a view's geometry changes, and handlers alone don't
++  // invalidate the layer, so handlers set on a view already laid out (a peek panel getting onMouseLeave as it comes
++  // out) had no area, and its pointer never left.
++  BOOL hoverHandlersChanged =
++      oldViewProps.hostPlatformEvents[HostPlatformViewEvents::Offset::MouseEnter] !=
++          newViewProps.hostPlatformEvents[HostPlatformViewEvents::Offset::MouseEnter] ||
++      oldViewProps.hostPlatformEvents[HostPlatformViewEvents::Offset::MouseLeave] !=
++          newViewProps.hostPlatformEvents[HostPlatformViewEvents::Offset::MouseLeave];
++#endif // Astro]
++
+   _props = std::static_pointer_cast<const ViewProps>(props);
++
++#if TARGET_OS_OSX // [Astro]
++  if (hoverHandlersChanged) {
++    [self updateTrackingAreas];
++    [self updateClipViewBoundsObserverIfNeeded];
++  }
++#endif // Astro]
+ }
+ 
+ - (void)updateEventEmitter:(const EventEmitter::Shared &)eventEmitter
+@@ -687,6 +727,11 @@ const CGFloat BACKGROUND_COLOR_ZPOSITION = -1024.0f;
+   // Using stored `_layoutMetrics` as `oldLayoutMetrics` here to avoid
+   // re-applying individual sub-values which weren't changed.
+   [super updateLayoutMetrics:layoutMetrics oldLayoutMetrics:_layoutMetrics];
++#if TARGET_OS_OSX // [Astro: hover follows layout. Astro]
++  if (layoutMetrics.frame != _layoutMetrics.frame || layoutMetrics.displayType != _layoutMetrics.displayType) {
++    [RCTViewComponentView astro_markHoverDirty];
++  }
++#endif // Astro]
+ 
+   _layoutMetrics = layoutMetrics;
+   _needsInvalidateLayer = YES;
+@@ -767,6 +812,15 @@ const CGFloat BACKGROUND_COLOR_ZPOSITION = -1024.0f;
+     self.acceptsFirstMouse = NO;
+     self.mouseDownCanMoveWindow = YES;
+ #endif // macOS]
++#if TARGET_OS_OSX // [Astro: a recycled view starts unhovered, with no area and out of the hover check, so the element it
++  // shows next gets its enter.
++  if (_trackingArea) {
++    [self removeTrackingArea:_trackingArea];
++    _trackingArea = nil;
++  }
++  _hasMouseOver = NO;
++  [AstroHoverViews removeObject:self];
++#endif // Astro]
+ }
+ 
+ - (void)setPropKeysManagedByAnimated_DO_NOT_USE_THIS_IS_BROKEN:(NSSet<NSString *> *_Nullable)props
+@@ -2039,16 +2093,25 @@ enum MouseEventType {
+ };
+ 
+ - (void)emitMouseEvent:(MouseEventType)eventType button:(int)button
++{
++  // [Astro: the hover check sends where the pointer (or its dev override) is, so the location comes in. Astro]
++  [self emitMouseEvent:eventType
++                button:button
++      locationInWindow:self.window.mouseLocationOutsideOfEventStream
++         modifierFlags:self.window.currentEvent.modifierFlags];
++}
++
++- (void)emitMouseEvent:(MouseEventType)eventType // [Astro]
++                button:(int)button
++      locationInWindow:(NSPoint)locationInWindow
++         modifierFlags:(NSEventModifierFlags)modifierFlags
+ {
+   if (!_eventEmitter) {
+     return;
+   }
+ 
+-  NSPoint locationInWindow = self.window.mouseLocationOutsideOfEventStream;
+   NSPoint locationInView = [self convertPoint:locationInWindow fromView:nil];
+ 
+-  NSEventModifierFlags modifierFlags = self.window.currentEvent.modifierFlags;
+-
+   MouseEvent mouseEvent = {
+     .clientX = locationInView.x,
+     .clientY = locationInView.y,
+@@ -2091,31 +2154,9 @@ enum MouseEventType {
+ 
+ - (void)updateMouseOverIfNeeded
  {
 -  // When an enclosing scrollview is scrolled using the scrollWheel or trackpad,
 -  // the mouseExited: event does not get called on the view where mouseEntered: was previously called.
 -  // This creates an unnatural pairing of mouse enter and exit events and can cause problems.
 -  // We therefore explicitly check for this here and handle them by calling the appropriate callbacks.
 -
--  if (!_hasMouseOver && self.onMouseEnter)
--  {
--    NSPoint locationInWindow = [[self window] mouseLocationOutsideOfEventStream];
--    NSPoint locationInView = [self convertPoint:locationInWindow fromView:nil];
+-  BOOL hasMouseOver = _hasMouseOver;
+-  NSPoint locationInWindow = self.window.mouseLocationOutsideOfEventStream;
+-  NSPoint locationInView = [self convertPoint:locationInWindow fromView:nil];
+-  BOOL insideBounds = NSPointInRect(locationInView, self.visibleRect);
 -
--    if (NSPointInRect(locationInView, [self bounds]))
--    {
--      _hasMouseOver = YES;
+-  // On macOS 14+ visibleRect can be larger than the view bounds
+-  insideBounds &= NSPointInRect(locationInView, self.bounds);
 -
--      [self sendMouseEventWithBlock:self.onMouseEnter
--                       locationInfo:[self locationInfoFromDraggingLocation:locationInWindow]
--                      modifierFlags:0
--                     additionalData:nil];
--    }
+-  if (hasMouseOver && !insideBounds) {
+-    hasMouseOver = NO;
+-  } else if (!hasMouseOver && insideBounds) {
+-    // The window's frame view must be used for hit testing against `locationInWindow`
+-    NSView *hitView = [self.window.contentView.superview hitTest:locationInWindow];
+-    hasMouseOver = [hitView isDescendantOf:self];
 -  }
--  else if (_hasMouseOver && self.onMouseLeave)
--  {
--    NSPoint locationInWindow = [[self window] mouseLocationOutsideOfEventStream];
--    NSPoint locationInView = [self convertPoint:locationInWindow fromView:nil];
 -
--    if (!NSPointInRect(locationInView, [self bounds]))
--    {
--      _hasMouseOver = NO;
--
--      [self sendMouseEventWithBlock:self.onMouseLeave
--                       locationInfo:[self locationInfoFromDraggingLocation:locationInWindow]
--                      modifierFlags:0
--                     additionalData:nil];
--    }
+-  if (hasMouseOver != _hasMouseOver) {
+-    _hasMouseOver = hasMouseOver;
+-    [self emitMouseEvent:hasMouseOver ? MouseEnter : MouseLeave];
 -  }
-+  [RCTView astro_markHoverDirty];
- }
- #endif // macOS]
- 
-@@ -951,6 +951,9 @@ - (void)setRemoveClippedSubviews:(BOOL)removeClippedSubviews
- 
- - (void)didUpdateReactSubviews
- {
-+#if TARGET_OS_OSX // [macOS
-+  [RCTView astro_markHoverDirty]; // [Astro: hover follows layout. Astro]
-+#endif // macOS]
-   if (_removeClippedSubviews) {
-     [self updateClippedSubviews];
-   } else {
-@@ -1196,10 +1199,18 @@ - (void)reactSetFrame:(CGRect)frame
-   // be rendered as a stretchable image, we'll need to re-render.
-   // TODO: detect up-front if re-rendering is necessary
-   CGSize oldSize = self.bounds.size;
-+#if TARGET_OS_OSX // [macOS
-+  CGRect oldFrame = self.frame; // [Astro: hover follows layout. Astro]
-+#endif // macOS]
-   [super reactSetFrame:frame];
-   if (!CGSizeEqualToSize(self.bounds.size, oldSize)) {
-     [self.layer setNeedsDisplay];
-   }
-+#if TARGET_OS_OSX // [macOS
-+  if (!CGRectEqualToRect(self.frame, oldFrame)) {
-+    [RCTView astro_markHoverDirty]; // [Astro: hover follows layout. Astro]
-+  }
-+#endif // macOS]
++  // [Astro: hover follows layout: a scroll goes through the same check as everything else, so a row under a window
++  // that covers the pointer isn't entered, and every view hears it in one pass. Astro]
++  [RCTViewComponentView astro_markHoverDirty];
  }
  
- - (void)displayLayer:(CALayer *)layer
-@@ -1248,17 +1259,8 @@ - (void)displayLayer:(CALayer *)layer
-   RCTUIColor *backgroundColor = _backgroundColor;
- #endif // macOS]
- 
--#if TARGET_OS_OSX // [macOS
--  CATransform3D transform = [[self layer] transform];
--  CGPoint anchorPoint = [layer anchorPoint];
--  if (CGPointEqualToPoint(anchorPoint, CGPointZero) && !CATransform3DEqualToTransform(transform, CATransform3DIdentity)) {
--    // https://developer.apple.com/documentation/quartzcore/calayer/1410817-anchorpoint
--    // This compensates for the fact that layer.anchorPoint is {0, 0} instead of {0.5, 0.5} on macOS for some reason.
--    CATransform3D originAdjust = CATransform3DTranslate(CATransform3DIdentity, self.frame.size.width / 2, self.frame.size.height / 2, 0);
--    transform = CATransform3DConcat(CATransform3DConcat(CATransform3DInvert(originAdjust), transform), originAdjust);
--  }
--  [layer setTransform:transform];
--#endif // macOS]
-+  // [Astro: the anchor point compensation that was here moved to -[RCTUIView setTransform3D:], which
-+  // UIView+React's updateTransform now goes through; doing it here as well applied it twice. Astro]
- 
-   if (useIOSBorderRendering) {
-     layer.cornerRadius = cornerRadii.topLeftHorizontal;
-@@ -1514,6 +1516,20 @@ - (BOOL)acceptsFirstResponder
- 	return [self focusable] || [super acceptsFirstResponder];
- }
- 
-+// [Astro: AppKit asks for tracking areas only when a view's geometry changes, so handlers set on a view already
-+// laid out (a peek panel getting onMouseLeave as it comes out) had none, and its pointer never left. Astro]
-+- (void)setOnMouseEnter:(RCTDirectEventBlock)onMouseEnter
-+{
-+  _onMouseEnter = [onMouseEnter copy];
-+  [self updateTrackingAreas];
-+}
-+
-+- (void)setOnMouseLeave:(RCTDirectEventBlock)onMouseLeave
-+{
-+  _onMouseLeave = [onMouseLeave copy];
-+  [self updateTrackingAreas];
-+}
-+
- - (void)updateTrackingAreas
- {
-   BOOL hasMouseHoverEvent = self.onMouseEnter || self.onMouseLeave;
-@@ -1522,6 +1538,13 @@ - (void)updateTrackingAreas
-   if (!wouldRecreateIdenticalTrackingArea) {
-     if (_trackingArea) {
-       [self removeTrackingArea:_trackingArea];
-+      // [Astro: forget it too. Kept, a view that lost its hover handlers and got them back with the same bounds
-+      // counted the removed area as "identical" and never added one again: no mouseEntered/mouseExited from then on
-+      // (the sidebar's peek panel stayed out after its first peek). Astro]
-+      _trackingArea = nil;
-+      // [Astro: and what it knew: a view that is under the pointer when it loses its area never hears it leave, and
-+      // its next scroll (viewBoundsChanged:) would send a leave for it. Astro]
-+      _hasMouseOver = NO;
-     }
- 
-     if (hasMouseHoverEvent) {
-@@ -1533,9 +1556,173 @@ - (void)updateTrackingAreas
-     }
-   }
+ - (void)updateClipViewBoundsObserverIfNeeded
+@@ -2159,33 +2200,207 @@ enum MouseEventType {
+   BOOL wouldRecreateIdenticalTrackingArea =
+     hasMouseEventHandler && _trackingArea && NSEqualRects(self.bounds, [_trackingArea rect]);
  
 +  // [Astro: hover follows layout: the views the check looks at. Astro]
-+  if (hasMouseHoverEvent) {
++  if (hasMouseEventHandler) {
 +    if (AstroHoverViews == nil) {
 +      AstroHoverViews = [NSHashTable weakObjectsHashTable];
 +    }
@@ -858,34 +992,62 @@ index 0a4efc1fff0a6e32ea1634ab5f863c211f452409..34447fbb3fe6fd5e16c1320e53950906
 +    [AstroHoverViews removeObject:self];
 +  }
 +
+   if (!wouldRecreateIdenticalTrackingArea) {
+-    [self removeTrackingArea:_trackingArea];
++    if (_trackingArea) {
++      [self removeTrackingArea:_trackingArea];
++      // [Astro: forget it too. Kept, a view that lost its hover handlers and got them back with the same bounds
++      // counted the removed area as "identical" and never added one again: no mouseEntered/mouseExited from then on
++      // (the sidebar's peek panel stayed out after its first peek). Astro]
++      _trackingArea = nil;
++    }
+     if (hasMouseEventHandler) {
++      // [Astro: a new area for new bounds keeps what the view knows: inside, AppKit's first event is the exit.
++      NSTrackingAreaOptions options = NSTrackingActiveAlways | NSTrackingMouseEnteredAndExited | (_hasMouseOver ? NSTrackingAssumeInside : 0);
+       _trackingArea = [[NSTrackingArea alloc] initWithRect:self.bounds
+-                                                   options:NSTrackingActiveAlways|NSTrackingMouseEnteredAndExited
++                                                   options:options
+                                                      owner:self
+                                                   userInfo:nil];
++      // Astro]
+       [self addTrackingArea:_trackingArea];
+       [self updateMouseOverIfNeeded];
++    } else {
++      // [Astro: a view that is under the pointer when it loses its handlers never hears it leave. Astro]
++      _hasMouseOver = NO;
+     }
+   }
+ 
    [super updateTrackingAreas];
  }
  
+-- (void)mouseEntered:(NSEvent *)event
 +// [Astro: hover follows layout. The check: the pointer (or the dev override) against the visible frame of each view
 +// with hover handlers, in the window frontmost under the pointer, as AppKit's tracking areas would see it once the
-+// pointer moved. Frames, not layer transforms: hover follows where a view is laid out, where its clicks land, while an
-+// animation still slides it there. All leaves go out before any enter, innermost first, then the enters, outermost
-+// first, so a row taking another's place under the pointer isn't left by a late leave. Enters wait while a mouse
-+// button is down, as AppKit's do. Astro]
++// pointer moved. Frames, not layer transforms or hit testing: hover follows where a view is laid out, where its clicks
++// land, while an animation still slides it there, as it did under the old architecture. All leaves go out before any
++// enter, innermost first, then the enters, outermost first, so a row taking another's place under the pointer isn't
++// left by a late leave. Enters wait while a mouse button is down, as AppKit's do. Astro]
 ++ (void)astro_markHoverDirty
-+{
+ {
+-  if (_hasMouseOver) {
 +  if (AstroHoverDirty || AstroHoverViews.count == 0) {
-+    return;
-+  }
+     return;
+   }
 +  AstroHoverDirty = YES;
 +  if (!AstroHoverInstalled) {
 +    AstroHoverInstalled = YES;
 +    [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseUp | NSEventMaskRightMouseUp | NSEventMaskOtherMouseUp
 +                                          handler:^NSEvent *(NSEvent *event) {
 +                                            if (AstroHoverHeld) {
-+                                              [RCTView astro_markHoverDirty];
++                                              [RCTViewComponentView astro_markHoverDirty];
 +                                            }
 +                                            return event;
 +                                          }];
 +  }
 +  dispatch_async(dispatch_get_main_queue(), ^{
 +    AstroHoverDirty = NO;
-+    [RCTView astro_checkHover];
++    [RCTViewComponentView astro_checkHover];
 +  });
 +}
 +
@@ -904,7 +1066,7 @@ index 0a4efc1fff0a6e32ea1634ab5f863c211f452409..34447fbb3fe6fd5e16c1320e53950906
 +
 ++ (NSDictionary *)astro_hoverStats:(NSNumber *)reset
 +{
-+  NSDictionary *stats = @{@"passes": @(AstroHoverPasses), @"log": AstroHoverLog ?: @[], @"registered": @(AstroHoverViews.count)};
++  NSDictionary *stats = @{@"passes" : @(AstroHoverPasses), @"log" : AstroHoverLog ?: @[], @"registered" : @(AstroHoverViews.count)};
 +  if (reset.boolValue) {
 +    AstroHoverPasses = 0;
 +    AstroHoverLog = nil;
@@ -912,7 +1074,10 @@ index 0a4efc1fff0a6e32ea1634ab5f863c211f452409..34447fbb3fe6fd5e16c1320e53950906
 +  return stats;
 +}
 +#endif
-+
+ 
+-  // The window's frame view must be used for hit testing against `locationInWindow`
+-  NSView *hitView = [self.window.contentView.superview hitTest:event.locationInWindow];
+-  if (![hitView isDescendantOf:self]) {
 ++ (NSWindow *)astro_windowUnderPointer:(NSPoint)screen
 +{
 +#if DEBUG
@@ -928,19 +1093,19 @@ index 0a4efc1fff0a6e32ea1634ab5f863c211f452409..34447fbb3fe6fd5e16c1320e53950906
 +  return [NSApp windowWithWindowNumber:[NSWindow windowNumberAtPoint:screen belowWindowWithWindowNumber:0]];
 +}
 +
-++ (NSArray<RCTView *> *)astro_byDepth:(NSArray<RCTView *> *)views deepestFirst:(BOOL)deepestFirst
+++ (NSArray<RCTViewComponentView *> *)astro_byDepth:(NSArray<RCTViewComponentView *> *)views deepestFirst:(BOOL)deepestFirst
 +{
-+  NSMapTable<RCTView *, NSNumber *> *depths = [NSMapTable strongToStrongObjectsMapTable];
-+  for (RCTView *view in views) {
++  NSMapTable<RCTViewComponentView *, NSNumber *> *depths = [NSMapTable strongToStrongObjectsMapTable];
++  for (RCTViewComponentView *view in views) {
 +    NSInteger depth = 0;
 +    for (NSView *ancestor = view.superview; ancestor != nil; ancestor = ancestor.superview) {
 +      depth++;
 +    }
 +    [depths setObject:@(depth) forKey:view];
 +  }
-+  return [views sortedArrayUsingComparator:^NSComparisonResult(RCTView *a, RCTView *b) {
++  return [views sortedArrayUsingComparator:^NSComparisonResult(RCTViewComponentView *a, RCTViewComponentView *b) {
 +    NSComparisonResult order = [[depths objectForKey:a] compare:[depths objectForKey:b]];
-+    return deepestFirst ? -order : order;
++    return deepestFirst ? (NSComparisonResult)-order : order;
 +  }];
 +}
 +
@@ -960,10 +1125,10 @@ index 0a4efc1fff0a6e32ea1634ab5f863c211f452409..34447fbb3fe6fd5e16c1320e53950906
 +  }
 +#endif
 +  NSWindow *front = [self astro_windowUnderPointer:screen];
-+  NSMutableArray<RCTView *> *leaving = [NSMutableArray new];
-+  NSMutableArray<RCTView *> *entering = [NSMutableArray new];
++  NSMutableArray<RCTViewComponentView *> *leaving = [NSMutableArray new];
++  NSMutableArray<RCTViewComponentView *> *entering = [NSMutableArray new];
 +  BOOL held = NO;
-+  for (RCTView *view in AstroHoverViews.allObjects) {
++  for (RCTViewComponentView *view in AstroHoverViews.allObjects) {
 +    NSWindow *window = view.window;
 +    if (window == nil) {
 +      continue;
@@ -985,10 +1150,10 @@ index 0a4efc1fff0a6e32ea1634ab5f863c211f452409..34447fbb3fe6fd5e16c1320e53950906
 +    }
 +  }
 +  AstroHoverHeld = held;
-+  for (RCTView *view in [self astro_byDepth:leaving deepestFirst:YES]) {
++  for (RCTViewComponentView *view in [self astro_byDepth:leaving deepestFirst:YES]) {
 +    [view astro_setMouseOver:NO atScreenPoint:screen];
 +  }
-+  for (RCTView *view in [self astro_byDepth:entering deepestFirst:NO]) {
++  for (RCTViewComponentView *view in [self astro_byDepth:entering deepestFirst:NO]) {
 +    [view astro_setMouseOver:YES atScreenPoint:screen];
 +  }
 +}
@@ -1006,103 +1171,229 @@ index 0a4efc1fff0a6e32ea1634ab5f863c211f452409..34447fbb3fe6fd5e16c1320e53950906
 +  if (AstroHoverLog == nil) {
 +    AstroHoverLog = [NSMutableArray new];
 +  }
-+  [AstroHoverLog addObject:@[over ? @"enter" : @"leave", self.reactTag ?: @0, @(CACurrentMediaTime() * 1000)]];
++  [AstroHoverLog addObject:@[ over ? @"enter" : @"leave", self.reactTag ?: @0, @(CACurrentMediaTime() * 1000) ]];
 +#endif
-+  NSPoint inWindow = self.window != nil ? [self.window convertPointFromScreen:screen] : screen;
-+  [self sendMouseEventWithBlock:over ? self.onMouseEnter : self.onMouseLeave
-+                   locationInfo:[self locationInfoFromDraggingLocation:inWindow]
-+                  modifierFlags:[NSEvent modifierFlags]
-+                 additionalData:nil];
++  NSPoint locationInWindow = self.window != nil ? [self.window convertPointFromScreen:screen] : screen;
++  [self emitMouseEvent:over ? MouseEnter : MouseLeave
++                button:0
++      locationInWindow:locationInWindow
++         modifierFlags:[NSEvent modifierFlags]];
++}
++// Astro]
++
++- (void)mouseEntered:(NSEvent *)event
++{
++  if (_hasMouseOver) {
+     return;
+   }
+ 
++  // [Astro: no hit test here: the hover check follows frames, and both must agree, or the check entered what this
++  // had just refused (and AppKit, counting the pointer inside, sent nothing more until it left). Astro]
++
+   _hasMouseOver = YES;
+   [self emitMouseEvent:MouseEnter];
+ }
+diff --git a/React/Fabric/Mounting/RCTComponentViewFactory.mm b/React/Fabric/Mounting/RCTComponentViewFactory.mm
+index 034f1a4c9d30a9b066ae057ebaace7e3502e1aae..a239c1d8c28c40c06c9161d943af8efe873413bc 100644
+--- a/React/Fabric/Mounting/RCTComponentViewFactory.mm
++++ b/React/Fabric/Mounting/RCTComponentViewFactory.mm
+@@ -215,6 +215,10 @@ static Class<RCTComponentViewProtocol> RCTComponentViewClassWithName(const char
+       @"ComponentView with componentHandle `%lli` (`%s`) not found.",
+       componentHandle,
+       (char *)componentHandle);
++  if (iterator == _componentViewClasses.end()) { // [Astro: Release compiles the assert out and dereferenced end(), a segfault with no name. Say which component has no view class and draw it as a plain view. Astro]
++    NSLog(@"[astro] Fabric has no view class for component `%s`", (char *)componentHandle);
++    return RCTComponentViewDescriptor{.view = [RCTViewComponentView new]};
++  }
+   auto componentViewClassDescriptor = iterator->second;
+   Class viewClass = componentViewClassDescriptor.viewClass;
+ 
+diff --git a/React/Fabric/RCTSurfaceTouchHandler.mm b/React/Fabric/RCTSurfaceTouchHandler.mm
+index 2d83643533d0edee832797e7e1c86536fec7b19f..cefe3f623e8011ea1fdf3e6f13cdd8d3ebb4d2b8 100644
+--- a/React/Fabric/RCTSurfaceTouchHandler.mm
++++ b/React/Fabric/RCTSurfaceTouchHandler.mm
+@@ -34,6 +34,10 @@ struct ActiveTouch {
+    */
+   __strong RCTPlatformView<RCTComponentViewProtocol> *componentView = nil; // [macOS]
+ 
++#if TARGET_OS_OSX // [Astro: the mouse down that began it, to tell AppKit handing the same down over twice from a new one
++  __strong NSEvent *mouseDown = nil;
++#endif // Astro]
++
+   struct Hasher {
+     size_t operator()(const ActiveTouch &activeTouch) const
+     {
+@@ -140,6 +144,49 @@ static ActiveTouch CreateTouchWithUITouch(RCTUITouch *uiTouch, RCTPlatformView *
+   return activeTouch;
+ }
+ 
++#if TARGET_OS_OSX // [Astro: a mouse down and its drags and up share an event number, but each button counts on its own
++// and synthesized events all carry 0, so a touch is keyed by event number and button: keyed by the number alone, a
++// right down while the left was held (or two synthesized downs) took the left one's entry, leaked an identifier from
++// the pool of 17 (its dequeue spins forever once all are gone) and sent the right button's drags and up to the left.
++static NSInteger AstroMouseButton(NSEvent *event)
++{
++  switch (event.type) {
++    case NSEventTypeLeftMouseDown:
++    case NSEventTypeLeftMouseUp:
++    case NSEventTypeLeftMouseDragged:
++      return 0;
++    case NSEventTypeRightMouseDown:
++    case NSEventTypeRightMouseUp:
++    case NSEventTypeRightMouseDragged:
++      return 1;
++    default:
++      return event.buttonNumber;
++  }
 +}
 +
- - (void)mouseEntered:(NSEvent *)event
- {
-   _hasMouseOver = YES;
-diff --git a/React/Views/ScrollView/RCTScrollView.m b/React/Views/ScrollView/RCTScrollView.m
-index eb79ff32614392cb16e6eb3dbec6cc5b037fe27a..e0aee0c66030a8e29c279133399f1b0ddcc8ef78 100644
---- a/React/Views/ScrollView/RCTScrollView.m
-+++ b/React/Views/ScrollView/RCTScrollView.m
-@@ -740,13 +740,23 @@ - (void)viewDidMoveToWindow
-   NSNotificationCenter *defaultCenter = [NSNotificationCenter defaultCenter];
-   if ([self window] == nil) {
-     // Unregister for bounds change notifications
-+    // [Astro: every clip view's, as RCTView's removal here used to do for it (it now removes only its own).
-     [defaultCenter removeObserver:self
-                              name:NSViewBoundsDidChangeNotification
--                           object:_scrollView.contentView];
-+                           object:nil];
-+    // Astro]
-     [defaultCenter removeObserver:self
-                              name:NSPreferredScrollerStyleDidChangeNotification
-                            object:nil];
-   } else {
-+    // [Astro: AppKit calls this again each time the view is re-added in the same window: register once.
-+    [defaultCenter removeObserver:self
-+                             name:NSViewBoundsDidChangeNotification
-+                           object:_scrollView.contentView];
-+    [defaultCenter removeObserver:self
-+                             name:NSPreferredScrollerStyleDidChangeNotification
-+                           object:nil];
-+    // Astro]
-     // Register for bounds change notifications so we can track scrolling
-     [defaultCenter addObserver:self
-                       selector:@selector(scrollViewDocumentViewBoundsDidChange:)
-diff --git a/React/Views/UIView+React.m b/React/Views/UIView+React.m
-index 30c4f1e53e7b94016c8ed1b425587753fc80c2ce..1fe8dd641c9c0135f43960e4cc57a0fae4cc8655 100644
---- a/React/Views/UIView+React.m
-+++ b/React/Views/UIView+React.m
-@@ -191,9 +191,38 @@ - (void)setReactZIndex:(NSInteger)reactZIndex
- 
- - (void)didUpdateReactSubviews
- {
-+#if TARGET_OS_OSX // [macOS
-+  // [Astro: -addSubview: on a view that is already a subview takes it out and puts it back (it leaves and re-enters
-+  // the window, its layer is rebuilt), so re-adding every child whenever one was inserted or removed cost a closed
-+  // tab ~58 of them, 7-9 ms. The children end up in the same order, after any non-React subviews, as before; the
-+  // ones already in place are left alone and the rest are put in order by -setSubviews:. Astro]
-+  NSArray<RCTPlatformView *> *wanted = self.reactSubviews;
-+  NSArray<NSView *> *current = self.subviews;
-+  if (current.count >= wanted.count &&
-+      [[current subarrayWithRange:NSMakeRange(current.count - wanted.count, wanted.count)] isEqualToArray:wanted]) {
-+    return;
++struct AstroMouseTouchKey {
++  NSInteger eventNumber;
++  NSInteger button;
++
++  bool operator==(const AstroMouseTouchKey &other) const
++  {
++    return eventNumber == other.eventNumber && button == other.button;
 +  }
-+  NSMutableArray<NSView *> *unique = [NSMutableArray arrayWithCapacity:wanted.count];
-+  NSMutableSet<NSView *> *react = [NSMutableSet setWithCapacity:wanted.count];
-+  for (NSView *view in wanted.reverseObjectEnumerator) {
-+    if (![react containsObject:view]) {
-+      [react addObject:view];
-+      [unique insertObject:view atIndex:0];
++
++  struct Hasher {
++    size_t operator()(const AstroMouseTouchKey &key) const
++    {
++      return std::hash<NSInteger>()(key.eventNumber) ^ (std::hash<NSInteger>()(key.button) << 1);
 +    }
-+  }
-+  NSMutableArray<NSView *> *order = [NSMutableArray arrayWithCapacity:current.count + wanted.count];
-+  for (NSView *view in current) {
-+    if (![react containsObject:view]) {
-+      [order addObject:view];
-+    }
-+  }
-+  [order addObjectsFromArray:unique];
-+  [self setSubviews:order];
-+#else // macOS]
-   for (RCTPlatformView *subview in self.reactSubviews) { // [macOS]
-     [self addSubview:subview];
-   }
-+#endif // [macOS]
- }
- 
- - (void)didSetProps:(__unused NSArray<NSString *> *)changedProps
-@@ -306,7 +335,15 @@ static void updateTransform(RCTPlatformView *view) // [macOS]
-     transform = view.reactTransform;
-   }
- 
-+#if TARGET_OS_OSX // [Astro: RCTUIView keeps the transform and puts it back after AppKit resets the layer's.
-+  if ([view isKindOfClass:[RCTUIView class]]) {
-+    ((RCTUIView *)view).transform3D = transform;
-+  } else {
-+    view.layer.transform = transform;
-+  }
-+#else
-   view.layer.transform = transform;
++  };
++};
++
++static AstroMouseTouchKey AstroMouseTouchKeyFor(NSEvent *event)
++{
++  return AstroMouseTouchKey{event.eventNumber, AstroMouseButton(event)};
++}
 +#endif // Astro]
-   // Enable edge antialiasing in rotation, skew, or perspective transforms
-   view.layer.allowsEdgeAntialiasing = transform.m12 != 0.0f || transform.m21 != 0.0f || transform.m34 != 0.0f;
++
+ #if !TARGET_OS_OSX // [macOS]
+ static BOOL AllTouchesAreCancelledOrEnded(NSSet<UITouch *> *touches)
+ {
+@@ -184,7 +231,7 @@ struct PointerHasher {
+   std::unordered_map<__unsafe_unretained RCTUITouch *, ActiveTouch, PointerHasher<__unsafe_unretained RCTUITouch *>>
+       _activeTouches;
+ #else // [macOS
+-  std::unordered_map<NSInteger, ActiveTouch> _activeTouches;
++  std::unordered_map<AstroMouseTouchKey, ActiveTouch, AstroMouseTouchKey::Hasher> _activeTouches; // [Astro]
+ #endif // macOS]
+ 
+   /*
+@@ -246,28 +293,53 @@ RCT_NOT_IMPLEMENTED(-(instancetype)initWithTarget : (id)target action : (SEL)act
+   }
  }
+ 
++#if !TARGET_OS_OSX // [Astro]
+ - (void)_registerTouches:(NSSet<RCTUITouch *> *)touches // [macOS]
+ {
+   for (RCTUITouch *touch in touches) { // [macOS]
+ 		auto activeTouch = CreateTouchWithUITouch(touch, _rootComponentView, _viewOriginOffset);
+     activeTouch.touch.identifier = _identifierPool.dequeue();
+-#if !TARGET_OS_OSX // [macOS]
+     _activeTouches.emplace(touch, activeTouch);
+-#else // [macOS
+-    _activeTouches.emplace(touch.eventNumber, activeTouch);
+-#endif // macOS]
+   }
+ }
++#else // [Astro: returns the touches it began. AppKit can hand the same mouse down over twice: it began once, and the
++// second is left out, so JS never hears a start for a touch it already has. A new down on a button whose touch is still
++// open (its up never came) cancels that touch first, so no entry is overwritten and no identifier lost.
++- (NSSet<RCTUITouch *> *)_registerTouches:(NSSet<RCTUITouch *> *)touches
++{
++  NSMutableSet<RCTUITouch *> *began = [NSMutableSet setWithCapacity:touches.count];
++  for (RCTUITouch *touch in touches) {
++    AstroMouseTouchKey key = AstroMouseTouchKeyFor(touch);
++    auto existing = _activeTouches.find(key);
++    if (existing != _activeTouches.end()) {
++      NSEvent *mouseDown = existing->second.mouseDown;
++      if (mouseDown == touch || mouseDown.timestamp == touch.timestamp) {
++        continue;
++      }
++      std::vector<ActiveTouch> stale(1, existing->second);
++      [self _dispatchActiveTouches:stale eventType:RCTTouchEventTypeTouchCancel];
++      _identifierPool.enqueue(stale.front().touch.identifier);
++      _activeTouches.erase(key);
++    }
++    auto activeTouch = CreateTouchWithUITouch(touch, _rootComponentView, _viewOriginOffset);
++    activeTouch.touch.identifier = _identifierPool.dequeue();
++    activeTouch.mouseDown = touch;
++    _activeTouches.emplace(key, activeTouch);
++    [began addObject:touch];
++  }
++  return began;
++}
++#endif // Astro]
+ 
+ - (void)_updateTouches:(NSSet<RCTUITouch *> *)touches // [macOS]
+ {
+   for (RCTUITouch *touch in touches) { // [macOS]
+ #if !TARGET_OS_OSX // [macOS]
+     auto iterator = _activeTouches.find(touch);
++    RCTAssert(iterator != _activeTouches.end(), @"Inconsistency between local and UIKit touch registries");
+ #else // [macOS
+-    auto iterator = _activeTouches.find(touch.eventNumber);
++    auto iterator = _activeTouches.find(AstroMouseTouchKeyFor(touch)); // [Astro: a drag or up whose touch was cancelled (a new down on its button, reset) has none Astro]
+ #endif // macOS]
+-    RCTAssert(iterator != _activeTouches.end(), @"Inconsistency between local and UIKit touch registries");
+     if (iterator == _activeTouches.end()) {
+       continue;
+     }
+@@ -281,10 +353,10 @@ RCT_NOT_IMPLEMENTED(-(instancetype)initWithTarget : (id)target action : (SEL)act
+   for (RCTUITouch *touch in touches) { // [macOS]
+ #if !TARGET_OS_OSX // [macOS]
+     auto iterator = _activeTouches.find(touch);
++    RCTAssert(iterator != _activeTouches.end(), @"Inconsistency between local and UIKit touch registries");
+ #else // [macOS
+-    auto iterator = _activeTouches.find(touch.eventNumber);
++    auto iterator = _activeTouches.find(AstroMouseTouchKeyFor(touch)); // [Astro]
+ #endif // macOS]
+-    RCTAssert(iterator != _activeTouches.end(), @"Inconsistency between local and UIKit touch registries");
+     if (iterator == _activeTouches.end()) {
+       continue;
+     }
+@@ -293,7 +365,7 @@ RCT_NOT_IMPLEMENTED(-(instancetype)initWithTarget : (id)target action : (SEL)act
+ #if !TARGET_OS_OSX // [macOS]
+     _activeTouches.erase(touch);
+ #else // [macOS
+-    _activeTouches.erase(touch.eventNumber);
++    _activeTouches.erase(iterator); // [Astro]
+ #endif // macOS]
+   }
+ }
+@@ -306,10 +378,10 @@ RCT_NOT_IMPLEMENTED(-(instancetype)initWithTarget : (id)target action : (SEL)act
+   for (RCTUITouch *touch in touches) {
+ #if !TARGET_OS_OSX // [macOS]
+     auto iterator = _activeTouches.find(touch);
++    RCTAssert(iterator != _activeTouches.end(), @"Inconsistency between local and UIKit touch registries");
+ #else // [macOS
+-    auto iterator = _activeTouches.find(touch.eventNumber);
++    auto iterator = _activeTouches.find(AstroMouseTouchKeyFor(touch)); // [Astro]
+ #endif // macOS]
+-    RCTAssert(iterator != _activeTouches.end(), @"Inconsistency between local and UIKit touch registries");
+     if (iterator == _activeTouches.end()) {
+       continue;
+     }
+@@ -446,8 +518,7 @@ RCT_NOT_IMPLEMENTED(-(instancetype)initWithTarget : (id)target action : (SEL)act
+   [super mouseDown:event];
+ 
+   {
+-    NSSet* touches = [NSSet setWithObject:event];
+-    [self _registerTouches:touches]; // [macOS]
++    NSSet *touches = [self _registerTouches:[NSSet setWithObject:event]]; // [Astro]
+     [self _dispatchActiveTouches:[self _activeTouchesFromTouches:touches] eventType:RCTTouchEventTypeTouchStart];
+ 
+     if (self.state == NSGestureRecognizerStatePossible) {
+@@ -463,8 +534,7 @@ RCT_NOT_IMPLEMENTED(-(instancetype)initWithTarget : (id)target action : (SEL)act
+   [super rightMouseDown:event];
+ 
+   {
+-    NSSet* touches = [NSSet setWithObject:event];
+-		[self _registerTouches:touches]; // [macOS]
++    NSSet *touches = [self _registerTouches:[NSSet setWithObject:event]]; // [Astro]
+     [self _dispatchActiveTouches:[self _activeTouchesFromTouches:touches] eventType:RCTTouchEventTypeTouchStart];
+ 
+     if (self.state == NSGestureRecognizerStatePossible) {

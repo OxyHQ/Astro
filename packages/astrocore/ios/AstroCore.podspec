@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.static_framework = true
   s.dependency 'ExpoModulesCore'
   s.source_files   = '*.{h,mm,swift}'
-  s.public_header_files = 'AstroCoreHost.h', 'AstroCoreWebView.h', 'AstroCoreTabStrip.h', 'AstroCoreEngineBridge.h', 'AstroCoreServices.h', 'ACSwipe.h', 'ACChromeWindow.h'
+  s.public_header_files = 'AstroCoreHost.h', 'AstroCoreWebView.h', 'AstroCoreTabStrip.h', 'AstroCoreEngineBridge.h', 'AstroCoreServices.h', 'ACSwipe.h', 'ACChromeWindow.h', 'AstroCoreFieldTiming.h'
   s.resources      = 'page_script.js'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

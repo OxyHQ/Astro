@@ -1,0 +1,266 @@
+name: macOS app (New Architecture)
+
+on:
+  push:
+    branches: [macos/new-arch]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: macos-new-arch-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      arm64_key: ${{ steps.keys.outputs.arm64_key }}
+      arm64_name: ${{ steps.lookup.outputs.arm64_name }}
+      arm64_run: ${{ steps.lookup.outputs.arm64_run }}
+      x64_name: ${{ steps.lookup.outputs.x64_name }}
+      x64_run: ${{ steps.lookup.outputs.x64_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: keys
+        run: |
+          engine=$(git rev-parse HEAD:engine HEAD:apps/browser/assets/offline-game HEAD:apps/browser/assets/offline-game-pipeline | shasum -a 256 | cut -c1-16)
+          echo "arm64_key=$engine" >> "$GITHUB_OUTPUT"
+      - id: lookup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          artifacts() {
+            gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+              --jq '.artifacts[] | select(.expired | not) | [.created_at, .name, (.workflow_run.id | tostring)] | @tsv'
+          }
+          artifacts | sort >"$RUNNER_TEMP/artifacts.tsv"
+          newest() { awk -F'\t' -v want="$1" '$2 == want { run = $3 } END { print run }' "$RUNNER_TEMP/artifacts.tsv"; }
+          arm64_name="astrocore-macos-arm64-${{ steps.keys.outputs.arm64_key }}"
+          arm64_run=$(newest "$arm64_name")
+          if [ -z "$arm64_run" ]; then
+            arm64=$(awk -F'\t' '$2 ~ /^astrocore-macos-arm64-/ { name = $2; run = $3 } END { print name "\t" run }' "$RUNNER_TEMP/artifacts.tsv")
+            arm64_name=$(cut -f1 <<<"$arm64") arm64_run=$(cut -f2 <<<"$arm64")
+          fi
+          x64=$(awk -F'\t' '$2 ~ /^astrocore-macos-x64-/ { name = $2; run = $3 } END { print name "\t" run }' "$RUNNER_TEMP/artifacts.tsv")
+          echo "arm64_name=$arm64_name" >> "$GITHUB_OUTPUT"
+          echo "arm64_run=$arm64_run" >> "$GITHUB_OUTPUT"
+          echo "x64_name=$(cut -f1 <<<"$x64")" >> "$GITHUB_OUTPUT"
+          echo "x64_run=$(cut -f2 <<<"$x64")" >> "$GITHUB_OUTPUT"
+          {
+            echo "arm64 engine (macos-engine-arm64.yml): $([ -n "$arm64_run" ] && echo "$arm64_name from run $arm64_run" || echo "none yet")"
+            echo "x86_64 engine (ci/macos-intel pipeline): ${x64:-none yet}"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  compile:
+    name: Compile ${{ matrix.arch }} (stub engine)
+    runs-on: xcode-27
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x86_64]
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      AC_CI_XCODE: /Applications/Xcode_27.1.app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: CI scripts
+        run: scripts/ci/tools-from-branch.sh
+      - run: scripts/ci/macos-runner-prep.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g "pnpm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            apps/browser/macos/Pods/hermes-engine-artifacts
+          key: pods-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/browser/macos/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-${{ runner.arch }}-
+      - name: Stub engine
+        run: scripts/ci/macos-stub-engine.sh "${{ matrix.arch }}" "$RUNNER_TEMP/stub"
+      - name: Build (New Architecture, stub engine)
+        run: scripts/ci/macos-app-build.sh --arch "${{ matrix.arch }}" --framework "$RUNNER_TEMP/stub/Chromium Framework.framework" --out "$RUNNER_TEMP/dist" 'OTHER_LDFLAGS=$(inherited) -Wl,-undefined,dynamic_lookup'
+      - name: Pods
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/dist"
+          cp apps/browser/macos/Podfile.lock "$RUNNER_TEMP/dist/Podfile.lock" 2>/dev/null || true
+          cp apps/browser/macos/Astro-macOS/Info.plist "$RUNNER_TEMP/dist/Info.plist" 2>/dev/null || true
+          git diff --stat
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/dist/build.log
+            ${{ runner.temp }}/dist/Podfile.lock
+            ${{ runner.temp }}/dist/Info.plist
+          retention-days: 7
+
+  app_x86_64:
+    name: App x86_64
+    needs: [plan, compile]
+    if: needs.plan.outputs.x64_run != ''
+    runs-on: xcode-27
+    timeout-minutes: 120
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      AC_CI_XCODE: /Applications/Xcode_27.1.app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: CI scripts
+        run: scripts/ci/tools-from-branch.sh
+      - run: scripts/ci/macos-runner-prep.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g "pnpm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            apps/browser/macos/Pods/hermes-engine-artifacts
+          key: pods-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/browser/macos/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-${{ runner.arch }}-
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.plan.outputs.x64_name }}
+          path: ${{ runner.temp }}/engine
+          run-id: ${{ needs.plan.outputs.x64_run }}
+          github-token: ${{ github.token }}
+      - name: Unpack the engine
+        run: |
+          tar -C "$RUNNER_TEMP/engine" -xf "$RUNNER_TEMP/engine/astrocore-macos-x64.tar.zst" --use-compress-program "zstd -d"
+          echo "engine tree $(cat "$RUNNER_TEMP/engine/engine-tree"), this checkout's $(git rev-parse HEAD:engine)"
+      - name: Build and package
+        run: scripts/ci/macos-app-build.sh --arch x86_64 --framework "$RUNNER_TEMP/engine/Chromium Framework.framework" --out "$RUNNER_TEMP/dist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Astro-new-arch-x86_64
+          path: ${{ runner.temp }}/dist/*.dmg
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build-log-x86_64
+          path: ${{ runner.temp }}/dist/build.log
+          retention-days: 14
+
+  app_arm64:
+    name: App arm64
+    needs: [plan, compile]
+    if: needs.plan.outputs.arm64_run != ''
+    runs-on: xcode-27
+    timeout-minutes: 120
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      AC_CI_XCODE: /Applications/Xcode_27.1.app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: CI scripts
+        run: scripts/ci/tools-from-branch.sh
+      - run: scripts/ci/macos-runner-prep.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g "pnpm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/CocoaPods
+            apps/browser/macos/Pods/hermes-engine-artifacts
+          key: pods-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/browser/macos/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-${{ runner.arch }}-
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.plan.outputs.arm64_name }}
+          path: ${{ runner.temp }}/engine
+          run-id: ${{ needs.plan.outputs.arm64_run }}
+          github-token: ${{ github.token }}
+      - name: Unpack the engine
+        run: tar -C "$RUNNER_TEMP/engine" -xf "$RUNNER_TEMP/engine/astrocore-macos-arm64.tar.zst" --use-compress-program "zstd -d"
+      - name: Build and package
+        run: scripts/ci/macos-app-build.sh --arch arm64 --framework "$RUNNER_TEMP/engine/Chromium Framework.framework" --out "$RUNNER_TEMP/dist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Astro-new-arch-arm64
+          path: ${{ runner.temp }}/dist/*.dmg
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build-log-arm64
+          path: ${{ runner.temp }}/dist/build.log
+          retention-days: 14
+
+  smoke_x86_64:
+    name: Smoke x86_64
+    needs: app_x86_64
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: Astro-new-arch-x86_64
+          path: ${{ runner.temp }}/dmg
+      - name: Launch, sign-in dialog, Chat panel
+        run: scripts/ci/macos-ui-smoke.sh "$(ls "$RUNNER_TEMP"/dmg/*.dmg)" "$RUNNER_TEMP/smoke"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-x86_64
+          path: ${{ runner.temp }}/smoke
+          retention-days: 30
+
+  smoke_arm64:
+    name: Smoke arm64
+    needs: app_arm64
+    if: always() && needs.app_arm64.result == 'success'
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: Astro-new-arch-arm64
+          path: ${{ runner.temp }}/dmg
+      - name: Launch, sign-in dialog, Chat panel
+        run: scripts/ci/macos-ui-smoke.sh "$(ls "$RUNNER_TEMP"/dmg/*.dmg)" "$RUNNER_TEMP/smoke"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-arm64
+          path: ${{ runner.temp }}/smoke
+          retention-days: 30

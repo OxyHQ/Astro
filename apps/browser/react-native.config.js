@@ -6,4 +6,7 @@ module.exports = {
     ios: { sourceDir: "./macos" },
     macos: { sourceDir: "./macos" },
   },
+  dependencies: {
+    "@oxy.so/services": { platforms: { ios: null, macos: null, android: null } },
+  },
 };

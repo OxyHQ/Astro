@@ -1,0 +1,87 @@
+body {
+  background: transparent;
+}
+
+.astro-window {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.astro-window > div:first-child {
+  flex: 1;
+  display: flex;
+}
+
+button,
+input,
+textarea,
+a,
+[role="button"],
+[tabindex] {
+  app-region: no-drag;
+}
+
+.astro-window-control {
+  position: absolute;
+  z-index: 1001;
+  pointer-events: auto;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: default;
+}
+
+.astro-app-menu {
+  position: absolute;
+  z-index: 1001;
+  pointer-events: auto;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  font: 600 16px/1 system-ui, sans-serif;
+  cursor: default;
+}
+
+.astro-app-menu:hover {
+  opacity: 1;
+  background: rgba(127, 127, 127, 0.18);
+}
+
+.astro-utility-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.astro-utility-window {
+  position: relative;
+  display: flex;
+  width: min(860px, calc(100% - 48px));
+  height: min(640px, calc(100% - 48px));
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.35);
+}
+
+.astro-utility-window > div:first-child {
+  flex: 1;
+  display: flex;
+}
+
+.astro-ui-drag iframe,
+.astro-tab-drag iframe {
+  pointer-events: none !important;
+}

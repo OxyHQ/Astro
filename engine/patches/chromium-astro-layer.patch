@@ -1,7 +1,23 @@
 diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
 --- a/chrome/BUILD.gn
 +++ b/chrome/BUILD.gn
-@@ -1319,6 +1319,7 @@
+@@ -305,6 +305,7 @@ if (!is_android && !is_mac) {
+         "//chrome/browser:process_singleton",
+         "//chrome/browser:startup_data",
+         "//chrome/browser/lifetime",
++        "//chrome/browser/astro:exports",  # Astro: engine/chromium
+         "//chrome/common:version_header",
+ 
+         # For the sampling profiler.
+@@ -399,6 +400,7 @@ if (is_win) {
+       "//chrome/browser:process_singleton",
+       "//chrome/browser:startup_data",
+       "//chrome/browser/lifetime",
++      "//chrome/browser/astro:exports",  # Astro: engine/chromium
+       "//chrome/browser/win/isolated_browser:isolated_browser_support",
+       "//chrome/chrome_elf",
+       "//chrome/common:buildflags",
+@@ -1322,6 +1324,7 @@ if (is_win) {
        "//chrome/browser:startup_data",
        "//chrome/browser/lifetime",
        "//chrome/browser/mac",

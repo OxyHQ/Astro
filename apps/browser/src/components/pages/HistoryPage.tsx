@@ -10,7 +10,9 @@ import { openModeFor, openUrl } from "../bookmarks/actions";
 import { HoverSlot } from "../HoverSlot";
 import { Favicon, IconButton } from "../primitives";
 import { Button, Checkbox, useFormColors } from "../settings/controls";
+import { DATE_RANGES, dateInQuery, inSpan, intersect, rangeSpan, type DateRange, type Span } from "../../ai/library/library";
 import { ClearDataDialog, useClearDataRequest } from "./ClearDataDialog";
+import { HistoryChats } from "./HistoryChats";
 import { dayLabel, dayStart, EmptyState, hostLabel, PAGE_WIDTH, PageHeader, queryWords, searchText, timeLabel } from "./PageLayout";
 
 const ROW = 38;
@@ -30,7 +32,7 @@ function searchTextOf(entry: HistoryEntry) {
   return text;
 }
 
-function layoutHistory(history: HistoryEntry[], query: string): Layout {
+function layoutHistory(history: HistoryEntry[], query: string, span: Span | null): Layout {
   const words = queryWords(query);
   const days: Day[] = [];
   const rows: Row[] = [];
@@ -38,6 +40,7 @@ function layoutHistory(history: HistoryEntry[], query: string): Layout {
   let from = Infinity;
   let to = -Infinity;
   for (const entry of history) {
+    if (!inSpan(entry.lastVisit, span)) continue;
     if (words.length) {
       const text = searchTextOf(entry);
       if (!words.every((w) => text.includes(w))) continue;
@@ -96,6 +99,7 @@ export function HistoryPage({ tabId, profileId, initialQuery }: { tabId: string;
   const [query, setQuery] = useState(initialQuery);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [clearOpen, setClearOpen] = useState(false);
+  const [range, setRange] = useState<DateRange>("any");
   const lastClicked = useRef<string | null>(null);
 
   const clearRequest = useClearDataRequest((r) => r.windowId);
@@ -109,7 +113,12 @@ export function HistoryPage({ tabId, profileId, initialQuery }: { tabId: string;
 
   useEffect(() => setQuery(initialQuery), [initialQuery]);
 
-  const layout = useMemo(() => layoutHistory(history, query), [history, query]);
+  const search = useMemo(() => {
+    const now = Date.now();
+    const typed = dateInQuery(query, now);
+    return { text: typed.text, span: intersect(rangeSpan(range, now), typed.span) };
+  }, [query, range]);
+  const layout = useMemo(() => layoutHistory(history, search.text, search.span), [history, search]);
   const latest = useRef({ layout, profileId });
   latest.current = { layout, profileId };
 
@@ -157,11 +166,13 @@ export function HistoryPage({ tabId, profileId, initialQuery }: { tabId: string;
 
   return (
     <View style={{ flex: 1 }}>
-      <PageHeader title="History" query={query} onQuery={setQuery} placeholder="Search history" actions={actions} />
+      <PageHeader title="History" query={query} onQuery={setQuery} placeholder="Search history, chats and files" actions={actions} />
+      <DateFilter range={range} onRange={setRange} />
+      <HistoryChats windowId={windowId} text={search.text} span={search.span} query={query} />
       {layout.rows.length === 0 ? (
         <EmptyState
           icon={<Symbol name="clock" size={30} color={theme.textTertiary} style={{ width: 40, height: 40 }} />}
-          title={query ? "No search results found" : "Your browsing history appears here"}
+          title={query || search.span ? "No pages match your search" : "Your browsing history appears here"}
         />
       ) : (
         <HistoryList
@@ -175,6 +186,22 @@ export function HistoryPage({ tabId, profileId, initialQuery }: { tabId: string;
         />
       )}
       {clearOpen && <ClearDataDialog profileId={profileId} onClose={() => setClearOpen(false)} />}
+    </View>
+  );
+}
+
+function DateFilter({ range, onRange }: { range: DateRange; onRange: (range: DateRange) => void }) {
+  const title = DATE_RANGES.find((r) => r.id === range)!.title;
+  const pick = async () => {
+    const choice = await showMenu(DATE_RANGES.map((r) => ({ id: r.id, title: r.title, checked: r.id === range })));
+    const next = DATE_RANGES.find((r) => r.id === choice);
+    if (next) onRange(next.id);
+  };
+  return (
+    <View style={{ alignItems: "center" }}>
+      <View style={{ width: PAGE_WIDTH, maxWidth: "100%", flexDirection: "row", paddingHorizontal: 28 }}>
+        <Button title={title} icon="calendar" onPress={() => void pick()} />
+      </View>
     </View>
   );
 }

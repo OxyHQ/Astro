@@ -1,3 +1,4 @@
+import { openChat, useChatAvailable } from "../../ai/chatEntry";
 import { FadeLabel } from "@astro-browser/shell";
 import { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
@@ -28,7 +29,7 @@ export function CalendarPreview({ tabId, windowId, anchor }: { tabId: string; wi
   const theme = useTheme();
   const now = useNow(15_000);
   const { access, events, loading, error, lastFetch } = useCalendar();
-  const connected = access === "fullAccess" || access === "fixture";
+  const connected = access === "connected" || access === "fixture";
   const endOfDay = new Date(now);
   endOfDay.setHours(23, 59, 59, 999);
   const today = events.filter((e) => !e.cancelled && !e.declined && e.start <= endOfDay.getTime() && e.end > new Date(now).setHours(0, 0, 0, 0));
@@ -38,7 +39,8 @@ export function CalendarPreview({ tabId, windowId, anchor }: { tabId: string; wi
   const date = new Date(now).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 
   let body: React.ReactNode;
-  if (!connected) body = <SignIn denied={access === "denied" || access === "restricted"} />;
+  if (access === "pending") body = <Empty text="Checking your Oxy account" />;
+  else if (!connected) body = <SignIn />;
   else if (!lastFetch && loading) body = <Empty text="Loading events" />;
   else if (error && !lastFetch) body = <Empty text="Couldn't load events" />;
   else if (!today.length) body = <Empty text="No events today" />;
@@ -89,23 +91,16 @@ function Empty({ text }: { text: string }) {
   return <Text style={{ fontSize: 12.5, color: theme.textSecondary, paddingVertical: 6 }}>{text}</Text>;
 }
 
-function SignIn({ denied }: { denied: boolean }) {
+function SignIn() {
   const theme = useTheme();
   const { hovered, hoverProps } = useHover();
-  if (denied) {
-    return (
-      <Text style={{ fontSize: 12.5, lineHeight: 17, color: theme.textSecondary, paddingVertical: 4 }}>
-        Allow Astro in System Settings › Privacy & Security › Calendars to see your meetings here.
-      </Text>
-    );
-  }
   return (
     <View {...hoverProps} style={{ paddingVertical: 4 }}>
       <Text style={{ fontSize: 12.5, lineHeight: 17, color: theme.textSecondary }}>
         <Text onPress={() => void connectCalendar()} style={{ color: theme.accent, textDecorationLine: hovered ? "underline" : "none" }}>
-          Connect your calendar
+          Sign in with Oxy
         </Text>{" "}
-        to see your meetings here and get alerts before they start.
+        to see the meetings in your Nilo calendar here and get alerts before they start.
       </Text>
     </View>
   );
@@ -131,6 +126,7 @@ function EventRow({ event, now, windowId, tabId }: { event: CalendarEvent; now: 
   const joinable = !!link && isMeeting(event) && now >= event.start - JOINABLE_BEFORE_MS && now < event.end;
   const others = event.attendees.filter((a) => !a.me);
   const past = event.end <= now;
+  const chat = useChatAvailable();
   return (
     <View {...hoverProps}>
       <Pressable
@@ -148,7 +144,22 @@ function EventRow({ event, now, windowId, tabId }: { event: CalendarEvent; now: 
               <Text style={{ fontWeight: "500", color: running ? colors.now : theme.textSecondary }}> · {running ? "Now" : relativeTime(event.start, now)}</Text>
             </Text>
           </View>
-          {others.length && !joinable ? <OverlappingAvatars people={others} /> : null}
+          {others.length && !joinable && !(hovered && chat) ? <OverlappingAvatars people={others} /> : null}
+          {hovered && chat && isMeeting(event) && !joinable ? (
+            <SmallButton
+              title={past ? "Recap" : "Prep"}
+              icon="sparkles"
+              onPress={() => {
+                dismissHover();
+                openChat({
+                  windowId,
+                  prompt: "",
+                  source: "calendar",
+                  skill: { name: past ? "recap" : "prep", title: `${past ? "Recap" : "Prepare for"} ${event.title || "this meeting"}`, command: past ? "recap" : "prep", occurrence: event.occurrence },
+                });
+              }}
+            />
+          ) : null}
           {joinable ? (
             <View tooltip={joinTitle(link!.provider)}>
               <SmallButton title="Join" icon="video.fill" primary onPress={() => (dismissHover(), joinEvent(event, false, windowId))} />

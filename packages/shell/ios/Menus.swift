@@ -392,7 +392,7 @@ enum MainMenu {
         cmd("Find and Replace…", "findAndReplace", "f", [.command, .option]),
         cmd("Find Next", "findNext", "g"),
         cmd("Find Previous", "findPrevious", "g", [.command, .shift]),
-        cmd("Use Selection for Find", "useSelectionForFind", "e"),
+        cmd("Use Selection for Find", "useSelectionForFind"),
         cmd("Jump to Selection", "jumpToSelection", "j"),
       ]),
       sub("Spelling and Grammar", [
@@ -447,6 +447,9 @@ enum MainMenu {
       cmd("Auto-Hide Tabs", "toggleSidebar", "s"),
       cmd("Auto-Hide Tabs", "toggleSidebar", "l", [.command, .shift]).hiddenShortcut(),
       cmd("Auto-Hide Tabs", "toggleSidebar", "f", [.command, .shift]).hiddenShortcut(),
+      .separator(),
+      cmd("Chat", "toggleChat", "e"),
+      cmd("Focus Chat", "focusChat", "e", [.command, .control]),
       .separator(),
       cmd("Open Split Pane", "openSplitPane", "=", [.control, .shift]),
       cmd("Focus Next Split Pane", "focusNextPane", "]", [.control, .shift]),
@@ -752,6 +755,7 @@ enum MainMenu {
   private static func buildHistory(_ state: MenuState) {
     history.removeAllItems()
     history.addItem(CommandItem("Show History…", "showHistory", key: "y"))
+    history.addItem(CommandItem("Show Library…", "showLibrary"))
     history.addItem(CommandItem("Clear Browsing Data…", "clearBrowsingData", key: "\u{8}", [.command, .shift]))
     history.addItem(.separator())
     let header = NSMenuItem(title: "Recently Closed", action: nil, keyEquivalent: "")

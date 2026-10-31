@@ -7,6 +7,7 @@ import { BookmarkDialog } from "./components/bookmarks/BookmarkDialog";
 import { EditBookmarkDialog } from "./components/bookmarks/EditBookmarkDialog";
 import { ExtensionOverlays } from "./components/extensions/ExtensionOverlays";
 import { ExtensionSidePanel } from "./components/extensions/SidePanel";
+import { ChatFloating, ChatSidebar } from "./components/chat/ChatSlots";
 import { DownloadMagnet, DownloadsPopover } from "./components/Downloads";
 import { UtilityWindow } from "./components/settings/UtilityWindow";
 import { isUtilityWindowId } from "./components/settings/windows";
@@ -14,13 +15,12 @@ import { OnboardingOverlay } from "./components/onboarding";
 import { CreateProfileHost } from "./components/profiles/CreateProfile";
 import { useFullscreenTab } from "./components/layout/pageState";
 import { ProfileTint } from "./components/layout/ProfileSwipe";
-import { TOP_CARD_INSET, TOP_STRIP_HEIGHT, TopStripPeek, TopTabStrip } from "./components/layout/TopTabStrip";
 import { useTabLayout } from "./components/layout/windowLayout";
 import { WindowProfile } from "./components/layout/WindowProfile";
-import { DockedLayout } from "./components/layout/SidebarDock";
+import { WindowShell } from "./components/layout/WindowShell";
 import { LittleAstroWindow } from "./components/littleAstro/LittleAstroWindow";
 import { SidebarOverlays } from "./components/sidebar/Overlays";
-import { layout, ThemeScope, useTheme } from "./lib/theme";
+import { ThemeScope, useTheme } from "./lib/theme";
 import { useBrowser } from "./store/browser";
 import { useWindowId, WindowContext } from "./store/hooks";
 
@@ -50,38 +50,26 @@ function BrowserWindow() {
   const theme = useTheme();
   const windowId = useWindowId();
   const topTabs = useTabLayout() === "top";
-  const showStrip = useBrowser((s) => topTabs && !!s.windows[windowId]?.sidebarOpen);
   const fullscreen = !!useFullscreenTab(windowId);
-  const [width, setWidth] = useState(0);
+  const [area, setArea] = useState({ width: 0, height: 0 });
+  const width = area.width;
   const card = (
     <>
       <ContentCard />
+      {!fullscreen && <ChatSidebar />}
       {!fullscreen && <ExtensionSidePanel />}
     </>
   );
 
   return (
-    <View style={{ flex: 1, flexDirection: "row" }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <View style={{ flex: 1, flexDirection: "row" }} onLayout={(e) => setArea({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
       <WindowBackdrop vibrancy {...theme.backdrop} colors={theme.windowTint} grainOpacity={theme.grain} style={StyleSheet.absoluteFill} />
       <WindowProfile />
       <ProfileTint />
-      <DockedLayout
-        fullscreen={fullscreen}
-        topTabs={topTabs}
-        inset={
-          showStrip
-            ? { top: TOP_STRIP_HEIGHT, right: TOP_CARD_INSET, bottom: TOP_CARD_INSET, left: TOP_CARD_INSET }
-            : { top: layout.cardTop, right: layout.cardInset, bottom: layout.cardInset, left: layout.cardInset }
-        }
-      >
+      <WindowShell fullscreen={fullscreen} topTabs={topTabs} width={width}>
         {card}
-      </DockedLayout>
-      {showStrip && (
-        <View pointerEvents={fullscreen ? "none" : "auto"} style={[{ position: "absolute", left: 0, right: 0 }, fullscreen ? { bottom: "100%" } : { top: 0 }]}>
-          <TopTabStrip width={width} hidden={fullscreen} />
-        </View>
-      )}
-      {topTabs && !showStrip && <TopStripPeek windowWidth={width} enabled={!fullscreen} />}
+      </WindowShell>
+      {!fullscreen && <ChatFloating area={area} />}
       <CommandPanel windowWidth={width} />
       <DownloadsPopover />
       <ExtensionOverlays />

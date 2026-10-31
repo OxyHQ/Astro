@@ -1,9 +1,14 @@
+import { DEVICE, DEVICES, ON_MAC, SYSTEM_UNLOCK } from "../../lib/device";
 import { prepare, type Searchable } from "./searchMatch";
 import type { SettingsPane } from "./windows";
 
 export const PANES: { id: SettingsPane; title: string; icon: string }[] = [
+  { id: "account", title: "Oxy Account", icon: "person.crop.circle" },
   { id: "general", title: "General", icon: "gearshape" },
   { id: "profiles", title: "Profiles", icon: "person.2" },
+  { id: "apps", title: "Apps", icon: "app.badge" },
+  { id: "skills", title: "Skills", icon: "sparkles" },
+  { id: "personalization", title: "Personalization", icon: "face.smiling" },
   { id: "sync", title: "Sync", icon: "arrow.triangle.2.circlepath" },
   { id: "tabs", title: "Tabs", icon: "square.on.square" },
   { id: "appearance", title: "Appearance", icon: "circle.lefthalf.filled" },
@@ -24,6 +29,35 @@ type Section = { section: string; rows: Record<string, Row> };
 const APP = "Astro";
 
 const ROWS: Record<SettingsPane, Section[]> = {
+  account: [
+    {
+      section: "Oxy Account",
+      rows: {
+        account: {
+          title: "Oxy account",
+          description: `One account for all of ${APP}, in every window and profile.`,
+          keywords: ["sign in", "sign out", "log in", "log out", "login", "oxy", "user", "username", "avatar", "email", "manage account"],
+        },
+      },
+    },
+    {
+      section: "Uses your Oxy account",
+      rows: { calendar: { title: "Calendar", description: "Your Nilo calendar: the pinned calendar, meeting alerts and meeting tab groups.", keywords: ["nilo", "meetings"] } },
+    },
+    {
+      section: "Astro AI",
+      rows: {
+        aiGroupNames: { title: "Name tab groups", description: "Names a group you haven’t named from its tabs, with an emoji.", keywords: ["ai", "auto name", "group name", "emoji"] },
+        aiPinnedTitles: { title: "Tidy pinned tab titles", description: "Shortens a tab’s title when you pin it. Reset Name brings the original back.", keywords: ["ai", "rename", "pinned", "tidy tab titles"] },
+        aiTidyDownloads: { title: "Tidy downloads", description: "Gives a finished download a clear name. Undo restores the original.", keywords: ["ai", "rename files", "downloads", "tidy"] },
+        aiCommandBarChat: { title: "Send questions to Chat", description: `The command bar sends a question to Chat and a site or a search where it belongs. ${ON_MAC ? "⌃⌘↩" : "Ctrl+Alt+Enter"} always asks Chat.`, keywords: ["ai", "router", "chat", "command bar", "ask"] },
+        aiVideoSummaries: { title: "Summarize YouTube videos", description: "Prepares a summary of the video you’re watching from its transcript, for Chat.", keywords: ["ai", "youtube", "transcript", "summary"] },
+        agentSites: { title: "Sites Alia can use", description: "Alia clicks and types on these sites without asking first. It still asks before buying, sending, deleting or submitting.", keywords: ["ai", "agent", "computer use", "act", "permissions", "sites"] },
+        aiManaged: { title: "Managed by your organization", description: "Your organization’s policy decides which sites Chat may read and whether Alia may act in your tabs.", keywords: ["ai", "policy", "dlp", "organization", "enterprise", "managed"] },
+        aiSharedSites: { title: "Sensitive sites you share", description: "Banking, health and password sites stay out of Chat unless you share them. These you always share.", keywords: ["ai", "privacy", "sensitive", "banking", "health", "dlp", "share"] },
+      },
+    },
+  ],
   general: [
     {
       section: "General",
@@ -77,11 +111,98 @@ const ROWS: Record<SettingsPane, Section[]> = {
     { section: "New windows open with", rows: { defaultProfile: { title: "Default profile", description: "Used for new windows. Links from other apps open in the profile you used last.", keywords: ["new window"] } } },
     { section: "Profiles", rows: { list: { title: "Profiles", description: "Drag to reorder. ⌃1–⌃9 switch to the first nine.", keywords: ["create profile", "new profile", "delete profile", "reorder", "work", "personal"] } } },
   ],
+  apps: [
+    {
+      section: "Connected apps",
+      rows: {
+        connections: {
+          title: "Connected apps",
+          description: "Apps Chat can use when you ask, through your Alia account: your mail, calendar, documents and issues.",
+          keywords: ["connect", "connectors", "integrations", "gmail", "google calendar", "google drive", "notion", "github", "linear", "slack", "disconnect", "reconnect"],
+        },
+        manage: { title: "Apps page", description: "Every app, with its accounts, on its own page.", keywords: ["manage apps", "connect apps"] },
+      },
+    },
+    {
+      section: "Morning Brief",
+      rows: {
+        morningBrief: {
+          title: "Morning Brief",
+          description: "Each profile offers Start My Day on its New Tab page once a day, after the time you pick: your meetings, what needs you, where you left off and headlines.",
+          keywords: ["start my day", "brief", "daily", "morning", "summary", "new tab"],
+        },
+      },
+    },
+    {
+      section: "New Chat",
+      rows: {
+        chatPlacement: { title: "Open Chat in", description: "Where Chat opens until you move it.", keywords: ["sidebar", "floating", "window", "placement"] },
+        chatPowerLevel: { title: "Power level", description: "What a new chat starts with. Change it for one chat in its composer.", keywords: ["model", "auto", "instant", "pro", "ultra", "thinking"] },
+      },
+    },
+  ],
+  skills: [
+    {
+      section: "Your skills",
+      rows: {
+        list: {
+          title: "Skills",
+          description: "Saved instructions you run with / in Chat or the command bar. Automatic ones run when a request matches them.",
+          keywords: ["slash commands", "shortcuts", "prompts", "automatic", "auto invoke", "enable"],
+        },
+      },
+    },
+    {
+      section: "Astro's commands",
+      rows: {
+        commands: { title: "Astro's commands", description: "Built in: /research, /start-my-day, /prep and /recap.", keywords: ["research", "start my day", "prep", "recap", "meeting"] },
+      },
+    },
+    {
+      section: "Add skills",
+      rows: {
+        gallery: { title: "Skills Gallery", description: "Skills from Alia and the people who publish theirs.", keywords: ["browse skills", "install", "add skill"] },
+        builder: { title: "New Skill", description: "Describe it and Astro writes it, or write it yourself.", keywords: ["create skill", "skill builder", "write skill"] },
+      },
+    },
+  ],
+  personalization: [
+    {
+      section: "About you",
+      rows: {
+        occupation: { title: "What you do", keywords: ["occupation", "job", "role", "work"] },
+        location: { title: "Where you are", keywords: ["location", "city", "country"] },
+        bio: { title: "About you", description: "Anything Chat should know about you to help better.", keywords: ["bio", "custom instructions", "context", "profile"] },
+        interests: { title: "Interests", description: "Separated by commas.", keywords: ["topics", "hobbies"] },
+      },
+    },
+    {
+      section: "How Chat answers",
+      rows: {
+        language: { title: "Language", description: "The language Chat answers in.", keywords: ["response language", "translate", "english", "spanish"] },
+        tone: { title: "Tone", keywords: ["style", "personality", "friendly", "professional", "concise", "casual"] },
+        responseLength: { title: "Answer length", keywords: ["response length", "short", "long", "verbose", "brief answers"] },
+      },
+    },
+    {
+      section: "Memory",
+      rows: {
+        autoSave: { title: "Remember things from chats", description: "Chat saves what it learns about you, like your role or the people you work with.", keywords: ["memory", "save memories", "learn"] },
+        recall: { title: "Use what Chat remembers", description: "Chat reads its memories of you when it answers. Turn personalization off for one chat in its ⋯ menu.", keywords: ["memory", "recall", "personalized"] },
+      },
+    },
+    {
+      section: "Saved memories",
+      rows: {
+        memories: { title: "Saved memories", description: "What Chat remembers about you. Forget any of them.", keywords: ["forget", "delete memory", "memories"] },
+      },
+    },
+  ],
   sync: [
     {
       section: "Sync",
       rows: {
-        sync: { title: "Sync", description: "Sync your profiles, bookmarks, history, tabs, passwords, extensions and settings across your Macs.", keywords: ["icloud", "recovery phrase", "devices", "turn on sync", "end to end", "encrypted"] },
+        sync: { title: "Sync", description: `Sync your profiles, bookmarks, history, tabs, passwords, extensions and settings across your ${DEVICES}.`, keywords: ["icloud", "recovery phrase", "devices", "turn on sync", "end to end", "encrypted"] },
         folder: { title: "Sync folder", keywords: ["icloud drive", "dropbox", "folder"] },
       },
     },
@@ -121,11 +242,13 @@ const ROWS: Record<SettingsPane, Section[]> = {
           description: "A video or call you're watching pops out when you switch tabs or leave the window, and returns when you come back.",
           keywords: ["pip", "video", "floating", "mini player"],
         },
-        videoUpscaling: {
-          title: "Video upscaling",
-          description: "Sharpens low-resolution videos shown larger than they are, on Apple silicon. Only in the tab you're watching, never in the background, in Low Power Mode or when the Mac runs hot.",
-          keywords: ["super resolution", "sharpen", "video quality"],
-        },
+        ...(ON_MAC && {
+          videoUpscaling: {
+            title: "Video upscaling",
+            description: "Sharpens low-resolution videos shown larger than they are, on Apple silicon. Only in the tab you're watching, never in the background, in Low Power Mode or when the Mac runs hot.",
+            keywords: ["super resolution", "sharpen", "video quality"],
+          },
+        }),
       },
     },
     {
@@ -157,7 +280,7 @@ const ROWS: Record<SettingsPane, Section[]> = {
       rows: { theme: { title: "Appearance Theme", description: "Also in View › Appearance. Incognito windows are always dark.", keywords: ["dark mode", "light mode", "automatic", "night", "system"] } },
     },
     { section: "Address Bar", rows: { addressBar: { title: "Address Bar", description: "In the toolbar or in the sidebar.", keywords: ["url bar", "location bar", "toolbar"] } } },
-    { section: "App Icon", rows: { appIcon: { title: "App Icon", description: "Shown in the Dock and the app switcher. The Dock keeps it after you quit.", keywords: ["dock icon", "logo"] } } },
+    ...(ON_MAC ? [{ section: "App Icon", rows: { appIcon: { title: "App Icon", description: "Shown in the Dock and the app switcher. The Dock keeps it after you quit.", keywords: ["dock icon", "logo"] } } }] : []),
   ],
   privacy: [
     {
@@ -188,7 +311,7 @@ const ROWS: Record<SettingsPane, Section[]> = {
       section: "Crash reports and usage",
       rows: {
         shareDiagnostics: { title: "Share anonymous crash reports and usage stats", keywords: ["telemetry", "analytics", "diagnostics", "crash"] },
-        whatsSent: { title: "What's Sent", description: "Every field, and what never leaves this Mac.", keywords: ["telemetry", "data collection"] },
+        whatsSent: { title: "What's Sent", description: `Every field, and what never leaves this ${DEVICE}.`, keywords: ["telemetry", "data collection"] },
       },
     },
   ],
@@ -212,7 +335,7 @@ const ROWS: Record<SettingsPane, Section[]> = {
       section: "Autofill",
       rows: {
         addresses: { title: "Save and fill addresses", description: "Names, addresses, email addresses and phone numbers.", keywords: ["forms", "contact", "phone", "email"] },
-        cards: { title: "Save and fill credit cards", description: "Filling in or showing a card number asks for Touch ID or your password.", keywords: ["payment", "debit card", "forms"] },
+        cards: { title: "Save and fill credit cards", description: `Filling in or showing a card number asks for ${ON_MAC ? "Touch ID or your password" : SYSTEM_UNLOCK}.`, keywords: ["payment", "debit card", "forms"] },
       },
     },
     { section: "Addresses", rows: { addressList: { title: "Addresses", keywords: ["add address", "saved addresses"] } } },
@@ -263,7 +386,13 @@ const ROWS: Record<SettingsPane, Section[]> = {
     },
   ],
   calendar: [
-    { section: "Live Calendar", rows: { access: { title: "Calendar access", keywords: ["connect calendar", "google calendar", "outlook", "icloud"] } } },
+    {
+      section: "Live Calendar",
+      rows: {
+        access: { title: "Nilo calendar", keywords: ["connect calendar", "sign in with oxy", "nilo", "oxy account"] },
+        subscribe: { title: "Google, Outlook or iCloud calendar", description: "Subscribe to it in Nilo with its secret iCal address.", keywords: ["add calendar", "subscribe", "ical", "ics", "google calendar", "outlook", "icloud"] },
+      },
+    },
     {
       section: "Meeting alerts",
       rows: {

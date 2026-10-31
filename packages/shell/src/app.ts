@@ -63,6 +63,7 @@ export type SystemInfo = {
   videoTourURL?: string | null;
   releaseNotesURL?: string | null;
   isolatedInstance?: boolean;
+  telemetryURL?: string | null;
   forceReleaseNotes?: boolean;
   processStart?: number | null;
   bootTime?: number | null;

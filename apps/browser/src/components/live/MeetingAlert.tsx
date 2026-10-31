@@ -1,3 +1,4 @@
+import { openChat, useChatAvailable } from "../../ai/chatEntry";
 import { Surface } from "@astro-browser/shell";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Text, View } from "react-native";
@@ -23,6 +24,7 @@ export function MeetingAlert({ windowId, windowWidth }: { windowId: string; wind
 }
 
 function AlertCard({ event, windowId, windowWidth }: { event: CalendarEvent; windowId: string; windowWidth: number }) {
+  const chat = useChatAvailable();
   const theme = useTheme();
   const colors = useLiveColors();
   const now = useNow(15_000);
@@ -112,6 +114,21 @@ function AlertCard({ event, windowId, windowWidth }: { event: CalendarEvent; win
             <View tooltip={`Opens ${related.length === 1 ? "1 link" : `${related.length} links`} from the invitation, then joins`}>
               <SmallButton title="Open All and Join" icon="square.stack" height={30} onPress={() => joinEvent(event, true, windowId)} />
             </View>
+          ) : null}
+          {chat ? (
+            <SmallButton
+              title="Prepare with Chat"
+              icon="sparkles"
+              height={30}
+              onPress={() =>
+                openChat({
+                  windowId,
+                  prompt: "",
+                  source: "calendar",
+                  skill: { name: "prep", title: `Prepare for ${event.title || "this meeting"}`, command: "prep", occurrence: event.occurrence },
+                })
+              }
+            />
           ) : null}
         </View>
       </Surface>

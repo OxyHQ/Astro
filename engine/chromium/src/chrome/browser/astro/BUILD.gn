@@ -1,61 +1,127 @@
 # Copyright 2026 Oxy. Apache-2.0.
 
-assert(is_mac)
+import("//build/config/ui.gni")
+import("//tools/grit/grit_rule.gni")
+import("//ui/webui/resources/tools/generate_grd.gni")
+
+assert(is_mac || is_linux || is_win)
 
 source_set("astro") {
   sources = [
+    "ac_account_fetch.cc",
+    "ac_account_fetch.h",
+    "ac_ai_policy.cc",
+    "ac_ai_policy.h",
     "ac_autofill.cc",
     "ac_autofill.h",
+    "ac_autofill_prompt.cc",
+    "ac_autofill_prompt.h",
+    "ac_autofill_trigger.cc",
+    "ac_autofill_trigger.h",
     "ac_bookmarks.cc",
     "ac_browsing_data.cc",
     "ac_browsing_data.h",
+    "ac_cast.cc",
+    "ac_chrome_ui.h",
     "ac_cli_control.cc",
+    "ac_cli_install.cc",
     "ac_cli_token_policy.cc",
     "ac_cli_token_policy.h",
     "ac_cookies.cc",
     "ac_cookies.h",
+    "ac_device_chooser.cc",
+    "ac_devtools_dock.cc",
+    "ac_devtools_dock.h",
+    "ac_display_media.cc",
+    "ac_display_media.h",
+    "ac_documents.cc",
+    "ac_documents.h",
+    "ac_drag_preview.cc",
+    "ac_drag_preview.h",
     "ac_downloads.cc",
     "ac_downloads.h",
     "ac_engine.cc",
     "ac_engine.h",
+    "ac_engine_webui.cc",
+    "ac_engine_webui.h",
+    "ac_host.h",
     "ac_extension_actions.cc",
     "ac_extension_actions.h",
+    "ac_extension_prompts.cc",
+    "ac_extension_shortcuts.cc",
+    "ac_extension_shortcuts.h",
+    "ac_extension_views.cc",
+    "ac_extension_views.h",
     "ac_extensions.cc",
+    "ac_external_app_prompts.cc",
     "ac_extensions.h",
     "ac_extensions_sync.cc",
     "ac_extensions_sync.h",
     "ac_external_apps.h",
-    "ac_external_apps.mm",
     "ac_favicons.cc",
     "ac_history.cc",
     "ac_input_frame_rate.h",
-    "ac_input_frame_rate.mm",
     "ac_memory.cc",
     "ac_omnibox.cc",
     "ac_omnibox.h",
     "ac_passwords.cc",
+    "ac_password_prompt.cc",
     "ac_passwords.h",
+    "ac_passwords_sync.cc",
+    "ac_import.cc",
+    "ac_import.h",
+    "ac_open_urls.cc",
+    "ac_permission_prompts.cc",
     "ac_process.cc",
     "ac_process.h",
-    "ac_reauth.cc",
+    "ac_profile_tabs.cc",
+    "ac_profile_tabs.h",
+    "ac_profiles.cc",
+    "ac_profiles.h",
     "ac_reauth.h",
     "ac_scripts_policy.cc",
     "ac_scripts_policy.h",
     "ac_search_engines.cc",
     "ac_search_engines.h",
+    "ac_selection_menu.cc",
+    "ac_selection_menu.h",
     "ac_sensitive_args.cc",
     "ac_sensitive_args.h",
     "ac_site_settings.cc",
     "ac_site_settings.h",
+    "ac_sync_files.cc",
+    "ac_sync_files.h",
     "ac_tab_restore.cc",
+    "ac_system.cc",
+    "ac_system.h",
+    "ac_system_state.cc",
+    "ac_system_state.h",
+    "ac_tab_bridge.cc",
+    "ac_tab_bridge.h",
+    "ac_tab_transfer.cc",
+    "ac_tab_transfer.h",
     "ac_tabs.cc",
     "ac_tabs.h",
+    "ac_trash.cc",
+    "ac_trash.h",
+    "ac_translate.cc",
+    "ac_translate.h",
+    "ac_ui_media.cc",
+    "ac_ui_media.h",
+    "ac_ui_source.cc",
+    "ac_ui_source.h",
+    "ac_updater.cc",
+    "ac_updater.h",
+    "ac_user_scripts.cc",
+    "ac_window_keys.cc",
+    "ac_window_keys.h",
+    "ac_window_title.cc",
+    "ac_window_title.h",
     "ac_zoom.cc",
     "ac_zoom.h",
     "pip/ac_pip_controls.cc",
     "pip/ac_pip_controls.h",
     "pip/ac_pip_mac.h",
-    "pip/ac_pip_mac.mm",
     "pip/ac_pip_window.cc",
     "pip/ac_pip_window.h",
     "public/ac_engine.h",
@@ -70,9 +136,12 @@ source_set("astro") {
     "//chrome/browser/browsing_data:constants",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/device_reauth",
+    "//chrome/browser/devtools",
     "//chrome/browser/download",
     "//chrome/browser/extensions",
     "//chrome/browser/extensions/api/passwords_private",
+    "//chrome/browser/first_run",
+    "//chrome/browser/media/webrtc",
     "//chrome/browser/performance_manager/public/user_tuning",
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/profiles:profile",
@@ -83,8 +152,10 @@ source_set("astro") {
     "//chrome/browser/ui/views/overlay",
     "//chrome/common",
     "//chrome/common/extensions/api",
+    "//components/autofill/content/browser",
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
+    "//components/blocked_content",
     "//components/bookmarks/browser",
     "//components/bookmarks/common",
     "//components/browsing_data/core",
@@ -97,19 +168,31 @@ source_set("astro") {
     "//components/download/public/common:public",
     "//components/favicon/core",
     "//components/favicon_base",
+    "//components/favicon/content",
+    "//components/find_in_page",
+    "//components/guest_contents/browser",
+    "//components/input",
     "//components/history/core/browser",
     "//components/keyed_service/core",
+    "//components/media_router/browser",
+    "//components/media_router/common",
+    "//components/os_crypt/async/browser",
+    "//components/os_crypt/async/common",
     "//components/os_crypt/common:switches",
     "//components/password_manager/core/browser",
     "//components/password_manager/core/common",
     "//components/performance_manager",
+    "//components/permissions",
     "//components/prefs",
+    "//components/zoom",
     "//components/search_engines",
     "//components/sessions",
     "//components/strings",
     "//components/update_client",
+    "//components/version_info",
     "//components/tab_groups",
     "//components/tabs:public",
+    "//components/translate/core/language_detection",
     "//content/public/browser",
     "//content/public/common",
     "//crypto",
@@ -117,22 +200,109 @@ source_set("astro") {
     "//extensions/common",
     "//net",
     "//services/media_session/public/cpp",
+    "//services/network/public/cpp",
     "//services/network/public/mojom",
     "//skia",
+    "//sql",
     "//third_party/blink/public/common",
     "//third_party/boringssl",
+    "//third_party/zstd:decompress",
     "//ui/base",
+    "//ui/display",
+    "//ui/events:dom_keycode_converter",
     "//ui/gfx",
+    "//ui/shell_dialogs",
     "//ui/views",
     "//url",
   ]
 
-  frameworks = [ "QuartzCore.framework" ]
+  if (is_mac) {
+    sources += [
+      "ac_external_apps.mm",
+      "ac_input_frame_rate.mm",
+      "ac_reauth.cc",
+      "pip/ac_pip_mac.mm",
+    ]
+    frameworks = [
+      "AppKit.framework",
+      "QuartzCore.framework",
+      "Security.framework",
+    ]
+  } else {
+    sources += [
+      "//astro/core/ac_test_media_route_provider.cc",
+      "//astro/core/ac_test_media_route_provider.h",
+      "ac_platform_default.cc",
+    ]
+    deps += [
+      ":ui_resources",
+      "//components/media_router/common/mojom:media_router",
+      "//mojo/public/cpp/bindings",
+    ]
+  }
 
-  frameworks += [
-    "AppKit.framework",
-    "Security.framework",
-  ]
+  if (is_linux || is_win) {
+    sources += [
+      "ac_diagnostics.cc",
+      "ac_diagnostics.h",
+    ]
+    deps += [
+      "//components/crash/core/app",
+      "//third_party/crashpad/crashpad/client",
+      "//third_party/crashpad/crashpad/snapshot",
+      "//third_party/crashpad/crashpad/util",
+    ]
+  }
+
+  if (is_win) {
+    sources += [ "ac_reauth.cc" ]
+    deps += [ "//chrome/browser/webshare" ]
+  }
+
+  if (is_linux) {
+    sources += [
+      "ac_menu_bar.cc",
+      "ac_menu_bar.h",
+      "ac_polkit_authenticator.cc",
+      "ac_polkit_authenticator.h",
+      "ac_reauth.cc",
+    ]
+    deps += [
+      "//components/dbus",
+      "//dbus",
+      "//ui/ozone/platform/oxyos:menu_bar",
+      "//ui/platform_window",
+    ]
+    configs += [ "//build/linux:gio_config" ]
+  }
+
+  if (use_aura) {
+    deps += [ "//ui/aura" ]
+  }
+}
+
+if (!is_mac) {
+  _ui_dir = "//chrome/browser/resources/astro_ui"
+
+  generate_grd("build_ui_grd") {
+    grd_prefix = "astro_ui"
+    out_grd = "$target_gen_dir/astro_ui_resources.grd"
+    input_files = read_file("$_ui_dir/files.json", "json")
+    input_files_base_dir = rebase_path("$_ui_dir/dist", "//")
+  }
+
+  grit("ui_resources") {
+    enable_input_discovery_for_gn_analyze = false
+    source = "$target_gen_dir/astro_ui_resources.grd"
+    deps = [ ":build_ui_grd" ]
+    outputs = [
+      "grit/astro_ui_resources.h",
+      "grit/astro_ui_resources_map.cc",
+      "grit/astro_ui_resources_map.h",
+      "astro_ui_resources.pak",
+    ]
+    output_dir = "$root_gen_dir/chrome"
+  }
 }
 
 config("exports_config") {
@@ -141,6 +311,8 @@ config("exports_config") {
 }
 
 group("exports") {
-  all_dependent_configs = [ ":exports_config" ]
+  if (is_mac) {
+    all_dependent_configs = [ ":exports_config" ]
+  }
   public_deps = [ ":astro" ]
 }

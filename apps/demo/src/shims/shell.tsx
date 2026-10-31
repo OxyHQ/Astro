@@ -1,7 +1,8 @@
-import type { AppEvent, CommandEvent, ConfirmOptions, InlineWrite, PromptOptions, SystemInfo, WindowEvent } from "@astro-browser-real/shell";
+import type { AppEvent, CommandEvent, InlineWrite, SystemInfo, WindowEvent } from "@astro-browser-real/shell";
 import { unstable_batchedUpdates } from "react-dom";
 import { emitNativeEvent, provideNativeModule } from "./expo-modules-core";
 import { NATIVE_CHANGE } from "./react-native";
+import { iconTheme } from "./web/iconTheme";
 
 export * from "@astro-browser-real/shell";
 export { Symbol } from "./web/Symbol";
@@ -16,8 +17,9 @@ export {
   WindowDragRegion,
 } from "./web/chrome";
 export { FadeLabel } from "./web/FadeLabel";
+export { Portal, PortalHost } from "./web/portal";
 export { MouseArea } from "./web/MouseArea";
-export { showMenu } from "./web/menus";
+export { confirm, prompt, showMenu } from "./web/overlays";
 export { setTrafficLightsCenter } from "./web/windowChrome";
 
 const SYSTEM_INFO: SystemInfo = {
@@ -36,7 +38,24 @@ const SYSTEM_INFO: SystemInfo = {
 };
 
 provideNativeModule("AstroApp", { launchEnvironment: () => null, systemInfo: () => SYSTEM_INFO });
-provideNativeModule("AstroCalendar", { authorizationStatus: () => "notDetermined" });
+provideNativeModule("AstroDockSelection", { iconTheme });
+
+let dragEscape: ((e: KeyboardEvent) => void) | null = null;
+provideNativeModule("AstroShell", {
+  setDragEscapeCapture: async (active: boolean) => {
+    if (dragEscape) window.removeEventListener("keydown", dragEscape, true);
+    dragEscape = null;
+    document.documentElement.classList.toggle("astro-ui-drag", active);
+    if (!active) return;
+    dragEscape = (e) => {
+      if (e.key !== "Escape" || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      emitAppEvent({ type: "dragEscape" });
+    };
+    window.addEventListener("keydown", dragEscape, true);
+  },
+});
 
 const documents = new Map<string, string>();
 export const readDocument = (name: string) => documents.get(name) ?? null;
@@ -48,14 +67,6 @@ export const removeDocument = (name: string) => void documents.delete(name);
 export function copyText(text: string) {
   void navigator.clipboard?.writeText(text).catch(() => {});
 }
-
-export const confirm = async (options: ConfirmOptions) => ({
-  confirmed: window.confirm([options.title, options.message].filter(Boolean).join("\n\n")),
-  suppressed: false,
-});
-
-export const prompt = async (options: PromptOptions) =>
-  window.prompt(options.message ? `${options.title}\n\n${options.message}` : options.title, options.value ?? "");
 
 const darkQuery = typeof window === "undefined" ? null : window.matchMedia("(prefers-color-scheme: dark)");
 export const isDarkAppearance = async () => !!darkQuery?.matches;

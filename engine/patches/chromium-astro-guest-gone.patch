@@ -1,0 +1,164 @@
+diff --git a/chrome/browser/ui/webui_browser/webui_browser_page_handler.cc b/chrome/browser/ui/webui_browser/webui_browser_page_handler.cc
+--- a/chrome/browser/ui/webui_browser/webui_browser_page_handler.cc
++++ b/chrome/browser/ui/webui_browser/webui_browser_page_handler.cc
+@@ -8,6 +8,7 @@
+ #include "base/functional/callback_helpers.h"
+ #include "base/logging.h"
+ #include "base/notimplemented.h"
++#include "base/unguessable_token.h"
+ #if BUILDFLAG(IS_MAC)
+ #include "base/mac/mac_util.h"
+ #endif
+@@ -64,7 +65,12 @@ class WebUIBrowserGuestHandler
+ 
+  private:
+   // webui_browser::mojom::GuestHandler
++  // Astro: the page may still hold this handler after its tab's WebContents is
++  // gone; every call then does nothing.
+   void Navigate(const GURL& src) override {
++    if (!web_contents_) {
++      return;
++    }
+     content::NavigationController::LoadURLParams load_url_params(src);
+     web_contents_->GetController().LoadURLWithParams(load_url_params);
+   }
+@@ -78,7 +84,7 @@ class WebUIBrowserGuestHandler
+   }
+ 
+   void GoBack() override {
+-    if (web_contents_->GetController().CanGoBack()) {
++    if (web_contents_ && web_contents_->GetController().CanGoBack()) {
+       web_contents_->GetController().GoBack();
+     }
+   }
+@@ -92,18 +98,27 @@ class WebUIBrowserGuestHandler
+   }
+ 
+   void GoForward() override {
+-    if (web_contents_->GetController().CanGoForward()) {
++    if (web_contents_ && web_contents_->GetController().CanGoForward()) {
+       web_contents_->GetController().GoForward();
+     }
+   }
+ 
+   void Reload() override {
+-    web_contents_->GetController().Reload(content::ReloadType::NORMAL, true);
++    if (web_contents_) {
++      web_contents_->GetController().Reload(content::ReloadType::NORMAL, true);
++    }
+   }
+ 
+-  void StopLoading() override { web_contents_->Stop(); }
++  void StopLoading() override {
++    if (web_contents_) {
++      web_contents_->Stop();
++    }
++  }
+ 
+   void OpenPageInfoMenu() override {
++    if (!web_contents_) {
++      return;
++    }
+     std::unique_ptr<PageInfoBubbleSpecification> specification =
+         PageInfoBubbleSpecification::Builder(
+             window_->GetLocationBar()->GetChipAnchor()->anchor,
+@@ -198,13 +213,13 @@ void WebUIBrowserPageHandler::GetGuestIdForTabId(
+     tab = maybe_tab_handle->Get();
+   }
+ 
+-  if (!tab) {
+-    mojo::ReportBadMessage("Invalid tab id");
+-    return;
+-  }
+-  content::WebContents* tab_contents = tab->GetContents();
+-  if (tab_contents == nullptr) {
+-    mojo::ReportBadMessage("Tab has no contents");
++  content::WebContents* tab_contents = tab ? tab->GetContents() : nullptr;
++  // Astro: the tab can close while the page asks for it (Chromium closes a new
++  // tab whose first navigation became a download). Its answer is an id no
++  // guest has, which attaches nothing, instead of a bad message that kills the
++  // page.
++  if (!tab_contents) {
++    std::move(callback).Run(base::UnguessableToken::Create());
+     return;
+   }
+ 
+diff --git a/chrome/renderer/webui_browser/webui_browser_renderer_extension.cc b/chrome/renderer/webui_browser/webui_browser_renderer_extension.cc
+--- a/chrome/renderer/webui_browser/webui_browser_renderer_extension.cc
++++ b/chrome/renderer/webui_browser/webui_browser_renderer_extension.cc
+@@ -61,11 +61,15 @@ content::RenderFrame* GetRenderFrame(v8::Local<v8::Value> value) {
+ void AttachIframeGuest(std::string guest_contents_id,
+                        v8::Local<v8::Object> content_window) {
+   content::RenderFrame* iframe_render_frame = GetRenderFrame(content_window);
+-  CHECK(iframe_render_frame);
++  // Astro: an iframe removed since the page asked has nothing to attach to.
++  if (!iframe_render_frame) {
++    return;
++  }
+ 
+   blink::WebFrame* parent_frame = iframe_render_frame->GetWebFrame()->Parent();
+-  CHECK(parent_frame);
+-  CHECK(parent_frame->IsWebLocalFrame());
++  if (!parent_frame || !parent_frame->IsWebLocalFrame()) {
++    return;
++  }
+ 
+   guest_contents::renderer::SwapRenderFrame(
+       iframe_render_frame,
+diff --git a/components/guest_contents/browser/guest_contents_host_impl.cc b/components/guest_contents/browser/guest_contents_host_impl.cc
+--- a/components/guest_contents/browser/guest_contents_host_impl.cc
++++ b/components/guest_contents/browser/guest_contents_host_impl.cc
+@@ -43,12 +43,14 @@ void GuestContentsHostImpl::Attach(
+     AttachCallback callback) {
+   GuestContentsHandle* guest_handle =
+       GuestContentsHandle::FromID(guest_contents_id);
+-  if (!guest_handle) {
+-    mojo::ReportBadMessage("GuestContentsHandle not found");
++  // Astro: a guest can go away before its page attaches it (a tab Chromium
++  // closes when its first navigation becomes a download), so a missing guest
++  // or frame is a failed attach, not a bad message that kills the page.
++  if (!guest_handle || !outer_web_contents_) {
++    std::move(callback).Run(/*success=*/false);
+     return;
+   }
+ 
+-  CHECK(outer_web_contents_);
+   // This code assumes that the outer delegate frame to be swapped is in the
+   // same process as the main frame of the outer web contents.
+   content::RenderFrameHost* frame_to_swap =
+@@ -58,7 +60,7 @@ void GuestContentsHostImpl::Attach(
+               token_of_frame_to_swap));
+ 
+   if (!frame_to_swap) {
+-    mojo::ReportBadMessage("Outer delegate frame not found");
++    std::move(callback).Run(/*success=*/false);
+     return;
+   }
+ 
+diff --git a/components/guest_contents/renderer/swap_render_frame.cc b/components/guest_contents/renderer/swap_render_frame.cc
+--- a/components/guest_contents/renderer/swap_render_frame.cc
++++ b/components/guest_contents/renderer/swap_render_frame.cc
+@@ -7,6 +7,7 @@
+ #include <memory>
+ 
+ #include "base/functional/bind.h"
++#include "base/functional/callback_helpers.h"
+ #include "base/logging.h"
+ #include "base/supports_user_data.h"
+ #include "components/guest_contents/common/guest_contents.mojom.h"
+@@ -58,12 +59,14 @@ void SwapRenderFrame(content::RenderFrame* render_frame,
+   // `render_frame` is the outer delegate frame. It must be in the same process
+   // as the main frame. If not this CHECK will fail.
+   CHECK(render_frame->GetMainRenderFrame());
++  // Astro: the guest may be gone by the time the browser gets this, which is a
++  // failed attach (docs/port-windows-linux.md), not a reason to crash the page.
+   GuestContentsService::GetOrCreateForRenderFrame(
+       render_frame->GetMainRenderFrame())
+       ->remote()
+       ->Attach(render_frame->GetWebFrame()->GetLocalFrameToken(),
+                guest_contents_id,
+-               base::BindOnce([](bool success) { CHECK(success); }));
++               base::DoNothingAs<void(bool)>());
+ }
+ 
+ }  // namespace guest_contents::renderer

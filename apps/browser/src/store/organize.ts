@@ -137,6 +137,7 @@ const autoLabels = new WeakMap<TabGroup, { tabs: object; members: (Tab | undefin
 
 export function groupLabel(s: Pick<BrowserState, "tabs">, g: TabGroup): string {
   if (g.name) return g.name;
+  if (g.autoName) return g.autoName;
   const cached = autoLabels.get(g);
   if (cached && (cached.tabs === s.tabs || g.tabIds.every((id, i) => s.tabs[id] === cached.members[i]))) {
     cached.tabs = s.tabs;

@@ -1,0 +1,12 @@
+# Copyright 2026 Oxy. Apache-2.0.
+
+import("//mojo/public/tools/bindings/mojom.gni")
+
+mojom("mojom") {
+  sources = [ "oxyos_surfaces.mojom" ]
+  public_deps = [
+    "//mojo/public/mojom/base",
+    "//ui/gfx/geometry/mojom",
+    "//ui/gfx/mojom",
+  ]
+}

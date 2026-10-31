@@ -6,6 +6,7 @@ import { useBrowser } from "../../store/browser";
 import { defaultSearchEngine } from "../../store/settings";
 import { useHover } from "../primitives";
 import { searchSelection, setPageSelection, usePageSelection, type ClickModifiers, type PageSelection } from "./selection";
+import { askAboutSelection } from "../../ai/chat/actions";
 
 const HEIGHT = 32;
 const GAP = 6;
@@ -75,8 +76,45 @@ function Bar({ tabId, selection, zoom, area }: { tabId: string; selection: PageS
         <VisualEffect material="menu" cornerRadius={10} style={StyleSheet.absoluteFill} />
         <View style={{ ...StyleSheet.absoluteFillObject, borderRadius: 10, backgroundColor: theme.dark ? "rgba(38,36,37,0.72)" : "rgba(252,251,252,0.7)" }} />
         <SearchButton tabId={tabId} text={selection.text} />
+        <AskButton tabId={tabId} text={selection.text} />
       </Surface>
     </Animated.View>
+  );
+}
+
+function AskButton({ tabId, text }: { tabId: string; text: string }) {
+  const theme = useTheme();
+  const { hovered, hoverProps } = useHover();
+  return (
+    <View {...hoverProps} tooltip="Ask Chat about the selection">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Ask"
+        onPress={() => {
+          setPageSelection(tabId, null);
+          askAboutSelection(tabId, text);
+        }}
+      >
+        {({ pressed }) => (
+          <View
+            style={{
+              height: HEIGHT - 6,
+              paddingLeft: 7,
+              paddingRight: 9,
+              borderRadius: 7,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 5,
+              backgroundColor:
+                pressed || hovered ? (theme.dark ? `rgba(255,255,255,${pressed ? 0.12 : 0.07})` : `rgba(0,0,0,${pressed ? 0.1 : 0.06})`) : undefined,
+            }}
+          >
+            <Symbol name="sparkles" size={12} weight="medium" color={theme.icon} style={{ width: 16, height: 16 }} />
+            <Text style={{ fontSize: 13, fontWeight: "500", color: theme.textPrimary }}>Ask</Text>
+          </View>
+        )}
+      </Pressable>
+    </View>
   );
 }
 

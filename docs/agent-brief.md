@@ -8,7 +8,8 @@ The user is demanding: no sloppy work, every hover state/animation/detail matter
 
 ## Stack
 - Turborepo + pnpm (hoisted `node_modules` at the repo root).
-- `apps/browser`: Expo SDK 54 + react-native-macos 0.81 (Legacy architecture), zustand store,
+- `apps/browser`: Expo SDK 54 + react-native-macos 0.81 on the New Architecture (Fabric, TurboModules, bridgeless),
+  Reanimated 4, Bloom and the Oxy SDK (`docs/ai.md` › macOS), zustand store,
   inline styles.
 - Native code lives in Expo modules under `packages/*/ios` (Swift / Objective-C++):
   - `packages/astrocore`: the web engine, **AstroCore**: Chrome's own framework (`Chromium Framework.framework`,
@@ -46,8 +47,7 @@ The user is demanding: no sloppy work, every hover state/animation/detail matter
   only if a patch adds or removes files). To change one: `pnpm patch <pkg>@<version> --edit-dir <scratch dir>`,
   edit there, then `scripts/agent/locked pod -- pnpm patch-commit <scratch dir>`, and read the new `.patch`:
   pnpm can add bogus `deleted file` entries (drop them and run `pnpm install` again under the same lock).
-  Mark edits `[Astro: … Astro]`. Current patches: `react-native-macos` (a view's `transform` survives
-  AppKit layout and applies from its centre; RCTTiming's display link, c7ebd600; a view in a scroll view observes its bounds once, not once per re-add; focus() on a text field being edited keeps its edit, caret and selection; a placeholder change on an empty field being edited isn't a blur; a placeholder colour change on a field being edited reaches its field editor, so it shows once the field is emptied; a container whose children change leaves the ones already in place alone instead of re-adding every one, 6d7277fd; a mouse touch matches its own down on the same button and is never recorded twice, so JS never gets a null touch, 8bd086c8) and `expo-modules-core` (the JS
+  Mark edits `[Astro: … Astro]`. Current patches: `react-native-macos` (Fabric, the only architecture macOS runs: `RCTViewComponentView` makes hover follow layout, mounting and scrolling under a still pointer, gives handlers set on a laid-out view a tracking area and holds the dev pointer/button overrides; `RCTSurfaceTouchHandler` keys a mouse touch by event number and button and never registers a down twice, so JS never gets a null touch, 8bd086c8; `RCTTextInputComponentView` keeps the edit, caret and selection of a field being edited on focus(), sends one focus and one blur per edit and answers `hasKeyDownEventOrKeyUpEvent:` (Escape crashed without it); `RCTScrollViewComponentView` observes its clip view once. Shared code: a view's `transform` survives AppKit layout and applies from its centre; RCTTiming, which bridgeless drives through ObjCTimerRegistry, sleeps on an NSTimer between far timers and paces a hidden app, c7ebd600; a placeholder change on an empty field being edited isn't a blur; a placeholder colour change on a field being edited reaches its field editor; the command keys JS handles reach it; the secure field passes as an NSSecureTextField) and `expo-modules-core` (the JS
   runtime is prepared on the JS thread only, 364f5f7e).
 
 ## The engine

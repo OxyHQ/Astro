@@ -916,6 +916,14 @@ void TrimAfterHandoff() {
   });
 }
 
+BOOL ContentAppearedIn(id content, NSView *root) {
+  if (![content isKindOfClass:NSView.class] || !root) return NO;
+  NSView *view = content;
+  if ([view isDescendantOf:root]) return YES;
+  id surface = [root respondsToSelector:@selector(surface)] ? [root valueForKey:@"surface"] : nil;
+  return surface && view.superview && view.superview == [surface valueForKey:@"view"];
+}
+
 void RemovePicture(NSView *picture) {
   picture.layer.contents = nil;
   [picture removeFromSuperview];
@@ -1408,13 +1416,14 @@ CGImageRef TakePrefetched(NSString *windowId) {
   ClearRootFill(s, root);
   if (s.contentObserver) [NSNotificationCenter.defaultCenter removeObserver:s.contentObserver];
   __weak ACEarlyShown *weakShown = s;
+  __weak NSView *weakRoot = root;
   s.contentObserver = [NSNotificationCenter.defaultCenter
       addObserverForName:@"RCTContentDidAppearNotification"
-                  object:root
+                  object:nil
                    queue:nil
-              usingBlock:^(NSNotification *) {
+              usingBlock:^(NSNotification *note) {
                 ACEarlyShown *shown = weakShown;
-                if (!shown) return;
+                if (!shown || !ContentAppearedIn(note.object, weakRoot)) return;
                 [NSNotificationCenter.defaultCenter removeObserver:shown.contentObserver];
                 shown.contentObserver = nil;
                 if (!shown.tab) DropCover(shown);

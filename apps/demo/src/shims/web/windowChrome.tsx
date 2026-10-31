@@ -55,11 +55,18 @@ function TrafficLight({ name, theme }: { name: Light; theme: keyof typeof ART })
   );
 }
 
-export function TrafficLights() {
-  const at = useSyncExternalStore(
+export const TRAFFIC_LIGHT_SPACING = SPACING;
+export const TRAFFIC_LIGHT_DIAMETER = DIAMETER;
+
+export function useTrafficLightsCenter() {
+  return useSyncExternalStore(
     (watch) => (watchers.add(watch), () => void watchers.delete(watch)),
     () => center,
   );
+}
+
+export function TrafficLights() {
+  const at = useTrafficLightsCenter();
   const theme = useBrowser((s) => (s.ui.appDark ? "dark" : "light"));
   if (!at) return null;
   return (

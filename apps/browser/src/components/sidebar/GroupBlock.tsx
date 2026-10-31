@@ -6,6 +6,7 @@ import { hex, layout, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { usePageProfileId, useWindowId } from "../../store/hooks";
 import { groupLabel } from "../../store/organize";
+import { TextShimmer, useShimmerOn } from "../ai/TextShimmer";
 import { MeetingTimeLabel, useMeetingCountdown } from "../live/MeetingCountdown";
 import { HoverSlot } from "../HoverSlot";
 import { IconButton } from "../primitives";
@@ -111,7 +112,9 @@ function GroupHeader({ groupId, windowId, collapsed, open }: { groupId: string; 
   const dropInto = useDropInto() === groupId;
   const { hovered, hoverProps } = useRowHover(windowId, collapsed && !renaming ? { kind: "group", id: groupId } : null);
   const countdown = useMeetingCountdown(groupId);
+  const shimmerRuns = useShimmerOn(group?.autoName, !group?.name);
   if (!group) return null;
+  const icon = group.icon ?? group.autoIcon ?? firstTab?.customIcon;
   const target = { kind: "group" as const, id: groupId };
 
   return (
@@ -134,8 +137,8 @@ function GroupHeader({ groupId, windowId, collapsed, open }: { groupId: string; 
               cornerRadius={GROUP_HEADER_RADIUS}
               style={{ height: layout.rowHeight, flexDirection: "row", alignItems: "center", paddingLeft: 9 + PAD, paddingRight: 6 }}
             >
-              {group.icon || firstTab ? (
-                <TabIcon url={firstTab?.url ?? ""} favicon={firstTab?.favicon} icon={group.icon ?? firstTab?.customIcon} profileId={firstTab?.profileId} />
+              {icon || firstTab ? (
+                <TabIcon url={firstTab?.url ?? ""} favicon={firstTab?.favicon} icon={icon} profileId={firstTab?.profileId} />
               ) : (
                 <View style={{ width: 16 }} />
               )}
@@ -153,7 +156,14 @@ function GroupHeader({ groupId, windowId, collapsed, open }: { groupId: string; 
                     <Text numberOfLines={1} style={{ opacity: 0, fontSize: 13, fontWeight: "500" }}>
                       {label}
                     </Text>
-                    <FadeLabel text={label} fontSize={13} weight="medium" color={tokens.groupTitle} style={{ position: "absolute", left: 0, right: 0, top: 0, height: 18 }} />
+                    <TextShimmer
+                      runs={shimmerRuns}
+                      fill
+                      style={{ right: 8 }}
+                      highlight={<FadeLabel text={label} fontSize={13} weight="medium" color={tokens.groupTitle} style={{ position: "absolute", left: 0, right: 0, top: 0, height: 18 }} />}
+                    >
+                      <FadeLabel text={label} fontSize={13} weight="medium" color={tokens.groupTitle} style={{ position: "absolute", left: 0, right: 0, top: 0, height: 18 }} />
+                    </TextShimmer>
                   </View>
                   <Animated.View
                     style={{

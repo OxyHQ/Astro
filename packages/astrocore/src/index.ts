@@ -9,6 +9,7 @@ export * from "./autofill";
 export * from "./extensions";
 export * from "./chromeUI";
 export * from "./favicons";
+export * from "./downloads";
 export * from "./engine";
 export * from "./performance";
 export * from "./cliControl";

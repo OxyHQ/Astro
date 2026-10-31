@@ -1,6 +1,7 @@
 import { systemInfo } from "@astro-browser/shell";
 import { create } from "zustand";
 import { openUrls } from "../../../lib/actions";
+import { MENU_BAR } from "../../../lib/device";
 import { useBrowser } from "../../../store/browser";
 import { resolveWindowId } from "../../../store/model";
 import { closeReleaseNotes } from "../../ntp/releaseNotes";
@@ -56,7 +57,7 @@ const TOUR_STOPS: TourStop[] = [
   {
     id: "done",
     title: "You're all set",
-    body: "Everything else is in the menu bar and in Settings (⌘,). You can take this tour again from the Help menu.",
+    body: `Everything else is in the ${MENU_BAR} and in Settings (⌘,). You can take this tour again from the Help menu.`,
   },
 ];
 

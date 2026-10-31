@@ -17,6 +17,7 @@ import {
   type ScopeState,
 } from "@astro-browser/sync";
 import { create } from "zustand";
+import { DEVICE, IN_KEYCHAIN, THIS_DEVICE_TITLE } from "../lib/device";
 import { useBrowser } from "../store/browser";
 import { fromLegacy } from "../legacy";
 import { engineProfile, isIncognitoProfile } from "../store/model";
@@ -51,7 +52,7 @@ export const DATA_TYPES: { id: DataType; title: string; description: string }[] 
   { id: "history", title: "History", description: "The last 90 days." },
   { id: "tabs", title: "Open Tabs", description: "Your other devices’ tabs show in the tab overflow menu." },
   { id: "pinned", title: "Pinned Tabs and Groups", description: "Pinned tabs and pinned tab groups." },
-  { id: "passwords", title: "Passwords", description: "Saved passwords. Turning sync off never removes them from this Mac." },
+  { id: "passwords", title: "Passwords", description: `Saved passwords. Turning sync off never removes them from this ${DEVICE}.` },
   { id: "extensions", title: "Extensions", description: "Extensions from the Chrome Web Store, whether they’re on, and whether they’re pinned." },
   { id: "settings", title: "Settings", description: "Search engine, appearance, tab and keyboard settings." },
 ];
@@ -253,7 +254,7 @@ function publishUi(patch: Partial<SyncUi> = {}) {
   });
 }
 
-export const deviceName = () => SyncNative?.deviceName() ?? "This Mac";
+export const deviceName = () => SyncNative?.deviceName() ?? THIS_DEVICE_TITLE;
 
 const inTodaysNames = (adapter: Adapter): Adapter => ({
   ...adapter,
@@ -550,7 +551,7 @@ export async function turnOnSync(folder: string): Promise<{ ok: true } | { error
   if (!native) return { error: "Sync isn’t available in this build." };
   const deviceId = native.newDeviceId();
   try {
-    if (!(await native.createPhrase(deviceId))) return { error: "Couldn’t save the sync key in your Keychain." };
+    if (!(await native.createPhrase(deviceId))) return { error: `Couldn’t save the sync key ${IN_KEYCHAIN}.` };
     await native.createChain(folder);
   } catch (error) {
     await native.forget(deviceId);
@@ -686,7 +687,7 @@ export function startSync() {
   void watchExtensions();
   if (doc.enabled && doc.deviceId) {
     void SyncNative.unlock(doc.deviceId).then(async (ok) => {
-      if (!ok) return publishUi({ status: "locked", error: "Enter your recovery phrase to keep syncing on this Mac." });
+      if (!ok) return publishUi({ status: "locked", error: `Enter your recovery phrase to keep syncing on this ${DEVICE}.` });
       await loadState();
       settleAppliedThemes(doc.scopes[APP_SCOPE]);
       publishUi();

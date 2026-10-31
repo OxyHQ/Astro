@@ -10,6 +10,26 @@ const stub = await import("../../test-native-stub.mjs");
 
 const S = () => useBrowser.getState();
 
+const springAt = (t, { response, dampingRatio } = dm.DOCK_SPRING) => {
+  if (t <= 0) return 0;
+  const omega = (2 * Math.PI) / response;
+  const wd = omega * Math.sqrt(1 - dampingRatio * dampingRatio);
+  return 1 - Math.exp(-dampingRatio * omega * t) * (Math.cos(wd * t) + ((dampingRatio * omega) / wd) * Math.sin(wd * t));
+};
+const bezierAt = ([x1, y1, x2, y2], u) => {
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const m = (lo + hi) / 2;
+    const x = 3 * (1 - m) ** 2 * m * x1 + 3 * (1 - m) * m * m * x2 + m ** 3;
+    if (x < u) lo = m;
+    else hi = m;
+  }
+  const m = (lo + hi) / 2;
+  return 3 * (1 - m) ** 2 * m * y1 + 3 * (1 - m) * m * m * y2 + m ** 3;
+};
+const curveOf = (spec) => ("response" in spec ? (t) => springAt(t, spec) : (t) => (t <= 0 ? 0 : t * 1000 >= spec.duration ? 1 : bezierAt(spec.easing, (t * 1000) / spec.duration)));
+
 const DIA = [
   [0.0337, 0.303], [0.0629, 0.616], [0.0837, 0.805], [0.1212, 0.968], [0.1379, 1.011], [0.1629, 1.011], [0.1837, 1.003],
   [0.0263, 0.246], [0.0596, 0.524], [0.0805, 0.8], [0.1055, 0.951], [0.1305, 1.008], [0.1555, 1.011], [0.1805, 1.003],
@@ -17,20 +37,22 @@ const DIA = [
 ];
 
 test("the spring follows Dia's measured motion (rms under 4 % of the travel, the recorder's own timing jitter)", () => {
-  const rms = Math.sqrt(DIA.reduce((sum, [t, x]) => sum + (dm.springAt(t) - x) ** 2, 0) / DIA.length);
+  const rms = Math.sqrt(DIA.reduce((sum, [t, x]) => sum + (springAt(t) - x) ** 2, 0) / DIA.length);
   assert.ok(rms < 0.04, `rms ${rms.toFixed(3)}`);
-  assert.ok(dm.springAt(0.1) > 0.88);
-  const peak = Math.max(...Array.from({ length: 60 }, (_, i) => dm.springAt(i / 120)));
+  assert.ok(springAt(0.1) > 0.88);
+  const peak = Math.max(...Array.from({ length: 60 }, (_, i) => springAt(i / 120)));
   assert.ok(peak > 1.005 && peak < 1.03, `peak ${peak}`);
-  assert.ok(Math.abs(dm.springAt(0.3) - 1) < 0.003);
+  assert.ok(Math.abs(springAt(0.3) - 1) < 0.003);
 });
 
-test("React Native's spring parameters are the same spring", () => {
-  const { stiffness, damping, mass } = dm.springConfig(dm.DOCK_SPRING);
-  assert.equal(mass, 1);
-  const omega = Math.sqrt(stiffness);
-  assert.ok(Math.abs(omega - (2 * Math.PI) / 0.215) < 1e-9);
-  assert.ok(Math.abs(damping / (2 * omega) - 0.79) < 1e-9);
+test("the window shell's motion is Dia's spring both ways, instant without the slide, and Astro's fading slide for its peek", () => {
+  const dia = dm.sidebarMotion({ arc: false, instant: false });
+  assert.deepEqual(dia.show, { response: 0.215, dampingRatio: 0.79 });
+  assert.deepEqual(dia.hide, dia.show);
+  assert.deepEqual(dia.peekIn, { duration: 180, easing: [0.215, 0.61, 0.355, 1] });
+  assert.deepEqual(dia.peekOut, dia.peekIn);
+  const off = dm.sidebarMotion({ arc: false, instant: true });
+  assert.deepEqual([off.show, off.hide], [{ duration: 0 }, { duration: 0 }]);
 });
 
 test("the traffic lights go with the sidebar: at their place when it's shown, past the window's edge when it's hidden", () => {
@@ -159,7 +181,6 @@ test("hidden or shown is each window's own, and survives a quit and relaunch; ne
   stop();
 });
 
-const springAt = (t, s) => dm.springAt(t, s);
 const fitT0 = (points, curve) => {
   let best = Infinity;
   for (let t0 = -0.04; t0 <= 0.04; t0 += 0.001) {
@@ -179,20 +200,21 @@ const ARC_HIDE = [
 ];
 
 test("Arc's peek slides in on its measured spring and leaves on its ease-in-out; its hide is a 100 ms ease-out", () => {
+  const arc = dm.sidebarMotion({ arc: true, instant: false });
   for (const motion of ARC_PEEK_IN) {
-    const rms = fitT0(motion, (t) => springAt(t, dm.ARC_PEEK_SPRING));
+    const rms = fitT0(motion, curveOf(arc.peekIn));
     assert.ok(rms < 0.04, `peek in rms ${rms.toFixed(3)}`);
   }
-  const hide = (t) => (t <= 0 ? 0 : t >= dm.ARC_HIDE_MS / 1000 ? 1 : dm.easeOutCubic(t / (dm.ARC_HIDE_MS / 1000)));
   for (const motion of ARC_HIDE) {
-    const rms = fitT0(motion, hide);
+    const rms = fitT0(motion, curveOf(arc.hide));
     assert.ok(rms < 0.05, `hide rms ${rms.toFixed(3)}`);
   }
-  const dia = Math.max(...ARC_HIDE.map((m) => fitT0(m, (t) => dm.springAt(t))));
+  assert.deepEqual(arc.show, dm.DOCK_SPRING);
+  const dia = Math.max(...ARC_HIDE.map((m) => fitT0(m, (t) => springAt(t))));
   assert.ok(dia > 0.06, `Dia's spring against Arc's hide: rms ${dia.toFixed(3)}`);
-  assert.equal(dm.easeInOutCubic(0), 0);
-  assert.equal(dm.easeInOutCubic(0.5), 0.5);
-  assert.equal(dm.easeInOutCubic(1), 1);
+  const out = curveOf(arc.peekOut);
+  assert.ok(Math.abs(out(0.075) - 0.5) < 0.02, "the peek leaves on an ease-in-out, about half way at half time");
+  assert.equal(out(0.15), 1);
   const peak = Math.max(...Array.from({ length: 60 }, (_, i) => springAt(i / 120, dm.ARC_PEEK_SPRING)));
   assert.ok(peak > 1.01 && peak < 1.03, `the panel's overshoot ${peak}`);
 });

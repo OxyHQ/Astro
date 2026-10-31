@@ -1,3 +1,4 @@
+export const Platform = { OS: "macos" };
 export const docs = new Map();
 export const readDocument = (name) => docs.get(name) ?? null;
 export const writeDocument = (name, contents) => docs.set(name, contents);
@@ -16,11 +17,6 @@ export const launchEnvironment = () => null;
 export const killSwitchEnvironment = () => null;
 export const appInfo = { appVersion: "1.0" };
 export const systemInfo = () => ({ ...appInfo });
-export const calendarAuthorization = () => "notDetermined";
-export const requestCalendarAccess = () => Promise.resolve(false);
-export const systemCalendars = () => Promise.resolve([]);
-export const systemCalendarEvents = () => Promise.resolve([]);
-export const onCalendarChanged = () => ({ remove() {} });
 export const keychainGet = () => Promise.resolve(null);
 export const keychainSet = () => Promise.resolve(true);
 export const keychainDelete = () => Promise.resolve(true);

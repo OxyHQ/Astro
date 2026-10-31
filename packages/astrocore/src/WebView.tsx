@@ -1,6 +1,6 @@
 import { toAppUrl, toEngineUrl } from "@astro-browser/core";
 import { requireNativeViewManager } from "expo-modules-core";
-import { forwardRef, useImperativeHandle, useRef } from "react";
+import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { findNodeHandle, type NativeSyntheticEvent, type ViewProps } from "react-native";
 import type { ExternalAppRequest } from "./externalApps";
 import type { FaviconImage } from "./favicons";
@@ -96,13 +96,14 @@ export type WebNotification = {
 };
 
 export type PictureInPictureState = { kind: "video" | "document"; active: boolean };
-export type ActivateRequest = { reason: "pictureInPicture" };
+export type ActivateRequest = { reason: "pictureInPicture" | "engine" };
 export type DisplayMediaSource = {
   id: string;
   kind: "screen" | "window";
   name: string;
   app?: string;
   pid?: number;
+  icon?: string;
   width: number;
   height: number;
 };
@@ -209,6 +210,8 @@ export type WebViewHandle = {
   evaluate<T = unknown>(code: string): Promise<T | null>;
   navigationEntries(): Promise<NavigationEntry[]>;
   capturePicture(scale: number): Promise<{ data: string; frame: [number, number, number, number] } | null>;
+  captureFullPage?(): Promise<{ data: string } | null>;
+  devToolsCall?(method: DevToolsMethod, params?: Record<string, unknown>): Promise<DevToolsAnswer | null>;
   downloadFavicon(url: string): Promise<FaviconImage | null>;
   downloadImage(url: string, maxPixels: number): Promise<FaviconImage | null>;
 
@@ -232,6 +235,27 @@ export type WebViewHandle = {
   discard(options?: { unload?: boolean }): Promise<DiscardOutcome>;
   setFrozen(frozen: boolean): Promise<void>;
 };
+
+export type DevToolsMethod =
+  | "Accessibility.getFullAXTree"
+  | "Accessibility.getPartialAXTree"
+  | "Accessibility.queryAXTree"
+  | "DOM.describeNode"
+  | "DOM.focus"
+  | "DOM.getBoxModel"
+  | "DOM.getContentQuads"
+  | "DOM.getDocument"
+  | "DOM.resolveNode"
+  | "DOM.scrollIntoViewIfNeeded"
+  | "Input.dispatchKeyEvent"
+  | "Input.dispatchMouseEvent"
+  | "Input.insertText"
+  | "Page.captureScreenshot"
+  | "Page.getLayoutMetrics"
+  | "Runtime.callFunctionOn"
+  | "Runtime.releaseObject";
+
+export type DevToolsAnswer = { result?: Record<string, unknown>; error?: string };
 
 export type DiscardOutcome = "discarded" | "already" | "refused" | "unsupported";
 
@@ -273,6 +297,14 @@ type NativeEvents = {
   onPreferredSize: { width: number; height: number };
 };
 type Handlers = keyof NativeEvents;
+export type WebViewEventName = Handlers;
+export type WebViewEventDelivery = (event: WebViewEventName, run: () => void) => void;
+
+let deliver: WebViewEventDelivery = (_event, run) => run();
+
+export function deliverWebViewEvents(delivery: WebViewEventDelivery) {
+  deliver = delivery;
+}
 type NativeProps = Omit<WebViewProps, Handlers> & { [K in Handlers]?: Evt<NativeEvents[K]> };
 
 const unwrap: { [K in Handlers]: (e: NativeEvents[K]) => Parameters<NonNullable<WebViewProps[K]>> } = {
@@ -332,6 +364,10 @@ const isViewMissing = (error: unknown) =>
 
 export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(props, ref) {
   const native = useRef<NativeHandle>(null);
+  const committed = useRef(props);
+  useLayoutEffect(() => {
+    committed.current = props;
+  });
   useImperativeHandle(ref, () => {
     const call = async <T,>(fallback: T, fn: (view: NativeHandle) => Promise<T>): Promise<T> => {
       for (let attempt = 0; ; attempt++) {
@@ -376,6 +412,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       },
       navigationEntries: async () => (await call([], (n) => n.navigationEntries())).map((e) => ({ ...e, url: toAppUrl(e.url) })),
       capturePicture: (scale) => call(null, (n) => n.capturePicture(scale)),
+      devToolsCall: (method, params) => call(null, (n) => n.devToolsCall?.(method, params ?? {}) ?? Promise.resolve(null)),
       downloadImage: (url, maxPixels) => call(null, (n) => n.downloadImage(url, maxPixels)),
       downloadFavicon: (url) => call(null, (n) => n.downloadFavicon(url)),
       mediaCommand: (action, seconds) => call(undefined, (n) => n.mediaCommand(action, seconds)),
@@ -403,10 +440,14 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       nativeProps[key] = typeof value === "string" ? toEngineUrl(value) : value;
       continue;
     }
-    const map = unwrap[key as Handlers] as ((e: unknown) => unknown[]) | undefined;
+    const event = key as Handlers;
+    const map = unwrap[event] as ((e: unknown) => unknown[]) | undefined;
     nativeProps[key] =
       map && typeof value === "function"
-        ? (e: NativeSyntheticEvent<unknown>) => (value as (...args: unknown[]) => void)(...map(e.nativeEvent))
+        ? (e: NativeSyntheticEvent<unknown>) => {
+            const args = map(e.nativeEvent);
+            deliver(event, () => (committed.current[event] as ((...a: unknown[]) => void) | undefined)?.(...args));
+          }
         : value;
   }
 

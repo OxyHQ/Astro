@@ -1,5 +1,7 @@
 import { createContext, forwardRef, useContext, type ComponentProps } from "react";
+import { Children } from "react";
 import { StyleSheet, Text as WebText, type TextStyle } from "react-native-web";
+import { shortcutText } from "./shortcutText";
 
 export const TEXT_METRICS = { lineHeightDelta: 0, bottomPad: 1, rightPad: 0.8 } as const;
 
@@ -8,7 +10,11 @@ const Nested = createContext(false);
 
 type Props = ComponentProps<typeof WebText>;
 
-export const MacText = forwardRef<unknown, Props>(function MacText({ style, children, ...props }, ref) {
+const withShortcuts = (children: Props["children"]) =>
+  Children.map(children, (child) => (typeof child === "string" ? shortcutText(child) : child));
+
+export const MacText = forwardRef<unknown, Props>(function MacText({ style, children: raw, ...props }, ref) {
+  const children = withShortcuts(raw);
   const nested = useContext(Nested);
   const Text = WebText as unknown as React.ComponentType<Record<string, unknown>>;
   if (nested) return <Text {...props} ref={ref} style={style}>{children}</Text>;

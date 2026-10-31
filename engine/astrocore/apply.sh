@@ -74,16 +74,16 @@ hook "$src/chrome/app/chrome_main.cc" "ChromeMain's ACMainDelegate" <<'PY'
 old = """#else  // BUILDFLAG(IS_WIN)
   ChromeMainDelegate chrome_main_delegate(
       {.exe_entry_point_ticks = base::TimeTicks::Now()});"""
-new = """#else  // BUILDFLAG(IS_WIN)
-  // Astro: AstroCore's delegate (engine/astrocore), a ChromeMainDelegate.
-  astrocore::ACMainDelegate chrome_main_delegate(
-      {.exe_entry_point_ticks = base::TimeTicks::Now()});"""
+mac = "#elif BUILDFLAG(IS_MAC)\n  // Astro: AstroCore's delegate (engine/astrocore), a ChromeMainDelegate.\n"
+new = mac + """  astrocore::ACMainDelegate chrome_main_delegate(
+      {.exe_entry_point_ticks = base::TimeTicks::Now()});
+""" + old
 inc_old = '#if BUILDFLAG(IS_MAC)\n#include "chrome/app/chrome_main_mac.h"\n'
 inc = '#include "astro/core/ac_main_delegate.h"  // nogncheck\n'
 def edit(s):
     assert s.count(old) == 1 and s.count(inc_old) == 1
     return s.replace(old, new).replace(inc_old, inc_old + inc)
-hook(["  astrocore::ACMainDelegate chrome_main_delegate(\n", inc], edit)
+hook(["  astrocore::ACMainDelegate chrome_main_delegate(\n", inc, mac], edit)
 PY
 
 hook "$src/chrome/browser/ui/browser_window/internal/browser_window_features.cc" "BrowserWindowFeatures' WebContentsDelegate" <<'PY'
@@ -541,6 +541,24 @@ def edit(s):
     return (s[:at] + decl + s[at:]).replace(old, new)
 hook(["bool (*g_astro_external_protocol_dialog)(\n",
       "      g_astro_external_protocol_dialog(url, web_contents, initiating_origin,\n"], edit, HOOKS)
+PY
+
+hook "$src/chrome/browser/external_protocol/external_protocol_handler.cc" "external protocol dialog for inner tabs" <<'PY'
+old = """    // Anchor to the outermost WebContents, for e.g. embedded <webview>s.
+    web_contents = web_contents->GetOutermostWebContents();
+"""
+new = """    // Astro: AstroCore asks for the tab itself, which may sit inside its window's page.
+    if (!delegate && g_astro_external_protocol_dialog &&
+        g_astro_external_protocol_dialog(escaped_url, web_contents,
+                                             initiating_origin,
+                                             initiator_document, program_name)) {
+      return;
+    }
+""" + old
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["    // Astro: AstroCore asks for the tab itself, which may sit inside its window's page.\n"], edit, HOOKS)
 PY
 
 hook "$src/chrome/browser/history/history_tab_helper.cc" "HistoryTabHelper" <<'PY'
@@ -1628,6 +1646,674 @@ def edit(s):
     return s[:i] + decl + s[i:].replace(old, new)
 hook(["bool g_astro_scripts_wait_at_response = false;\n",
       "  ThrottleCheckResult WillProcessResponse() override {\n    if (should_defer_ && g_astro_scripts_wait_at_response) {\n"], edit, CONTENT_HOOKS)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "window keys" <<'PY'
+at = "WebUIBrowserWindow::WebUIBrowserWindow(BrowserWindowInterface* browser)"
+decl = """// Astro: AstroCore takes its own shortcuts before the browser's and gives the browser's back to the page.
+std::optional<content::KeyboardEventProcessingResult> (*g_astro_window_key)(
+    BrowserWindowInterface* browser,
+    const input::NativeWebKeyboardEvent& event,
+    int command_id) = nullptr;
+
+"""
+old = """  int command_id;
+  if (!FindCommandIdForAccelerator(accelerator, &command_id)) {
+    return content::KeyboardEventProcessingResult::NOT_HANDLED;
+  }
+"""
+new = """  int command_id = -1;
+  const bool is_browser_command =
+      FindCommandIdForAccelerator(accelerator, &command_id);
+  if (g_astro_window_key) {
+    if (std::optional<content::KeyboardEventProcessingResult> result =
+            g_astro_window_key(browser_.get(), event,
+                               is_browser_command ? command_id : -1)) {
+      return *result;
+    }
+  }
+  if (!is_browser_command) {
+    return content::KeyboardEventProcessingResult::NOT_HANDLED;
+  }
+"""
+include = "#include <optional>\n"
+first = '#include "chrome/browser/ui/webui_browser/webui_browser_window.h"\n'
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1 and s.count(first) == 1
+    i = s.index(at)
+    s = s[:i] + decl + s[i:].replace(old, new)
+    if include not in s:
+        s = s.replace(first, first + "\n" + include, 1)
+    return s
+hook(["std::optional<content::KeyboardEventProcessingResult> (*g_astro_window_key)(\n",
+      "  if (g_astro_window_key) {\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "frameless window" <<'PY'
+old = """#if BUILDFLAG(IS_CHROMEOS)
+  params.remove_standard_frame = true;
+#endif
+"""
+new = """#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  // Astro: AstroCore draws the whole window, its title bar and controls included.
+  params.remove_standard_frame = true;
+#endif
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["  // Astro: AstroCore draws the whole window, its title bar and controls included.\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_client_view.cc" "frameless window edges" <<'PY'
+old = """int WebUIBrowserClientView::NonClientHitTest(const gfx::Point& point) {
+"""
+new = old + """#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  // Astro: the window has no system frame, so its own edges resize it.
+  if (views::Widget* widget = GetWidget(); widget && widget->widget_delegate() &&
+      widget->widget_delegate()->CanResize() && !widget->IsMaximized() &&
+      !widget->IsFullscreen()) {
+    constexpr int kResizeEdge = 5;
+    constexpr int kResizeCorner = 16;
+    const bool top = point.y() < kResizeEdge;
+    const bool bottom = point.y() >= height() - kResizeEdge;
+    const bool left = point.x() < kResizeEdge;
+    const bool right = point.x() >= width() - kResizeEdge;
+    if (top || bottom || left || right) {
+      const bool near_top = point.y() < kResizeCorner;
+      const bool near_bottom = point.y() >= height() - kResizeCorner;
+      const bool near_left = point.x() < kResizeCorner;
+      const bool near_right = point.x() >= width() - kResizeCorner;
+      if (near_top && near_left) {
+        return HTTOPLEFT;
+      }
+      if (near_top && near_right) {
+        return HTTOPRIGHT;
+      }
+      if (near_bottom && near_left) {
+        return HTBOTTOMLEFT;
+      }
+      if (near_bottom && near_right) {
+        return HTBOTTOMRIGHT;
+      }
+      return top ? HTTOP : bottom ? HTBOTTOM : left ? HTLEFT : HTRIGHT;
+    }
+  }
+#endif
+"""
+includes = ['#include "build/build_config.h"\n', '#include "ui/base/hit_test.h"\n', '#include "ui/views/widget/widget.h"\n', '#include "ui/views/widget/widget_delegate.h"\n']
+first = '#include "chrome/browser/ui/webui_browser/webui_browser_client_view.h"\n'
+def edit(s):
+    assert s.count(old) == 1 and s.count(first) == 1
+    s = s.replace(old, new)
+    missing = "".join(i for i in includes if i not in s)
+    if missing:
+        s = s.replace(first, first + "\n" + missing, 1)
+    return s
+hook(["  // Astro: the window has no system frame, so its own edges resize it.\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc" "link under the pointer" <<'PY'
+at = "void BrowserWebContentsDelegate::UpdateTargetURL(content::WebContents* source,\n"
+decl = """// Astro: AstroCore shows the link under the pointer itself.
+bool (*g_astro_target_url)(content::WebContents* source,
+                           const GURL& url) = nullptr;
+
+"""
+old = """                                                 const GURL& url) {
+  std::vector<StatusBubble*> status_bubbles =
+      browser_ui_controller_->GetStatusBubbles();
+"""
+new = """                                                 const GURL& url) {
+  if (g_astro_target_url && g_astro_target_url(source, url)) {
+    return;
+  }
+  std::vector<StatusBubble*> status_bubbles =
+      browser_ui_controller_->GetStatusBubbles();
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1
+    i = s.index(at)
+    return s[:i] + decl + s[i:].replace(old, new, 1)
+hook(["bool (*g_astro_target_url)(content::WebContents* source,\n",
+      "  if (g_astro_target_url && g_astro_target_url(source, url)) {\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "frameless window drag" <<'PY'
+old = """#if BUILDFLAG(IS_CHROMEOS)
+  // The titlebar has `app-region: drag;` set, so we shouldn't descend into it
+  // for event handling on ChromeOS.
+  if (GetWidget() &&
+      GetWidget()->GetNonClientComponent(location) == HTCAPTION) {
+    return false;
+  }
+  return true;
+#else
+"""
+new = """#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  // Astro: the page's drag regions and the frameless window's edges move and resize it, so they keep the press.
+  if (GetWidget()) {
+    const int component = GetWidget()->GetNonClientComponent(location);
+    if (component != HTCLIENT && component != HTNOWHERE) {
+      return false;
+    }
+  }
+  return true;
+#else
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["  // Astro: the page's drag regions and the frameless window's edges move and resize it, so they keep the press.\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/views/desktop_capture/desktop_media_picker_views.cc" "screen-share picker" <<'PY'
+at = "// static\nstd::unique_ptr<DesktopMediaPicker> DesktopMediaPicker::Create(\n"
+decl = """// Astro: AstroCore shows its own screen-share picker for the tabs its window hosts.
+std::unique_ptr<DesktopMediaPicker> (*g_astro_desktop_media_picker)(
+    const content::MediaStreamRequest* request) = nullptr;
+
+"""
+old = """    const content::MediaStreamRequest* request) {
+  if (request &&
+      request->video_type ==
+          blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE_THIS_TAB) {
+"""
+new = """    const content::MediaStreamRequest* request) {
+  if (g_astro_desktop_media_picker) {
+    if (auto picker = g_astro_desktop_media_picker(request)) {
+      return picker;
+    }
+  }
+  if (request &&
+      request->video_type ==
+          blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE_THIS_TAB) {
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1
+    i = s.index(at)
+    return s[:i] + decl + s[i:].replace(old, new, 1)
+hook(["std::unique_ptr<DesktopMediaPicker> (*g_astro_desktop_media_picker)(\n",
+      "  if (g_astro_desktop_media_picker) {\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/startup/startup_browser_creator.cc" "links from other apps" <<'PY'
+at = "void StartupBrowserCreator::ProcessCommandLineAlreadyRunning(\n"
+decl = """// Astro: AstroCore routes links from other apps itself, to Little Astro or a tab.
+bool (*g_astro_open_urls)(const base::CommandLine& command_line,
+                          const base::FilePath& cur_dir) = nullptr;
+
+"""
+old = """    const StartupProfilePathInfo& profile_path_info) {
+  if (profile_path_info.mode == StartupProfileMode::kError) {
+    return;
+  }
+
+  Profile* profile = nullptr;
+"""
+new = """    const StartupProfilePathInfo& profile_path_info) {
+  if (profile_path_info.mode == StartupProfileMode::kError) {
+    return;
+  }
+  if (g_astro_open_urls && g_astro_open_urls(command_line, cur_dir)) {
+    return;
+  }
+
+  Profile* profile = nullptr;
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1
+    i = s.index(at)
+    j = s.rfind("// static\n", 0, i)
+    i = j if j != -1 and i - j < 20 else i
+    return s[:i] + decl + s[i:].replace(old, new, 1)
+hook(["bool (*g_astro_open_urls)(const base::CommandLine& command_line,\n",
+      "  if (g_astro_open_urls && g_astro_open_urls(command_line, cur_dir)) {\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "hidden host windows stay hidden" <<'PY'
+old = "void WebUIBrowserWindow::Show() {\n"
+decl = """// Astro: AstroCore keeps the hidden windows that host other profiles' tabs hidden, even when docked DevTools show their window.
+bool (*g_astro_keeps_window_hidden)(BrowserWindowInterface* browser) = nullptr;
+
+"""
+new = decl + old + """  if (g_astro_keeps_window_hidden &&
+      g_astro_keeps_window_hidden(browser_.get())) {
+    return;
+  }
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new, 1)
+hook(["bool (*g_astro_keeps_window_hidden)(BrowserWindowInterface* browser) = nullptr;\n",
+      "  if (g_astro_keeps_window_hidden &&\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "closed windows stay out of the activation order" <<'PY'
+old = """void WebUIBrowserWindow::PaintAsActiveChanged() {
+"""
+new = old + """  if (browser_->IsDeleteScheduled()) {
+    return;
+  }
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new, 1)
+hook(["void WebUIBrowserWindow::PaintAsActiveChanged() {\n  if (browser_->IsDeleteScheduled()) {\n"], edit)
+PY
+
+archive="$src/chrome/tools/build/win/create_installer_archive.py"
+if grep -q "import winreg\|# Astro: cross builds" "$archive"; then
+hook "$archive" "installer archive from a Linux host" <<'PY'
+old = """def GetLZMAExec(build_dir):
+    # Taken from ungoogled-chromium's _extraction.py file, modified for Python 2
+    import winreg
+"""
+new = """def GetLZMAExec(build_dir):
+    # Astro: cross builds from Linux pack with the host 7za Chromium ships.
+    if sys.platform != 'win32':
+        return os.path.join(build_dir, '..', '..', 'third_party', 'lzma_sdk',
+                            'bin', 'host_platform', '7za')
+    # Taken from ungoogled-chromium's _extraction.py file, modified for Python 2
+    import winreg
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["    # Astro: cross builds from Linux pack with the host 7za Chromium ships.\n"], edit)
+PY
+hook "$archive" "installer carries the content blocker and the CLI" <<'PY'
+old = """    CopySectionFilesToStagingDir(
+        config, 'GENERAL', staging_dir, build_dir, verbose
+    )
+"""
+copy = """    version_dir = os.path.join(
+        staging_dir, config.get('GENERAL', 'chrome.dll').replace('\\\\', os.sep))
+    for folder, staged in (FOLDERS):
+        source = os.path.join(build_dir, folder)
+        if not os.path.isdir(source):
+            continue
+        shutil.copytree(source, os.path.join(version_dir, staged),
+                        dirs_exist_ok=True)
+        for parent, _, names in os.walk(source):
+            g_archive_inputs.extend(
+                os.path.relpath(os.path.join(parent, name), build_dir)
+                for name in names)
+"""
+marker = "    # Astro: the content blocker and the astro command ship as folders beside chrome.dll.\n"
+previous = (old + "    # Astro: the interface and the content blocker ship as folders beside chrome.dll.\n" +
+            copy.replace("FOLDERS", "('astro-ui', 'astro-ui'), ('extensions', 'Extensions'), ('cli', 'cli')"))
+new = old + marker + copy.replace("FOLDERS", "('extensions', 'Extensions'), ('cli', 'cli')")
+def edit(s):
+    if s.count(previous) == 1:
+        return s.replace(previous, new)
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook([marker], edit)
+PY
+fi
+
+hook "$src/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc" "keys the page left" <<'PY'
+at = "bool BrowserWebContentsDelegate::HandleKeyboardEvent(\n"
+decl = """// Astro: AstroCore hears about keys a hosted tab didn't use, as Esc that closes a popover or Little Astro.
+void (*g_astro_unhandled_key)(content::WebContents* source,
+                              const input::NativeWebKeyboardEvent& event) =
+    nullptr;
+
+"""
+old = """    const input::NativeWebKeyboardEvent& event) {
+  DevToolsWindow* devtools_window =
+      DevToolsWindow::GetInstanceForInspectedWebContents(source);"""
+new = """    const input::NativeWebKeyboardEvent& event) {
+  if (g_astro_unhandled_key) {
+    g_astro_unhandled_key(source, event);
+  }
+  DevToolsWindow* devtools_window =
+      DevToolsWindow::GetInstanceForInspectedWebContents(source);"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1
+    i = s.index(at)
+    return s[:i] + decl + s[i:].replace(old, new, 1)
+hook(["void (*g_astro_unhandled_key)(content::WebContents* source,\n",
+      "  if (g_astro_unhandled_key) {\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "keys pages leave" <<'PY'
+old = """bool WebUIBrowserWindow::HandleKeyboardEvent(
+    const input::NativeWebKeyboardEvent& event) {
+  return false;
+}
+"""
+new = """// Astro: browser shortcuts a page didn't use run here, as in Chrome's BrowserView.
+bool (*g_astro_window_unhandled_key)(
+    BrowserWindowInterface* browser,
+    const input::NativeWebKeyboardEvent& event) = nullptr;
+
+bool WebUIBrowserWindow::HandleKeyboardEvent(
+    const input::NativeWebKeyboardEvent& event) {
+  return g_astro_window_unhandled_key &&
+         g_astro_window_unhandled_key(browser_.get(), event);
+}
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["bool (*g_astro_window_unhandled_key)(\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/browser_web_contents_delegate/browser_web_contents_delegate.cc" "hung pages reach the host" <<'PY'
+at = "void BrowserWebContentsDelegate::RendererUnresponsive(\n"
+decl = """// Astro: AstroCore shows its own overlay for a hung page in a window whose interface it draws.
+bool (*g_astro_renderer_unresponsive)(content::WebContents* source,
+                                      content::RenderWidgetHost* host,
+                                      base::RepeatingClosure restarter) = nullptr;
+bool (*g_astro_renderer_responsive)(content::WebContents* source,
+                                    content::RenderWidgetHost* host) = nullptr;
+
+"""
+old_hung = """    base::RepeatingClosure hang_monitor_restarter) {
+  // Don't show the page hung dialog when a HTML popup hangs because
+"""
+new_hung = """    base::RepeatingClosure hang_monitor_restarter) {
+  if (g_astro_renderer_unresponsive &&
+      g_astro_renderer_unresponsive(source, render_widget_host,
+                                    hang_monitor_restarter)) {
+    return;
+  }
+  // Don't show the page hung dialog when a HTML popup hangs because
+"""
+old_ok = """    content::RenderWidgetHost* render_widget_host) {
+  content::RenderWidgetHostView* view = render_widget_host->GetView();
+  if (view && !render_widget_host->GetView()->IsHTMLFormPopup()) {
+    TabDialogs::FromWebContents(source)->HideHungRendererDialog(
+"""
+new_ok = """    content::RenderWidgetHost* render_widget_host) {
+  if (g_astro_renderer_responsive &&
+      g_astro_renderer_responsive(source, render_widget_host)) {
+    return;
+  }
+  content::RenderWidgetHostView* view = render_widget_host->GetView();
+  if (view && !render_widget_host->GetView()->IsHTMLFormPopup()) {
+    TabDialogs::FromWebContents(source)->HideHungRendererDialog(
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old_hung) == 1 and s.count(old_ok) == 1
+    i = s.index(at)
+    s = s[:i] + decl + s[i:]
+    return s.replace(old_hung, new_hung).replace(old_ok, new_ok)
+hook(["bool (*g_astro_renderer_unresponsive)(content::WebContents* source,\n",
+      "  if (g_astro_renderer_unresponsive &&\n",
+      "  if (g_astro_renderer_responsive &&\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "autofill prompts find the host's handler" <<'PY'
+old = """WebUIBrowserWindow::GetAutofillBubbleHandler() {
+  NOTIMPLEMENTED_LOG_ONCE();
+  return nullptr;
+}
+"""
+new = """WebUIBrowserWindow::GetAutofillBubbleHandler() {
+  // Astro: AstroCore registers its own handler on the browser.
+  return autofill::AutofillBubbleHandler::Get(browser_->GetUnownedUserDataHost());
+}
+"""
+include = '#include "chrome/browser/ui/autofill/autofill_bubble_handler.h"\n'
+anchor = '#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"\n'
+def edit(s):
+    assert s.count(old) == 1 and s.count(anchor) == 1
+    s = s.replace(old, new)
+    if include not in s:
+        s = s.replace(anchor, anchor + include, 1)
+    return s
+hook(["  return autofill::AutofillBubbleHandler::Get(browser_->GetUnownedUserDataHost());\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/autofill/chrome_autofill_client.cc" "autofill suggestions sit under a guest tab's field" <<'PY'
+old = """  // Convert element_bounds to be in screen space.
+  const gfx::Rect client_area = web_contents()->GetContainerBounds();
+"""
+new = """  // Convert element_bounds to be in screen space.
+  // Astro: the bounds are in the outermost page's space, so a guest tab's offset isn't added twice.
+  const gfx::Rect client_area =
+      web_contents()->GetOutermostWebContents()->GetContainerBounds();
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["  // Astro: the bounds are in the outermost page's space, so a guest tab's offset isn't added twice.\n"], edit)
+PY
+
+hook "$src/content/browser/web_contents/web_contents_impl.cc" "a hung page counts DevTools, not the host's client" <<'PY'
+at = "bool WebContentsImpl::ShouldIgnoreUnresponsiveRenderer() {\n"
+decl = """// Astro: AstroCore keeps its own DevTools client on its tabs; only DevTools itself should hide a hung page.
+bool (*g_astro_debugger_attached)(WebContents* contents) = nullptr;
+
+"""
+old = """  return DevToolsAgentHost::IsDebuggerAttached(this);
+}
+"""
+new = """  return g_astro_debugger_attached ? g_astro_debugger_attached(this)
+                                   : DevToolsAgentHost::IsDebuggerAttached(this);
+}
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(old) == 1
+    i = s.index(at)
+    return s[:i] + decl + s[i:].replace(old, new, 1)
+hook(["bool (*g_astro_debugger_attached)(WebContents* contents) = nullptr;\n",
+      "  return g_astro_debugger_attached ? g_astro_debugger_attached(this)\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/extensions/extension_action_view_model.cc" "action shortcuts reach the host" <<'PY'
+old = "void ExtensionActionViewModel::ExecuteUserAction(InvocationSource source) {\n"
+decl = """// Astro: a window whose interface AstroCore draws opens an action's popup there when its shortcut is pressed.
+bool (*g_astro_extension_action_command)(BrowserWindowInterface* browser,
+                                         const extensions::ExtensionId& extension_id) =
+    nullptr;
+
+"""
+new = decl + old + """  if (source == InvocationSource::kCommand && g_astro_extension_action_command &&
+      ExtensionIsValid() &&
+      g_astro_extension_action_command(browser_, extension_->id())) {
+    return;
+  }
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["bool (*g_astro_extension_action_command)(BrowserWindowInterface* browser,\n",
+      "  if (source == InvocationSource::kCommand && g_astro_extension_action_command &&\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "downloads never hold a close" <<'PY'
+old = """    base::OnceCallback<void(bool)> callback) {
+  NOTIMPLEMENTED_LOG_ONCE();
+}
+"""
+new = """    base::OnceCallback<void(bool)> callback) {
+  // Astro: as AstroCore does on macOS, a close goes ahead; Astro asks about downloads before it quits.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), true));
+}
+"""
+includes = ['#include "base/functional/bind.h"\n', '#include "base/task/single_thread_task_runner.h"\n']
+first = '#include "base/check.h"\n'
+def edit(s):
+    assert s.count(old) == 1 and s.count(first) == 1
+    s = s.replace(old, new)
+    for line in includes:
+        if line not in s:
+            s = s.replace(first, first + line, 1)
+    return s
+hook(["  // Astro: as AstroCore does on macOS, a close goes ahead; Astro asks about downloads before it quits.\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "window close asks the page" <<'PY'
+old = """void WebUIBrowserWindow::OnWindowCloseRequested(
+    views::Widget::ClosedReason close_reason) {
+"""
+new = """// Astro: a close the system asks for (Alt+F4, the taskbar) goes to AstroCore's page, as its close button does.
+bool (*g_astro_window_close_requested)(BrowserWindowInterface* browser) =
+    nullptr;
+
+""" + old + """  if (g_astro_window_close_requested &&
+      g_astro_window_close_requested(browser_.get())) {
+    widget_->MakeCloseSynchronous(base::BindOnce(
+        &WebUIBrowserWindow::OnWindowCloseRequested, base::Unretained(this)));
+    return;
+  }
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["bool (*g_astro_window_close_requested)(BrowserWindowInterface* browser) =\n",
+      "  if (g_astro_window_close_requested &&\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_window.cc" "the window's title is its page's" <<'PY'
+old = """std::u16string WebUIBrowserWindow::WidgetDelegate::GetWindowTitle() const {
+"""
+new = old + """#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+  // Astro: the window's title is the one AstroCore's page gives it, as on macOS.
+  if (content::WebContents* page = web_contents_delegate_->web_contents();
+      page && !page->GetTitle().empty()) {
+    return page->GetTitle();
+  }
+#endif
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["  // Astro: the window's title is the one AstroCore's page gives it, as on macOS.\n"], edit)
+PY
+
+hook "$src/chrome/browser/renderer_context_menu/render_view_context_menu.cc" "selected text's host items" <<'PY'
+at = "void RenderViewContextMenu::InitMenu() {\n"
+decl = """// Astro: AstroCore's page adds its own items for selected text (Ask) and runs them.
+constexpr int kAstroSelectionFirst = IDC_CONTENT_CONTEXT_CUSTOM_FIRST + 900;
+constexpr int kAstroSelectionLast = IDC_CONTENT_CONTEXT_CUSTOM_FIRST + 999;
+std::vector<std::u16string> (*g_astro_selection_items)(
+    content::WebContents* contents,
+    const std::u16string& printable_selection) = nullptr;
+void (*g_astro_selection_item_run)(content::WebContents* contents,
+                                   size_t index,
+                                   const std::u16string& selection,
+                                   int event_flags) = nullptr;
+
+"""
+items_old = """  if (show_glic && glic_below_search) {
+    MaybeAppendOpenGlicItem(/*add_separator=*/false);
+  }
+
+"""
+items_new = items_old + """  if (g_astro_selection_items && !params_.selection_text.empty() &&
+      !params_.is_editable) {
+    const std::vector<std::u16string> titles =
+        g_astro_selection_items(source_web_contents_, PrintableSelectionText());
+    for (size_t i = 0; i < titles.size() &&
+                       kAstroSelectionFirst + static_cast<int>(i) <=
+                           kAstroSelectionLast;
+         ++i) {
+      menu_model_.AddItem(kAstroSelectionFirst + static_cast<int>(i),
+                          titles[i]);
+    }
+  }
+
+"""
+enabled_old = "bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {\n"
+enabled_new = enabled_old + """  if (g_astro_selection_items && id >= kAstroSelectionFirst &&
+      id <= kAstroSelectionLast) {
+    return true;
+  }
+"""
+run_old = """void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
+  RenderViewContextMenuBase::ExecuteCommand(id, event_flags);
+"""
+run_new = """void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
+  if (g_astro_selection_item_run && id >= kAstroSelectionFirst &&
+      id <= kAstroSelectionLast) {
+    command_executed_ = true;
+    g_astro_selection_item_run(source_web_contents_,
+                               static_cast<size_t>(id - kAstroSelectionFirst),
+                               params_.selection_text, event_flags);
+    return;
+  }
+  RenderViewContextMenuBase::ExecuteCommand(id, event_flags);
+"""
+def edit(s):
+    assert s.count(at) == 1 and s.count(items_old) == 1
+    assert s.count(enabled_old) == 1 and s.count(run_old) == 1
+    i = s.index(at)
+    s = s[:i] + decl + s[i:]
+    s = s.replace(items_old, items_new).replace(enabled_old, enabled_new)
+    return s.replace(run_old, run_new)
+hook(["std::vector<std::u16string> (*g_astro_selection_items)(\n",
+      "  if (g_astro_selection_items && !params_.selection_text.empty() &&\n",
+      "  if (g_astro_selection_items && id >= kAstroSelectionFirst &&\n",
+      "  if (g_astro_selection_item_run && id >= kAstroSelectionFirst &&\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_web_contents_delegate.h" "the page's microphone (header)" <<'PY'
+old = """  bool IsWaitingForPointerLockPrompt(
+      content::WebContents* web_contents) override;
+"""
+new = old + """  // Astro: AstroCore's page records the person's dictation from the microphone.
+  void RequestMediaAccessPermission(
+      content::WebContents* web_contents,
+      const content::MediaStreamRequest& request,
+      content::MediaResponseCallback callback) override;
+  bool CheckMediaAccessPermission(content::RenderFrameHost* render_frame_host,
+                                  const url::Origin& security_origin,
+                                  blink::mojom::MediaStreamType type) override;
+"""
+def edit(s):
+    assert s.count(old) == 1
+    return s.replace(old, new)
+hook(["  // Astro: AstroCore's page records the person's dictation from the microphone.\n"], edit)
+PY
+
+hook "$src/chrome/browser/ui/webui_browser/webui_browser_web_contents_delegate.cc" "the page's microphone" <<'PY'
+at = """WebUIBrowserWebContentsDelegate::WebUIBrowserWebContentsDelegate(
+    WebUIBrowserWindow* window)
+"""
+decl = """// Astro: AstroCore's page records the person's dictation from the microphone.
+void (*g_astro_ui_media_access)(content::WebContents* web_contents,
+                                const content::MediaStreamRequest& request,
+                                content::MediaResponseCallback callback) =
+    nullptr;
+bool (*g_astro_ui_media_check)(content::RenderFrameHost* render_frame_host,
+                               const url::Origin& security_origin,
+                               blink::mojom::MediaStreamType type) = nullptr;
+
+"""
+methods = """
+void WebUIBrowserWebContentsDelegate::RequestMediaAccessPermission(
+    content::WebContents* web_contents,
+    const content::MediaStreamRequest& request,
+    content::MediaResponseCallback callback) {
+  if (g_astro_ui_media_access) {
+    g_astro_ui_media_access(web_contents, request, std::move(callback));
+    return;
+  }
+  content::WebContentsDelegate::RequestMediaAccessPermission(
+      web_contents, request, std::move(callback));
+}
+
+bool WebUIBrowserWebContentsDelegate::CheckMediaAccessPermission(
+    content::RenderFrameHost* render_frame_host,
+    const url::Origin& security_origin,
+    blink::mojom::MediaStreamType type) {
+  return g_astro_ui_media_check &&
+         g_astro_ui_media_check(render_frame_host, security_origin, type);
+}
+"""
+def edit(s):
+    assert s.count(at) == 1
+    i = s.index(at)
+    s = s[:i] + decl + s[i:]
+    return s.rstrip("\n") + "\n" + methods
+hook(["void (*g_astro_ui_media_access)(content::WebContents* web_contents,\n",
+      "void WebUIBrowserWebContentsDelegate::RequestMediaAccessPermission(\n"], edit)
 PY
 
 if [[ $mode == check ]]; then

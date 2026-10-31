@@ -32,6 +32,7 @@ export type Profile = {
   createdAt: number;
   dataId?: string;
   theme?: ProfileTheme | null;
+  morningBrief?: { enabled: boolean; at: string } | null;
 };
 
 export type BrowserWindow = {
@@ -71,6 +72,7 @@ export type Tab = {
   unloaded?: boolean;
   pinKey?: string;
   pageIn?: string;
+  aiTitle?: string;
   createdAt: number;
   lastActiveAt: number;
 };
@@ -99,6 +101,10 @@ export type TabGroup = {
   autoUngroup?: boolean;
   pinnedOpenerId?: string;
   pinKey?: string;
+  autoName?: string;
+  autoIcon?: string;
+  autoSig?: string;
+  chatId?: string;
 };
 
 export type SplitView = {

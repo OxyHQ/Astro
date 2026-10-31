@@ -121,7 +121,7 @@ export function parseStack(stack: unknown, limit = 50): ExceptionFrame[] {
 
 export type NativeFrame = { image: string; symbol?: string; offset?: number };
 
-const OUR_IMAGES = /^(Astro|AstroCore|AstroShell|Chromium Framework|Expo|ExpoModulesCore|React|hermes|RCT)/;
+const OUR_IMAGES = /^(Astro|AstroCore|AstroShell|Chromium Framework|Expo|ExpoModulesCore|React|hermes|RCT|chrome(\.dll|\.exe|_elf\.dll)?$)/;
 
 export function nativeFrames(frames: NativeFrame[], limit = 64): ExceptionFrame[] {
   return frames.slice(0, limit).map((f): ExceptionFrame => {

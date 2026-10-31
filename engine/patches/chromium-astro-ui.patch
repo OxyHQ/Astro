@@ -1,0 +1,53 @@
+diff --git a/chrome/browser/ui/webui_browser/webui_browser_ui.cc b/chrome/browser/ui/webui_browser/webui_browser_ui.cc
+--- a/chrome/browser/ui/webui_browser/webui_browser_ui.cc
++++ b/chrome/browser/ui/webui_browser/webui_browser_ui.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/webui_browser/webui_browser_ui.h"
+ 
++#include "chrome/browser/astro/ac_ui_source.h"  // nogncheck
++
+ #include <array>
+ 
+ #include "base/containers/to_vector.h"
+@@ -116,6 +118,8 @@ WebUIBrowserUI::WebUIBrowserUI(content::WebUI* web_ui)
+                               IDR_WEBUI_BROWSER_WEBUI_BROWSER_HTML);
+   source->AddResourcePaths(kTabStripApiResources);
+   source->AddResourcePaths(kWebuiToolbarSharedResources);
++  // Astro: the interface, from its pak or --astro-ui-dir (engine/chromium).
++  astro::ServeUi(source, profile);
+ 
+   static constexpr webui::LocalizedString kStrings[] = {
+       // Localized strings (alphabetical order).
+diff --git a/chrome/chrome_paks.gni b/chrome/chrome_paks.gni
+--- a/chrome/chrome_paks.gni
++++ b/chrome/chrome_paks.gni
+@@ -291,6 +291,12 @@ template("chrome_extra_paks") {
+       sources += [ "$root_gen_dir/chrome/conflicts_resources.pak" ]
+     }
+ 
++    # Astro: the Windows and Linux interface (engine/chromium).
++    if (is_linux || is_win) {
++      sources += [ "$root_gen_dir/chrome/astro_ui_resources.pak" ]
++      deps += [ "//chrome/browser/astro:ui_resources" ]
++    }
++
+     if (is_chromeos) {
+       sources += [
+         "$root_gen_dir/ash/public/cpp/resources/ash_public_unscaled_resources.pak",
+diff --git a/tools/gritsettings/resource_ids.spec b/tools/gritsettings/resource_ids.spec
+--- a/tools/gritsettings/resource_ids.spec
++++ b/tools/gritsettings/resource_ids.spec
+@@ -1811,6 +1811,12 @@
+     "includes": [10140],
+   },
+ 
++  # Astro: the Windows and Linux interface (engine/chromium), last so no other grd's ids move.
++  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/astro/astro_ui_resources.grd": {
++    "META": {"sizes": {"includes": [400]}},
++    "includes": [10160],
++  },
++
+   "<(SHARED_INTERMEDIATE_DIR)/THIS_IS_A_PLACEHOLDER.grd": {
+     "META": {"sizes": {"includes": [800]}},
+     "includes": [12000],

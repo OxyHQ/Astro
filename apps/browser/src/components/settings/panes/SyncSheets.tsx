@@ -2,6 +2,7 @@ import { showMenu, Symbol } from "@astro-browser/shell";
 import { SyncNative, type FolderInfo } from "@astro-browser/sync";
 import { useEffect, useState, type ReactNode } from "react";
 import { Image, StyleSheet, Text, TextInput, View } from "react-native";
+import { DEVICE, IN_KEYCHAIN, ON_MAC } from "../../../lib/device";
 import { useTheme } from "../../../lib/theme";
 import { enterRecoveryPhrase, stopSync } from "../../../sync/engine";
 import { Button, Checkbox, Sheet, useFormColors } from "../controls";
@@ -111,7 +112,7 @@ const phraseError = (r: Awaited<ReturnType<typeof enterRecoveryPhrase>>): string
     case "noData":
       return "There’s no synced data in this folder yet. Choose the folder your other devices sync to, or wait for it to finish downloading.";
     case "keychain":
-      return "Couldn’t save the sync key in your Keychain.";
+      return `Couldn’t save the sync key ${IN_KEYCHAIN}.`;
     case "unavailable":
       return "Sync isn’t available in this build.";
   }
@@ -203,17 +204,19 @@ function ConnectDeviceSheet() {
     <Sheet width={480} onClose={closeSettingsSheet}>
       <Title>Connect Another Device</Title>
       <Body>
-        On your other Mac, open Astro › Settings › Sync and choose the same sync folder. Then click Enter Recovery Phrase and enter the 24 words
+        On your other {DEVICE}, open Astro › Settings › Sync and choose the same sync folder. Then click Enter Recovery Phrase and enter the 24 words
         of your recovery phrase.
       </Body>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginTop: 16 }}>
-        <View style={{ width: 132, height: 132, borderRadius: 8, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" }}>
-          {qr ? <Image source={{ uri: qr }} style={{ width: 120, height: 120 }} /> : null}
+      {ON_MAC && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginTop: 16 }}>
+          <View style={{ width: 132, height: 132, borderRadius: 8, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" }}>
+            {qr ? <Image source={{ uri: qr }} style={{ width: 120, height: 120 }} /> : null}
+          </View>
+          <Text style={{ flex: 1, fontSize: 12, lineHeight: 16, color: theme.textSecondary }}>
+            Or scan this code with your iPhone’s camera to copy the words, then paste them on your other Mac with Universal Clipboard.
+          </Text>
         </View>
-        <Text style={{ flex: 1, fontSize: 12, lineHeight: 16, color: theme.textSecondary }}>
-          Or scan this code with your iPhone’s camera to copy the words, then paste them on your other Mac with Universal Clipboard.
-        </Text>
-      </View>
+      )}
       {words ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 14, padding: 10, borderRadius: 8, backgroundColor: colors.group }}>
           {words.map((w, i) => (
@@ -248,7 +251,7 @@ function StopSheet() {
       <Title>Stop Syncing This Device?</Title>
       <Body>
         Syncing will stop on this device. To re-enable sync, you’ll need another device that is currently syncing, or the recovery phrase from your
-        Recovery Kit. Everything on this Mac stays as it is.
+        Recovery Kit. Everything on this {DEVICE} stays as it is.
       </Body>
       <Buttons left={<Button title="Save Recovery Kit" onPress={() => showSettingsSheet(<RecoveryKitSheet />)} />}>
         <Button title="Cancel" onPress={closeSettingsSheet} />
@@ -271,7 +274,7 @@ function DeleteDataSheet() {
       <Title>Delete Sync Data?</Title>
       <Body>
         Would you also like to permanently delete your synced data from the sync folder? This will stop syncing on all your other devices too. To sync
-        again, you’ll need to set up each device from scratch. Your data on each Mac stays.
+        again, you’ll need to set up each device from scratch. Your data on each {DEVICE} stays.
       </Body>
       <View style={{ marginTop: 12 }}>
         <Checkbox value={understood} onChange={setUnderstood} label="I understand this cannot be undone" />

@@ -25,3 +25,8 @@ Astro builds on and ships third-party software under its own licenses, including
 - The !bang list by Kagi Search and imput (MIT, see third_party/bangs/LICENSE), from Helium's
   services.helium.imput.net/bangs.json: a snapshot in packages/core/src/bangList.ts
 - React Native and React Native macOS (MIT)
+- Bergamot translator (MPL-2.0, see apps/webui/public/bergamot/LICENSE), from Mozilla's Firefox Translations
+  (https://github.com/mozilla/translations): its JavaScript loader, unmodified, in apps/webui/public/bergamot/ (from
+  Firefox's toolkit/components/translations/bergamot-translator at commit 48d55cf7), used on Windows and Linux. Its
+  WebAssembly build and Mozilla's translation models (MPL-2.0) are not shipped: Astro downloads them when needed from
+  Mozilla's Remote Settings service into the profile's Astro Translations folder

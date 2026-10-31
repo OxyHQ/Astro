@@ -1,0 +1,58 @@
+diff --git a/chrome/install_static/chromium_install_modes.h b/chrome/install_static/chromium_install_modes.h
+--- a/chrome/install_static/chromium_install_modes.h
++++ b/chrome/install_static/chromium_install_modes.h
+@@ -17,14 +17,14 @@ namespace install_static {
+ 
+ // The brand-specific company name to be included as a component of the install
+ // and user data directory paths. May be empty if no such dir is to be used.
+-inline constexpr wchar_t kCompanyPathName[] = L"";
++inline constexpr wchar_t kCompanyPathName[] = L"Oxy";  // Astro
+ 
+ // The brand-specific product name to be included as a component of the install
+ // and user data directory paths.
+-inline constexpr wchar_t kProductPathName[] = L"Chromium";
++inline constexpr wchar_t kProductPathName[] = L"Astro";  // Astro
+ 
+ // The brand-specific safe browsing client name.
+-inline constexpr char kSafeBrowsingName[] = "chromium";
++inline constexpr char kSafeBrowsingName[] = "astro";  // Astro
+ 
+ // Note: This list of indices must be kept in sync with the brand-specific
+ // resource strings in chrome/installer/util/prebuild/create_string_rc.
+@@ -54,23 +54,22 @@ inline constexpr auto kInstallModes = std::to_array<InstallConstants>({
+         .logo_suffix = L"",  // No logo suffix for the primary install mode.
+         .app_guid =
+             L"",  // Empty app_guid since no integration with Google Update.
+-        .base_app_name = L"Chromium",              // A distinct base_app_name.
+-        .base_app_id = L"Chromium",                // A distinct base_app_id.
+-        .browser_prog_id_prefix = L"ChromiumHTM",  // Browser ProgID prefix.
++        .base_app_name = L"Astro",              // Astro
++        .base_app_id = L"Astro",                // Astro
++        .browser_prog_id_prefix = L"AstroHTM",  // Astro
+         .browser_prog_id_description =
+-            L"Chromium HTML Document",  // Browser ProgID description.
+-        .direct_launch_url_scheme = "chromium",
+-        .pdf_prog_id_prefix = L"ChromiumPDF",  // PDF ProgID prefix.
++            L"Astro HTML Document",  // Astro
++        .direct_launch_url_scheme = "astro",
++        .pdf_prog_id_prefix = L"AstroPDF",  // Astro
+         .pdf_prog_id_description =
+-            L"Chromium PDF Document",  // PDF ProgID description.
++            L"Astro PDF Document",  // Astro
+         .active_setup_guid =
+-            L"{7D2B3E1D-D096-4594-9D8F-A6667F12E0AC}",  // Active Setup
+-                                                        // GUID.
+-        .toast_activator_clsid = {0x635EFA6F,
+-                                  0x08D6,
+-                                  0x4EC9,
+-                                  {0xBD, 0x14, 0x8A, 0x0F, 0xDE, 0x97, 0x51,
+-                                   0x59}},  // Toast Activator CLSID.
++            L"{F22269D9-2F15-49A7-A870-8C819EE531AD}",  // Astro
++        .toast_activator_clsid = {0xCFB2D8C6,
++                                  0xB464,
++                                  0x4E01,
++                                  {0x95, 0xAA, 0xF4, 0x2A, 0x5B, 0xCA, 0x3E,
++                                   0xE0}},  // Astro
+         .elevator_clsid = {0xD133B120,
+                            0x6DB4,
+                            0x4D6B,

@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "paths": {
+      "react-native": ["../../node_modules/react-native-macos"],
+      "react-native-web": ["../demo/src/shims/react-native-web.d.ts"],
+      "@astro-browser/shell": ["./src/shims/shell.tsx"],
+      "@astro-browser/astrocore": ["./src/shims/astrocore.tsx"],
+      "@astro-browser/shaders": ["../demo/src/shims/shaders.tsx"],
+      "@astro-browser/sync": ["./src/shims/sync.tsx"],
+      "@astro-browser/import": ["../demo/src/shims/import.tsx"],
+      "@astro-browser-real/shell": ["../../packages/shell/src/index.tsx"],
+      "@astro-browser-real/astrocore": ["../../packages/astrocore/src/index.ts"],
+      "@astro-browser-real/shaders": ["../../packages/shaders/src/index.tsx"],
+      "@astro-browser-real/sync": ["../../packages/sync/src/index.ts"],
+      "@astro-browser-real/import": ["../../packages/import/src/index.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts", "../browser/src/react-native-macos.d.ts"]
+}

@@ -49,6 +49,10 @@ export type Settings = {
   showSidebarButton: boolean;
   batterySaverWhen: BatterySaverWhen;
   extensionSidePanelWidth: number;
+  chatPlacement: "sidebar" | "floating";
+  chatWidth: number;
+  chatFloatingFrame: [number, number, number, number] | null;
+  chatPowerLevel: string;
 
   showFullUrl: boolean;
   allowJavaScriptFromAppleEvents: boolean;
@@ -65,6 +69,14 @@ export type Settings = {
 
   openLinksInLittleAstro: boolean;
   littleAstroSize: [number, number];
+
+  aiGroupNames: boolean;
+  aiPinnedTitles: boolean;
+  aiTidyDownloads: boolean;
+  aiVideoSummaries: boolean;
+  aiCommandBarChat: boolean;
+  aiSharedSites: string[];
+  agentSites: string[];
 
   chosen?: string[];
   inferred?: string[];
@@ -103,6 +115,10 @@ export const DEFAULT_SETTINGS: Settings = {
   showSidebarButton: true,
   batterySaverWhen: "lowBattery",
   extensionSidePanelWidth: 360,
+  chatPlacement: "sidebar",
+  chatWidth: 400,
+  chatFloatingFrame: null,
+  chatPowerLevel: "auto",
   showFullUrl: false,
   allowJavaScriptFromAppleEvents: false,
   cliControl: false,
@@ -114,6 +130,13 @@ export const DEFAULT_SETTINGS: Settings = {
   shortcuts: {},
   openLinksInLittleAstro: true,
   littleAstroSize: [900, 640],
+  aiGroupNames: true,
+  aiPinnedTitles: true,
+  aiTidyDownloads: true,
+  aiVideoSummaries: true,
+  aiCommandBarChat: true,
+  aiSharedSites: [],
+  agentSites: [],
 };
 
 const NO_CUSTOM_ENGINES: CustomSearchEngine[] = [];

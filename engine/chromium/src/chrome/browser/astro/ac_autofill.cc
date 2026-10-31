@@ -18,6 +18,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
+#include "build/build_config.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/astro/ac_reauth.h"
 #include "chrome/browser/astro/ac_sensitive_args.h"
@@ -36,6 +37,15 @@
 
 namespace astro {
 namespace {
+
+std::u16string EditCardReauthPrompt() {
+#if BUILDFLAG(IS_MAC)
+  return l10n_util::GetStringUTF16(
+      IDS_PAYMENTS_AUTOFILL_EDIT_CARD_MANDATORY_REAUTH_PROMPT);
+#else
+  return std::u16string();
+#endif
+}
 
 using autofill::PersonalDataManager;
 
@@ -657,8 +667,7 @@ AC_ENGINE_CALL(ac_autofill_card_number) {
             }
             astro::Reauth(
                 profile, device_reauth::DeviceAuthSource::kAutofill,
-                l10n_util::GetStringUTF16(
-                    IDS_PAYMENTS_AUTOFILL_EDIT_CARD_MANDATORY_REAUTH_PROMPT),
+                astro::EditCardReauthPrompt(),
                 base::TimeDelta(),
                 base::BindOnce(
                     [](std::string id, base::WeakPtr<PersonalDataManager> pdm,

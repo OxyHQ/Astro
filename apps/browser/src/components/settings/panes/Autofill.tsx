@@ -12,6 +12,7 @@ import {
 import { confirm, copyText, Symbol } from "@astro-browser/shell";
 import { useState } from "react";
 import { Text, View } from "react-native";
+import { KEYCHAIN_KEY, ON_MAC } from "../../../lib/device";
 import { useTheme } from "../../../lib/theme";
 import { useBrowser } from "../../../store/browser";
 import { useProfiles } from "../../../store/hooks";
@@ -22,6 +23,8 @@ import { Button, Group, PopUp, Row, SectionHeader, Sheet, TextField, Toggle, typ
 import { addresses as addressList, autofillEnabled, cards as cardList } from "../paneData";
 import { store, useResource } from "../resources";
 import { closeSettingsSheet, showSettingsSheet } from "../sheet";
+
+const CARD_NUMBERS_KEPT = ON_MAC ? "kept in your macOS Keychain" : `encrypted with ${KEYCHAIN_KEY}`;
 
 export function AutofillPane({ profileId: initial }: { profileId?: string | null }) {
   const theme = useTheme();
@@ -43,7 +46,7 @@ export function AutofillPane({ profileId: initial }: { profileId?: string | null
     <View>
       <SectionHeader
         title="Autofill"
-        description="Addresses and cards you save are offered when you fill in a form, separately for each profile. Card numbers are kept in your macOS Keychain."
+        description={`Addresses and cards you save are offered when you fill in a form, separately for each profile. Card numbers are ${CARD_NUMBERS_KEPT}.`}
         action={
           profiles.length > 1 ? (
             <PopUp value={profileId} options={profiles.map((p) => ({ value: p.id, title: p.name }))} onChange={setProfileId} />
@@ -247,7 +250,7 @@ function CardSheet({ profile, saved, onChanged }: { profile: string; saved?: Sav
     closeSettingsSheet();
   };
   const remove = async () => {
-    if (!saved || !(await confirmDelete("Delete this card?", "Its number is removed from your Keychain too."))) return;
+    if (!saved || !(await confirmDelete("Delete this card?", ON_MAC ? "Its number is removed from your Keychain too." : "Its encrypted number is deleted too."))) return;
     await deleteCard(profile, saved.id);
     onChanged();
     closeSettingsSheet();

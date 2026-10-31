@@ -8,8 +8,12 @@ export const isUtilityWindowId = (id: string | null | undefined) =>
   id === SETTINGS_WINDOW_ID || id === IMPORT_WINDOW_ID;
 
 export type SettingsPane =
+  | "account"
   | "general"
   | "profiles"
+  | "apps"
+  | "skills"
+  | "personalization"
   | "sync"
   | "tabs"
   | "appearance"

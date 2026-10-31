@@ -2,6 +2,9 @@ import { cancelDownload, pauseDownload, resumeDownload, type Download } from "@a
 import { ContextMenuArea, copyText, fileExists, fileIcon, MouseArea, moveToTrash, openFile, revealFile, showMenu, Surface, Symbol, VisualEffect, type MenuItem } from "@astro-browser/shell";
 import { memo, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { canUndoTidy, undoTidy } from "../ai/tidyDownloads";
+import { FILE_MANAGER, TRASH } from "../lib/device";
+import { TextShimmer, useShimmerOn } from "./ai/TextShimmer";
 import { hex, layout, useTheme } from "../lib/theme";
 import { useShallow } from "zustand/react/shallow";
 import { useBrowser } from "../store/browser";
@@ -69,14 +72,15 @@ export async function downloadMenu(d: Download, windowId: string) {
         ]
       : [
           { id: "open", title: "Open", enabled: exists },
-          { id: "reveal", title: "Show in Finder", enabled: exists },
+          { id: "reveal", title: `Show in ${FILE_MANAGER}`, enabled: exists },
         ];
+  if (canUndoTidy(d)) items.push({ id: "untidy", title: `Restore Original Name (${d.tidiedFrom})`, enabled: exists });
   items.push(
     { separator: true },
     { id: "copy", title: "Copy Download Link" },
     { id: "page", title: "Show All Downloads" },
     { separator: true },
-    ...(exists ? [{ id: "trash", title: "Move to Trash" }] : []),
+    ...(exists ? [{ id: "trash", title: `Move to ${TRASH}` }] : []),
     { id: "remove", title: "Remove from List", enabled: d.state !== "downloading" },
   );
   const choice = await showMenu(items);
@@ -86,6 +90,7 @@ export async function downloadMenu(d: Download, windowId: string) {
   if (choice === "cancel") void cancelDownload(d.id);
   if (choice === "open") void openFile(d.path);
   if (choice === "reveal") void revealFile(d.path);
+  if (choice === "untidy") void undoTidy(d);
   if (choice === "copy") copyText(d.url);
   if (choice === "page") openInternalPage("downloads", windowId);
   if (choice === "trash") void trashDownload(d);
@@ -284,6 +289,14 @@ const DownloadRowItem = memo(function DownloadRowItem({ id, windowId }: { id: st
   return last.current ? <DownloadRow d={last.current} windowId={windowId} /> : null;
 });
 
+function FileName({ name, color, struck }: { name: string; color: string; struck: boolean }) {
+  return (
+    <Text numberOfLines={1} style={{ fontSize: PANEL.titleSize, lineHeight: PANEL.titleLine, color, textDecorationLine: struck ? "line-through" : "none" }}>
+      {name}
+    </Text>
+  );
+}
+
 function DownloadRow({ d, windowId }: { d: Download; windowId: string }) {
   const theme = useTheme();
   const { hovered, hoverProps } = useHover();
@@ -304,6 +317,8 @@ function DownloadRow({ d, windowId }: { d: Download; windowId: string }) {
   }, [finishedPath]);
   const progress = d.total > 0 ? d.received / d.total : 0;
   const done = d.state === "finished" && exists;
+  const shimmerRuns = useShimmerOn(d.tidiedFrom ? d.filename : null);
+  const untidy = done && canUndoTidy(d);
   return (
     <View {...hoverProps}>
       <MouseArea path={done ? d.path : null}>
@@ -325,17 +340,11 @@ function DownloadRow({ d, windowId }: { d: Download; windowId: string }) {
                   <FileIcon path={d.path || d.filename} size={FILE_ICON} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text
-                    numberOfLines={1}
-                    style={{
-                      fontSize: PANEL.titleSize,
-                      lineHeight: PANEL.titleLine,
-                      color: exists ? theme.textPrimary : theme.textSecondary,
-                      textDecorationLine: exists ? "none" : "line-through",
-                    }}
-                  >
-                    {d.filename || "Preparing…"}
-                  </Text>
+                  <View>
+                    <TextShimmer runs={shimmerRuns} highlight={<FileName name={d.filename} color={theme.textPrimary} struck={false} />}>
+                      <FileName name={d.filename || "Preparing…"} color={exists ? theme.textPrimary : theme.textSecondary} struck={!exists} />
+                    </TextShimmer>
+                  </View>
                   {d.state === "downloading" ? (
                     <View style={{ height: 3, borderRadius: 1.5, marginTop: 3, marginBottom: 2, backgroundColor: progressTrack(theme.dark) }}>
                       <View
@@ -359,9 +368,14 @@ function DownloadRow({ d, windowId }: { d: Download; windowId: string }) {
                 ) : done ? (
                   <HoverSlot
                     hovered={hovered}
-                    width={ROW_BUTTON}
+                    width={untidy ? ROW_BUTTON * 2 : ROW_BUTTON}
                     style={{ marginRight: -ROW_BUTTON_BEARING }}
-                    hover={<RowButton icon="magnifyingglass.circle.fill" onPress={() => void revealFile(d.path)} tooltip="Show in Finder" />}
+                    hover={
+                      <View style={{ flexDirection: "row" }}>
+                        {untidy ? <RowButton icon="arrow.uturn.backward.circle.fill" onPress={() => void undoTidy(d)} tooltip={`Restore Original Name (${d.tidiedFrom})`} /> : null}
+                        <RowButton icon="magnifyingglass.circle.fill" onPress={() => void revealFile(d.path)} tooltip={`Show in ${FILE_MANAGER}`} />
+                      </View>
+                    }
                   />
                 ) : null}
               </View>

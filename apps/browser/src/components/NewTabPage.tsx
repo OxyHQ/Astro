@@ -5,9 +5,18 @@ import { AccessibilityInfo, Animated, StyleSheet, View } from "react-native";
 import { hex, layout, useTheme } from "../lib/theme";
 import { springParams } from "./layout/swipeMotion";
 import { NewTabExtras } from "./ntp";
+import { HomeCardSlot } from "./ntp/HomeCards";
+import { UPSELL_RESERVED_HEIGHT } from "../ai/work/home";
+import { refreshAppsForHome, useHomeCard } from "../ai/work/homeState";
+import { useAliaReady } from "../ai/alia/api";
+import { useNow } from "../live/calendar";
+import { useWindowId, useWindowProfileId } from "../store/hooks";
+import { useOnboarding } from "./onboarding/state";
 import { Omnibox } from "./Omnibox";
 
 const BAR_HEIGHT = 112;
+const BAR_BORDER = 0.5;
+const HOME_CARD_GAP = 14;
 const MARKS = {
   green: { back: require("../../assets/ntp-mark-back.png"), front: require("../../assets/ntp-mark-front.png"), sun: require("../../assets/ntp-mark-sun.png") },
   plum: { back: require("../../assets/ntp-mark-plum-back.png"), front: require("../../assets/ntp-mark-plum-front.png"), sun: require("../../assets/ntp-mark-plum-sun.png") },
@@ -46,12 +55,20 @@ export function barWidth(viewWidth: number) {
 
 export function NewTabPage({ tabId, toolbar = true }: { tabId: string; toolbar?: boolean }) {
   const theme = useTheme();
+  const windowId = useWindowId();
+  const onboarding = useOnboarding((s) => s.windowId === windowId);
   const [size, setSizeState] = useState<Size | null>(lastSize);
   const setSize = (next: Size) => {
     lastSize = next;
     setSizeState((prev) => (prev && prev.width === next.width && prev.height === next.height ? prev : next));
   };
   const [panelHeight, setPanelHeight] = useState(BAR_HEIGHT);
+  const profileId = useWindowProfileId();
+  const aliaReady = useAliaReady();
+  useEffect(() => {
+    if (aliaReady) refreshAppsForHome();
+  }, [aliaReady]);
+  const card = useHomeCard(windowId, profileId, useNow(60_000));
   const [playIntro] = useState(() => !introPlayed.has(tabId));
   const [rise] = useState(() => {
     const intro = playIntro && !reduceMotion;
@@ -78,7 +95,7 @@ export function NewTabPage({ tabId, toolbar = true }: { tabId: string; toolbar?:
   const width = barWidth(size.width);
   const x = Math.max(size.width / 2 - width / 2, 14) + DIA_OFFSET;
   const under = toolbar ? 0 : layout.toolbarHeight;
-  const top = Math.max((size.height - under) / 2 - 158, 100) + 38 + DIA_OFFSET + under;
+  const top = Math.max((size.height - under) / 2 - 158, 100) + 38 + DIA_OFFSET + under - (card ? UPSELL_RESERVED_HEIGHT : 0);
 
   const bar = { x, y: top, width, height: panelHeight };
 
@@ -125,11 +142,18 @@ export function NewTabPage({ tabId, toolbar = true }: { tabId: string; toolbar?:
           fill={hex(theme.ntpBarSolid)}
           cornerRadius={20}
           borderColor={hex(theme.ntpBarBorder)}
-          borderWidth={0.5}
+          borderWidth={BAR_BORDER}
         >
-          <Omnibox variant="hero" tabId={tabId} />
+          {onboarding ? <View style={{ height: BAR_HEIGHT - 2 * BAR_BORDER }} /> : <Omnibox variant="hero" tabId={tabId} />}
         </Surface>
       </View>
+      <HomeCardSlot
+        card={card}
+        windowId={windowId}
+        profileId={profileId}
+        frame={{ x, y: top + BAR_HEIGHT + HOME_CARD_GAP, width }}
+        hidden={panelHeight > BAR_HEIGHT + 4}
+      />
       <NewTabExtras size={size} bar={bar} />
     </View>
   );

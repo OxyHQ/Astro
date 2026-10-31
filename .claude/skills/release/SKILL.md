@@ -246,7 +246,7 @@ gh release create v<version> -R OxyHQ/Astro --title "Astro <version>" \
   --notes-file dist/<version>/release-notes.md \
   dist/<version>/Astro-<version>.dmg dist/<version>/Astro-<version>.zip dist/<version>/appcast.xml \
   dist/<version>/astro-cli-<version>-macos-arm64.tar.gz dist/<version>/astro-cli-<version>-macos-arm64.tar.gz.sha256 \
-  $(ls dist/<version>/AstroCore-*.tar.xz 2>/dev/null)
+  $(ls dist/<version>/AstroCore-*.tar.xz dist/<version>/Astro-*-windows-x64-setup.exe dist/<version>/appcast-windows.xml 2>/dev/null)
 curl -fsL https://github.com/OxyHQ/Astro/releases/latest/download/appcast.xml | grep -o 'shortVersionString>[0-9.]*' | head -1
 .claude/skills/release/scripts/feed.sh <version>
 ```

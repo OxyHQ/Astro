@@ -246,6 +246,7 @@ static void StartLaunchTab() {
   if (AstroCoreTab *tab = AstroCoreWebView.launchTab) [AstroCoreEarlyWindow attachPage:tab key:key];
 }
 
+static bool gAwaitingJavaScript;
 static bool gLaunchedHidden;
 static bool gEarlyWindowPending;
 static bool gLaunchedForDocuments;
@@ -391,15 +392,7 @@ static void StartEarlyWindow() {
   CFRunLoopObserverRef idle = CFRunLoopObserverCreateWithHandler(
       nullptr, kCFRunLoopBeforeWaiting, false, 0, ^(CFRunLoopObserverRef observer, CFRunLoopActivity) {
         CFRunLoopRemoveObserver(CFRunLoopGetMain(), observer, kCFRunLoopCommonModes);
-        __block id started = [NSNotificationCenter.defaultCenter
-            addObserverForName:@"RCTJavaScriptWillStartExecutingNotification"
-                        object:nil
-                         queue:nil
-                    usingBlock:^(NSNotification *) {
-                      [NSNotificationCenter.defaultCenter removeObserver:started];
-                      started = nil;
-                      dispatch_async(dispatch_get_main_queue(), ^{ StartLaunchTab(); });
-                    }];
+        gAwaitingJavaScript = true;
         [self launchApp];
       });
   CFRunLoopAddObserver(CFRunLoopGetMain(), idle, kCFRunLoopCommonModes);
@@ -901,6 +894,14 @@ static void StartEarlyWindow() {
     }];
   }
   return sources;
+}
+
++ (void)javaScriptDidStart {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    if (!gAwaitingJavaScript) return;
+    gAwaitingJavaScript = false;
+    StartLaunchTab();
+  });
 }
 
 + (BOOL)isStarted {

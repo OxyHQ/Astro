@@ -93,3 +93,24 @@ test("an uncaught NSException sends its name and throw site first, never its rea
   assert.equal(exceptions[0].frames[0].in_app, true);
   assert.equal(exceptions[1].frames.at(-1).function, "+[NSApplication _crashOnException:]");
 });
+
+test("a Windows or Linux crash names its exception and counts Chrome's own images as Astro's", () => {
+  const { signal, exceptions } = nativeCrashExceptions({
+    exceptionType: "EXCEPTION_ACCESS_VIOLATION",
+    frames: [
+      { image: "chrome.dll", offset: 0x1234 },
+      { image: "ntdll.dll", offset: 0x10 },
+    ],
+  });
+  assert.equal(signal, null);
+  assert.deepEqual([exceptions[0].type, exceptions[0].value], ["EXCEPTION_ACCESS_VIOLATION", "EXCEPTION_ACCESS_VIOLATION"]);
+  assert.deepEqual(
+    exceptions[0].frames.map((f) => [f.function, f.in_app]),
+    [
+      ["ntdll.dll + 0x10", false],
+      ["chrome.dll + 0x1234", true],
+    ],
+  );
+  assert.equal(nativeFrames([{ image: "chrome", offset: 1 }])[0].in_app, true);
+  assert.equal(nativeFrames([{ image: "chromeos-thing.so", offset: 1 }])[0].in_app, false);
+});

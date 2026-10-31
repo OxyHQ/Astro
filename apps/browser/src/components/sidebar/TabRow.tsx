@@ -19,6 +19,8 @@ import { registerRow, useSidebarUi } from "./state";
 import { TabIcon } from "./TabIcon";
 import { TabBadges } from "../media/TabBadges";
 import { useSidebarTokens } from "./tokens";
+import { hasAiTitle } from "../../ai/pinnedTitles";
+import { TextShimmer, useShimmerOn } from "../ai/TextShimmer";
 
 export const clickMods = (e: GestureResponderEvent) => {
   const n = e.nativeEvent as unknown as { metaKey?: boolean; shiftKey?: boolean; altKey?: boolean };
@@ -62,6 +64,7 @@ export const TabRow = memo(function TabRow({ tabId, onto = false, shift = null }
   const { hovered, hoverProps } = useRowHover(windowId, renaming ? null : { kind: "tab", id: tabId });
   const [moved, movedRef] = useShift(shift, useCallback((v: View | null) => registerRow(windowId, tabId, v), [windowId, tabId]));
   const backToPin = useHover();
+  const shimmerRuns = useShimmerOn(tab?.aiTitle, !!tab && hasAiTitle(tab));
   if (!tab) return null;
   const resettable = isPinnedRow(tab) && awayFromPin(tab);
   const resetting = resettable && backToPin.hovered && !renaming;
@@ -137,7 +140,15 @@ export const TabRow = memo(function TabRow({ tabId, onto = false, shift = null }
                     onDone={(text) => (text === null ? endRename({ kind: "tab", id: tabId }) : commitRename({ kind: "tab", id: tabId }, text))}
                   />
                 ) : (
-                  <FadeLabel text={title} fontSize={13} color={active ? theme.tabSelectedText : theme.textTab} style={{ flex: 1, height: 18, marginLeft: 5 }} />
+                  <View style={{ flex: 1, height: 18, marginLeft: 5 }}>
+                    <TextShimmer
+                      runs={shimmerRuns}
+                      fill
+                      highlight={<FadeLabel text={title} fontSize={13} color={active ? theme.tabSelectedText : theme.textTab} style={{ position: "absolute", left: 0, right: 0, top: 0, height: 18 }} />}
+                    >
+                      <FadeLabel text={title} fontSize={13} color={active ? theme.tabSelectedText : theme.textTab} style={{ position: "absolute", left: 0, right: 0, top: 0, height: 18 }} />
+                    </TextShimmer>
+                  </View>
                 )}
                 <HoverSlot
                   hovered={hovered && !renaming}

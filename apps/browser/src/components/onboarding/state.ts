@@ -5,9 +5,11 @@ import { resolveWindowId } from "../../store/model";
 import { pinSites } from "./sites";
 import { endToolTour, startToolTour } from "./tour/state";
 
-export type OnboardingStep = "intro" | "defaultBrowser" | "personalize" | "import" | "pinnedTabs" | "privacy" | "cli" | "outro";
+export type OnboardingStep = "intro" | "defaultBrowser" | "personalize" | "import" | "account" | "pinnedTabs" | "privacy" | "cli" | "outro";
 
-export const STEPS: OnboardingStep[] = ["intro", "defaultBrowser", "personalize", "import", "pinnedTabs", "privacy", "cli", "outro"];
+const ALL_STEPS: OnboardingStep[] = ["intro", "defaultBrowser", "personalize", "import", "account", "pinnedTabs", "privacy", "cli", "outro"];
+
+export const onboardingSteps = () => ALL_STEPS;
 
 type OnboardingState = {
   windowId: string | null;
@@ -27,8 +29,8 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
   tourAfter: false,
   go: (step) => set({ step }),
   next() {
-    const i = STEPS.indexOf(get().step);
-    const step = STEPS[i + 1];
+    const steps = onboardingSteps();
+    const step = steps[steps.indexOf(get().step) + 1];
     if (step) set({ step });
     else finishOnboarding();
   },
@@ -96,11 +98,11 @@ export function dismissOnboarding(session: number) {
   if (tourAfter && windowId) startToolTour(windowId);
 }
 
-export function maybeStartOnboarding() {
+export function maybeStartOnboarding(hadSession = !!readDocument("session.json")) {
   const saved = readSaved();
   if (saved?.completedAt) return;
   if (saved?.startedAt) return startOnboarding(null, "defaultBrowser");
-  if (readDocument("session.json")) return markCompleted();
+  if (hadSession) return markCompleted();
   if (__DEV__ && launchEnvironment("ASTRO_ONBOARDING") !== "1") return;
   save({ startedAt: Date.now() });
   startOnboarding();

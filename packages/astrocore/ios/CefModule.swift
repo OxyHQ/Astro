@@ -8,6 +8,7 @@ public class CefModule: Module {
     Events("onDownload", "onPermission", "onPermissionDismissed", "onContentBlocker", "onSystemState", "onEngineEvent", "onTabStrip")
 
     OnCreate {
+      AstroCoreHost.javaScriptDidStart()
       AstroCoreEngineBridge.setEventHandler { [weak self] topic, json in self?.sendEvent("onEngineEvent", ["topic": topic, "payload": json]) }
       AstroCoreTabStrip.setHandler { [weak self] tx in self?.sendEvent("onTabStrip", tx) }
       AstroCoreServices.downloadsHandler = { [weak self] download in self?.sendEvent("onDownload", download) }
@@ -218,21 +219,27 @@ public class CefModule: Module {
     View(CefWebView.self) {
       Events(CefWebView.events)
 
-      Prop("url") { (view: CefWebView, url: String?) in view.browser.initialURL = url }
-      Prop("profile") { (view: CefWebView, profile: String?) in view.browser.profile = profile ?? "" }
-      Prop("adoptId") { (view: CefWebView, id: String?) in view.browser.adoptId = id }
-      Prop("transferKey") { (view: CefWebView, key: String?) in view.browser.transferKey = key }
-      Prop("standalone") { (view: CefWebView, standalone: Bool?) in view.browser.standalone = standalone ?? false }
-      Prop("extensionHost") { (view: CefWebView, kind: String?) in view.browser.extensionHost = kind }
-      Prop("visible") { (view: CefWebView, visible: Bool?) in view.browser.visible = visible ?? true }
-      Prop("warm") { (view: CefWebView, warm: Bool?) in view.browser.warm = warm ?? false }
-      Prop("neighbour") { (view: CefWebView, neighbour: Bool?) in view.browser.neighbour = neighbour ?? false }
-      Prop("pageBackgroundColor") { (view: CefWebView, color: NSColor?) in view.browser.pageBackgroundColor = color }
-      Prop("pageColor") { (view: CefWebView, color: String?) in view.browser.pageColor = color }
-      Prop("contentsBackgroundColor") { (view: CefWebView, color: NSColor?) in view.browser.contentsBackgroundColor = color }
-      Prop("shownUrl") { (view: CefWebView, url: String?) in view.browser.shownURL = url }
+      Prop("url") { (view: CefWebView, url: String?) in view.changed("url", url) { view.browser.initialURL = $0 } }
+      Prop("profile") { (view: CefWebView, profile: String?) in view.changed("profile", profile) { view.browser.profile = $0 ?? "" } }
+      Prop("adoptId") { (view: CefWebView, id: String?) in view.changed("adoptId", id) { view.browser.adoptId = $0 } }
+      Prop("transferKey") { (view: CefWebView, key: String?) in view.changed("transferKey", key) { view.browser.transferKey = $0 } }
+      Prop("standalone") { (view: CefWebView, standalone: Bool?) in
+        view.changed("standalone", standalone) { view.browser.standalone = $0 ?? false }
+      }
+      Prop("extensionHost") { (view: CefWebView, kind: String?) in view.changed("extensionHost", kind) { view.browser.extensionHost = $0 } }
+      Prop("visible") { (view: CefWebView, visible: Bool?) in view.changed("visible", visible) { view.browser.visible = $0 ?? true } }
+      Prop("warm") { (view: CefWebView, warm: Bool?) in view.changed("warm", warm) { view.browser.warm = $0 ?? false } }
+      Prop("neighbour") { (view: CefWebView, neighbour: Bool?) in view.changed("neighbour", neighbour) { view.browser.neighbour = $0 ?? false } }
+      Prop("pageBackgroundColor") { (view: CefWebView, color: NSColor?) in
+        view.changed("pageBackgroundColor", color) { view.browser.pageBackgroundColor = $0 }
+      }
+      Prop("pageColor") { (view: CefWebView, color: String?) in view.changed("pageColor", color) { view.browser.pageColor = $0 } }
+      Prop("contentsBackgroundColor") { (view: CefWebView, color: NSColor?) in
+        view.changed("contentsBackgroundColor", color) { view.browser.contentsBackgroundColor = $0 }
+      }
+      Prop("shownUrl") { (view: CefWebView, url: String?) in view.changed("shownUrl", url) { view.browser.shownURL = $0 } }
       Prop("autoPictureInPicture") { (view: CefWebView, enabled: Bool?) in
-        view.browser.autoPictureInPicture = enabled ?? false
+        view.changed("autoPictureInPicture", enabled) { view.browser.autoPictureInPicture = $0 ?? false }
       }
 
       AsyncFunction("loadUrl") { (view: CefWebView, url: String, userInitiated: Bool?) in
@@ -266,6 +273,9 @@ public class CefModule: Module {
       }.runOnQueue(.main)
       AsyncFunction("capturePicture") { (view: CefWebView, scale: Double, promise: Promise) in
         view.browser.capturePicture(scale) { promise.resolve($0) }
+      }.runOnQueue(.main)
+      AsyncFunction("devToolsCall") { (view: CefWebView, method: String, params: [String: Any], promise: Promise) in
+        view.browser.devToolsCall(method, params: params) { promise.resolve($0) }
       }.runOnQueue(.main)
       AsyncFunction("downloadFavicon") { (view: CefWebView, url: String, promise: Promise) in
         view.browser.downloadFavicon(url, name: nil) { promise.resolve($0) }
@@ -404,6 +414,13 @@ final class CefWebView: ExpoView, AstroCoreWebViewDelegate {
   let onPreferredSize = EventDispatcher()
 
   private var propsReady = false
+  private var applied: [String: Any] = [:]
+
+  func changed<Value: Equatable>(_ name: String, _ value: Value?, apply: (Value?) -> Void) {
+    if applied[name] as? Value == value { return }
+    applied[name] = value
+    apply(value)
+  }
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)

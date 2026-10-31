@@ -9,6 +9,7 @@
     "dev": "turbo run dev --filter=@astro-browser/browser",
     "macos": "pnpm --filter @astro-browser/browser macos",
     "pods": "pnpm --filter @astro-browser/browser pods",
+    "linux": "pnpm -C apps/webui build && scripts/linux-run.sh",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "shaders:check": "turbo run shaders:check",

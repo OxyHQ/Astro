@@ -5,6 +5,7 @@ export * from "./cleanUrl.ts";
 export * from "./engines.ts";
 export * from "./fuzzy.ts";
 export * from "./idn.ts";
+export * from "./inputRoute.ts";
 export * from "./omnibox.ts";
 export * from "./quickCreate.ts";
 export * from "./siteSearch.ts";

@@ -1,0 +1,64 @@
+diff --git a/content/browser/back_forward_cache/back_forward_cache_impl.cc b/content/browser/back_forward_cache/back_forward_cache_impl.cc
+--- a/content/browser/back_forward_cache/back_forward_cache_impl.cc
++++ b/content/browser/back_forward_cache/back_forward_cache_impl.cc
+@@ -934,7 +934,7 @@
+   // This function can be called during eviction, and |rfh| can be in
+   // back/forward cache, which is considered as non primary main frame.
+   bool main_frame_in_bfcache =
+-      rfh->IsInBackForwardCache() && !rfh->GetParentOrOuterDocumentOrEmbedder();
++      rfh->IsInBackForwardCache() && !rfh->GetParentOrOuterDocument();
+ 
+   // Call the recursive function that adds the reasons from the subtree to the
+   // flattened list, and return the tree if needed.
+@@ -972,7 +972,7 @@
+     RenderFrameHostImpl* rfh,
+     bool is_becoming_forward_entry) {
+   bool main_frame_in_bfcache =
+-      rfh->IsInBackForwardCache() && !rfh->GetParentOrOuterDocumentOrEmbedder();
++      rfh->IsInBackForwardCache() && !rfh->GetParentOrOuterDocument();
+   DCHECK(rfh->IsInPrimaryMainFrame() || main_frame_in_bfcache);
+ 
+   // If the the delegate doesn't support back forward cache, disable it.
+@@ -1139,8 +1139,11 @@
+   // We also make MPArch based GuestViews ineligible. While supporting them
+   // is probably feasible, other than the case of https://crbug.com/330282443 ,
+   // there is little benefit to doing so.
++  // Astro: a page that is itself an attached inner WebContents (Webium's tabs)
++  // is cached like any tab; only the inner WebContents it holds block it.
+   if ((rfh->frame_tree()->delegate()->GetOuterDelegateFrameTreeNodeId() &&
+-       rfh->frame_tree()->is_primary()) ||
++       rfh->frame_tree()->is_primary() &&
++       rfh->frame_tree() != root_rfh_->frame_tree()) ||
+       rfh->frame_tree()->is_guest()) {
+     result.No(BackForwardCacheMetrics::NotRestoredReason::kHaveInnerContents);
+   }
+@@ -1325,7 +1328,7 @@
+   // page's outermost main frame.
+   DCHECK(root_rfh_->IsInPrimaryMainFrame() ||
+          (root_rfh_->IsInBackForwardCache() &&
+-          !root_rfh_->GetParentOrOuterDocumentOrEmbedder()));
++          !root_rfh_->GetParentOrOuterDocument()));
+   // Populate the reasons and build the tree.
+   std::map<RenderFrameHostImpl*, BackForwardCacheCanStoreTreeResult*>
+       parent_map;
+@@ -2287,7 +2290,7 @@
+     BackForwardCacheCanStoreDocumentResult& result_for_this_document)
+     : document_result_(std::move(result_for_this_document)),
+       is_same_origin_(IsSameOriginForTreeResult(rfh, main_document_origin)),
+-      is_root_outermost_main_frame_(!rfh->GetParentOrOuterDocumentOrEmbedder()),
++      is_root_outermost_main_frame_(!rfh->GetParentOrOuterDocument()),
+       id_(rfh->frame_tree_node()->html_id()),
+       name_(rfh->frame_tree_node()->html_name()),
+       src_(rfh->frame_tree_node()->html_src()),
+diff --git a/content/browser/back_forward_cache/back_forward_cache_metrics.cc b/content/browser/back_forward_cache/back_forward_cache_metrics.cc
+--- a/content/browser/back_forward_cache/back_forward_cache_metrics.cc
++++ b/content/browser/back_forward_cache/back_forward_cache_metrics.cc
+@@ -85,7 +85,7 @@
+ bool BackForwardCacheMetrics::IsCrossDocumentMainFrameHistoryNavigation(
+     NavigationRequest* navigation) {
+   return navigation->IsInPrimaryMainFrame() &&
+-         !navigation->frame_tree_node()->GetParentOrOuterDocumentOrEmbedder() &&
++         !navigation->frame_tree_node()->GetParentOrOuterDocument() &&
+          !navigation->IsSameDocument() &&
+          navigation->GetPageTransition() & ui::PAGE_TRANSITION_FORWARD_BACK;
+ }

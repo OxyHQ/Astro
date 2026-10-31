@@ -1,7 +1,9 @@
 import { cleanUrl, markdownLink } from "@astro-browser/core";
 import { copyText, prompt, showMenu, type MenuItem } from "@astro-browser/shell";
+import { chatAboutLiveFolder } from "../../ai/chat/liveFolders";
+import { chatAvailable } from "../../ai/chatEntry";
 import { closeTab } from "../../lib/actions";
-import { calendarConnected, connectCalendar, setCalendarHidden, useCalendar } from "../../live/calendar";
+import { calendarConnected, connectCalendar, openNiloCalendarSubscriptions, setCalendarHidden, useCalendar } from "../../live/calendar";
 import { deleteLiveFolder, newLiveFolder, openLiveItem, refreshFolder, statusText } from "../../live/engine";
 import { ALERT_LEADS } from "../../live/meetings";
 import { SOURCES } from "../../live/sources";
@@ -46,6 +48,7 @@ export async function openLiveFolderMenu(windowId: string, folderId: string) {
   const choice = await showMenu([
     { id: "status", title: statusText(folderId), enabled: false },
     { id: "refresh", title: "Refresh", symbol: "arrow.clockwise", enabled: status?.state !== "updating" },
+    ...(chatAvailable() ? [{ id: "chat", title: "Chat About This Folder", symbol: "sparkles" }] : []),
     sep,
     ...(pr
       ? [
@@ -77,6 +80,7 @@ export async function openLiveFolderMenu(windowId: string, folderId: string) {
   ]);
   if (!choice) return;
   if (choice === "refresh") void refreshFolder(folderId);
+  else if (choice === "chat") chatAboutLiveFolder(windowId, folderId);
   else if (choice.startsWith("filter:")) {
     const key = choice.slice(7) as "authored" | "reviewRequests";
     updateFolder(folderId, { filters: { ...folder.filters, [key]: !folder.filters[key] } });
@@ -124,7 +128,8 @@ export function calendarMenuItem(): MenuItem {
   const settings = live().calendar;
   const { calendars } = useCalendar.getState();
   const owned = calendars.filter((c) => c.owned);
-  const others = calendars.filter((c) => !c.owned);
+  const subscribed = calendars.filter((c) => c.subscribed);
+  const others = calendars.filter((c) => !c.owned && !c.subscribed);
   const hidden = new Set(settings.hiddenCalendarIds);
   const calendarItems = (list: typeof calendars): MenuItem[] => list.map((c) => ({ id: `cal:toggle:${c.id}`, title: c.title, swatch: c.color, checked: !hidden.has(c.id) }));
   return {
@@ -132,7 +137,7 @@ export function calendarMenuItem(): MenuItem {
     title: "Calendar",
     symbol: "calendar",
     children: [
-      ...(calendarConnected() ? [] : [{ id: "cal:connect", title: "Connect Calendar…", symbol: "calendar.badge.plus" }, sep]),
+      ...(calendarConnected() ? [] : [{ id: "cal:connect", title: "Sign In with Oxy…", symbol: "person.crop.circle" }, sep]),
       {
         id: "cal:alerts",
         title: "Show Next Meeting Alert",
@@ -147,8 +152,10 @@ export function calendarMenuItem(): MenuItem {
         children: [
           ...(owned.length ? [{ id: "cal:h1", title: "My Calendars", enabled: false }, ...calendarItems(owned)] : []),
           ...(others.length ? [sep, { id: "cal:h2", title: "Other Calendars", enabled: false }, ...calendarItems(others)] : []),
+          ...(subscribed.length ? [sep, { id: "cal:h3", title: "Subscribed Calendars", enabled: false }, ...calendarItems(subscribed)] : []),
         ],
       },
+      ...(calendarConnected() ? [{ id: "cal:subscribe", title: "Add Google, Outlook or iCloud Calendar…", symbol: "calendar.badge.plus" }] : []),
       sep,
       { id: "cal:settings", title: "Calendar Settings…", symbol: "gearshape" },
     ],
@@ -165,6 +172,7 @@ export function runCalendarMenu(choice: string): boolean {
   else if (choice.startsWith("cal:toggle:")) {
     const id = choice.slice(11);
     setCalendarHidden(id, !settings.hiddenCalendarIds.includes(id));
-  } else if (choice === "cal:settings") openSettings("calendar");
+  } else if (choice === "cal:subscribe") openNiloCalendarSubscriptions();
+  else if (choice === "cal:settings") openSettings("calendar");
   return true;
 }

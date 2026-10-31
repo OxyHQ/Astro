@@ -1,166 +1,125 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-const { afterHeldReports, createHold, holdPageReports } = await import("./nativeEvents.ts");
+const { createHold, flushBeforeOtherEvents, holdPageReports } = await import("./nativeEvents.ts");
 
-function setup() {
+function setup({ transaction } = {}) {
   const log = [];
-  const hooks = {};
-  const bridge = {
-    __callFunction: (module, method, args) => {
-      if (args[2]?.throws) throw new Error(args[2].throws);
-      log.push(module === "RCTEventEmitter" ? args[1] : `${module}.${method}`);
-      if (args[2]?.reenter) {
-        hooks.flush();
-        log.push("listener");
-      }
-    },
-    __invokeCallback: (id) => log.push(`callback ${id}`),
-  };
   const scheduled = [];
   const errors = [];
-  let depth = 0;
-  const batch = (update) => {
-    if (!depth) log.push("[");
-    depth++;
-    try {
-      update();
-    } finally {
-      depth--;
-      if (!depth) log.push("]");
-    }
+  const held = createHold({ transaction, schedule: (callback) => scheduled.push(callback), report: (e) => errors.push(e.message) });
+  let delivery;
+  holdPageReports((next) => (delivery = next), held);
+  const raw = [];
+  flushBeforeOtherEvents({ addListener: (_channel, listener) => (raw.push(listener), { remove() {} }) }, held);
+  const dispatch = (handler, body = {}) => {
+    const eventName = `top${handler.slice(2)}`;
+    for (const listener of raw) listener({ eventName });
+    delivery(handler, () => {
+      if (body.throws) throw new Error(body.throws);
+      log.push(handler);
+      if (body.reenter) {
+        held.flush();
+        log.push("listener");
+      }
+    });
   };
-  const held = createHold({ batch, schedule: (callback) => scheduled.push(callback), report: (e) => errors.push(e.message) });
-  holdPageReports(bridge, held);
-  hooks.flush = held.flush;
-  const event = (name, body = {}) => bridge.__callFunction("RCTEventEmitter", "receiveEvent", [1, name, body]);
-  return { log, bridge, scheduled, errors, held, event };
+  const other = (eventName) => {
+    for (const listener of raw) listener({ eventName });
+    log.push(eventName);
+  };
+  return { log, scheduled, errors, held, dispatch, other };
 }
 
-test("page reports wait for the calls queued behind them, then apply in order as one batch", () => {
-  const { log, scheduled, event } = setup();
-  event("topNavigationChange");
-  event("topProgress");
-  event("topFavicon");
+test("page reports wait for the end of the task, then apply in order", () => {
+  const { log, scheduled, dispatch } = setup();
+  dispatch("onNavigationChange");
+  dispatch("onProgress");
+  dispatch("onFavicon");
   assert.deepEqual(log, [], "held");
   assert.equal(scheduled.length, 1, "one flush scheduled for the run");
   scheduled[0]();
-  assert.deepEqual(log, ["[", "topNavigationChange", "topProgress", "topFavicon", "]"]);
+  assert.deepEqual(log, ["onNavigationChange", "onProgress", "onFavicon"]);
   scheduled[0]();
-  assert.equal(log.length, 5, "a second flush has nothing left");
+  assert.equal(log.length, 3, "a second flush has nothing left");
 });
 
-test("anything else applies the held reports before it runs: events, timers, callbacks", () => {
-  const { log, bridge, scheduled, event } = setup();
-  event("topNavigationChange");
-  event("topOpenWindow");
-  assert.deepEqual(log, ["[", "topNavigationChange", "]", "topOpenWindow"], "a page opening a window isn't held, and comes after");
-  event("topProgress");
-  bridge.__callFunction("JSTimers", "callTimers", [[1]]);
-  event("topStatus");
-  bridge.__invokeCallback(7, []);
-  assert.deepEqual(log.slice(4), ["[", "topProgress", "]", "JSTimers.callTimers", "[", "topStatus", "]", "callback 7"]);
+test("any other event applies the held reports before it runs", () => {
+  const { log, scheduled, dispatch, other } = setup();
+  dispatch("onNavigationChange");
+  dispatch("onOpenWindow");
+  assert.deepEqual(log, ["onNavigationChange", "onOpenWindow"], "a page opening a window isn't held, and comes after");
+  dispatch("onProgress");
+  other("topTouchStart");
+  dispatch("onStatus");
+  other("topLayout");
+  assert.deepEqual(log.slice(2), ["onProgress", "topTouchStart", "onStatus", "topLayout"]);
   assert.equal(scheduled.length, 3, "a new run after each flush schedules its own");
 });
 
 test("a report that throws doesn't drop the ones after it, and is reported from a task of its own", () => {
-  const { log, errors, scheduled, event } = setup();
-  event("topNavigationChange", { throws: "boom" });
-  event("topProgress");
+  const { log, errors, scheduled, dispatch } = setup();
+  dispatch("onNavigationChange", { throws: "boom" });
+  dispatch("onProgress");
   scheduled[0]();
-  assert.deepEqual(log, ["[", "topProgress", "]"]);
+  assert.deepEqual(log, ["onProgress"]);
   assert.deepEqual(errors, []);
   scheduled[1]();
   assert.deepEqual(errors, ["boom"]);
 });
 
-test("a flush set off while one runs applies the rest first, in the same batch", () => {
-  const { log, scheduled, event } = setup();
-  event("topNavigationChange", { reenter: true });
-  event("topProgress");
-  event("topFavicon");
+test("a flush set off while one runs applies the rest first", () => {
+  const { log, scheduled, dispatch } = setup();
+  dispatch("onNavigationChange", { reenter: true });
+  dispatch("onProgress");
+  dispatch("onFavicon");
   scheduled[0]();
-  assert.deepEqual(log, ["[", "topNavigationChange", "topProgress", "topFavicon", "listener", "]"]);
+  assert.deepEqual(log, ["onNavigationChange", "onProgress", "onFavicon", "listener"]);
 });
 
-test("a reporter that throws can't drop reports or the call that applied them", () => {
+test("a reporter that throws can't drop reports", () => {
   const log = [];
-  const bridge = {
-    __callFunction: (_m, method, args) => {
-      if (args[2]?.throws) throw new Error("boom");
-      log.push(args[1] ?? method);
-    },
-    __invokeCallback: (id) => log.push(`callback ${id}`),
-  };
   const scheduled = [];
-  holdPageReports(bridge, createHold({ batch: (u) => u(), schedule: (c) => scheduled.push(c), report: () => { throw new Error("reporter"); } }));
-  bridge.__callFunction("RCTEventEmitter", "receiveEvent", [1, "topNavigationChange", { throws: true }]);
-  bridge.__callFunction("RCTEventEmitter", "receiveEvent", [1, "topProgress", {}]);
-  bridge.__invokeCallback(7, []);
-  assert.deepEqual(log, ["topProgress", "callback 7"]);
+  const held = createHold({ schedule: (c) => scheduled.push(c), report: () => { throw new Error("reporter"); } });
+  const run = (name, throws) => held.hold(() => {
+    if (throws) throw new Error("boom");
+    log.push(name);
+  });
+  run("onNavigationChange", true);
+  run("onProgress");
+  scheduled[0]();
+  assert.deepEqual(log, ["onProgress"]);
   assert.throws(() => scheduled[1](), /reporter/, "the reporter's own error surfaces in its task");
-  bridge.__callFunction("RCTEventEmitter", "receiveEvent", [1, "topMedia", { throws: true }]);
-  bridge.__callFunction("RCTEventEmitter", "receiveEvent", [1, "topStatus", { throws: true }]);
+  run("onMedia", true);
+  run("onStatus", true);
   scheduled[2]();
   assert.equal(scheduled.length, 5, "two errors, two tasks: one throwing reporter can't swallow the other");
-  bridge.__callFunction("RCTEventEmitter", "receiveEvent", [1, "topStatus", {}]);
+  run("onStatus");
   scheduled[5]();
-  assert.deepEqual(log, ["topProgress", "callback 7", "topStatus"], "and the queue starts afresh");
-});
-
-test("a native module's listener runs after the held reports, in one batch with them", () => {
-  const { log, held, scheduled, event } = setup();
-  const added = new Map();
-  const emitter = {
-    addListener(name, listener) {
-      added.set(name, [...(added.get(name) ?? []), listener]);
-      return { remove: () => added.set(name, added.get(name).filter((l) => l !== listener)) };
-    },
-    removeListener(name, listener) {
-      added.set(name, added.get(name).filter((l) => l !== listener));
-    },
-  };
-  afterHeldReports(emitter, held);
-  const emit = (name, ...args) => added.get(name)?.forEach((l) => l(...args));
-  const onStrip = (tx) => log.push(`strip ${tx.rev}`);
-  emitter.addListener("onTabStrip", onStrip);
-  event("topNavigationChange");
-  emit("onTabStrip", { rev: 4 });
-  assert.deepEqual(log, ["[", "topNavigationChange", "strip 4", "]"]);
-  emitter.removeListener("onTabStrip", onStrip);
-  emit("onTabStrip", { rev: 5 });
-  assert.equal(log.length, 4, "removeListener with the listener the app added removes it");
-  const sub = emitter.addListener("onDownload", (d) => log.push(`download ${d}`));
-  sub.remove();
-  emit("onDownload", 1);
-  assert.equal(log.length, 4, "and so does its subscription");
+  assert.deepEqual(log, ["onProgress", "onStatus"], "and the queue starts afresh");
 });
 
 test("a flush's reports run in one store transaction; a listener's error at its end is reported like a report's", () => {
-  const log = [];
-  const bridge = { __callFunction: (_m, _method, args) => log.push(args[1]), __invokeCallback: () => {} };
-  const scheduled = [];
-  const errors = [];
   let ends = 0;
+  const marks = [];
   const transaction = (run) => {
-    log.push("{");
+    marks.push("{");
     run();
-    log.push("}");
+    marks.push("}");
     if (++ends === 2) throw new Error("listener");
   };
-  const held = createHold({ batch: (u) => u(), transaction, schedule: (c) => scheduled.push(c), report: (e) => errors.push(e.message) });
-  holdPageReports(bridge, held);
-  const event = (name) => bridge.__callFunction("RCTEventEmitter", "receiveEvent", [1, name, {}]);
-  event("topNavigationChange");
-  event("topProgress");
+  const { log, scheduled, errors, dispatch } = setup({ transaction });
+  dispatch("onNavigationChange");
+  dispatch("onProgress");
   scheduled[0]();
-  assert.deepEqual(log, ["{", "topNavigationChange", "topProgress", "}"]);
-  event("topFavicon");
+  assert.deepEqual(log, ["onNavigationChange", "onProgress"]);
+  assert.deepEqual(marks, ["{", "}"]);
+  dispatch("onFavicon");
   scheduled[1]();
-  assert.deepEqual(log.slice(4), ["{", "topFavicon", "}"]);
+  assert.deepEqual(marks, ["{", "}", "{", "}"]);
   assert.deepEqual(errors, []);
   scheduled[2]();
   assert.deepEqual(errors, ["listener"]);
-  event("topStatus");
+  dispatch("onStatus");
   scheduled[3]();
-  assert.deepEqual(log.slice(7), ["{", "topStatus", "}"], "and the next flush starts afresh");
+  assert.deepEqual(marks.slice(4), ["{", "}"], "and the next flush starts afresh");
 });

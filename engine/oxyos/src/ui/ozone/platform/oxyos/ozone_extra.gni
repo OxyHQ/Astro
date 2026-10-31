@@ -1,0 +1,8 @@
+# Copyright 2026 Oxy. Apache-2.0.
+
+ozone_external_platforms = [ "oxyos" ]
+ozone_external_platform_deps = [ "platform/oxyos" ]
+ozone_external_platform_test_deps = [ "platform/oxyos:oxyos_unittests" ]
+ozone_external_platform_integration_test_deps = []
+ozone_external_platform_ui_test_support_deps = []
+ozone_external_interactive_ui_tests_deps = []

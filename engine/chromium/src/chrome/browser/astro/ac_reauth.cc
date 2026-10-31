@@ -2,23 +2,36 @@
 
 #include "chrome/browser/astro/ac_reauth.h"
 
-#include <Security/Security.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <memory>
 #include <utility>
 
-#include "base/apple/scoped_cftyperef.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/browser/device_reauth/chrome_device_authenticator_factory.h"
 #include "chrome/browser/astro/ac_engine.h"
 #include "components/device_reauth/device_authenticator.h"
 #include "components/os_crypt/common/os_crypt_switches.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_LINUX)
+#include <string_view>
+
+#include "base/time/time.h"
+#include "chrome/browser/astro/ac_polkit_authenticator.h"
+#else
+#include "chrome/browser/device_reauth/chrome_device_authenticator_factory.h"
+#endif
+
+#if BUILDFLAG(IS_MAC)
+#include <Security/Security.h>
+
+#include "base/apple/scoped_cftyperef.h"
+#endif
 
 namespace astro {
 namespace {
@@ -28,6 +41,7 @@ bool HiddenTestInstance() {
   return background && !strcmp(background, "1");
 }
 
+#if BUILDFLAG(IS_MAC)
 bool SignedForDistribution() {
   base::apple::ScopedCFTypeRef<SecCodeRef> self;
   if (SecCodeCopySelf(kSecCSDefaultFlags, self.InitializeInto()) !=
@@ -46,13 +60,18 @@ bool SignedForDistribution() {
   return SecCodeCheckValidity(self.get(), kSecCSDefaultFlags,
                               distribution.get()) == errSecSuccess;
 }
+#endif
 
 bool TestGrantHonoured() {
+#if BUILDFLAG(IS_MAC)
   static const bool honoured =
       !SignedForDistribution() &&
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           os_crypt::switches::kUseMockKeychain);
   return honoured;
+#else
+  return false;
+#endif
 }
 
 bool TestGrant() {
@@ -60,11 +79,13 @@ bool TestGrant() {
   return grant && !strcmp(grant, "granted") && TestGrantHonoured();
 }
 
+#if !BUILDFLAG(IS_LINUX)
 const char* Histogram(device_reauth::DeviceAuthSource source) {
   return source == device_reauth::DeviceAuthSource::kPasswordManager
              ? "PasswordManager.ReauthToAccessPasswordInSettings"
              : "Autofill.PaymentMethods.SettingsPage.Reauth";
 }
+#endif
 
 class ReauthState : public ProfileState {
  public:
@@ -89,9 +110,19 @@ class ReauthState : public ProfileState {
         return;
       }
     }
+#if BUILDFLAG(IS_LINUX)
+    if (validity.is_positive() && !last_granted_.is_null() &&
+        base::TimeTicks::Now() - last_granted_ < validity) {
+      std::move(done).Run(true);
+      return;
+    }
+    authenticator_ = std::make_unique<PolkitAuthenticator>(base::BindRepeating(
+        &ReauthState::Unavailable, weak_factory_.GetWeakPtr()));
+#else
     authenticator_ = ChromeDeviceAuthenticatorFactory::GetForProfile(
         profile(), device_reauth::DeviceAuthParams(validity, source,
                                                    Histogram(source)));
+#endif
     authenticator_->AuthenticateWithMessage(
         purpose, base::BindOnce(&ReauthState::Done, self, generation,
                                 std::move(done)));
@@ -106,11 +137,26 @@ class ReauthState : public ProfileState {
   void Done(int generation,
             base::OnceCallback<void(bool)> done,
             bool authenticated) {
+#if BUILDFLAG(IS_LINUX)
+    if (authenticated) {
+      last_granted_ = base::TimeTicks::Now();
+    }
+#endif
     if (generation == generation_) {
       authenticator_.reset();
     }
     std::move(done).Run(authenticated);
   }
+
+#if BUILDFLAG(IS_LINUX)
+  void Unavailable(std::string_view reason) {
+    LOG(WARNING) << "[astro] OS reauth denied: " << reason;
+    Emit("reauth.unavailable", profile(),
+         base::DictValue().Set("reason", reason));
+  }
+
+  base::TimeTicks last_granted_;
+#endif
 
   std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator_;
   int generation_ = 0;

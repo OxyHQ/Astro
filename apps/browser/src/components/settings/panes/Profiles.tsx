@@ -16,6 +16,8 @@ import { iconMenuItems, PROFILE_SYMBOLS, ProfileBadge, profileSymbol } from "../
 import { Button, Group, PopUp, Row, SectionHeader, TextField, useFormColors } from "../controls";
 import { closeSettingsSheet, showSettingsSheet } from "../sheet";
 import { ThemeSection } from "../ThemeEditor";
+import { MorningBriefControls } from "./Apps";
+import { useOxySession } from "../../../oxy/session";
 import { useSettingsNav } from "../windows";
 
 const listOf = (names: string[]) => (names.length <= 2 ? names.join(" and ") : `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`);
@@ -231,6 +233,7 @@ function iconTitle(icon: string | null): string {
 export function ProfileDetailsPane({ profileId }: { profileId: string }) {
   const theme = useTheme();
   const profile = useBrowser((s) => s.profiles[profileId]);
+  const signedIn = useOxySession((s) => !!s.account);
   const isDefault = useBrowser((s) => s.settings.defaultProfileId === profileId);
   const only = useBrowser((s) => s.profileOrder.length <= 1);
   const shared = useSharedWith(profileId);
@@ -274,6 +277,9 @@ export function ProfileDetailsPane({ profileId }: { profileId: string }) {
         </Row>
         <Row title="Icon" description={iconTitle(profile.icon)}>
           <Button title="Change…" onPress={() => void pickIcon()} />
+        </Row>
+        <Row title="Morning Brief" description="Offers Start My Day on this profile's New Tab page once a day, after this time.">
+          <MorningBriefControls profileId={profileId} signedIn={signedIn} />
         </Row>
       </Group>
 

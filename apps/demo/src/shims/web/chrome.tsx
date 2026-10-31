@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { View, type ViewProps, type ViewStyle } from "react-native";
 import { useBrowser } from "../../../../browser/src/store/browser";
 import { edgeGain, fallbackRadius, highlightMask, maskStyle, peakGain, SHADE_OUTSET, shadeMask, shapeMask, type RimCurve, type RimProfile, type ShadeProfile } from "./glassRim";
+import { menuIsOpen } from "./overlays";
 
 type Style = ViewStyle & Record<string, unknown>;
 
@@ -233,6 +234,7 @@ export function OutsidePressArea({ onOutsidePress, ...props }: ViewProps & { onO
   latest.current = onOutsidePress;
   useEffect(() => {
     const down = (e: PointerEvent) => {
+      if (menuIsOpen()) return;
       if (node.current && e.target instanceof Node && !node.current.contains(e.target)) latest.current?.();
     };
     document.addEventListener("pointerdown", down, true);

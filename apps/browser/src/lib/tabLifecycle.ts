@@ -12,7 +12,6 @@ import { activeTabId, engineProfile, isIncognitoProfile, wake } from "../store/m
 import { holderOf } from "../store/pinShare";
 import { splitOf } from "../store/splits";
 import { switchOn } from "./killSwitches";
-import { applyHeldReports } from "./nativeEvents";
 import { everySlowly, reschedule } from "./slowTimers";
 import { webviews } from "./webviews";
 
@@ -37,6 +36,28 @@ type Lifecycle = {
 export const useLifecycle = create<Lifecycle>()(() => ({ discarded: {}, batterySaver: false }));
 
 export const useIsSleeping = (tabId: string) => useLifecycle((l) => !!l.discarded[tabId]);
+
+export type SharedBatterySaver = { on: boolean; lowBatteryHeld: boolean; chromeSaver: boolean; announce: boolean };
+
+export type LifecycleHost = {
+  leads(): boolean;
+  ownsWindow(windowId: string): boolean;
+  launching: boolean;
+  watchAppActive(listener: (active: boolean) => void): void;
+  shareBatterySaver?(state: SharedBatterySaver): void;
+};
+
+const SOLE_RUNTIME: LifecycleHost = {
+  leads: () => true,
+  ownsWindow: () => true,
+  launching: true,
+  watchAppActive: (listener) => {
+    onWindowEvent((e) => e.type === "focus" && listener(true));
+    onAppEvent((e) => (e.type === "resignActive" || e.type === "screenLocked") && listener(false));
+  },
+};
+
+let host = SOLE_RUNTIME;
 
 const store = () => useBrowser.getState();
 
@@ -126,7 +147,6 @@ export async function sleepTab(id: string): Promise<boolean> {
   const handle = webviews.get(id);
   if (!handle || useLifecycle.getState().discarded[id]) return false;
   if ((await hasUnsavedInput(handle)) !== false) return false;
-  applyHeldReports();
   const s = store();
   if (shownTabIds(s).has(id) || keepAliveReason(s, id) || webviews.get(id) !== handle) return false;
   return (await handle.discard()) === "discarded";
@@ -192,7 +212,7 @@ export async function sweep(overrides: Partial<typeof POLICY> = {}): Promise<str
       if (slept.length >= policy.perSweep) break;
       if (await sleepTab(id)) slept.push(id);
     }
-    releaseUnusedProfiles();
+    if (host.leads()) releaseUnusedProfiles();
   } finally {
     sweeping = false;
   }
@@ -217,10 +237,7 @@ function unusedProfiles(s: BrowserState, now: number, idleMs: number): Set<strin
 function releaseUnusedProfiles() {
   const s = store();
   const inUse = new Set(Object.values(s.windows).map((w) => engineProfile(w.profileId)));
-  for (const id of webviews.keys()) {
-    const tab = s.tabs[id];
-    if (tab) inUse.add(engineProfile(tab.profileId));
-  }
+  for (const tab of Object.values(s.tabs)) if (webviews.has(tab.id) || !host.ownsWindow(tab.windowId)) inUse.add(engineProfile(tab.profileId));
   for (const profile of [...loadedProfiles]) {
     if (!profile || isIncognitoProfile(profile) || inUse.has(profile)) continue;
     loadedProfiles.delete(profile);
@@ -242,7 +259,12 @@ export async function syncChromeBatterySaver(): Promise<boolean> {
   );
   if (sync === chromeSaverSync) chromeSaver = owned;
   reschedule();
+  shareBatterySaver(false);
   return chromeSaver;
+}
+
+function shareBatterySaver(announce: boolean) {
+  if (host.leads()) host.shareBatterySaver?.({ on: useLifecycle.getState().batterySaver, lowBatteryHeld, chromeSaver, announce });
 }
 
 const LOW_BATTERY_PERCENT = 20;
@@ -256,15 +278,38 @@ export function batterySaverWanted(when: BatterySaverWhen, sys: SystemState | nu
 let lowBatteryHeld = false;
 
 function updateBatterySaver(announce: boolean) {
+  if (!host.leads()) return;
   const wanted = batterySaverWanted(store().settings.batterySaverWhen, currentSystem(), lowBatteryHeld);
+  const heldChanged = wanted.lowBatteryHeld !== lowBatteryHeld;
   lowBatteryHeld = wanted.lowBatteryHeld;
   const on = wanted.on;
-  if (on === useLifecycle.getState().batterySaver) return;
-  useLifecycle.setState({ batterySaver: on });
+  if (on === useLifecycle.getState().batterySaver) return void (heldChanged && shareBatterySaver(false));
+  applyBatterySaver(on, announce);
+  shareBatterySaver(announce);
   void syncChromeBatterySaver();
+}
+
+export function followBatterySaver(shared: SharedBatterySaver) {
+  if (host.leads()) return;
+  lowBatteryHeld = shared.lowBatteryHeld;
+  if (shared.chromeSaver !== chromeSaver) {
+    chromeSaver = shared.chromeSaver;
+    reschedule();
+  }
+  if (shared.on !== useLifecycle.getState().batterySaver) applyBatterySaver(shared.on, shared.announce);
+}
+
+export function leadTabLifecycle() {
+  if (!started) return;
+  updateBatterySaver(true);
+  void syncChromeBatterySaver();
+}
+
+function applyBatterySaver(on: boolean, announce: boolean) {
+  useLifecycle.setState({ batterySaver: on });
   if (!on && !chromeSaver) thawAll();
   const windowId = store().ui.focusedWindowId;
-  if (!announce || !windowId || !store().windows[windowId]) return;
+  if (!announce || !windowId || !store().windows[windowId] || !host.ownsWindow(windowId)) return;
   if (on) {
     showToast(windowId, "Battery Saver Mode Activated", "Busy background tabs are paused.", {
       icon: "battery.25",
@@ -320,7 +365,6 @@ async function freezeBusyTabs(overrides: Partial<typeof POLICY> = {}): Promise<s
 export async function freezeTab(id: string): Promise<boolean> {
   const handle = webviews.get(id);
   if (!handle || !useLifecycle.getState().batterySaver) return false;
-  applyHeldReports();
   const s = store();
   if (shownTabIds(s).has(id) || keepAliveReason(s, id)) return false;
   await handle.setFrozen(true);
@@ -351,12 +395,12 @@ function reloadRecentTabs(sys: SystemState) {
 
 let started = false;
 
-export function startTabLifecycle() {
+export function startTabLifecycle(runtime: LifecycleHost = SOLE_RUNTIME) {
   if (started) return;
   started = true;
+  host = runtime;
 
-  onWindowEvent((e) => e.type === "focus" && setAppActive(true));
-  onAppEvent((e) => (e.type === "resignActive" || e.type === "screenLocked") && setAppActive(false));
+  host.watchAppActive(setAppActive);
 
   let lastShown = new Set<string>();
   const track = (s: BrowserState) => {
@@ -391,9 +435,9 @@ export function startTabLifecycle() {
       (state) => {
         system = state;
         updateBatterySaver(false);
-        void syncChromeBatterySaver();
+        if (host.leads()) void syncChromeBatterySaver();
         onSystemState(onSystem);
-        setTimeout(() => reloadRecentTabs(currentSystem()!), 3000);
+        if (host.launching && host.leads()) setTimeout(() => reloadRecentTabs(currentSystem()!), 3000);
       },
       () => {},
     );
@@ -413,45 +457,49 @@ export function startTabLifecycle() {
     watch: (changed) => useLifecycle.subscribe(changed),
   });
 
-  if (__DEV__) {
-    (globalThis as { acLifecycle?: unknown }).acLifecycle = {
-      policy: POLICY,
-      sweep,
-      sleepTab,
-      freezeBusyTabs,
-      freezeTab,
-      reloadRecentTabs,
-      state: () => ({
-        ...useLifecycle.getState(),
-        system: currentSystem(),
-        appActive,
-        activeClock: activeClock(),
-        hiddenAt: Object.fromEntries(hiddenAt),
-        loadedProfiles: [...loadedProfiles],
-        loaded: loadedTabIds(),
-        chromeSaver,
-      }),
-      keepAliveReason: (id: string) => keepAliveReason(store(), id),
-      memory: () =>
-        listTasks()
-          .then(() => new Promise((resolve) => setTimeout(resolve, 2500)))
-          .then(listTasks)
-          .then((tasks) => {
-            const byType: Record<string, number> = {};
-            const seen = new Set<string>();
-            for (const t of tasks) {
-              const key = t.browserIds.length ? `${t.type}:${t.memory}` : `${t.id}`;
-              if (t.memory < 0 || seen.has(key)) continue;
-              seen.add(key);
-              byType[t.type] = (byType[t.type] ?? 0) + t.memory / 2 ** 20;
-            }
-            const total = Object.values(byType).reduce((a, b) => a + b, 0);
-            return { totalMB: Math.round(total), byTypeMB: Object.fromEntries(Object.entries(byType).map(([k, v]) => [k, Math.round(v)])), tasks: tasks.length };
-          }),
-      simulate: (patch: Partial<SystemState> | null) => {
-        systemOverride = patch;
-        updateBatterySaver(true);
-      },
-    };
-  }
+  if (__DEV__) (globalThis as { acLifecycle?: unknown }).acLifecycle = lifecycleProbe();
+}
+
+export function lifecycleProbe() {
+  return {
+    policy: POLICY,
+    sweep,
+    sleepTab,
+    freezeBusyTabs,
+    freezeTab,
+    reloadRecentTabs,
+    state: () => ({
+      ...useLifecycle.getState(),
+      system: currentSystem(),
+      appActive,
+      activeClock: activeClock(),
+      hiddenAt: Object.fromEntries(hiddenAt),
+      loadedProfiles: [...loadedProfiles],
+      loaded: loadedTabIds(),
+      chromeSaver,
+      lowBatteryHeld,
+      leads: host.leads(),
+    }),
+    keepAliveReason: (id: string) => keepAliveReason(store(), id),
+    memory: () =>
+      listTasks()
+        .then(() => new Promise((resolve) => setTimeout(resolve, 2500)))
+        .then(listTasks)
+        .then((tasks) => {
+          const byType: Record<string, number> = {};
+          const seen = new Set<string>();
+          for (const t of tasks) {
+            const key = t.browserIds.length ? `${t.type}:${t.memory}` : `${t.id}`;
+            if (t.memory < 0 || seen.has(key)) continue;
+            seen.add(key);
+            byType[t.type] = (byType[t.type] ?? 0) + t.memory / 2 ** 20;
+          }
+          const total = Object.values(byType).reduce((a, b) => a + b, 0);
+          return { totalMB: Math.round(total), byTypeMB: Object.fromEntries(Object.entries(byType).map(([k, v]) => [k, Math.round(v)])), tasks: tasks.length };
+        }),
+    simulate: (patch: Partial<SystemState> | null) => {
+      systemOverride = patch;
+      updateBatterySaver(true);
+    },
+  };
 }

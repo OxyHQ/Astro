@@ -1,47 +1,41 @@
-import type { SystemCalendar } from "@astro-browser/shell";
-import { Linking, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useTheme } from "../../../lib/theme";
-import { connectCalendar, setCalendarHidden, useCalendar } from "../../../live/calendar";
-import { ALERT_LEADS } from "../../../live/meetings";
+import { connectCalendar, openNiloCalendarSubscriptions, setCalendarHidden, useCalendar, type CalendarAccess } from "../../../live/calendar";
+import { ALERT_LEADS, type CalendarInfo } from "../../../live/meetings";
+import { useOxySession, type OxyAccount } from "../../../oxy/session";
 import { updateCalendarSettings, useLive } from "../../../live/store";
 import { useBrowser } from "../../../store/browser";
 import { Button, Checkbox, Group, PopUp, Row, SectionHeader, Toggle } from "../controls";
+import { useSettingsNav } from "../windows";
 
 export function CalendarPane() {
   const theme = useTheme();
   const settings = useLive((s) => s.calendar);
   const { access, calendars } = useCalendar();
   const autoGroup = useBrowser((s) => s.settings.autoGroupMeetingTabs);
-  const connected = access === "fullAccess" || access === "fixture";
-  const denied = access === "denied" || access === "restricted";
+  const account = useOxySession((s) => s.account);
+  const go = useSettingsNav((s) => s.go);
+  const connected = access === "connected" || access === "fixture";
   const owned = calendars.filter((c) => c.owned);
-  const others = calendars.filter((c) => !c.owned);
+  const subscribed = calendars.filter((c) => c.subscribed);
+  const others = calendars.filter((c) => !c.owned && !c.subscribed);
 
   return (
     <View>
       <SectionHeader
         title="Live Calendar"
-        description="Pin Google Calendar, Outlook, iCloud or Notion Calendar to see your day when you hover it, a countdown to your next meeting, and alerts with a Join button before meetings start. Events come from the Calendar app's accounts."
+        description="Your meetings come from your Nilo calendar, through your Oxy account. Hover a pinned calendar tab, like Google Calendar, Outlook or Notion Calendar, to see the rest of your day, with a countdown to your next meeting. Alerts with a Join button come before meetings start."
       />
       <Group>
-        <Row
-          anchor="calendar.access"
-          description={
-            access === "fixture"
-              ? "Development build: using calendar-fixture.json"
-              : connected
-                ? `Connected · ${calendars.length === 1 ? "1 calendar" : `${calendars.length} calendars`}`
-                : denied
-                  ? "Astro isn't allowed to read your calendars. Allow it in System Settings › Privacy & Security › Calendars."
-                  : "Not connected"
-          }
-        >
-          {denied ? (
-            <Button title="Open System Settings" onPress={() => void Linking.openURL("x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")} />
-          ) : !connected ? (
-            <Button title="Connect Calendar…" kind="primary" onPress={() => void connectCalendar()} />
-          ) : null}
+        <Row anchor="calendar.access" description={accessDescription(access, account, calendars.length)}>
+          {access === "signedOut" ? <Button title="Sign In with Oxy…" kind="primary" onPress={() => void connectCalendar()} /> : null}
+          {access !== "fixture" ? <Button title="Oxy Account…" onPress={() => go("account")} /> : null}
         </Row>
+        {access === "connected" ? (
+          <Row anchor="calendar.subscribe" title="Google, Outlook or iCloud calendar" description="Subscribe to it in Nilo with its secret iCal address. Nilo keeps it up to date, read-only.">
+            <Button title="Add Calendar…" onPress={openNiloCalendarSubscriptions} />
+          </Row>
+        ) : null}
       </Group>
 
       <SectionHeader title="Meeting alerts" />
@@ -86,16 +80,31 @@ export function CalendarPane() {
           <Group>
             {owned.length ? <CalendarList title="My Calendars" calendars={owned} hidden={settings.hiddenCalendarIds} /> : null}
             {others.length ? <CalendarList title="Other Calendars" calendars={others} hidden={settings.hiddenCalendarIds} /> : null}
+            {subscribed.length ? <CalendarList title="Subscribed Calendars" calendars={subscribed} hidden={settings.hiddenCalendarIds} /> : null}
           </Group>
         </>
       ) : connected ? (
-        <Text style={{ marginTop: 12, fontSize: 12, color: theme.textSecondary }}>No calendars found. Add accounts in the Calendar app.</Text>
+        <Text style={{ marginTop: 12, fontSize: 12, color: theme.textSecondary }}>No calendars found. In Nilo, a database with a Calendar view is a calendar.</Text>
       ) : null}
     </View>
   );
 }
 
-function CalendarList({ title, calendars, hidden }: { title: string; calendars: SystemCalendar[]; hidden: string[] }) {
+function accessDescription(access: CalendarAccess, account: OxyAccount | null, count: number): string {
+  const calendarCount = count === 1 ? "1 calendar" : `${count} calendars`;
+  switch (access) {
+    case "fixture":
+      return "Development build: using calendar-fixture.json";
+    case "connected":
+      return account ? `${calendarCount} from ${account.name}${account.handle && account.handle !== account.name ? ` (@${account.handle})` : ""}’s Oxy account` : calendarCount;
+    case "pending":
+      return "Checking your Oxy account…";
+    case "signedOut":
+      return "Sign in with your Oxy account to show your Nilo calendar. It’s the same account for all of Astro.";
+  }
+}
+
+function CalendarList({ title, calendars, hidden }: { title: string; calendars: CalendarInfo[]; hidden: string[] }) {
   const theme = useTheme();
   return (
     <View style={{ paddingVertical: 6 }}>
@@ -105,7 +114,7 @@ function CalendarList({ title, calendars, hidden }: { title: string; calendars: 
           key={c.id}
           icon={<View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: c.color }} />}
           title={<Checkbox value={!hidden.includes(c.id)} onChange={(v) => setCalendarHidden(c.id, !v)} label={c.title} />}
-          description={c.account}
+          description={c.subscribed ? `${c.account} · subscribed, read-only` : c.account}
         />
       ))}
     </View>

@@ -7,6 +7,12 @@ export { MacPressable as Pressable, MacView as View } from "./web/motion/macView
 export { MacText as Text } from "./web/MacText";
 
 export const unstable_batchedUpdates = batchedUpdates;
+export const TurboModuleRegistry = {
+  get: (_name: string) => null,
+  getEnforcing: (name: string): never => {
+    throw new Error(`TurboModuleRegistry.getEnforcing(${name}): no native modules on the web`);
+  },
+};
 
 type Measured = (x: number, y: number, width: number, height: number) => void;
 const pageMeasureInWindow = (UIManager as unknown as { measureInWindow: (node: Element, callback: Measured) => void }).measureInWindow;

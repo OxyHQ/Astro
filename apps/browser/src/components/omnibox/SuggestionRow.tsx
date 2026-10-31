@@ -19,6 +19,8 @@ export function SuggestionIcon({ suggestion: s, color }: { suggestion: Suggestio
       return <Symbol name="equal.circle" size={14} color={tint} style={{ width: 16, height: 16 }} />;
     case "action":
       return <Symbol name={s.icon ?? "command"} size={13} color={tint} style={{ width: 16, height: 16 }} />;
+    case "chat":
+      return <Symbol name="sparkles" size={13} color={tint} style={{ width: 16, height: 16 }} />;
   }
 }
 
@@ -34,6 +36,8 @@ function labels(s: Suggestion): [string, string | null] {
     case "action":
     case "create":
       return [s.title, null];
+    case "chat":
+      return [s.query, s.signIn ? "Sign in with Oxy to ask Chat" : "Ask Chat"];
   }
 }
 

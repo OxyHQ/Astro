@@ -72,7 +72,14 @@ What the build adds:
 | `chromium-ungoogled-disable-default-extensions.patch` | ungoogled's `0005-disable-default-extensions` (BSD), which Helium leaves out, without its `webstore_installer.cc` part (that part stubs out Web Store installs): no Web Store hosted app or in-app payments app among the component extensions |
 | `chromium-ungoogled-disable-missing-key-warning.patch` | ungoogled's `0013-disable-missing-key-warning` (BSD), which Helium leaves out: no "Google API keys are missing" infobar |
 | `chromium-ungoogled-mime-util-ymp.patch` | iridium's `mime_util-force-text-x-suse-ymp-to-be-downloaded` (BSD), which Helium leaves out: YaST one-click files download instead of rendering |
-| `chromium-astro-layer.patch` | The macOS `//chrome:chrome_dll` (AstroCore's framework) links `//chrome/browser/astro` and exports its `ac_*` calls |
+| `chromium-astro-layer.patch` | The macOS `//chrome:chrome_dll` (AstroCore's framework) links `//chrome/browser/astro` and exports its `ac_*` calls; on Linux, `chrome` links it, and on Windows `chrome.dll` |
+| `chromium-astro-ui.patch` | `chrome://webui-browser` (Webium's window) serves the Windows and Linux interface (`astro::ServeUi`) instead of its own page, with Trusted Types off: from `astro_ui_resources.pak`, which `chrome_extra_paks` repacks into `resources.pak` on Windows and Linux (its ids are reserved in `resource_ids.spec`), or from the folder `--astro-ui-dir=<dir>` names, for developing the interface without an engine build. The pak is `//chrome/browser/astro:ui_resources`: a grd generated from `chrome/browser/resources/astro_ui/files.json` and grit over `astro_ui/dist`, both staged in the tree from `apps/webui/dist` by `ui-resource.sh` (step 5). Only the `Default` profile gets the interface; other profiles' windows, the hidden hosts of their tabs, get an empty page so nothing there attaches a tab |
+| `chromium-astro-engine-webui.patch` | Webium's window gets `astro::CreateEngineWebUIHandler`: `chrome.send('astroEngineCall', [id, name, args, profile])` runs one of the allowlisted `ac_*` calls for that profile (never a private one), `astroPref` reads and sets three autofill booleans, `astroFetch` makes the interface's network requests without cookies, `astroEngineTopics` picks the engine events it receives as `astro-engine-event`, and `astroProfileTab*` hosts tabs of other profiles (`ac_profile_tabs.cc`: a hidden Webium browser per profile, omitted from session restore, whose tabs the window shows as guests) |
+| `chromium-astro-webium-default.patch` | On Linux and Windows, `Webium` and `AttachUnownedInnerWebContents` are on by default, so the browser window is Webium's and its tabs can leave their iframes; macOS keeps both off. Chromium marks the second a prototype not meant for production |
+| `chromium-astro-guest-gone.patch` | A tab's WebContents can go away while Webium's page still holds its guest id: Chromium closes a new tab whose first navigation became a download (`DownloadUIController`) in the moment between the page's `getGuestIdForTabId` and its `attachIframeGuest`. Chromium treated that as a bad message and killed the window's renderer ("GuestContentsHandle not found", "Invalid tab id") or `CHECK`ed in the renderer; now an unknown guest or frame is a failed attach, a closed tab answers an id no guest has, and the page's `GuestHandler` ignores calls once its WebContents is gone (it dereferenced a null `WeakPtr`, which took the whole browser down) |
+| `chromium-astro-bfcache-inner-contents.patch` | Webium's tabs use the back/forward cache. Chromium's sticky `HaveInnerContents` check, meant for a page that holds an inner WebContents, also matched every document inside one, so no tab in the window was ever cached; now only an inner WebContents nested below the page being cached blocks it. A page in an inner WebContents counts as the outermost main frame it is (`GetParentOrOuterDocument`, not `…OrEmbedder`) for the cached page's own bookkeeping and for `IsCrossDocumentMainFrameHistoryNavigation`, so its NotRestoredReasons reach DevTools (`Page.backForwardCacheNotUsed`) and the page's `notRestoredReasons`. `apps/webui/scripts/tab-navigation.mjs` tests it |
+| `chromium-astro-linux-identity.patch` | Linux keeps its data in `~/.config/astro-browser` (Chromium's would be `~/.config/chromium`, which a Chromium install shares), and names its desktop file `astro-browser.desktop` and its icon `astro-browser`, as Astro's earlier Linux build did; helium-linux's own branding is skipped (`03-helium.py`) |
+| `chromium-astro-windows-identity.patch` | Windows keeps its data in `%LOCALAPPDATA%\\Oxy\\Astro` and registers as Astro (ProgIDs `AstroHTM`/`AstroPDF`, the `astro` launch scheme), with Astro's own Active Setup GUID and toast activator CLSID, so it never shares Chromium's; the elevation and tracing services keep Chromium's ids until there is an installer |
 | `chromium-pip-overlay-window.patch` | Chrome makes our `AstroVideoOverlayWindow` (`chrome/browser/astro/pip/`, a `VideoOverlayWindowViews` subclass with its own buttons, progress bar, fade and bounds memory; the hook makes six methods virtual): Dia's video Picture in Picture window (measured in `docs/dia-spec.md` › Picture in Picture): nothing but the video at rest (the origin shows only with the controls); on hover a 35 % black scrim, back to tab (top left) and close (top right) as 28 pt rounded squares with 1 pt line glyphs, the origin centred in 13 pt, a bare play/pause glyph and a 5 pt progress bar that seeks; no skip, time, mute, captions or minimize controls (the keyboard shortcuts stay). Controls fade in 200 ms ease-in-out. The window shows at once and fades out in Core Animation (100 ms from the close button, 70 ms otherwise, smooth while the tab is being shown), and a new window opens where the last one was left, sized to the new video and kept on screen (`AstroPictureInPicture.plist` in the user data dir). Closing it, by its button or by the window going away any other way, never pauses the video, which keeps playing in its tab, as in Dia and Arc (`OnCloseButtonPressed` asks for `kCloseWindowOnly`, and the subclass's `OnNativeWidgetDestroyed` tells the controller not to pause; Chrome paused whenever the window had a play/pause button) |
 
 Removed, all in git history:
@@ -393,6 +400,90 @@ Rules for editing the tree after the first build:
   6. Our patches and the hooks may need their context refreshed; `series.py check` and `apply.sh --check` say
      which. A patch whose file moved is rewritten for the new path, and the new path's file goes into the series
      base (`series-base/`) as steps 3 and 4 left it.
+
+### For Intel Macs
+
+`AC_MAC_TARGET_CPU=x64` (macOS only; default `arm64`) makes the same steps build `target_cpu="x64"` into
+`out/Release_GN_x64`, with the same release args (official, ThinLTO, PGO with Chromium's `mac.pgo.txt`). Nobody builds
+it on a Mac here: the `macOS Intel build` workflow (`.github/workflows/macos-intel.yml`, `docs/releasing.md` ›
+"Intel Macs") runs steps 1, 3, 4 and 2 (`scripts/ci/macos-engine-prepare.sh`) and step 5 on GitHub's
+`macos-15-intel` runners, a chain of jobs that hands the tree from one to the next.
+
+### On Linux
+
+The same steps build the engine on Linux (x64); `env.sh` picks the platform from `uname`. What differs:
+
+- **Helium's platform repo** is helium-linux (`HELIUM_LINUX_TAG`, `~/chromium-build/helium-linux`, pinned in
+  `helium-pins.ini`) instead of helium-macos. `PLATFORM_SKIP` in `03-helium.py` leaves out, on Linux only: helium-linux's
+  branding and binary rename (they name the product Helium and keep its data in `~/.config/net.imput.helium`), its
+  middle-click paste flag (a chrome://flags toggle whose entry collides with `chromium-helium-branding.patch`), and
+  helium-chromium's `remove-experimental-webui.patch`, which unregisters Webium and drops its paks. With those out,
+  our whole series applies unchanged on Linux (`series.py check`: 53 steps, 260 paths).
+  Helium's generated icons are made with Pillow instead of `sips`: run step 3 with `~/chromium-build/py/bin/python`
+  (a venv with Pillow).
+- **GN args**: `target_cpu="x64"`, out dir `out/Release_GN_x64`, and Helium's Linux flags (`use_sysroot`,
+  `use_vaapi`, `rtc_use_pipewire`, `use_kerberos=false`). CDM host verification, CDM storage ids and RLZ are
+  macOS-only: Chromium refuses them on Linux. Step 5 builds `chrome`, not `chrome_framework`.
+- **The interface** (Windows too): step 5 first runs `ui-resource.sh`, which copies `apps/webui/dist` into the tree's
+  untracked `chrome/browser/resources/astro_ui/` and lists it in `files.json` there; the build packs it into
+  `resources.pak` (`chromium-astro-ui.patch`). Build `apps/webui` first (`pnpm -C apps/webui build`): without a
+  `dist/index.html` step 5 stops. A changed file list makes the next build rerun `gn gen` by itself (it reads
+  `files.json`); an `autoninja` run by hand ships whatever was staged last.
+- **`AC_ENGINE_PROFILE=dev`** (either platform) builds without official build, PGO or LTO, with `symbol_level=1`, into
+  `out/Release_GN_<cpu>_dev`: much quicker to build and link, and its backtraces have function names.
+- **The lock**: Linux has no `lockf(1)`, so `scripts/agent/lockf` stands in for it (an flock that dies with its
+  holder and shows up in `ps` as `lockf`); `scripts/agent/locked` and `pathguard.py` use it when the system has none.
+- **Webium.** `--enable-features=Webium` runs Chromium's all-WebUI browser window (`chrome://webui-browser`, tabs as
+  guest contents), which Astro's Windows and Linux interface builds on (`docs/port-windows-linux.md`). Helium's
+  `remove-experimental-webui.patch` unregisters it, and the window then dereferences a null `WebUIBrowserUI` on the
+  first tab (`WebUIBrowserWindow::UpdateReloadStopState`); Helium's own Linux build segfaults the same way.
+- **The engine layer** (`//chrome/browser/astro`, the `ac_*` calls) links into Linux `chrome` too
+  (`chromium-astro-layer.patch`). Its macOS pieces have Linux stand-ins in `ac_platform_default.cc`: OS reauth is
+  denied on Linux (Chromium has no device authenticator there; Windows uses `ac_reauth.cc` and Windows Hello), external-app allowances list no app name or icon, and the
+  picture-in-picture bounds, fade and input frame-rate hold do nothing. AstroCore's `ChromeMain` delegate stays
+  macOS-only; Linux keeps Chromium's.
+- **Times** (32 cores, `dev`): steps 3 and 4 take 2 min; the first build, 2 h 13 min (57,000 actions).
+- **OxyOS** (`docs/port-windows-linux.md` › OxyOS): the layer `engine/oxyos` copies Chromium's Ozone platform `oxyos`
+  into `ui/ozone/platform/oxyos`, and `gn_defines.sh` points Chromium's hook for platforms outside its tree at it
+  (`ozone_extra_path`), so `--ozone-platform=oxyos` selects it with no change to Chromium's code. Its client is OxyOS's C ABI:
+  step 5 runs `oxyos-client.sh`, which builds OxyOS's `oxyos-client-ffi` at the commit `engine/oxyos/oxyos-pin` names
+  (the checkout `OXYOS_DIR`, default `~/chromium-build/oxyos`, at that commit with no changes; cargo from rustup) and
+  links it with Chromium's `ld.lld -r` into `third_party/oxyos_client/oxyos_client.o`, whose only global symbols are
+  the ABI's (`llvm-objcopy`), so the client's Rust runtime stays private beside Chromium's; the header goes beside it.
+  GN links the object as a source, so a new pin relinks `chrome`. The platform's unit tests are `ozone_unittests
+  --gtest_filter='OxyOS*'`. Adding the platform to the `dev` build: 32 s for `chrome`, 69 s for `ozone_unittests`
+  (2026-10-30); a change to one of its files, about 17 s.
+- **The OxyOS engine**: `AC_TARGET_PLATFORM=oxyos` (with `AC_ENGINE_PROFILE` as for Linux) builds the same tree into
+  its own output directory, `out/Release_GN_oxyos_x64` (`_dev`), with the `oxyos` platform alone: no X11 or Wayland
+  platform, GTK, Qt, CUPS, VA-API or AT-SPI (`gn_defines.sh`; `use_atk` is an argument through
+  `chromium-astro-oxyos-no-atk.patch`, false here: OxyOS's accessibility is its own protocol). Its `chrome` links no X11,
+  xcb, Wayland, GTK, Qt, ATK, Cairo, Pango or CUPS library, so it runs on OxyOS's image. Steps 2 and 5 take it as any
+  other build (`AC_TARGET_PLATFORM=oxyos AC_ENGINE_PROFILE=dev engine/patches/build/02-gn-args.sh --apply`).
+  Its first `dev` build took 2 h 40 min on the shared 32-core machine (2026-10-30), and turning AT-SPI off afterwards
+  48 min. `AC_TARGET_PLATFORM=oxyos scripts/linux-package.sh` packages it (`docs/port-windows-linux.md` › OxyOS).
+
+### Windows
+
+Windows is cross-built from Linux (`docs/win_cross.md` in Chromium): `AC_TARGET_PLATFORM=windows` makes `env.sh` target
+`win`/x64 with helium-windows (`HELIUM_WINDOWS_TAG`, pinned in `helium-pins.ini`) into `out/Release_GN_win_x64`. Its
+own build root (`AC_CHROMIUM_BUILD=~/chromium-build-win`) keeps it apart from the Linux tree, whose platform patches
+differ; it was made by copying the Linux checkout (no new download) and syncing with `target_os = ['win']`.
+`03-helium.py` skips helium-windows's branding, its remote-build toolchain rewrite and its WinSparkle updater, and,
+as on Linux, `remove-experimental-webui.patch`.
+
+The Windows SDK comes from a Windows machine with Visual Studio 2026 Build Tools (with ATL/MFC) and Windows SDK
+10.0.28000 with its debugging tools: `depot_tools/win_toolchain/package_from_installed.py 2026 -w 10.0.28000.0 --noarm`
+(for Build Tools, its `vswhere.exe` call needs `-products *`) writes `<hash>.zip`. Then, on Linux,
+`DEPOT_TOOLS_WIN_TOOLCHAIN_BASE_URL=<dir of the zip>` and `GYP_MSVS_HASH_<TOOLCHAIN_HASH of build/vs_toolchain.py>=<hash>`
+before `gclient sync`/`runhooks`. On a WSL machine the Windows side is the host itself (`/mnt/c`, `cmd.exe`,
+`winget`); a portable Python is enough to run the packaging script.
+
+The engine layer links into `chrome.dll`, all of it: the command-line control file (`ac_cli_control.cc`) and the
+Astro Scripts folder policy (`ac_scripts_policy.cc`) have Windows branches (`docs/cli.md` › Linux and Windows). Paths
+cross the engine boundary as UTF-8 (`base::FilePath::FromUTF8Unsafe`), since a Windows `FilePath` is UTF-16.
+
+`/tmp` here is a RAM disk shared with other work; siso writes its logs to `TMPDIR`, so the Windows build runs with
+`TMPDIR=$AC_CHROMIUM_BUILD/tmp` (a full `/tmp` killed one build at 20%).
 
 ## Helium
 

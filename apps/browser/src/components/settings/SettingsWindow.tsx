@@ -2,26 +2,32 @@ import { Symbol, VisualEffect, WindowDragRegion } from "@astro-browser/shell";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../../lib/theme";
+import { useOxySession } from "../../oxy/session";
 import { useBrowser } from "../../store/browser";
 import { trackSettingsSection } from "../../telemetry/track";
+import { AccountAvatar } from "../account/AccountAvatar";
 import { IconButton, useHover } from "../primitives";
 import { useFormColors } from "./controls";
 import { preparePane, usePaneLoaded } from "./paneData";
 import { anchorView, flashSetting, useSettingsSearch } from "./searchState";
 import { PANES, setting } from "./settingsIndex";
 import { SettingsSearchField, SettingsSearchResults } from "./SettingsSearch";
+import { AccountPane } from "./panes/Account";
 import { AdvancedPane } from "./panes/Advanced";
+import { AppsPane } from "./panes/Apps";
 import { AppearancePane } from "./panes/Appearance";
 import { CalendarPane } from "./panes/Calendar";
 import { GeneralPane } from "./panes/General";
 import { LiveFoldersPane } from "./panes/LiveFolders";
 import { ExtensionsPane } from "./panes/Extensions";
 import { PasswordsPane } from "./panes/Passwords";
+import { PersonalizationPane } from "./panes/Personalization";
 import { AutofillPane } from "./panes/Autofill";
 import { PrivacyPane } from "./panes/Privacy";
 import { ProfileDetailsPane, ProfilesPane } from "./panes/Profiles";
 import { SearchPane } from "./panes/Search";
 import { ShortcutsPane } from "./panes/Shortcuts";
+import { SkillsPane } from "./panes/Skills";
 import { SyncPane } from "./panes/Sync";
 import { TabsPane } from "./panes/Tabs";
 import { useSettingsSheet } from "./sheet";
@@ -118,9 +124,13 @@ export function SettingsWindow() {
           <SettingsSearchResults query={query} />
         ) : (
           <ScrollView contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 12, gap: 1 }}>
-            {PANES.map((p) => (
-              <SidebarItem key={p.id} title={p.title} icon={p.icon} selected={nav.pane === p.id} onPress={() => nav.go(p.id)} />
-            ))}
+            {PANES.map((p) =>
+              p.id === "account" ? (
+                <AccountSidebarItem key={p.id} selected={nav.pane === p.id} onPress={() => nav.go(p.id)} />
+              ) : (
+                <SidebarItem key={p.id} title={p.title} icon={p.icon} selected={nav.pane === p.id} onPress={() => nav.go(p.id)} />
+              ),
+            )}
           </ScrollView>
         )}
       </View>
@@ -150,10 +160,18 @@ export function SettingsWindow() {
 
 function Pane({ pane, profileId }: { pane: SettingsPane; profileId: string | null }): ReactNode {
   switch (pane) {
+    case "account":
+      return <AccountPane />;
     case "general":
       return <GeneralPane />;
     case "profiles":
       return profileId ? <ProfileDetailsPane profileId={profileId} /> : <ProfilesPane />;
+    case "apps":
+      return <AppsPane />;
+    case "skills":
+      return <SkillsPane />;
+    case "personalization":
+      return <PersonalizationPane />;
     case "sync":
       return <SyncPane />;
     case "tabs":
@@ -179,6 +197,42 @@ function Pane({ pane, profileId }: { pane: SettingsPane; profileId: string | nul
     case "advanced":
       return <AdvancedPane />;
   }
+}
+
+function AccountSidebarItem({ selected, onPress }: { selected: boolean; onPress: () => void }) {
+  const theme = useTheme();
+  const colors = useFormColors();
+  const { hovered, hoverProps } = useHover();
+  const account = useOxySession((s) => s.account);
+  const title = account ? account.name : "Sign In";
+  const subtitle = account ? "Oxy Account" : "with your Oxy account";
+  return (
+    <View {...hoverProps} style={{ marginBottom: 8 }}>
+      <Pressable onPress={onPress}>
+        <View
+          style={{
+            height: 46,
+            borderRadius: 8,
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: 6,
+            gap: 9,
+            backgroundColor: selected ? colors.accent : hovered ? colors.selected : undefined,
+          }}
+        >
+          <AccountAvatar account={account} size={32} />
+          <View style={{ flex: 1 }}>
+            <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: "600", color: selected ? "#FFFFFF" : theme.textPrimary }}>
+              {title}
+            </Text>
+            <Text numberOfLines={1} style={{ fontSize: 11, marginTop: 1, color: selected ? "rgba(255,255,255,0.8)" : theme.textSecondary }}>
+              {subtitle}
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+    </View>
+  );
 }
 
 function SidebarItem({ title, icon, selected, onPress }: { title: string; icon: string; selected: boolean; onPress: () => void }) {
