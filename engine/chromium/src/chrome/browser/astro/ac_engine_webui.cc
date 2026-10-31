@@ -47,6 +47,7 @@
 #include "chrome/browser/astro/ac_import.h"
 #if BUILDFLAG(IS_LINUX)
 #include "chrome/browser/astro/ac_menu_bar.h"
+#include "ui/ozone/platform/oxyos/oxyos_select_file_dialog.h"
 #endif
 #include "chrome/browser/astro/ac_sync_files.h"
 #include "chrome/browser/astro/ac_system.h"
@@ -344,6 +345,9 @@ class EngineWebUIHandler : public content::WebUIMessageHandler,
       InstallDisplayMediaPicker();
       InstallDockedDevTools();
       InstallUiMedia();
+#if BUILDFLAG(IS_LINUX)
+      ui::InstallOxyOSSelectFileDialogs();
+#endif
       g_astro_window_close_requested = &WindowCloseRequested;
       static base::NoDestructor<base::CallbackListSubscription> closing_all(
           chrome::AddClosingAllBrowsersCallback(base::BindRepeating(

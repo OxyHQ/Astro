@@ -5,6 +5,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
 #include <string_view>
 
 #include "base/containers/flat_map.h"
@@ -19,6 +21,7 @@
 #include "ui/gfx/native_ui_types.h"
 #include "ui/ozone/platform/oxyos/oxyos_clipboard.h"
 #include "ui/ozone/platform/oxyos/oxyos_drag.h"
+#include "ui/ozone/platform/oxyos/oxyos_file_chooser.h"
 #include "ui/ozone/platform/oxyos/oxyos_keyboard.h"
 #include "ui/ozone/platform/oxyos/oxyos_screen.h"
 #include "ui/platform_window/wm/wm_drag_handler.h"
@@ -32,7 +35,8 @@ class OxyOSWindow;
 
 class OxyOSConnection : public PlatformEventSource,
                         public base::MessagePumpForUI::FdWatcher,
-                        public OxyOSClipboard::Transport {
+                        public OxyOSClipboard::Transport,
+                        public OxyOSFileChooser::Transport {
  public:
   using FeedbackCallback = base::OnceCallback<void(bool shown)>;
   using KeyboardLayoutCallback =
@@ -47,6 +51,7 @@ class OxyOSConnection : public PlatformEventSource,
 
   OxyOSClient* client() const { return client_; }
   OxyOSClipboard* clipboard() { return &clipboard_; }
+  OxyOSFileChooser* file_chooser() { return &file_chooser_; }
 
   void StartProcessingEvents(base::OnceClosure shutdown);
 
@@ -100,6 +105,12 @@ class OxyOSConnection : public PlatformEventSource,
   base::ScopedFD Paste(uint32_t selection,
                        const std::string& mime_type) override;
 
+  uint16_t FileChooserProtocolVersion() override;
+  std::optional<uint32_t> ChooseFiles(uint32_t serial,
+                                      gfx::AcceleratedWidget window,
+                                      const std::string& request) override;
+  void CancelChooseFiles(uint32_t serial) override;
+
   void OnFileCanReadWithoutBlocking(int fd) override;
   void OnFileCanWriteWithoutBlocking(int fd) override;
 
@@ -129,6 +140,7 @@ class OxyOSConnection : public PlatformEventSource,
 
   OxyOSKeyboard keyboard_;
   OxyOSClipboard clipboard_{this};
+  OxyOSFileChooser file_chooser_{this};
   base::flat_set<raw_ptr<OxyOSInputMethodContext>> input_method_contexts_;
   std::string keyboard_layout_;
   KeyboardLayoutCallback keyboard_layout_changed_;

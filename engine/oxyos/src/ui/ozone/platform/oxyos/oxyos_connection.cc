@@ -94,6 +94,7 @@ void OxyOSConnection::OnSurfaceDestroyed(OxyOSWindow* window) {
     pointer_surface_ = 0;
     buttons_ = 0;
   }
+  file_chooser_.ForgetSurface(window->surface());
   std::vector<FeedbackCallback> unanswered;
   for (auto it = feedback_.begin(); it != feedback_.end();) {
     if (it->second.surface == window->surface()) {
@@ -268,6 +269,36 @@ base::ScopedFD OxyOSConnection::Paste(uint32_t selection,
   return base::ScopedFD(fd >= 0 ? fd : -1);
 }
 
+uint16_t OxyOSConnection::FileChooserProtocolVersion() {
+  return oxyos_client_protocol_version(client_);
+}
+
+std::optional<uint32_t> OxyOSConnection::ChooseFiles(
+    uint32_t serial,
+    gfx::AcceleratedWidget window,
+    const std::string& request) {
+  OxyOSWindow* owner = GetWindow(window);
+  if (!owner) {
+    owner = pressed_window();
+  }
+  OxyOSWindow* toplevel = owner ? owner->root() : nullptr;
+  if (!toplevel || !toplevel->is_toplevel() || !toplevel->shown()) {
+    LOG(ERROR) << "No shown OxyOS window to choose files for";
+    return std::nullopt;
+  }
+  const uint32_t surface = toplevel->surface();
+  if (oxyos_client_choose_files(client_, serial, surface, last_press_serial_,
+                                request.c_str()) != 0) {
+    LOG(ERROR) << "OxyOS refused to choose files: " << oxyos_last_error();
+    return std::nullopt;
+  }
+  return surface;
+}
+
+void OxyOSConnection::CancelChooseFiles(uint32_t serial) {
+  oxyos_client_cancel_choose_files(client_, serial);
+}
+
 void OxyOSConnection::OnFileCanReadWithoutBlocking(int fd) {
   OxyOSEvent event;
   for (;;) {
@@ -388,6 +419,10 @@ void OxyOSConnection::HandleEvent(const OxyOSEvent& event) {
       break;
     case OXYOS_EVENT_CLIPBOARD_EMPTY:
       clipboard_.OnEmpty();
+      break;
+    case OXYOS_EVENT_FILES_CHOSEN:
+      file_chooser_.OnChunk(event.code, static_cast<uint16_t>(event.detail),
+                            event.flag, TextOf(event));
       break;
     case OXYOS_EVENT_GPU_DEVICE:
       if (surface_host_) {

@@ -271,6 +271,7 @@ source_set("astro") {
       "//components/dbus",
       "//dbus",
       "//ui/ozone/platform/oxyos:menu_bar",
+      "//ui/ozone/platform/oxyos:select_file_dialog",
       "//ui/platform_window",
     ]
     configs += [ "//build/linux:gio_config" ]

@@ -389,6 +389,17 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   rest of its place in the positioner's offset, as OxyOS requires. A drag released outside the window drops nothing;
   dragging between applications needs the protocol's drag offers (decision 7's second half). Its scenario is OxyOS's
   `astro-drag.json`.
+- **File choosers:** open and save panels are OxyOS's (ADR 0029, decision 8): the session shows its file manager in
+  picker mode as a sheet of the window, and only that window waits. On the `oxyos` platform the engine sets
+  Chromium's `SelectFileDialog` factory (`OxyOSSelectFileDialog`, installed by `ac_engine_webui.cc` once the platform
+  has a connection), so `<input type=file>`, Save As, downloads that ask where and folder uploads all ask the
+  session (`ChooseFiles`, protocol 7) for the window's toplevel, citing the latest press or key. The request carries the
+  kind (open one or many, a folder, save), the title, the dialog's extensions as `.ext` (a save panel only the chosen
+  type's), and the folder and, for save, the name from the suggested path; the answer's `file://` URIs are the chosen
+  paths. A cancelled or refused answer (`busy` while the window already has a panel, `needsInput`, …) is a
+  cancellation, as is a compositor older than protocol 7; a dialog whose listener goes withdraws its request
+  (`CancelChooseFiles`), and so does a window that goes. Chromium gives Linux dialogs extensions, not media types, so
+  no media type is sent.
 - **Cursors:** a cursor type OxyOS has a shape for is that shape; for the others (copy, alias, a context menu, progress,
   a cell, vertical text, panning) Chromium draws its own image, and that image, a page's custom cursor and
   `cursor: none` (a transparent pixel) go to the compositor with their hotspot and scale (OxyOS's `SetPointerImage`).
@@ -431,8 +442,7 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   install -Dm644 /opt/astro-browser/so.oxy.astro.desktop /usr/share/oxyos/applications/so.oxy.astro.desktop`: the
   session's registry then lists Astro and launches `/opt/astro-browser/astro-browser --ozone-platform=oxyos`. The
   renderer sandbox needs unprivileged user namespaces, which Debian's kernel allows.
-- **Not yet:** the GPU, accessibility, drag and drop and file
-  choosers. Chromium starts in its GPU modes and falls back to software until the platform has GL.
+- **Not yet:** the GPU, accessibility and drag and drop between applications. Chromium starts in its GPU modes and falls back to software until the platform has GL.
 
 Its test is OxyOS's `tools/rn-host-spike/scenarios/astro.json` (`regress.py --client <out>/chrome`), on OxyOS's
 development compositor.
