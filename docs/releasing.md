@@ -103,6 +103,38 @@ hide the Mac update or be lost. `scripts/windows-appcast.py` writes and merges i
   publish time, as it does for `appcast.xml`, and `publish-nightly.sh` uploads the installer with the nightly and
   `appcast-windows.xml` onto the latest stable release.
 
+## Intel Macs
+
+Releases are Apple silicon only. An Intel build (x86_64, macOS 14 or later) comes from GitHub Actions instead:
+`.github/workflows/macos-intel.yml` runs on every push to the `ci/macos-intel` branch (and by hand once the workflow is
+on `main`). Nothing is published: the run's artifacts are the disk image (`Astro-macos-x86_64-dmg`, 30 days), the
+smoke test's screenshot and logs (`smoke-test`) and the engine (`astrocore-macos-x64-<key>`). OxyHQ/Astro is public,
+so the standard runners cost nothing, and the logs and artifacts are public too: never give the workflow a secret.
+
+- **The engine** builds on `macos-15-intel` (4 vCPUs, 14 GB, about 100 GB free after
+  `scripts/ci/macos-runner-prep.sh --free-disk`) with the engine's own steps and release args, `target_cpu="x64"`,
+  built with ninja (`docs/engine-build.md` › "For Intel Macs"). The tree lives on a volume in a sparse disk image;
+  each job builds until 5 hours in, then hands that image to the next (`scripts/ci/macos-engine-state.sh`, about
+  14 GB of zstd parts), up to 12 jobs, and a run that runs out leaves it for the next run. The first full build
+  (2026-10-28/29) took 8 jobs, about 33 hours of compiling: Blink's core and `chrome/browser` are the slow part
+  (15 to 25 steps a minute), the framework's ThinLTO link 66 minutes. A run whose `engine/` and offline game match an
+  earlier run's reuses that engine (the artifact is keyed by their trees); one whose patch series matches resumes the
+  newest packed tree, with its layers updated, instead of syncing Chromium again.
+- **The app** builds on `xcode-27` (Apple silicon: it needs the macOS 27 SDK, and Xcode 27 doesn't run on Intel) with
+  `ARCHS=x86_64` and `AdHoc.xcconfig`, and `scripts/ci/macos-app-build.sh` packages it as `release.sh` does: licences,
+  stripped and pruned engine, the same disk image. It's signed ad hoc, without the hardened runtime or entitlements:
+  no Developer ID, notarization, keychain groups (passkeys in iCloud Keychain, unexportable keys), or updates (the
+  Sparkle key isn't in the build, so Settings says updates aren't set up; install a newer build by hand).
+- **The smoke test** installs the disk image into `/Applications` on a fresh `macos-15-intel` runner, starts Astro on a
+  scratch profile with DevTools on, and keeps a screenshot, the app's stderr, the system log and any crash report
+  (`scripts/ci/macos-smoke-test.sh`). The runner's VM has no GPU Chromium can use, so its log shows the GPU process
+  failing to initialize EGL and Chromium drawing in software; a real Mac doesn't.
+- **Installing it.** Download the artifact, open the disk image and drag Astro to Applications. macOS refuses to open
+  it the first time ("Apple could not verify…"): click Done, then System Settings › Privacy & Security › Open Anyway
+  (macOS 15 dropped the right-click › Open bypass), or run `xattr -dr com.apple.quarantine /Applications/Astro.app`.
+  Each build has a new ad hoc signature, so the first launch after replacing it may ask once more for the "Astro Safe
+  Storage" keychain item: Always Allow.
+
 ## Source and licenses
 
 Every binary we publish (DMG, zip, engine archive) has its source next to it, and keeps it for as long as the binary

@@ -18,7 +18,7 @@ export HELIUM_DIR="$CB/helium"
 # AC_TARGET_PLATFORM=windows cross-builds Windows from a Linux host (docs/engine-build.md › "Windows"); oxyos builds the
 # Linux engine for OxyOS, its own platform alone, from the same tree (docs/engine-build.md › "OxyOS").
 case "$(uname -s)/${AC_TARGET_PLATFORM:-}" in
-  Darwin/) export AC_PLATFORM=macos AC_TARGET_OS=mac AC_TARGET_CPU=arm64 ;;
+  Darwin/) export AC_PLATFORM=macos AC_TARGET_OS=mac AC_TARGET_CPU=${AC_MAC_TARGET_CPU:-arm64} ;;
   Linux/) export AC_PLATFORM=linux AC_TARGET_OS=linux AC_TARGET_CPU=x64 ;;
   Linux/windows) export AC_PLATFORM=windows AC_TARGET_OS=win AC_TARGET_CPU=x64 ;;
   Linux/oxyos) export AC_PLATFORM=oxyos AC_TARGET_OS=linux AC_TARGET_CPU=x64 ;;
