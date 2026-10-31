@@ -6,6 +6,8 @@
 #include <cmath>
 
 #include "base/strings/utf_string_conversions.h"
+#include "third_party/skia/include/core/SkPixmap.h"
+#include "third_party/skia/include/core/SkSamplingOptions.h"
 #include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/event_utils.h"
@@ -48,34 +50,23 @@ gfx::PointF OxyOSPointerLocation(int32_t x_256, int32_t y_256, float scale) {
   return gfx::PointF(x_256 / 256.0f * scale, y_256 / 256.0f * scale);
 }
 
-uint8_t OxyOSPointerShape(mojom::CursorType type) {
+std::optional<uint8_t> OxyOSPointerShape(mojom::CursorType type) {
   using enum mojom::CursorType;
   switch (type) {
+    case kNull:
+    case kPointer:
+      return OXYOS_POINTER_ARROW;
     case kHand:
       return OXYOS_POINTER_HAND;
     case kIBeam:
-    case kVerticalText:
       return OXYOS_POINTER_TEXT;
     case kWait:
-    case kProgress:
       return OXYOS_POINTER_WAIT;
     case kHelp:
       return OXYOS_POINTER_HELP;
     case kCross:
-    case kCell:
       return OXYOS_POINTER_CROSSHAIR;
     case kMove:
-    case kMiddlePanning:
-    case kMiddlePanningVertical:
-    case kMiddlePanningHorizontal:
-    case kEastPanning:
-    case kNorthPanning:
-    case kNorthEastPanning:
-    case kNorthWestPanning:
-    case kSouthPanning:
-    case kSouthEastPanning:
-    case kSouthWestPanning:
-    case kWestPanning:
     case kDndMove:
       return OXYOS_POINTER_MOVE;
     case kGrab:
@@ -112,18 +103,78 @@ uint8_t OxyOSPointerShape(mojom::CursorType type) {
       return OXYOS_POINTER_ZOOM_IN;
     case kZoomOut:
       return OXYOS_POINTER_ZOOM_OUT;
-    case kNull:
-    case kPointer:
+    case kProgress:
+    case kCell:
+    case kVerticalText:
     case kContextMenu:
     case kAlias:
     case kCopy:
-    case kNone:
-    case kCustom:
     case kDndCopy:
     case kDndLink:
-      return OXYOS_POINTER_ARROW;
+    case kMiddlePanning:
+    case kMiddlePanningVertical:
+    case kMiddlePanningHorizontal:
+    case kEastPanning:
+    case kNorthPanning:
+    case kNorthEastPanning:
+    case kNorthWestPanning:
+    case kSouthPanning:
+    case kSouthEastPanning:
+    case kSouthWestPanning:
+    case kWestPanning:
+    case kNone:
+    case kCustom:
+      return std::nullopt;
   }
-  return OXYOS_POINTER_ARROW;
+  return std::nullopt;
+}
+
+OxyOSPointerImage::OxyOSPointerImage() = default;
+OxyOSPointerImage::OxyOSPointerImage(OxyOSPointerImage&&) = default;
+OxyOSPointerImage& OxyOSPointerImage::operator=(OxyOSPointerImage&&) = default;
+OxyOSPointerImage::~OxyOSPointerImage() = default;
+
+std::optional<OxyOSPointerImage> OxyOSPointerImageOf(const SkBitmap& bitmap,
+                                                     const gfx::Point& hotspot,
+                                                     float scale) {
+  if (bitmap.drawsNothing()) {
+    return std::nullopt;
+  }
+  const int largest = std::max(bitmap.width(), bitmap.height());
+  const float fit =
+      largest > static_cast<int>(kOxyOSPointerImageMaxSide)
+          ? static_cast<float>(kOxyOSPointerImageMaxSide) / largest
+          : 1.0f;
+  const SkImageInfo info =
+      SkImageInfo::Make(std::max(1, static_cast<int>(bitmap.width() * fit)),
+                        std::max(1, static_cast<int>(bitmap.height() * fit)),
+                        kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+  OxyOSPointerImage image;
+  image.width = static_cast<uint32_t>(info.width());
+  image.height = static_cast<uint32_t>(info.height());
+  image.pixels.resize(info.computeMinByteSize());
+  SkPixmap destination(info, image.pixels.data(), info.minRowBytes());
+  if (!bitmap.pixmap().scalePixels(destination,
+                                   SkSamplingOptions(SkFilterMode::kLinear))) {
+    return std::nullopt;
+  }
+  image.hotspot_x = std::min(
+      static_cast<uint32_t>(std::max(0, hotspot.x()) * fit), image.width - 1);
+  image.hotspot_y = std::min(
+      static_cast<uint32_t>(std::max(0, hotspot.y()) * fit), image.height - 1);
+  const float drawn_for = std::max(scale, 0.01f) * fit;
+  image.scale_120 = std::clamp<uint32_t>(
+      static_cast<uint32_t>(std::lround(drawn_for * kOxyOSScaleUnit)),
+      kOxyOSScaleUnit, 4 * kOxyOSScaleUnit);
+  return image;
+}
+
+OxyOSPointerImage OxyOSHiddenPointerImage() {
+  OxyOSPointerImage image;
+  image.width = 1;
+  image.height = 1;
+  image.pixels.assign(4, 0);
+  return image;
 }
 
 base::TimeTicks OxyOSEventTime(uint64_t time_ns) {

@@ -12,9 +12,9 @@
 #include "ui/events/ozone/layout/keyboard_layout_engine_manager.h"
 #include "ui/events/ozone/layout/xkb/xkb_evdev_codes.h"
 #include "ui/events/ozone/layout/xkb/xkb_keyboard_layout_engine.h"
-#include "ui/ozone/common/bitmap_cursor_factory.h"
 #include "ui/ozone/common/stub_overlay_manager.h"
 #include "ui/ozone/platform/oxyos/oxyos_connection.h"
+#include "ui/ozone/platform/oxyos/oxyos_cursor_factory.h"
 #include "ui/ozone/platform/oxyos/oxyos_gpu.h"
 #include "ui/ozone/platform/oxyos/oxyos_input_method_context.h"
 #include "ui/ozone/platform/oxyos/oxyos_keymap.h"
@@ -122,7 +122,7 @@ class OzonePlatformOxyos : public OzonePlatform {
                                                            delegate);
         },
         base::Unretained(connection_.get()));
-    cursor_factory_ = std::make_unique<BitmapCursorFactory>();
+    cursor_factory_ = std::make_unique<OxyOSCursorFactory>();
     input_controller_ = std::make_unique<StubInputController>();
     overlay_manager_ = std::make_unique<StubOverlayManager>();
     surface_host_ = std::make_unique<OxyOSSurfaceHost>(connection_.get());

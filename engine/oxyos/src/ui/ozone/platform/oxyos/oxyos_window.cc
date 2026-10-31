@@ -6,6 +6,7 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "ui/base/cursor/mojom/cursor_type.mojom-shared.h"
 #include "ui/base/hit_test.h"
 #include "ui/events/event.h"
 #include "ui/events/ozone/events_ozone.h"
@@ -133,7 +134,7 @@ void OxyOSWindow::CreateSurface() {
                               connection_->last_press_serial());
     }
   }
-  oxyos_client_set_pointer_shape(client, surface_, pointer_shape_);
+  SendCursor();
 }
 
 void OxyOSWindow::DestroySurface() {
@@ -413,15 +414,41 @@ bool OxyOSWindow::ShouldUseNativeFrame() const {
 void OxyOSWindow::SetCursor(scoped_refptr<PlatformCursor> cursor) {
   scoped_refptr<BitmapCursor> bitmap =
       BitmapCursor::FromPlatformCursor(std::move(cursor));
-  const uint8_t shape =
-      bitmap ? OxyOSPointerShape(bitmap->type()) : OXYOS_POINTER_ARROW;
-  if (shape == pointer_shape_) {
+  if (bitmap == cursor_) {
     return;
   }
-  pointer_shape_ = shape;
+  cursor_ = std::move(bitmap);
   if (created_) {
-    oxyos_client_set_pointer_shape(connection_->client(), surface_, shape);
+    SendCursor();
   }
+}
+
+void OxyOSWindow::SendCursor() {
+  OxyOSClient* client = connection_->client();
+  if (!cursor_) {
+    oxyos_client_set_pointer_shape(client, surface_, OXYOS_POINTER_ARROW);
+    return;
+  }
+  std::optional<OxyOSPointerImage> image;
+  if (!cursor_->bitmaps().empty()) {
+    image = OxyOSPointerImageOf(cursor_->bitmaps().front(), cursor_->hotspot(),
+                                cursor_->cursor_image_scale_factor());
+  } else if (cursor_->type() == mojom::CursorType::kNone) {
+    image = OxyOSHiddenPointerImage();
+  }
+  if (image && oxyos_client_protocol_version(client) >=
+                   kOxyOSPointerImageProtocolVersion) {
+    if (oxyos_client_set_pointer_image(
+            client, surface_, image->width, image->height, image->width * 4,
+            image->pixels.data(), image->hotspot_x, image->hotspot_y,
+            image->scale_120) == 0) {
+      return;
+    }
+    LOG(ERROR) << "OxyOS refused a pointer image: " << oxyos_last_error();
+  }
+  oxyos_client_set_pointer_shape(
+      client, surface_,
+      OxyOSPointerShape(cursor_->type()).value_or(OXYOS_POINTER_ARROW));
 }
 
 void OxyOSWindow::MoveCursorTo(const gfx::Point& location) {}
