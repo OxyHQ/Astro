@@ -19,6 +19,8 @@ source_set("oxyos") {
     "client_native_pixmap_factory_oxyos.h",
     "oxyos_canvas_surface.cc",
     "oxyos_canvas_surface.h",
+    "oxyos_clipboard.cc",
+    "oxyos_clipboard.h",
     "oxyos_configure_queue.cc",
     "oxyos_configure_queue.h",
     "oxyos_connection.cc",
@@ -52,6 +54,7 @@ source_set("oxyos") {
     "//mojo/public/cpp/system",
     "//skia",
     "//ui/base",
+    "//ui/base/clipboard:clipboard_types",
     "//ui/base/cursor",
     "//ui/base/cursor/mojom:cursor_type",
     "//ui/base/ime",
@@ -72,6 +75,7 @@ source_set("oxyos") {
 source_set("oxyos_unittests") {
   testonly = true
   sources = [
+    "oxyos_clipboard_unittest.cc",
     "oxyos_configure_queue_unittest.cc",
     "oxyos_conversions_unittest.cc",
     "oxyos_keyboard_unittest.cc",
@@ -79,6 +83,7 @@ source_set("oxyos_unittests") {
   deps = [
     ":oxyos",
     "//base",
+    "//base/test:test_support",
     "//testing/gtest",
     "//ui/base/cursor/mojom:cursor_type",
     "//ui/events",

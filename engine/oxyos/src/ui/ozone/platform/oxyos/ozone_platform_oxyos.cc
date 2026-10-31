@@ -77,6 +77,10 @@ class OzonePlatformOxyos : public OzonePlatform {
   }
   bool IsWindowCompositingSupported() const override { return true; }
 
+  PlatformClipboard* GetPlatformClipboard() override {
+    return connection_ ? connection_->clipboard() : nullptr;
+  }
+
   const PlatformProperties& GetPlatformProperties() override {
     return properties_;
   }
