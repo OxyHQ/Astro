@@ -3,10 +3,12 @@
 #include "ui/ozone/platform/oxyos/oxyos_presenter.h"
 
 #include <algorithm>
+#include <cinttypes>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/strings/stringprintf.h"
 #include "ui/gfx/gpu_fence.h"
 #include "ui/gfx/linux/drm_util_linux.h"
 #include "ui/gfx/overlay_plane_data.h"
@@ -123,7 +125,18 @@ void OxyOSPresenter::Present(SwapCompletionCallback completion_callback,
   if (!scheduled->damage.IsEmpty()) {
     damage.push_back(scheduled->damage);
   }
-  VLOG(1) << "OxyOS presents buffer " << id << " seq " << data.seq;
+  if (!announced_) {
+    if (renderer_.empty()) {
+      const GLubyte* renderer = glGetString(GL_RENDERER);
+      renderer_ = renderer ? reinterpret_cast<const char*>(renderer) : "";
+    }
+    last_buffer_ = base::StringPrintf(
+        "%s buffers, DRM format 0x%08x, modifier 0x%016" PRIx64,
+        scheduled->pixmap->GetBufferSize().ToString().c_str(),
+        GetFourCCFormatFromSharedImageFormat(
+            scheduled->pixmap->GetSharedImageFormat()),
+        scheduled->pixmap->GetFormatModifier());
+  }
   ledger_.Submitted(id);
   completions_.push_back(std::move(completion_callback));
   presentations_.push_back(std::move(presentation_callback));
@@ -139,6 +152,10 @@ void OxyOSPresenter::OnPresented(uint32_t buffer, bool shown) {
   if (!ledger_.Presented(buffer) || presentations_.empty()) {
     receiver_.ReportBadMessage("OxyOS presented a frame never sent");
     return;
+  }
+  if (shown && !announced_) {
+    announced_ = true;
+    LOG(INFO) << "OxyOS GPU path active: " << renderer_ << ", " << last_buffer_;
   }
   PresentationCallback presentation = std::move(presentations_.front());
   presentations_.pop_front();

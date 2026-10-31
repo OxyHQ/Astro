@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "base/containers/circular_deque.h"
@@ -103,6 +104,9 @@ class OxyOSPresenter : public gl::Presenter,
   bool schedule_failed_ = false;
   bool implicit_sync_ = false;
   bool buffers_refused_ = false;
+  bool announced_ = false;
+  std::string renderer_;
+  std::string last_buffer_;
   OxyOSFrameLedger ledger_;
   base::circular_deque<SwapCompletionCallback> completions_;
   base::circular_deque<PresentationCallback> presentations_;
