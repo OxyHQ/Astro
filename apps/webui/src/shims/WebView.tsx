@@ -13,7 +13,7 @@ import { cefServices } from "../host/services";
 import { callTab, type TabEventListener, watchTab } from "../host/tabBridge";
 import { offerHandOff, noteLiveTab, noteTabGone, takeTransferredTab, transferredUrlGuard } from "../host/tabTransfer";
 import { forgetTabSession, noteTabSession } from "../host/tabSessions";
-import { pageWindowId } from "../host/windows";
+import { pageWindowId, pageWindowReady } from "../host/windows";
 import { openFromPage } from "../../../browser/src/components/layout/openFromPage";
 import { useBrowser } from "../../../browser/src/store/browser";
 import { DockedDevTools, type DevToolsDock, devToolsDock, pageFrameStyle } from "./DockedDevTools";
@@ -39,7 +39,7 @@ const ENGINE_PAGES: [RegExp, BrowserCommand][] = [
 ];
 const command = (name: BrowserCommand) => emitCommand({ command: name, arg: null, windowId: pageWindowId() });
 
-function adoptForeign(id: string, url: string, closeIt: () => void) {
+async function adoptForeign(id: string, url: string, closeIt: () => void) {
   const page = ENGINE_PAGES.find(([pattern]) => pattern.test(url));
   if (page) {
     closeIt();
@@ -47,6 +47,7 @@ function adoptForeign(id: string, url: string, closeIt: () => void) {
     return;
   }
   const request = { url, disposition: "foreground" as const, adoptId: id, userGesture: true };
+  if (!opener?.current.onOpenWindow) await pageWindowReady();
   if (opener?.current.onOpenWindow) return opener.current.onOpenWindow(request);
   const windowId = pageWindowId();
   const w = windowId ? useBrowser.getState().windows[windowId] : undefined;
@@ -76,13 +77,13 @@ function activateShown(current: EngineTab) {
 }
 
 void tabHub().then((hub) => {
-  hub.onForeignTab = ({ id, url }) => adoptForeign(id, url, () => void hub.service.closeNodes([id]));
+  hub.onForeignTab = ({ id, url }) => void adoptForeign(id, url, () => void hub.service.closeNodes([id]));
   hub.onFocusLocationBar = () => command("focusCommandBar");
   hub.onActivated = settleVisibility;
 });
 
-onProfileTabOpened(({ id, url }) =>
-  adoptForeign(id, url, () => void openProfileTab("", id, undefined).then((tab) => tab?.close())),
+onProfileTabOpened(
+  ({ id, url }) => void adoptForeign(id, url, () => void openProfileTab("", id, undefined).then((tab) => tab?.close())),
 );
 
 const isProfileTab = (profile: string | undefined, adoptId: string | undefined) => adoptId?.startsWith(PROFILE_TAB_PREFIX) || !!profile;

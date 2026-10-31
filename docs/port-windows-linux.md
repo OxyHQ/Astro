@@ -368,6 +368,11 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   see the real `screen.width`, `devicePixelRatio` and `availHeight`, and a window moved onto another output tells them
   its new screen. Frames are paced at the output's refresh (`Refresh`, a VSync provider for viz's software
   compositing). Its scenario is OxyOS's `astro-outputs.json`.
+- **Startup:** a tab Chromium opened before the interface knows its window (the command line's page, a link from another
+  app) is adopted once the page has its window (`pageWindowReady`); it was dropped before, so under load about one
+  launch in five showed only a New Tab. `node scripts/oxyos-startup.mjs --oxyos OXYOS --chrome CHROME` launches Astro
+  8 at a time, 64 times, on OxyOS's development compositor and checks through DevTools that every window holds the
+  command line's page.
 - **Menu bar:** the window's menus are in the session's bar (ADR 0021). The interface builds File, Edit, View, Tabs,
   History, Bookmarks, Extensions, Window and Help from its own command table (`apps/webui/src/host/menuBar.ts`, from
   `menuBarCommands` in the web shortcut table), with each command's chord (OxyOS's `Mod` is Ctrl), check and disabled
