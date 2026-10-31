@@ -2,6 +2,7 @@ import { hapticTick, onAppEvent, setDragEscapeCapture } from "@astro-browser/she
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Animated, Easing, PanResponder, type ScrollView, type View } from "react-native";
 import { create, useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 import { layout, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { useWindowId } from "../../store/hooks";
@@ -54,8 +55,8 @@ const measure = (view: View | null): Promise<Frame | null> =>
     ? new Promise((resolve) => view.measureInWindow((x, y, w, h) => resolve(w || h ? { x, y, w, h } : null)))
     : Promise.resolve(null);
 
-type Marks = { sources: Set<string>; dropInto: string | null; onto: string | null; landing: string | null; pins: boolean; pinCount: number };
-const NO_MARKS: Marks = { sources: new Set(), dropInto: null, onto: null, landing: null, pins: false, pinCount: 0 };
+type Marks = { sources: Set<string>; dropInto: string | null; onto: string | null; landing: string | null; pins: boolean; pinCount: number; pinBefore: string | null };
+const NO_MARKS: Marks = { sources: new Set(), dropInto: null, onto: null, landing: null, pins: false, pinCount: 0, pinBefore: null };
 const noMarks = create<Marks>()(() => NO_MARKS);
 const NO_DROP: Drop = { type: "none" };
 
@@ -136,11 +137,12 @@ class DragController {
       height,
       position: new Animated.ValueXY({ x: frame.x - this.rootFrame.x, y: frame.y - this.rootFrame.y }),
     };
-    for (const s of this.sources) s.size.setValue(s.kind === "tile" ? (s.frame?.w ?? 0) : (s.frame?.h ?? 0));
+    const closing = this.sources.filter((s) => s.kind !== "tile");
+    for (const s of closing) s.size.setValue(s.frame?.h ?? 0);
     this.setLanding(null);
     this.setSources(new Set(this.sources.map((s) => s.key)));
     this.setGhost(this.ghost);
-    Animated.parallel(this.sources.map((s) => spring(s.size, 0))).start();
+    Animated.parallel(closing.map((s) => spring(s.size, 0))).start();
     this.measured = true;
     this.move(this.pointer.x, this.pointer.y);
   }
@@ -269,7 +271,7 @@ class DragController {
     this.escapable = false;
     suppressHover(false);
     this.setSources(new Set());
-    this.marks.setState({ dropInto: null, onto: null, pins: false, pinCount: 0 });
+    this.marks.setState({ dropInto: null, onto: null, pins: false, pinCount: 0, pinBefore: null });
   }
 
   private landingSpot(drop: Drop): Promise<{ x: number; y: number } | null> | null {
@@ -372,7 +374,7 @@ class DragController {
       const before = this.gridBase ? cells[Math.min(cells.length, pinSlot(tiles, cells.length + count, layout.pinnedHeight, x, y))] : undefined;
       drop = { type: "tabs", placement: { pinned: true, row: false, beforeId: firstTab(before) } };
       gapKey = before?.key ?? "tail:tiles";
-      pitch = this.gridBase ? count : PIN_SLOT;
+      pitch = PIN_SLOT;
     } else {
       const groups = live.filter((i) => i.kind === "group");
       const box = tabsDrag
@@ -428,16 +430,19 @@ class DragController {
     this.drop = drop;
     this.into = into;
     const pins = drop.type === "tabs" && drop.placement.pinned && !drop.placement.row;
-    this.marks.setState({ dropInto: into, onto, pins, pinCount: pins ? count : 0 });
+    this.marks.setState({ dropInto: into, onto, pins, pinCount: pins ? count : 0, pinBefore: pins ? gapKey : null });
     if (gapKey !== this.gapKey) {
       const prev = this.gapKey && this.items.get(this.gapKey);
-      if (prev && prev.section === "tiles" && this.gridBase && !this.pinning) prev.gap.setValue(0);
-      else if (prev) spring(prev.gap, 0).start();
+      if (prev && !this.inGrid(prev)) spring(prev.gap, 0).start();
       const next = gapKey && this.items.get(gapKey);
-      if (next) spring(next.gap, pitch).start();
+      if (next && !this.inGrid(next)) spring(next.gap, pitch).start();
       this.gapKey = gapKey;
       this.pitch = pitch;
     }
+  }
+
+  private inGrid(i: Item) {
+    return i.section === "tiles" && !!this.gridBase;
   }
 
   private get pinning() {
@@ -534,6 +539,18 @@ export const useDragController = () => useContext(DragContext) ?? undefined;
 export const useDropInto = () => useStore(useContext(DragContext)?.marks ?? noMarks, (m) => m.dropInto);
 export const useDropOnto = (key: string) => useStore(useContext(DragContext)?.marks ?? noMarks, (m) => m.onto === key);
 export const useDropPins = () => useStore(useContext(DragContext)?.marks ?? noMarks, (m) => m.pins);
+export const usePinSlots = (tabIds: string[]) =>
+  useStore(
+    useContext(DragContext)?.marks ?? noMarks,
+    useShallow((m) => {
+      let slot = 0;
+      return tabIds.map((id) => {
+        const key = `t:${id}`;
+        if (m.pinBefore === key) slot += m.pinCount;
+        return m.sources.has(key) ? slot : slot++;
+      });
+    }),
+  );
 export const usePinnedCount = (tabIds: string[]) =>
   useStore(useContext(DragContext)?.marks ?? noMarks, (m) => tabIds.reduce((n, id) => n + (m.sources.has(`t:${id}`) ? 0 : 1), 0) + m.pinCount);
 export const useDragging = () => useStore(useContext(DragContext)?.marks ?? noMarks, (m) => m.sources.size > 0);
@@ -586,12 +603,7 @@ export function useDragItem(key: string, spec: ItemSpec, selection: () => string
         ...(horizontal ? null : { marginTop: spec.kind === "tail" ? tailOffset! : item.gap }),
         ...(source
           ? horizontal
-            ? {
-                width: item.size,
-                marginRight: item.size.interpolate({ inputRange: [0, Math.max(1, item.frame?.w ?? 0)], outputRange: [0, TILE_GAP], extrapolate: "clamp" }),
-                opacity: 0,
-                overflow: "hidden" as const,
-              }
+            ? { opacity: 0 }
             : { height: item.size, marginBottom: -ROW_GAP, opacity: 0, overflow: "hidden" as const }
           : landing
             ? { opacity: 0 }
