@@ -1,7 +1,6 @@
 import { onWindowEvent, setTrafficLightsCenter, watchLeftEdge, WindowDragRegion } from "@astro-browser/shell";
 import { BloomScope } from "@oxy.so/bloom/appearance";
 import { AppShell, useAppShell, type AppShellDock, type AppShellDockPeekChrome } from "@oxy.so/bloom/app-shell";
-import { BloomThemeProvider } from "@oxy.so/bloom/theme";
 import { useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { runOnJS, useAnimatedReaction } from "react-native-reanimated";
@@ -46,7 +45,6 @@ export function peekChrome(theme: Theme): AppShellDockPeekChrome {
 export function WindowShell({ fullscreen, topTabs, width, children }: { fullscreen: boolean; topTabs: boolean; width: number; children: ReactNode }) {
   const theme = useTheme();
   const windowId = useWindowId();
-  const dark = useBrowser((s) => s.ui.appDark);
   const [open, savedWidth, addressBar] = useBrowser(
     useShallow((s) => [s.windows[windowId]?.sidebarOpen ?? true, s.settings.sidebarWidth ?? layout.sidebarWidth, s.settings.addressBar === "sidebar"] as const),
   );
@@ -92,61 +90,59 @@ export function WindowShell({ fullscreen, topTabs, width, children }: { fullscre
   );
 
   return (
-    <BloomThemeProvider mode={dark ? "dark" : "light"} colorPreset="blue">
-      <BloomScope panelRadius={fullscreen ? 0 : layout.cardRadius}>
-        <AppShell
-          style={{ flex: 1 }}
-          background="transparent"
-          header={null}
-          variant="feed"
-          scroll="fixed"
-          safeArea={false}
-          navFrom={0}
-          framedFrom={0}
-          contentMaxWidth="none"
-          navigationAlign="content"
-          navigationGap={0}
-          frameInset={
-            fullscreen
-              ? NO_INSET
-              : topTabs && open
-                ? { top: 0, end: TOP_CARD_INSET, bottom: TOP_CARD_INSET, start: TOP_CARD_INSET }
-                : { top: layout.cardTop, end: layout.cardInset, bottom: layout.cardInset, start: layout.cardInset }
-          }
-          sidebar={
-            topTabs
-              ? undefined
-              : { surface: "plain", variant: "panel", collapsed: false, collapseDisabled: true, width: sidebarWidth, render: () => sidebar, dock }
-          }
-          topBar={topTabs ? <TopStripRegion width={width} fullscreen={fullscreen} /> : undefined}
-          topBarVisibility="always"
-          topBarDock={topTabs ? topDock : undefined}
-          overlay={
-            topTabs ? (
-              hidden && !fullscreen && <TopStripEdge />
-            ) : (
-              <SidebarDockControls width={sidebarWidth} fullscreen={fullscreen} lights={addressBar ? ARC_LIGHTS_CENTER : LIGHTS_CENTER} />
-            )
-          }
-          panelLayout={{
-            mode: "split",
-            flow: "bounded",
-            panels: [
-              {
-                id: "card",
-                appearance: "plain",
-                content: (
-                  <View style={{ flex: 1, minHeight: 0, flexDirection: "row" }}>
-                    {!fullscreen && <WindowDragRegion style={StyleSheet.absoluteFill} />}
-                    {children}
-                  </View>
-                ),
-              },
-            ],
-          }}
-        />
-      </BloomScope>
-    </BloomThemeProvider>
+    <BloomScope panelRadius={fullscreen ? 0 : layout.cardRadius}>
+      <AppShell
+        style={{ flex: 1 }}
+        background="transparent"
+        header={null}
+        variant="feed"
+        scroll="fixed"
+        safeArea={false}
+        navFrom={0}
+        framedFrom={0}
+        contentMaxWidth="none"
+        navigationAlign="content"
+        navigationGap={0}
+        frameInset={
+          fullscreen
+            ? NO_INSET
+            : topTabs && open
+              ? { top: 0, end: TOP_CARD_INSET, bottom: TOP_CARD_INSET, start: TOP_CARD_INSET }
+              : { top: layout.cardTop, end: layout.cardInset, bottom: layout.cardInset, start: layout.cardInset }
+        }
+        sidebar={
+          topTabs
+            ? undefined
+            : { surface: "plain", variant: "panel", collapsed: false, collapseDisabled: true, width: sidebarWidth, render: () => sidebar, dock }
+        }
+        topBar={topTabs ? <TopStripRegion width={width} fullscreen={fullscreen} /> : undefined}
+        topBarVisibility="always"
+        topBarDock={topTabs ? topDock : undefined}
+        overlay={
+          topTabs ? (
+            hidden && !fullscreen && <TopStripEdge />
+          ) : (
+            <SidebarDockControls width={sidebarWidth} fullscreen={fullscreen} lights={addressBar ? ARC_LIGHTS_CENTER : LIGHTS_CENTER} />
+          )
+        }
+        panelLayout={{
+          mode: "split",
+          flow: "bounded",
+          panels: [
+            {
+              id: "card",
+              appearance: "plain",
+              content: (
+                <View style={{ flex: 1, minHeight: 0, flexDirection: "row" }}>
+                  {!fullscreen && <WindowDragRegion style={StyleSheet.absoluteFill} />}
+                  {children}
+                </View>
+              ),
+            },
+          ],
+        }}
+      />
+    </BloomScope>
   );
 }
 

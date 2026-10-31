@@ -1,5 +1,6 @@
 import { WindowBackdrop } from "@astro-browser/shaders";
-import { useState } from "react";
+import { BloomThemeProvider } from "@oxy.so/bloom/theme";
+import { useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { CommandPanel } from "./components/CommandPanel";
 import { ContentCard } from "./components/ContentCard";
@@ -41,8 +42,17 @@ function BrowserWindowRoot({ windowId }: { windowId?: string }) {
   if (!id || !exists) return null;
   return (
     <WindowContext.Provider value={id}>
-      <ThemeScope>{small ? <LittleAstroWindow /> : <BrowserWindow />}</ThemeScope>
+      <WindowThemes>{small ? <LittleAstroWindow /> : <BrowserWindow />}</WindowThemes>
     </WindowContext.Provider>
+  );
+}
+
+function WindowThemes({ children }: { children: ReactNode }) {
+  const dark = useBrowser((s) => s.ui.appDark);
+  return (
+    <BloomThemeProvider mode={dark ? "dark" : "light"} colorPreset="blue">
+      <ThemeScope>{children}</ThemeScope>
+    </BloomThemeProvider>
   );
 }
 

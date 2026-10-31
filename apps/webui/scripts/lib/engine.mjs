@@ -17,7 +17,7 @@ export const freePort = () =>
 
 const UNREACHABLE = ["api.oxy.so", "api.nilo.so", "api.alia.onl", "kaana.ai"].map((host) => `MAP ${host} 0.0.0.0:9`);
 
-export async function startEngine({ chrome, repo, scratch, extraArgs = [] }) {
+export async function startEngine({ chrome, repo, scratch, ui = join(repo, "apps/webui/dist"), extraArgs = [] }) {
   rmSync(scratch, { recursive: true, force: true });
   mkdirSync(join(scratch, "profile/Default"), { recursive: true });
   writeFileSync(join(scratch, "profile/Default/Preferences"), JSON.stringify({ net: { network_prediction_options: 0 } }));
@@ -27,7 +27,7 @@ export async function startEngine({ chrome, repo, scratch, extraArgs = [] }) {
     [
       `--user-data-dir=${join(scratch, "profile")}`,
       `--remote-debugging-port=${debugPort}`,
-      `--astro-ui-dir=${join(repo, "apps/webui/dist")}`,
+      `--astro-ui-dir=${ui}`,
       `--host-resolver-rules=${[...UNREACHABLE, "MAP *.test 127.0.0.1"].join(", ")}`,
       "--no-first-run",
       "--no-default-browser-check",
