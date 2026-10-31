@@ -29,13 +29,14 @@ interface OxyOSSurface {
                gfx.mojom.Size size);
   DetachBuffer(uint32 buffer);
   Present(uint32 buffer,
+          uint64 frame,
           array<gfx.mojom.Rect> damage,
           int64 viz_seq,
           gfx.mojom.GpuFenceHandle? acquire);
 };
 
 interface OxyOSSurfaceClient {
-  OnPresented(uint32 buffer, bool shown);
+  OnPresented(uint64 frame, bool shown);
   OnBufferReleased(uint32 buffer, gfx.mojom.GpuFenceHandle? release);
   OnBufferFailed(uint32 buffer);
   OnRefresh(uint32 refresh_mhz);

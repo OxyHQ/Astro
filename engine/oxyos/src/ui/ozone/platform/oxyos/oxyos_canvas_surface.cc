@@ -2,6 +2,7 @@
 
 #include "ui/ozone/platform/oxyos/oxyos_canvas_surface.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -28,6 +29,14 @@ size_t StrideOf(const gfx::Size& size) {
 
 OxyOSCanvasSurface::Buffer::Buffer() = default;
 OxyOSCanvasSurface::Buffer::~Buffer() = default;
+
+OxyOSCanvasSurface::Unanswered::Unanswered(uint64_t frame,
+                                           SwapBuffersCallback callback)
+    : frame(frame), callback(std::move(callback)) {}
+OxyOSCanvasSurface::Unanswered::Unanswered(Unanswered&&) = default;
+OxyOSCanvasSurface::Unanswered& OxyOSCanvasSurface::Unanswered::operator=(
+    Unanswered&&) = default;
+OxyOSCanvasSurface::Unanswered::~Unanswered() = default;
 
 OxyOSCanvasSurface::OxyOSCanvasSurface(OxyOSGpu* gpu,
                                        gfx::AcceleratedWidget widget)
@@ -152,19 +161,24 @@ void OxyOSCanvasSurface::OnSwapBuffers(SwapBuffersCallback swap_ack_callback,
     surface_->AttachBuffer(frame->id, frame->region.Duplicate(), size_);
     frame->attached = true;
   }
-  surface_->Present(frame->id, {damage_}, data.seq, gfx::GpuFenceHandle());
+  unanswered_.emplace_back(++last_frame_, std::move(swap_ack_callback));
+  surface_->Present(frame->id, last_frame_, {damage_}, data.seq,
+                    gfx::GpuFenceHandle());
   previous_ = frame;
-  unanswered_.push_back(std::move(swap_ack_callback));
 }
 
-void OxyOSCanvasSurface::OnPresented(uint32_t buffer, bool shown) {
-  if (unanswered_.empty()) {
+void OxyOSCanvasSurface::OnPresented(uint64_t frame, bool shown) {
+  auto it = std::ranges::find(unanswered_, frame, &Unanswered::frame);
+  if (it == unanswered_.end() || it->presented) {
     receiver_.ReportBadMessage("OxyOS presented a frame never sent");
     return;
   }
-  SwapBuffersCallback callback = std::move(unanswered_.front());
-  unanswered_.pop_front();
-  std::move(callback).Run(size_);
+  it->presented = true;
+  while (!unanswered_.empty() && unanswered_.front().presented) {
+    SwapBuffersCallback callback = std::move(unanswered_.front().callback);
+    unanswered_.pop_front();
+    std::move(callback).Run(size_);
+  }
 }
 
 void OxyOSCanvasSurface::OnBufferReleased(uint32_t buffer,
@@ -183,7 +197,8 @@ void OxyOSCanvasSurface::OnHostGone() {
   receiver_.reset();
   while (!unanswered_.empty()) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(unanswered_.front()), size_));
+        FROM_HERE,
+        base::BindOnce(std::move(unanswered_.front().callback), size_));
     unanswered_.pop_front();
   }
 }
