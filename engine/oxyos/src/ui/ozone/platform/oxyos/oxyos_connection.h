@@ -4,6 +4,7 @@
 #define UI_OZONE_PLATFORM_OXYOS_OXYOS_CONNECTION_H_
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -13,13 +14,16 @@
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_pump_for_ui.h"
 #include "oxyos_client.h"
 #include "ui/events/platform/platform_event_source.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/vector2d_f.h"
+#include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/ozone/platform/oxyos/oxyos_clipboard.h"
+#include "ui/ozone/platform/oxyos/oxyos_data_drag.h"
 #include "ui/ozone/platform/oxyos/oxyos_drag.h"
 #include "ui/ozone/platform/oxyos/oxyos_file_chooser.h"
 #include "ui/ozone/platform/oxyos/oxyos_keyboard.h"
@@ -87,6 +91,7 @@ class OxyOSConnection : public PlatformEventSource,
                WmDragHandler::DragFinishedCallback finished,
                WmDragHandler::LocationDelegate* location);
   void CancelDrag();
+  bool CompositorDrags() const;
 
   void SetCaptureWindow(OxyOSWindow* window);
   void ReleasePressedButtons(OxyOSWindow* window);
@@ -127,6 +132,29 @@ class OxyOSConnection : public PlatformEventSource,
   void DispatchTo(OxyOSWindow* window, Event* event);
   void DragMotion(OxyOSWindow* window, const gfx::PointF& location);
   void EndDrag(mojom::DragOperation operation, bool cancelled);
+  void CancelWindowDrag();
+  bool RunCompositorDrag(OxyOSWindow* source,
+                         const OSExchangeData& data,
+                         int operations,
+                         base::OnceClosure started,
+                         WmDragHandler::DragFinishedCallback finished,
+                         WmDragHandler::LocationDelegate* location);
+  void OfferDrag(uint32_t surface,
+                 int operations,
+                 std::optional<OxyOSWrittenDragFile> written);
+  void PresentDragIcon(const OxyOSEvent& configure);
+  void EndOfferedDrag(mojom::DragOperation operation, bool cancelled);
+  void HandleOfferedDrag(const OxyOSEvent& event);
+  void HandleIncomingDrag(const OxyOSEvent& event);
+  void EnterIncomingDrag();
+  void MoveIncomingDrag();
+  void LeaveIncomingDrag();
+  void DropIncomingDrag(const OxyOSEvent& event);
+  void OnDropRead(uint32_t offer,
+                  uint32_t surface,
+                  std::map<std::string, std::string> received);
+  void DropWhenAnswered(uint32_t offer, uint32_t surface, int tries);
+  WmDropHandler* IncomingDropHandler(gfx::PointF* location_dip) const;
   void OnCompositorGone();
 
   const raw_ptr<OxyOSClient> client_;
@@ -158,12 +186,46 @@ class OxyOSConnection : public PlatformEventSource,
   base::OnceClosure drag_quit_;
   bool drag_cancelled_ = false;
 
+  struct OfferedDrag {
+    OfferedDrag();
+    ~OfferedDrag();
+    uint32_t drag = 0;
+    uint32_t icon = 0;
+    std::unique_ptr<OSExchangeData> data;
+    gfx::ImageSkia image;
+    WmDragHandler::DragFinishedCallback finished;
+    raw_ptr<WmDragHandler::LocationDelegate> location = nullptr;
+    base::OnceClosure quit;
+    bool ended = false;
+    bool cancelled = false;
+  };
+  std::unique_ptr<OfferedDrag> offered_drag_;
+
+  struct IncomingDrag {
+    uint32_t offer = 0;
+    uint64_t serial = 0;
+    uint32_t surface = 0;
+    int operations = 0;
+    size_t expected = 0;
+    std::vector<std::string> types;
+    int32_t x = 0;
+    int32_t y = 0;
+    int modifiers = 0;
+    bool entered = false;
+    bool answered = false;
+    std::string mime;
+    uint8_t actions = 0;
+    uint8_t preferred = 0;
+  };
+  std::optional<IncomingDrag> incoming_drag_;
+
   struct Expected {
     uint32_t surface;
     FeedbackCallback callback;
   };
   base::flat_map<int64_t, Expected> feedback_;
   base::flat_map<uint64_t, BufferCallback> releases_;
+  base::WeakPtrFactory<OxyOSConnection> weak_factory_{this};
 };
 
 }

@@ -115,6 +115,7 @@ class OzonePlatformOxyos : public OzonePlatform {
         keyboard_layout_engine_.get());
     connection_->set_keyboard_layout_engine(keyboard_layout_engine_.get());
     SetOxyOSFileChooser(connection_->file_chooser());
+    properties_.platform_shows_drag_image = connection_->CompositorDrags();
     connection_->set_keyboard_layout_callback(base::BindRepeating(
         [](XkbKeyboardLayoutEngine* engine, const std::string& names) {
           const std::optional<std::string> keymap = OxyOSKeymapFromNames(names);
