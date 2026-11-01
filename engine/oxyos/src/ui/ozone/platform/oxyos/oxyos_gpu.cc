@@ -14,13 +14,14 @@
 
 #include "base/command_line.h"
 #include "base/environment.h"
-#include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/numerics/checked_math.h"
 #include "base/posix/eintr_wrapper.h"
+#include "base/strings/cstring_view.h"
+#include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
@@ -44,24 +45,32 @@ constexpr uint64_t kLinear = 0;
 constexpr uint32_t kLinearStrideAlignment = 256;
 constexpr char kLinearHeap[] = "/dev/dma_heap/system";
 constexpr char kVulkanDriversSelect[] = "VK_LOADER_DRIVERS_SELECT";
+constexpr base::cstring_view kVulkanDriverChoices[] = {
+    "VK_DRIVER_FILES", "VK_ICD_FILENAMES", "VK_ADD_DRIVER_FILES",
+    "VK_LOADER_DRIVERS_DISABLE"};
+constexpr std::string_view kSoftwareVulkanDrivers = "*swiftshader*";
+constexpr std::string_view kNoHardwareVulkanDrivers = "*lvp*";
 
-void LoadOnlyThisDevicesVulkanDriver(dev_t device) {
-  std::unique_ptr<base::Environment> environment = base::Environment::Create();
-  if (environment->HasVar(kVulkanDriversSelect)) {
-    return;
-  }
+std::string DrmDriverOf(uint64_t device) {
   base::FilePath driver;
-  if (!base::ReadSymbolicLink(
+  if (!device ||
+      !base::ReadSymbolicLink(
           base::FilePath(base::StringPrintf("/sys/dev/char/%u:%u/device/driver",
                                             major(device), minor(device))),
           &driver)) {
-    return;
+    return std::string();
   }
-  if (std::optional<std::string> icds =
-          OxyOSVulkanDriversFor(driver.BaseName().value())) {
-    environment->SetVar(kVulkanDriversSelect, *icds);
-    VLOG(1) << "OxyOS loads only the Vulkan drivers " << *icds;
+  return driver.BaseName().value();
+}
+
+void LoadOnlyTheVulkanDriversOf(uint64_t device) {
+  std::unique_ptr<base::Environment> environment = base::Environment::Create();
+  for (base::cstring_view choice : kVulkanDriverChoices) {
+    environment->UnSetVar(choice);
   }
+  const std::string drivers = OxyOSVulkanDriversFor(DrmDriverOf(device));
+  environment->SetVar(kVulkanDriversSelect, drivers);
+  VLOG(1) << "OxyOS loads only the Vulkan drivers " << drivers;
 }
 
 scoped_refptr<gfx::NativePixmap> AllocateLinear(const gfx::Size& size,
@@ -96,7 +105,7 @@ scoped_refptr<gfx::NativePixmap> AllocateLinear(const gfx::Size& size,
                                                        std::move(handle));
 }
 
-}
+}  // namespace
 
 std::vector<OxyOSGpuTableEntry> OxyOSLinearOnly(
     std::vector<OxyOSGpuTableEntry> table) {
@@ -106,45 +115,40 @@ std::vector<OxyOSGpuTableEntry> OxyOSLinearOnly(
   return table;
 }
 
-base::ScopedFD OxyOSOpenRenderNode(const base::FilePath& preferred) {
-  std::vector<base::FilePath> candidates;
-  if (!preferred.empty()) {
-    candidates.push_back(preferred);
+base::ScopedFD OxyOSOpenRenderNode(const base::FilePath& node) {
+  if (node.empty()) {
+    return base::ScopedFD();
   }
-  base::FileEnumerator nodes(
-      base::FilePath("/dev/dri"), false,
-      base::FileEnumerator::FILES | base::FileEnumerator::SHOW_SYM_LINKS,
-      "renderD*");
-  std::vector<base::FilePath> found;
-  for (base::FilePath node = nodes.Next(); !node.empty(); node = nodes.Next()) {
-    found.push_back(node);
+  base::ScopedFD fd(
+      HANDLE_EINTR(open(node.value().c_str(), O_RDWR | O_CLOEXEC)));
+  struct stat info;
+  if (!fd.is_valid() || fstat(fd.get(), &info) != 0 || !S_ISCHR(info.st_mode)) {
+    return base::ScopedFD();
   }
-  std::ranges::sort(found);
-  candidates.insert(candidates.end(), found.begin(), found.end());
-  for (const base::FilePath& candidate : candidates) {
-    base::ScopedFD fd(
-        HANDLE_EINTR(open(candidate.value().c_str(), O_RDWR | O_CLOEXEC)));
-    if (fd.is_valid()) {
-      return fd;
-    }
-  }
-  return base::ScopedFD();
+  return fd;
 }
 
-std::optional<std::string> OxyOSVulkanDriversFor(std::string_view drm_driver) {
+std::string OxyOSVulkanDriversFor(std::string_view drm_driver) {
   static constexpr std::pair<std::string_view, std::string_view> kDrivers[] = {
-      {"i915", "*intel*"},       {"xe", "*intel*"},
-      {"amdgpu", "*radeon*"},    {"radeon", "*radeon*"},
-      {"nouveau", "*nouveau*"},  {"virtio_gpu", "*virtio*"},
-      {"msm", "*freedreno*"},    {"panfrost", "*panfrost*"},
-      {"panthor", "*panfrost*"}, {"v3d", "*broadcom*"},
+      {"i915", "*intel*"},
+      {"xe", "*intel*"},
+      {"amdgpu", "*radeon*"},
+      {"nouveau", "*nouveau*"},
+      {"virtio_gpu", "*virtio*,*gfxstream*"},
+      {"msm", "*freedreno*"},
+      {"panfrost", "*panfrost*"},
+      {"panthor", "*panfrost*"},
+      {"v3d", "*broadcom*"},
+      {"asahi", "*asahi*"},
+      {"nvidia", "*nvidia*"},
   };
+  std::string_view hardware = kNoHardwareVulkanDrivers;
   for (const auto& [driver, icds] : kDrivers) {
     if (driver == drm_driver) {
-      return std::string(icds);
+      hardware = icds;
     }
   }
-  return std::nullopt;
+  return base::StrCat({hardware, ",", kSoftwareVulkanDrivers});
 }
 
 std::vector<uint64_t> OxyOSRenderable(
@@ -186,8 +190,8 @@ OxyOSGpu::OxyOSGpu()
   if (render_node_.is_valid() && fstat(render_node_.get(), &node) == 0) {
     render_device_ = node.st_rdev;
     gbm_ = CreateGbmDevice(render_node_.get());
-    LoadOnlyThisDevicesVulkanDriver(node.st_rdev);
   }
+  LoadOnlyTheVulkanDriversOf(render_device_);
   LOG_IF(ERROR, !gbm_) << "No GBM device for OxyOS's GPU buffers";
   supports_native_pixmaps_ = gbm_ || access(kLinearHeap, R_OK) == 0;
   VLOG(1) << "OxyOS GPU buffers on render node " << render_device_;
@@ -332,4 +336,4 @@ scoped_refptr<gfx::NativePixmap> OxyOSGpu::Allocate(
   return AllocateLinear(size, format);
 }
 
-}
+}  // namespace ui

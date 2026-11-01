@@ -49,9 +49,9 @@ struct OxyOSGpuTableEntry {
 std::vector<OxyOSGpuTableEntry> OxyOSLinearOnly(
     std::vector<OxyOSGpuTableEntry> table);
 
-base::ScopedFD OxyOSOpenRenderNode(const base::FilePath& preferred);
+base::ScopedFD OxyOSOpenRenderNode(const base::FilePath& node);
 
-std::optional<std::string> OxyOSVulkanDriversFor(std::string_view drm_driver);
+std::string OxyOSVulkanDriversFor(std::string_view drm_driver);
 
 std::vector<uint64_t> OxyOSRenderable(
     const std::vector<uint64_t>& offered,
@@ -89,6 +89,7 @@ class OxyOSGpu : public ozone::mojom::OxyOSGpu {
   bool supports_native_pixmaps() const { return supports_native_pixmaps_; }
 
   int render_node() const { return render_node_.get(); }
+  uint64_t render_device() const { return render_device_; }
   bool CanAllocate(uint32_t fourcc);
   scoped_refptr<gfx::NativePixmap> Allocate(const gfx::Size& size,
                                             viz::SharedImageFormat format,
@@ -118,6 +119,6 @@ class OxyOSGpu : public ozone::mojom::OxyOSGpu {
   bool same_device_ GUARDED_BY(lock_) = false;
 };
 
-}
+}  // namespace ui
 
 #endif

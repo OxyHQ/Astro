@@ -1,0 +1,92 @@
+SPDX-License-Identifier: BSD-3-Clause
+ANGLE's GL backend opened every DRM primary node (/dev/dri/card*) to read its driver's name before it chose an EGL
+device, and fell back to initializing every EGL device in turn when its display failed. Opening the node of a
+runtime-suspended GPU wakes it, and on OxyOS a client draws only on the compositor's GPU: an NVIDIA dGPU on nouveau
+woke this way wedged the whole machine. ANGLE now takes the device it is given (EGL_PLATFORM_DEVICE_EXT as the native
+platform type, the EGLDeviceEXT as the native display) with no fallback, and reads a device's driver from sysfs
+instead of opening it.
+
+--- a/third_party/angle/src/libANGLE/renderer/gl/egl/FunctionsEGL.cpp
++++ b/third_party/angle/src/libANGLE/renderer/gl/egl/FunctionsEGL.cpp
+@@ -18,9 +18,12 @@
+ 
+ #if defined(ANGLE_HAS_LIBDRM)
+ // clang-format off
+-#include <fcntl.h>
++#include <limits.h>
++#include <stdio.h>
++#include <string.h>
++#include <sys/stat.h>
++#include <sys/sysmacros.h>
+ #include <unistd.h>
+-#include <xf86drm.h>
+ // clang-format on
+ #endif  // defined(ANGLE_HAS_LIBDRM)
+ 
+@@ -252,6 +255,23 @@
+     // extensions once the display is created and initialized.
+     queryExtensions();
+ 
++    if (platformType == EGL_PLATFORM_DEVICE_EXT)
++    {
++        PFNEGLGETPLATFORMDISPLAYEXTPROC getPlatformDisplayEXTPtr;
++        if (reinterpret_cast<void *>(nativeDisplay) == nullptr ||
++            !hasExtension("EGL_EXT_platform_base") || !hasExtension("EGL_EXT_platform_device") ||
++            !SetPtr(&getPlatformDisplayEXTPtr, getProcAddress("eglGetPlatformDisplayEXT")))
++        {
++            return egl::Error(EGL_NOT_INITIALIZED, "No EGL display for the given EGL device");
++        }
++        mEGLDisplay = getPlatformDisplayEXTPtr(EGL_PLATFORM_DEVICE_EXT,
++                                               reinterpret_cast<void *>(nativeDisplay), nullptr);
++        if (mEGLDisplay == EGL_NO_DISPLAY)
++        {
++            return egl::Error(EGL_NOT_INITIALIZED, "No EGL display for the given EGL device");
++        }
++    }
++
+ #if defined(ANGLE_USE_WAYLAND)
+     if (platformType == EGL_PLATFORM_WAYLAND_EXT)
+     {
+@@ -282,7 +302,7 @@
+     {
+         mEGLDisplay = EGL_NO_DISPLAY;
+     }
+-    if (mEGLDisplay == EGL_NO_DISPLAY)
++    if (mEGLDisplay == EGL_NO_DISPLAY && platformType != EGL_PLATFORM_DEVICE_EXT)
+     {
+         // If no display was available, try to fallback to the first available
+         // native device object's display.
+@@ -544,21 +564,24 @@
+             continue;
+         }
+ 
+-        int fd = open(filename, O_RDWR);
+-        if (!fd)
++        struct stat node;
++        if (stat(filename, &node) != 0 || !S_ISCHR(node.st_mode))
+         {
+             continue;
+         }
+ 
+-        drmVersionPtr version = drmGetVersion(fd);
+-        if (version)
++        char driver_link[64];
++        snprintf(driver_link, sizeof(driver_link), "/sys/dev/char/%u:%u/device/driver",
++                 major(node.st_rdev), minor(node.st_rdev));
++        char driver_path[PATH_MAX];
++        const ssize_t length = readlink(driver_link, driver_path, sizeof(driver_path) - 1);
++        if (length <= 0)
+         {
+-            const std::string driver_name(version->name, version->name_len);
+-            device_drivers.insert({device, driver_name});
++            continue;
+         }
+-
+-        drmFreeVersion(version);
+-        close(fd);
++        driver_path[length]     = '\0';
++        const char *driver_name = strrchr(driver_path, '/');
++        device_drivers.insert({device, driver_name ? driver_name + 1 : driver_path});
+     }
+ 
+     const char *preferred_drivers[3] = {"i915", "amdgpu", "virtio_gpu"};
