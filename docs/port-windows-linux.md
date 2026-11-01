@@ -432,7 +432,13 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
     (`OnPresented`) names, as answers come out of order: the compositor discards a queued frame (on a configure or a
     newer frame) while the one ahead of it is still presenting, and the browser answers at once a frame no configure
     fits during a resize. Each frame's answer is kept whenever it comes; swaps still complete in order. The software
-    canvas does the same.
+    canvas does the same. The swaps mirror viz's buffer queue under OxyOS's rule
+    that a buffer the compositor holds (queued, presenting, shown, or its release still pending) is never submitted:
+    every frame completes once the buffer viz had displayed is released (viz then draws into it); a frame not shown
+    with nothing after it able to replace that buffer completes with `SWAP_NAK_RECREATE_BUFFERS`, so viz moves to new
+    buffers instead of waiting for ever; an empty swap (viz presents again its last frame's buffer, nothing redrawn) is
+    not sent while OxyOS holds the buffer and completes as skipped. A buffer still held that is not the last frame's
+    fails the swap here, with a log line, instead of OxyOS closing the connection (`InvalidBuffer`).
   - Without DMA-BUF import, native fences (ANGLE on Vulkan) or a buffer the compositor imports, the GPU process says so
     once (`OxyOS composites in software: …`) and compositing stays in software; a buffer the compositor refuses
     (`BUFFER_FAILED`) fails the swaps, and Chromium falls back the same way.

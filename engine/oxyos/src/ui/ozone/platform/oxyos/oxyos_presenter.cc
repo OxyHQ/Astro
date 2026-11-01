@@ -9,6 +9,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/sequenced_task_runner.h"
 #include "ui/gfx/gpu_fence.h"
 #include "ui/gfx/linux/drm_util_linux.h"
 #include "ui/gfx/overlay_plane_data.h"
@@ -23,18 +24,35 @@ OxyOSFrameLedger::OxyOSFrameLedger() = default;
 
 OxyOSFrameLedger::~OxyOSFrameLedger() = default;
 
-uint64_t OxyOSFrameLedger::Submitted(uint32_t buffer) {
+OxyOSFrameLedger::Submission OxyOSFrameLedger::Submit(uint32_t buffer,
+                                                      bool damaged) {
+  const bool held = held_.contains(buffer);
+  if (buffer == last_buffer_ && held) {
+    frames_.push_back({.id = ++last_frame_,
+                       .buffer = buffer,
+                       .sent = false,
+                       .skip = true,
+                       .generation = generation_,
+                       .feedback = gfx::PresentationFeedback::Failure()});
+    return {.frame = last_frame_, .route = Route::kRepeat};
+  }
+  if (held) {
+    return {.route = Route::kRefuse};
+  }
   released_.erase(buffer);
-  frames_.push_back(
-      {.id = ++last_frame_, .buffer = buffer, .previous = last_submitted_});
-  last_submitted_ = buffer;
-  return last_frame_;
+  held_.insert(buffer);
+  frames_.push_back({.id = ++last_frame_,
+                     .buffer = buffer,
+                     .skip = buffer == last_buffer_ && !damaged,
+                     .generation = generation_});
+  last_buffer_ = buffer;
+  return {.frame = last_frame_, .route = Route::kSend};
 }
 
 bool OxyOSFrameLedger::Presented(uint64_t frame,
                                  const gfx::PresentationFeedback& feedback) {
   auto it = std::ranges::find(frames_, frame, &Frame::id);
-  if (it == frames_.end() || it->feedback) {
+  if (it == frames_.end() || !it->sent || it->feedback) {
     return false;
   }
   it->feedback = feedback;
@@ -42,7 +60,37 @@ bool OxyOSFrameLedger::Presented(uint64_t frame,
 }
 
 void OxyOSFrameLedger::Released(uint32_t buffer, gfx::GpuFenceHandle fence) {
+  held_.erase(buffer);
+  if (dropped_.erase(buffer)) {
+    return;
+  }
   released_[buffer] = std::move(fence);
+}
+
+std::optional<gfx::GpuFenceHandle> OxyOSFrameLedger::TakeRelease(
+    uint32_t buffer) {
+  auto it = released_.find(buffer);
+  if (it == released_.end()) {
+    return std::nullopt;
+  }
+  gfx::GpuFenceHandle fence = std::move(it->second);
+  released_.erase(it);
+  return fence;
+}
+
+bool OxyOSFrameLedger::AnyLaterFrameCanBeShown() const {
+  return std::any_of(
+      frames_.begin() + 1, frames_.end(), [](const Frame& frame) {
+        return frame.sent && (!frame.feedback || !frame.feedback->failed());
+      });
+}
+
+void OxyOSFrameLedger::DropBuffers() {
+  ++generation_;
+  dropped_.insert(held_.begin(), held_.end());
+  released_.clear();
+  displayed_ = 0;
+  last_buffer_ = 0;
 }
 
 std::optional<OxyOSFrameLedger::Completed> OxyOSFrameLedger::TakeCompleted() {
@@ -51,22 +99,33 @@ std::optional<OxyOSFrameLedger::Completed> OxyOSFrameLedger::TakeCompleted() {
   }
   const Frame& frame = frames_.front();
   Completed completed{.feedback = *frame.feedback};
-  if (frame.previous && frame.previous != frame.buffer) {
-    auto it = released_.find(frame.previous);
-    if (it == released_.end()) {
-      return std::nullopt;
+  if (frame.skip) {
+    completed.result = gfx::SwapResult::SWAP_SKIPPED;
+  } else if (frame.generation == generation_) {
+    if (displayed_ && displayed_ != frame.buffer) {
+      std::optional<gfx::GpuFenceHandle> release = TakeRelease(displayed_);
+      if (release) {
+        completed.release = std::move(*release);
+      } else if (!frame.feedback->failed() || AnyLaterFrameCanBeShown()) {
+        return std::nullopt;
+      } else {
+        completed.result = gfx::SwapResult::SWAP_NAK_RECREATE_BUFFERS;
+        DropBuffers();
+      }
     }
-    completed.release = std::move(it->second);
-    released_.erase(it);
+    if (completed.result == gfx::SwapResult::SWAP_ACK) {
+      displayed_ = frame.buffer;
+    }
   }
   frames_.pop_front();
   return completed;
 }
 
 bool OxyOSFrameLedger::InFlight(uint32_t buffer) const {
-  return buffer == last_submitted_ ||
+  return held_.contains(buffer) || buffer == displayed_ ||
+         buffer == last_buffer_ ||
          std::ranges::any_of(frames_, [buffer](const Frame& frame) {
-           return frame.buffer == buffer || frame.previous == buffer;
+           return frame.buffer == buffer;
          });
 }
 
@@ -139,10 +198,29 @@ void OxyOSPresenter::Present(SwapCompletionCallback completion_callback,
             scheduled->pixmap->GetSharedImageFormat()),
         scheduled->pixmap->GetFormatModifier());
   }
-  const uint64_t frame = ledger_.Submitted(id);
+  const OxyOSFrameLedger::Submission submission =
+      ledger_.Submit(id, !damage.empty());
+  if (submission.route == OxyOSFrameLedger::Route::kRefuse) {
+    if (!told_held_) {
+      told_held_ = true;
+      LOG(ERROR) << "OxyOS: Chromium drew into buffer " << id
+                 << " while the compositor still holds it; the frame fails";
+    }
+    std::move(completion_callback)
+        .Run(gfx::SwapCompletionResult(gfx::SwapResult::SWAP_FAILED));
+    std::move(presentation_callback).Run(gfx::PresentationFeedback::Failure());
+    return;
+  }
   pending_.emplace_back(std::move(completion_callback),
                         std::move(presentation_callback));
-  surface_->Present(id, frame, damage, data.seq, std::move(acquire));
+  if (submission.route == OxyOSFrameLedger::Route::kSend) {
+    surface_->Present(id, submission.frame, damage, data.seq,
+                      std::move(acquire));
+  } else {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&OxyOSPresenter::Complete, weak_factory_.GetWeakPtr()));
+  }
   ForgetUnused();
 }
 
@@ -231,7 +309,7 @@ void OxyOSPresenter::Complete() {
     Pending frame = std::move(pending_.front());
     pending_.pop_front();
     std::move(frame.completion)
-        .Run(gfx::SwapCompletionResult(gfx::SwapResult::SWAP_ACK,
+        .Run(gfx::SwapCompletionResult(completed->result,
                                        std::move(completed->release)));
     std::move(frame.presentation).Run(completed->feedback);
   }
