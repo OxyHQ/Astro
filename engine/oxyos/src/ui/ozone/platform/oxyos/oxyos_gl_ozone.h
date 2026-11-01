@@ -3,16 +3,43 @@
 #ifndef UI_OZONE_PLATFORM_OXYOS_OXYOS_GL_OZONE_H_
 #define UI_OZONE_PLATFORM_OXYOS_OXYOS_GL_OZONE_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "ui/gl/gl_display.h"
 #include "ui/ozone/common/gl_ozone_egl.h"
+#include "ui/ozone/public/platform_gl_egl_utility.h"
 
 namespace ui {
 
 class OxyOSGpu;
+
+struct OxyOSEGLDevice {
+  std::optional<uint64_t> render_node;
+  bool software = false;
+};
+
+std::optional<size_t> OxyOSChooseEGLDevice(
+    const std::vector<OxyOSEGLDevice>& devices,
+    uint64_t render_device);
+
+class OxyOSGLEGLUtility : public PlatformGLEGLUtility {
+ public:
+  OxyOSGLEGLUtility();
+  OxyOSGLEGLUtility(const OxyOSGLEGLUtility&) = delete;
+  OxyOSGLEGLUtility& operator=(const OxyOSGLEGLUtility&) = delete;
+  ~OxyOSGLEGLUtility() override;
+
+  void GetAdditionalEGLAttributes(
+      EGLenum platform_type,
+      std::vector<EGLAttrib>* display_attributes) override;
+  void ChooseEGLAlphaAndBufferSize(EGLint* alpha_size,
+                                   EGLint* buffer_size) override;
+};
 
 class OxyOSGLOzone : public GLOzoneEGL {
  public:

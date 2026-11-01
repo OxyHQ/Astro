@@ -16,6 +16,7 @@
 #include "ui/ozone/platform/oxyos/oxyos_connection.h"
 #include "ui/ozone/platform/oxyos/oxyos_cursor_factory.h"
 #include "ui/ozone/platform/oxyos/oxyos_file_chooser.h"
+#include "ui/ozone/platform/oxyos/oxyos_gl_ozone.h"
 #include "ui/ozone/platform/oxyos/oxyos_gpu.h"
 #include "ui/ozone/platform/oxyos/oxyos_input_method_context.h"
 #include "ui/ozone/platform/oxyos/oxyos_keymap.h"
@@ -87,6 +88,13 @@ class OzonePlatformOxyos : public OzonePlatform {
 
   PlatformClipboard* GetPlatformClipboard() override {
     return connection_ ? connection_->clipboard() : nullptr;
+  }
+
+  PlatformGLEGLUtility* GetPlatformGLEGLUtility() override {
+    if (!gl_egl_utility_) {
+      gl_egl_utility_ = std::make_unique<OxyOSGLEGLUtility>();
+    }
+    return gl_egl_utility_.get();
   }
 
   const PlatformProperties& GetPlatformProperties() override {
@@ -176,6 +184,7 @@ class OzonePlatformOxyos : public OzonePlatform {
   std::unique_ptr<OxyOSSurfaceHost> surface_host_;
   std::unique_ptr<OxyOSGpu> gpu_;
   std::unique_ptr<OxyOSSurfaceFactory> surface_factory_;
+  std::unique_ptr<OxyOSGLEGLUtility> gl_egl_utility_;
 };
 
 }

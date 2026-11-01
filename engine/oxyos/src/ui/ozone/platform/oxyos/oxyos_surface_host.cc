@@ -317,17 +317,17 @@ void OxyOSSurfaceHost::OnGpuTable() {
   gpu_->SetGpuTable(device, std::move(table));
 }
 
+void OxyOSNameRenderNode(const base::FilePath& node,
+                         base::CommandLine* command_line) {
+  command_line->RemoveSwitch(switches::kRenderNodeOverride);
+  command_line->AppendSwitchPath(switches::kRenderNodeOverride, node);
+}
+
 void OxyOSSurfaceHost::NameRenderNode() {
   uint64_t device = 0;
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kRenderNodeOverride) ||
-      oxyos_client_gpu_device(connection_->client(), &device) != 1) {
-    return;
-  }
-  const base::FilePath path = RenderNodePath(device);
-  if (!path.empty()) {
-    command_line->AppendSwitchPath(switches::kRenderNodeOverride, path);
-  }
+  const bool gpu = oxyos_client_gpu_device(connection_->client(), &device) == 1;
+  OxyOSNameRenderNode(gpu ? RenderNodePath(device) : base::FilePath(),
+                      base::CommandLine::ForCurrentProcess());
 }
 
 void OxyOSSurfaceHost::CreateSurface(

@@ -17,9 +17,17 @@
 #include "ui/ozone/platform/oxyos/mojom/oxyos_surfaces.mojom.h"
 #include "ui/ozone/public/gpu_platform_support_host.h"
 
+namespace base {
+class CommandLine;
+class FilePath;
+}
+
 namespace ui {
 
 class OxyOSConnection;
+
+void OxyOSNameRenderNode(const base::FilePath& node,
+                         base::CommandLine* command_line);
 
 class OxyOSSurfaceHost : public GpuPlatformSupportHost,
                          public ozone::mojom::OxyOSSurfaceHost {
