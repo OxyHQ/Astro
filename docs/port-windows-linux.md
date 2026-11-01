@@ -381,14 +381,19 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   Undo, Redo, Cut, Copy, Paste and Select All act on the focused frame (`astroEditCommand`). With the bar shown, the ⋯
   button is hidden. Settings… and Import are at the end of Edit until OxyOS's application menu offers an application's
   settings. Its scenario is OxyOS's `astro-menu-bar.json`.
-- **Drag and drop:** inside a window, with nothing new from the compositor (OxyOS ADR 0029, decision 7). The platform
-  is each toplevel's `WmDragHandler`: while the press is held the compositor keeps the pointer on the window, so the
-  drag's motions drive that window's own `WmDropHandler` (enter with Chromium's `OSExchangeData`, each motion's
-  operation, the drop at the release, leave outside the window or on Escape) in a nested loop (`OxyOSDrag`). Chromium
-  draws the drag image in a popup of the window that takes no input; a popup's anchor is kept inside its parent, the
-  rest of its place in the positioner's offset, as OxyOS requires. A drag released outside the window drops nothing;
-  dragging between applications needs the protocol's drag offers (decision 7's second half). Its scenario is OxyOS's
-  `astro-drag.json`.
+- **Drag and drop:** between applications through the compositor (OxyOS ADR 0035, protocol 10), and inside a
+  window as before against an older compositor (ADR 0029, decision 7, `OxyOSDrag`). As a source, Chromium's
+  `StartDrag` offers the drag's `OSExchangeData` as media types (`oxyos_data_drag.cc`): files as a `text/uri-list`
+  marked `application/x-oxyos-files`, a link as a URI list, `text/x-moz-url` and text, the HTML, the text, and an
+  image's contents written to a file of a temporary folder first (on the thread pool) and offered as that file and its
+  bytes, so a file manager takes it as a file; the allowed operations become OxyOS's actions, the drag image is drawn
+  in a drag icon surface at the configure's scale (`platform_shows_drag_image`), and a nested loop runs until the drag
+  finishes (the operation the drop took) or is cancelled. As a target, a drag's types at its entering are an
+  `OSExchangeData` holding the kinds alone (a placeholder file when marked as files, so a page sees `Files` and
+  `<input type="file">` takes it), each motion's operation from the page is the window's answer, and at the drop the
+  types it uses are received through their pipes on the thread pool and given to the drop handler before the drop.
+  A drag inside one window goes the same way, the source's own data handed to its window. Its scenarios are OxyOS's
+  `astro-drag.json` and `astro-dnd.json`.
 - **File choosers:** open and save panels are OxyOS's (ADR 0029, decision 8): the session shows its file manager in
   picker mode as a sheet of the window, and only that window waits. On the `oxyos` platform the engine sets
   Chromium's `SelectFileDialog` factory (`OxyOSSelectFileDialog`, installed by `ac_engine_webui.cc` once the platform
@@ -452,7 +457,7 @@ compositor's corners, shadow and edge resizing, and no frame of Chromium's.
   install -Dm644 /opt/astro-browser/so.oxy.astro.desktop /usr/share/oxyos/applications/so.oxy.astro.desktop`: the
   session's registry then lists Astro and launches `/opt/astro-browser/astro-browser --ozone-platform=oxyos`. The
   renderer sandbox needs unprivileged user namespaces, which Debian's kernel allows.
-- **Not yet:** the GPU, accessibility and drag and drop between applications. Chromium starts in its GPU modes and falls back to software until the platform has GL.
+- **Not yet:** the GPU and accessibility. Chromium starts in its GPU modes and falls back to software until the platform has GL.
 
 Its test is OxyOS's `tools/rn-host-spike/scenarios/astro.json` (`regress.py --client <out>/chrome`), on OxyOS's
 development compositor.
