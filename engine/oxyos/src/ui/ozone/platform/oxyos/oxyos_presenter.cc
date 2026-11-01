@@ -27,10 +27,12 @@ OxyOSFrameLedger::~OxyOSFrameLedger() = default;
 OxyOSFrameLedger::Submission OxyOSFrameLedger::Submit(uint32_t buffer,
                                                       bool damaged) {
   const bool held = held_.contains(buffer);
-  if (buffer == last_buffer_ && (held || !damaged)) {
+  if (buffer == last_buffer_ && held) {
     frames_.push_back({.id = ++last_frame_,
                        .buffer = buffer,
                        .sent = false,
+                       .skip = true,
+                       .generation = generation_,
                        .feedback = gfx::PresentationFeedback::Failure()});
     return {.frame = last_frame_, .route = Route::kRepeat};
   }
@@ -39,7 +41,10 @@ OxyOSFrameLedger::Submission OxyOSFrameLedger::Submit(uint32_t buffer,
   }
   released_.erase(buffer);
   held_.insert(buffer);
-  frames_.push_back({.id = ++last_frame_, .buffer = buffer});
+  frames_.push_back({.id = ++last_frame_,
+                     .buffer = buffer,
+                     .skip = buffer == last_buffer_ && !damaged,
+                     .generation = generation_});
   last_buffer_ = buffer;
   return {.frame = last_frame_, .route = Route::kSend};
 }
@@ -56,6 +61,9 @@ bool OxyOSFrameLedger::Presented(uint64_t frame,
 
 void OxyOSFrameLedger::Released(uint32_t buffer, gfx::GpuFenceHandle fence) {
   held_.erase(buffer);
+  if (dropped_.erase(buffer)) {
+    return;
+  }
   released_[buffer] = std::move(fence);
 }
 
@@ -70,27 +78,44 @@ std::optional<gfx::GpuFenceHandle> OxyOSFrameLedger::TakeRelease(
   return fence;
 }
 
+bool OxyOSFrameLedger::AnyLaterFrameCanBeShown() const {
+  return std::any_of(
+      frames_.begin() + 1, frames_.end(), [](const Frame& frame) {
+        return frame.sent && (!frame.feedback || !frame.feedback->failed());
+      });
+}
+
+void OxyOSFrameLedger::DropBuffers() {
+  ++generation_;
+  dropped_.insert(held_.begin(), held_.end());
+  released_.clear();
+  displayed_ = 0;
+  last_buffer_ = 0;
+}
+
 std::optional<OxyOSFrameLedger::Completed> OxyOSFrameLedger::TakeCompleted() {
   if (frames_.empty() || !frames_.front().feedback) {
     return std::nullopt;
   }
   const Frame& frame = frames_.front();
-  Completed completed{.shown = frame.sent && !frame.feedback->failed(),
-                      .feedback = *frame.feedback};
-  if (completed.shown) {
+  Completed completed{.feedback = *frame.feedback};
+  if (frame.skip) {
+    completed.result = gfx::SwapResult::SWAP_SKIPPED;
+  } else if (frame.generation == generation_) {
     if (displayed_ && displayed_ != frame.buffer) {
-      if (!released_.contains(displayed_)) {
+      std::optional<gfx::GpuFenceHandle> release = TakeRelease(displayed_);
+      if (release) {
+        completed.release = std::move(*release);
+      } else if (!frame.feedback->failed() || AnyLaterFrameCanBeShown()) {
         return std::nullopt;
+      } else {
+        completed.result = gfx::SwapResult::SWAP_NAK_RECREATE_BUFFERS;
+        DropBuffers();
       }
-      completed.release = *TakeRelease(displayed_);
     }
-    displayed_ = frame.buffer;
-  } else if (frame.sent) {
-    std::optional<gfx::GpuFenceHandle> release = TakeRelease(frame.buffer);
-    if (!release) {
-      return std::nullopt;
+    if (completed.result == gfx::SwapResult::SWAP_ACK) {
+      displayed_ = frame.buffer;
     }
-    completed.release = std::move(*release);
   }
   frames_.pop_front();
   return completed;
@@ -284,9 +309,7 @@ void OxyOSPresenter::Complete() {
     Pending frame = std::move(pending_.front());
     pending_.pop_front();
     std::move(frame.completion)
-        .Run(gfx::SwapCompletionResult(completed->shown
-                                           ? gfx::SwapResult::SWAP_ACK
-                                           : gfx::SwapResult::SWAP_SKIPPED,
+        .Run(gfx::SwapCompletionResult(completed->result,
                                        std::move(completed->release)));
     std::move(frame.presentation).Run(completed->feedback);
   }

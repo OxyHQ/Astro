@@ -22,6 +22,7 @@
 #include "ui/gfx/native_pixmap.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/gfx/presentation_feedback.h"
+#include "ui/gfx/swap_result.h"
 #include "ui/gl/presenter.h"
 #include "ui/ozone/platform/oxyos/mojom/oxyos_surfaces.mojom.h"
 
@@ -42,7 +43,7 @@ class OxyOSFrameLedger {
     Route route = Route::kSend;
   };
   struct Completed {
-    bool shown = false;
+    gfx::SwapResult result = gfx::SwapResult::SWAP_ACK;
     gfx::GpuFenceHandle release;
     gfx::PresentationFeedback feedback;
   };
@@ -60,16 +61,22 @@ class OxyOSFrameLedger {
     uint64_t id = 0;
     uint32_t buffer = 0;
     bool sent = true;
+    bool skip = false;
+    uint32_t generation = 0;
     std::optional<gfx::PresentationFeedback> feedback;
   };
 
   std::optional<gfx::GpuFenceHandle> TakeRelease(uint32_t buffer);
+  bool AnyLaterFrameCanBeShown() const;
+  void DropBuffers();
 
   base::circular_deque<Frame> frames_;
   base::flat_map<uint32_t, gfx::GpuFenceHandle> released_;
   base::flat_set<uint32_t> held_;
+  base::flat_set<uint32_t> dropped_;
   uint32_t last_buffer_ = 0;
   uint32_t displayed_ = 0;
+  uint32_t generation_ = 0;
   uint64_t last_frame_ = 0;
 };
 
