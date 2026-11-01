@@ -129,7 +129,7 @@ std::optional<std::vector<uint64_t>> RenderableModifiersOf(EGLDisplay display,
   return renderable;
 }
 
-}  // namespace
+}
 
 std::optional<size_t> OxyOSChooseEGLDevice(
     const std::vector<OxyOSEGLDevice>& devices,
@@ -262,4 +262,4 @@ bool OxyOSGLOzone::LoadGLES2Bindings(const gl::GLImplementationParts& impl) {
   return LoadDefaultEGLGLES2Bindings(impl);
 }
 
-}  // namespace ui
+}

@@ -28,7 +28,7 @@ uint64_t RenderNode(unsigned minor_number) {
   return makedev(226, minor_number);
 }
 
-}  // namespace
+}
 
 TEST(OxyOSGpuTest, NoRenderNodeIsOpenedWhenNoneIsNamed) {
   EXPECT_FALSE(OxyOSOpenRenderNode(base::FilePath()).is_valid());
@@ -141,4 +141,4 @@ TEST(OxyOSGpuTest, TheGpuProcessIsAlwaysToldWhichRenderNodeIsItsOwn) {
   EXPECT_EQ(command_line.argv().size(), 2u);
 }
 
-}  // namespace ui
+}

@@ -20,7 +20,7 @@
 namespace base {
 class CommandLine;
 class FilePath;
-}  // namespace base
+}
 
 namespace ui {
 
@@ -65,6 +65,6 @@ class OxyOSSurfaceHost : public GpuPlatformSupportHost,
       refreshers_;
 };
 
-}  // namespace ui
+}
 
 #endif

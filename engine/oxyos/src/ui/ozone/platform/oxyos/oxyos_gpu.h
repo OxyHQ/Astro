@@ -119,6 +119,6 @@ class OxyOSGpu : public ozone::mojom::OxyOSGpu {
   bool same_device_ GUARDED_BY(lock_) = false;
 };
 
-}  // namespace ui
+}
 
 #endif

@@ -187,10 +187,10 @@ class OzonePlatformOxyos : public OzonePlatform {
   std::unique_ptr<OxyOSGLEGLUtility> gl_egl_utility_;
 };
 
-}  // namespace
+}
 
 OzonePlatform* CreateOzonePlatformOxyos() {
   return new OzonePlatformOxyos();
 }
 
-}  // namespace ui
+}

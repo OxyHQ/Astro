@@ -105,7 +105,7 @@ scoped_refptr<gfx::NativePixmap> AllocateLinear(const gfx::Size& size,
                                                        std::move(handle));
 }
 
-}  // namespace
+}
 
 std::vector<OxyOSGpuTableEntry> OxyOSLinearOnly(
     std::vector<OxyOSGpuTableEntry> table) {
@@ -336,4 +336,4 @@ scoped_refptr<gfx::NativePixmap> OxyOSGpu::Allocate(
   return AllocateLinear(size, format);
 }
 
-}  // namespace ui
+}

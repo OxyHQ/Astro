@@ -76,6 +76,6 @@ class OxyOSGLOzone : public GLOzoneEGL {
   gl::EGLDisplayPlatform native_display_;
 };
 
-}  // namespace ui
+}
 
 #endif

@@ -259,7 +259,7 @@ class Surface : public ozone::mojom::OxyOSSurface {
   base::WeakPtrFactory<Surface> weak_factory_{this};
 };
 
-}  // namespace
+}
 
 OxyOSSurfaceHost::OxyOSSurfaceHost(OxyOSConnection* connection)
     : connection_(connection) {}
@@ -359,4 +359,4 @@ void OxyOSSurfaceHost::OnRefresh(gfx::AcceleratedWidget widget,
   }
 }
 
-}  // namespace ui
+}
