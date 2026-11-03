@@ -38,8 +38,13 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - '@alia.onl/sdk@22.10.1'
-  - '@oxy.so/bloom@16.5.0'
-  - '@oxy.so/contracts@6.3.0'
-  - '@oxy.so/core@7.11.1'
-  - '@oxy.so/protocol@1.5.1'
-  - '@oxy.so/services@14.0.1'
+  - '@oxy.so/bloom@17.0.0'
+  - '@oxy.so/contracts@6.5.0'
+  - '@oxy.so/core@7.16.0'
+  - '@oxy.so/protocol@1.6.1'
+  - '@oxy.so/services@14.3.3'
+  - '@peable.to/contracts@0.4.0'
+  - '@peable.to/sdk@0.20.0'
+  - '@peable.to/shared-types@0.18.0'
+  - '@tanstack/react-virtual@3.14.26'
+  - '@tanstack/virtual-core@3.19.11'
