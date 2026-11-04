@@ -1,6 +1,7 @@
 import { OutsidePressArea, Surface } from "@astro-browser/shell";
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
-import { AccessibilityInfo, Animated, Easing, View, type LayoutChangeEvent } from "react-native";
+import { Animated, Easing, View, type LayoutChangeEvent } from "react-native";
+import { usePrefersReducedMotion } from "@oxy.so/bloom/hooks";
 import { hex, useTheme } from "../lib/theme";
 import { useBrowser } from "../store/browser";
 import { useWindowId, useWindowUi } from "../store/hooks";
@@ -30,13 +31,6 @@ const CENTRED_START_SCALE = 0.96;
 
 const GROW_MS = 130;
 const GROW_EASING = Easing.out(Easing.exp);
-
-let reduceMotion = false;
-AccessibilityInfo.isReduceMotionEnabled().then(
-  (on) => (reduceMotion = on),
-  () => {},
-);
-AccessibilityInfo.addEventListener("reduceMotionChanged", (on) => (reduceMotion = on));
 
 type Box = { left: number; top: number; width: number; height: number };
 
@@ -147,6 +141,7 @@ function Grow({
   surface: Omit<ComponentProps<typeof Surface>, "style">;
   children: ReactNode;
 }) {
+  const reduceMotion = usePrefersReducedMotion();
   const fade = !!from && reduceMotion;
   const [progress] = useState(() => new Animated.Value(from ? 0 : 1));
   const start = useRef(fade ? null : from);

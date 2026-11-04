@@ -1,3 +1,4 @@
+import { writeClipboardText } from "@oxy.so/bloom/hooks";
 import type { AppEvent, CommandEvent, InlineWrite, SystemInfo, WindowEvent } from "@astro-browser-real/shell";
 import { unstable_batchedUpdates } from "react-dom";
 import { emitNativeEvent, provideNativeModule } from "./expo-modules-core";
@@ -65,7 +66,7 @@ export const saveDocument = async (name: string, contents: string) => void docum
 export const removeDocument = (name: string) => void documents.delete(name);
 
 export function copyText(text: string) {
-  void navigator.clipboard?.writeText(text).catch(() => {});
+  void writeClipboardText(text).catch(() => {});
 }
 
 const darkQuery = typeof window === "undefined" ? null : window.matchMedia("(prefers-color-scheme: dark)");

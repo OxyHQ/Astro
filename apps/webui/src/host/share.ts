@@ -1,3 +1,4 @@
+import { writeClipboardText } from "@oxy.so/bloom/hooks";
 import type { ShareAnchor } from "@astro-browser-real/shell";
 import { provideNativeModule } from "../../../demo/src/shims/expo-modules-core";
 import { setShareServices, showMenu } from "../../../demo/src/shims/web/overlays";
@@ -22,7 +23,7 @@ async function systemShare(url: string, title?: string | null) {
 
 async function shareVia(service: string, url: string, title?: string | null) {
   if (service === SYSTEM.id) return void (await systemShare(url, title));
-  if (service === "copy") return void (await navigator.clipboard?.writeText(url).catch(() => {}));
+  if (service === "copy") return void (await writeClipboardText(url).catch(() => {}));
   if (service === "email") await appServices.openExternalURL(`mailto:?subject=${encodeURIComponent(title || url)}&body=${encodeURIComponent(url)}`);
 }
 

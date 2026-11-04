@@ -1,7 +1,8 @@
 import { WindowBackdrop } from "@astro-browser/shaders";
 import { Surface, Symbol, VisualEffect } from "@astro-browser/shell";
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { usePrefersReducedMotion } from "@oxy.so/bloom/hooks";
 import { hex, profileAccent, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { useWindowId } from "../../store/hooks";
@@ -41,22 +42,18 @@ export function ReleaseNotesPostcard({ notes, size, onOpen, onDismiss }: { notes
   const scale = useRef(new Animated.Value(1)).current;
   const tooltip = useRef(new Animated.Value(0)).current;
   const [leaving, setLeaving] = useState(false);
+  const reduceMotion = usePrefersReducedMotion();
 
   useEffect(() => {
-    let cancelled = false;
-    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
-      if (cancelled) return;
-      if (reduce) return drop.setValue(0), opacity.setValue(1);
-      const stiffness = (2 * Math.PI / 0.65) ** 2;
-      Animated.parallel([
-        Animated.spring(drop, { toValue: 0, stiffness, damping: 2 * Math.sqrt(stiffness), mass: 1, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: 300, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-      ]).start();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (reduceMotion) return drop.setValue(0), opacity.setValue(1);
+    const stiffness = (2 * Math.PI / 0.65) ** 2;
+    const arrival = Animated.parallel([
+      Animated.spring(drop, { toValue: 0, stiffness, damping: 2 * Math.sqrt(stiffness), mass: 1, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 300, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]);
+    arrival.start();
+    return () => arrival.stop();
+  }, [reduceMotion]);
 
   useEffect(() => {
     Animated.timing(scale, { toValue: hovered ? 1.05 : 1, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();

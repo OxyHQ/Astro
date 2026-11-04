@@ -1,3 +1,4 @@
+import { writeClipboardText } from "@oxy.so/bloom/hooks";
 import { provideNativeModule } from "../../../demo/src/shims/expo-modules-core";
 import { call, loadCr, pickFiles } from "./engine";
 import { systemServices } from "./system";
@@ -262,11 +263,11 @@ export const syncServices = {
     return path;
   },
 
-  copyRecoveryKit: async (): Promise<void> => navigator.clipboard.writeText(await currentKit()),
+  copyRecoveryKit: async (): Promise<void> => writeClipboardText(await currentKit()),
 
   shareRecoveryKit: async (): Promise<void> => {},
 
-  copyRecoveryPhrase: async (): Promise<void> => navigator.clipboard.writeText((await requireWords()).join(" ")),
+  copyRecoveryPhrase: async (): Promise<void> => writeClipboardText((await requireWords()).join(" ")),
 
   revealFolder: async (path: string): Promise<void> => void (await systemServices.revealFile(path)),
 
