@@ -1,7 +1,8 @@
 import { PowerUp } from "@astro-browser/shaders";
 import { useEffect, useState } from "react";
 import { Surface } from "@astro-browser/shell";
-import { AccessibilityInfo, Animated, StyleSheet, View } from "react-native";
+import { Animated, StyleSheet, View } from "react-native";
+import { usePrefersReducedMotion } from "@oxy.so/bloom/hooks";
 import { hex, layout, useTheme } from "../lib/theme";
 import { springParams } from "./layout/swipeMotion";
 import { NewTabExtras } from "./ntp";
@@ -44,10 +45,6 @@ type Size = { width: number; height: number };
 let lastSize: Size | null = null;
 const introPlayed = new Set<string>();
 
-let reduceMotion = false;
-AccessibilityInfo.isReduceMotionEnabled().then((on) => (reduceMotion = on), () => {});
-AccessibilityInfo.addEventListener("reduceMotionChanged", (on) => (reduceMotion = on));
-
 export function barWidth(viewWidth: number) {
   const content = viewWidth < 708 ? (viewWidth <= 636 ? viewWidth - 20 : 616) : viewWidth < 1700 ? 652 : 774;
   return Math.min(content, viewWidth - 28);
@@ -69,6 +66,7 @@ export function NewTabPage({ tabId, toolbar = true }: { tabId: string; toolbar?:
     if (aliaReady) refreshAppsForHome();
   }, [aliaReady]);
   const card = useHomeCard(windowId, profileId, useNow(60_000));
+  const reduceMotion = usePrefersReducedMotion();
   const [playIntro] = useState(() => !introPlayed.has(tabId));
   const [rise] = useState(() => {
     const intro = playIntro && !reduceMotion;
@@ -88,7 +86,7 @@ export function NewTabPage({ tabId, toolbar = true }: { tabId: string; toolbar?:
     ]);
     intro.start();
     return () => intro.stop();
-  }, [playIntro, rise]);
+  }, [playIntro, reduceMotion, rise]);
 
   if (!size) return <View style={{ flex: 1 }} onLayout={(e) => setSize(e.nativeEvent.layout)} />;
 
