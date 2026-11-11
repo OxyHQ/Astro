@@ -1,57 +1,72 @@
 # AGENTS.md
 
-Astro is Oxy's Chromium browser: a sidebar instead of a toolbar, built on Chrome's own framework (Chromium 155) through
-AstroCore, our thin layer, with an Expo + React Native shell. It runs on macOS today; Windows and Linux are the next
-targets. For the architecture and the test tooling, read `docs/agent-brief.md`.
+Astro is Oxy's Chromium browser: a sidebar instead of a toolbar, built on Chromium through AstroCore, our thin layer,
+with an Expo + React Native shell. macOS today; Windows and Linux next.
 
-> Oxy-wide rules live in `~/Oxy/AGENTS.md` and `~/Oxy/docs/`. This file carries Astro's own rules.
+## Commands
 
-## How work gets done
-- **Move fast.** There are no users to migrate yet. Ask only when the answer changes what you build.
-- **Parallelise independent work** (builds, test instances, tool calls). Only timing measurements run one at a time,
-  interleaved with their control, because sharing the CPU skews them.
-- **Work on a branch and open a PR.** Stage only your own hunks (`git add -p` or explicit paths), never someone else's
-  work in progress, and check that `git diff --cached` reads as you meant. Never stage with
-  `git apply --unidiff-zero`: it drops hunks in the wrong place.
-- **Give each agent its own files, derived-data dir and `ASTRO_DATA_DIR`.**
-- **Clean up.** Quit your test instances, stop the servers and background jobs you started, and never kill processes
-  you didn't start.
+```bash
+pnpm install
+pnpm dev          # Metro for the browser app
+pnpm macos        # run the macOS app
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm shaders:check
+scripts/agent/build-app --as <you>                      # build the app
+scripts/agent/locked <pod|chromium> -- <command>        # pod install, pnpm install, Chromium builds
+scripts/agent/await --pid <pid> -- <test>               # wait with a deadline
+```
 
-## Hard rules
-- **No comments in code.** Name things so the code says what it does, and put the why in the commit message. Only
-  what a tool reads stays: shebangs, license headers, compiler, linter and type directives, and the header a script
-  prints as its `--help`.
-- **The Chromium build cache is sacred.** Never touch `~/chromium-build/chromium_git/chromium/src/out`, and never run
-  `gclient sync` or `gn clean` without the owner's OK: a full rebuild costs hours. Engine changes are incremental
-  builds holding the chromium lock (`scripts/agent/locked chromium`, `docs/engine-build.md`).
-- **Never steal focus.** Run builds only as hidden instances:
-  `open -g -n --env ASTRO_BACKGROUND=1 --env ASTRO_DATA_DIR=<throwaway dir> --env ASTRO_REMOTE_DEBUGGING_PORT=<port> <app>`.
-  Keep test data in a scratch dir.
-- **Other browsers are read-only references.** You may take screenshots and read their app bundles; never click or
-  type in them, and never read their user data or any browser's real profile.
+## Map
 
-## Building features
-- **Sources of truth.** `docs/dia-feature-parity.md` is the checklist; update its row when you ship.
-  `docs/dia-spec.md` has the measured reference values.
-- **Match with numbers.** Compare against a capture with the same crop and the same state; "looks close" isn't
-  enough. Parity means behaviour too: what each click does, what it remembers, animation timings, what keeps running.
-- **Verify before you call it done.** Typecheck, build, and exercise the feature in a hidden instance (dev harness,
-  CDP, window snapshots; `docs/agent-brief.md`). Verify in proportion: a JS-only change needs no app build (Metro
-  reloads it).
-- **Build safely.** Build the app with `scripts/agent/build-app --as <you>`. Run `pod install`/`pnpm install` and
-  Chromium builds through `scripts/agent/locked <pod|chromium> -- <command>`.
-- **Never wait open-ended.** Every wait has a deadline and fails fast when the thing it waits on dies:
-  `scripts/agent/await --pid <pid> -- <test>`. Wrap screen captures in `timeout 20`.
+- `docs/agent-brief.md`: architecture and test tooling. Read it first.
+- `apps/browser` (React Native macOS app), `apps/site` (website, built with the Astro web framework, unrelated to the
+  browser's name), `apps/videos` (Remotion).
+- `packages/*` native Expo modules and `packages/core` (omnibox logic); `engine/chromium` (`ac_*` C calls) and
+  `engine/astrocore` (window and tab layer).
 
-## Shipping
-- Releases, site deploys and any other public action need the owner's OK first.
-- The release flow (notes in `docs/release-notes/`, version bump, `scripts/release.sh`, smoke test, GitHub release,
-  appcast, site) is in `.claude/skills/release/SKILL.md` and `docs/releasing.md`. Signing needs Oxy's Apple team ID
-  (the `XXXXXXXXXX` placeholder) and a new Sparkle key (`SUPublicEDKey` in `apps/browser/macos/Astro-macOS/Info.plist`).
+## Conventions
 
-## Repo map
-`apps/browser` is the React Native macOS app. The native Expo modules are in
-`packages/{astrocore,shell,shaders,import,sync}`; `engine/chromium` is our Chrome-services code (the `ac_*` C calls)
-and `engine/astrocore` AstroCore's window and tab layer. `packages/core` holds the omnibox logic and its tests.
-`apps/site` is the website (built with the Astro web framework, unrelated to the browser's name) and `apps/videos`
-holds Remotion videos. Licences: `NOTICE`.
+- No comments in code; put the why in the commit message. Only tool-read text stays (shebangs, license headers,
+  directives, `--help` headers).
+- Match parity with numbers: compare against a capture with the same crop and state. Update the row in
+  `docs/dia-feature-parity.md` when you ship.
+- Every wait has a deadline (`scripts/agent/await`); wrap screen captures in `timeout 20`.
+- Give each agent its own files, derived-data dir and `ASTRO_DATA_DIR`, so concurrent agents do not collide.
+
+## Boundaries
+
+- Never touch the Chromium `out` directory, and never run `gclient sync` or `gn clean` without the owner's OK: a full
+  rebuild costs hours. Engine changes are incremental builds under `scripts/agent/locked chromium`.
+- Never steal focus: run builds only as hidden instances (`ASTRO_BACKGROUND=1`, see `docs/agent-rules.md`).
+- Never click, type in, or read the user data of other browsers; they are read-only references.
+- Never kill processes you did not start; quit your own test instances and background jobs.
+- Ask first before a release, a site deploy or any other public action.
+- `git checkout`, `restore`, `stash`, `reset --hard`, `clean` and `switch` in the shared checkout are blocked by
+  `scripts/agent/guard-git`.
+
+## Testing
+
+- Run typecheck and the tests of the package you changed (`pnpm test` runs all via turbo).
+- Done means: typecheck passes, the build passes, and you exercised the feature in a hidden instance (`docs/testing.md`).
+  A JS-only change needs no app build; Metro reloads it.
+- Timing measurements run one at a time, interleaved with their control.
+
+## PR and commits
+
+- Work on a branch and open a PR. Stage only your own hunks (`git add -p` or explicit paths) and check
+  `git diff --cached`. Never stage with `git apply --unidiff-zero`.
+
+## Secrets
+
+- Signing needs Oxy's Apple team ID and the Sparkle key; neither is in the repo. Never print or commit them.
+
+## Links
+
+- [Agent rules in detail](docs/agent-rules.md), [Architecture and tools](docs/agent-brief.md),
+  [Releasing](docs/releasing.md), [Engine build](docs/engine-build.md)
+- Oxy-wide: [standards](https://github.com/OxyHQ/oxy/blob/main/docs/engineering/standards.md),
+  [agent team](https://github.com/OxyHQ/oxy/blob/main/docs/engineering/agent-team-workflow.md)
+
+Owner: Nate Isern (Oxy). Last reviewed: 2026-11-11.
