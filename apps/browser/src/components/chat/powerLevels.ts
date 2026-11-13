@@ -1,4 +1,4 @@
-import { DEFAULT_POWER_LEVEL, isPowerLevel, POWER_LEVELS, type PowerLevel } from "@alia.onl/sdk/model";
+import { DEFAULT_POWER_LEVEL, isPowerLevel, POWER_LEVELS, type PowerLevel } from "@gemies/sdk/model";
 import type { ComposerPanelPermissionOption } from "@oxy.so/bloom/composer-panel";
 import { RiFireLine } from "@oxy.so/bloom/icons/RiFireLine";
 import { RiFlashlightLine } from "@oxy.so/bloom/icons/RiFlashlightLine";

@@ -1,4 +1,4 @@
-import { useConversations, useDeleteConversation, type Conversation } from "@alia.onl/sdk/runtime";
+import { useConversations, useDeleteConversation, type Conversation } from "@gemies/sdk/runtime";
 import { AgentChatHistory, type AgentChatThread } from "@oxy.so/bloom/agent-chat";
 import { Loading } from "@oxy.so/bloom/loading";
 import { confirm } from "@astro-browser/shell";

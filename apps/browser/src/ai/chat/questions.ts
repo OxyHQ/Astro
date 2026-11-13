@@ -1,4 +1,4 @@
-import type { Message, ToolInvocation } from "@alia.onl/sdk/model";
+import type { Message, ToolInvocation } from "@gemies/sdk/model";
 
 export const ASK_USER_QUESTION_TOOL = "askUserQuestion";
 export const PLAN_PREVIEW_TOOL = "planPreview";

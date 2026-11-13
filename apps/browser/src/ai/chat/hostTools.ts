@@ -1,4 +1,4 @@
-import type { AliaHostAction, AliaHostOutcome, AliaHostToolDefinition, AliaHostTools } from "@alia.onl/sdk/runtime";
+import type { GemieHostAction, GemieHostOutcome, GemieHostToolDefinition, GemieHostTools } from "@gemies/sdk/runtime";
 import { closeTab } from "../../lib/actions";
 import { useBrowser } from "../../store/browser";
 import { activeTabId, viewTabIds } from "../../store/model";
@@ -14,7 +14,7 @@ export { answerApproval, dropApprovals, useApprovals, type Approval, type Approv
 
 const TAB_IDS = { type: "array", items: { type: "string" }, minItems: 1, maxItems: 20, description: "Tab ids from the list of open tabs." };
 
-const DEFINITIONS: AliaHostToolDefinition[] = [
+const DEFINITIONS: GemieHostToolDefinition[] = [
   {
     name: "open_tabs",
     description:
@@ -41,7 +41,7 @@ const DEFINITIONS: AliaHostToolDefinition[] = [
   },
 ];
 
-const READ_TAB: AliaHostToolDefinition = {
+const READ_TAB: GemieHostToolDefinition = {
   name: "read_tab",
   description:
     "Read the text of one of the person's open tabs (its title, address, selected text, video position and page text), by its id from the list of open tabs. The person is asked first for a tab they haven't shared.",
@@ -63,7 +63,7 @@ const describe = (tab: { id: string; title: string; customTitle: string | null; 
   url: tab.url,
 });
 
-async function run(windowId: string, action: AliaHostAction): Promise<AliaHostOutcome> {
+async function run(windowId: string, action: GemieHostAction): Promise<GemieHostOutcome> {
   const conversation = windowChat(windowId).conversationId;
   const input = action.input ?? {};
   switch (action.name) {
@@ -123,7 +123,7 @@ async function run(windowId: string, action: AliaHostAction): Promise<AliaHostOu
   return { outcome: "rejected", detail: `Unknown tool ${action.name}.` };
 }
 
-export function astroHostTools(windowId: string): AliaHostTools {
+export function astroHostTools(windowId: string): GemieHostTools {
   return {
     definitions: [...DEFINITIONS, READ_TAB, ...agentToolDefinitions()],
     execute: (action) => run(windowId, action),

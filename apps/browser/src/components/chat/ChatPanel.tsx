@@ -1,7 +1,7 @@
-import { AliaRuntimeProvider, useConversationThread, type AliaRuntimeHost, type AliaTurnRequest } from "@alia.onl/sdk/runtime";
-import type { Message } from "@alia.onl/sdk/model";
-import { getTextFromContent } from "@alia.onl/sdk/content";
-import { useDeleteConversation } from "@alia.onl/sdk/runtime";
+import { GemieRuntimeProvider, useConversationThread, type GemieRuntimeHost, type GemieTurnRequest } from "@gemies/sdk/runtime";
+import type { Message } from "@gemies/sdk/model";
+import { getTextFromContent } from "@gemies/sdk/content";
+import { useDeleteConversation } from "@gemies/sdk/runtime";
 import { AiChatContainer } from "@oxy.so/bloom/ai-chat";
 import { AppShell } from "@oxy.so/bloom/app-shell";
 import { ButtonGroup, ButtonGroupItem } from "@oxy.so/bloom/button-group";
@@ -91,7 +91,7 @@ const researchTurns = new Set<string>();
 
 export function ChatPanel(props: ChatPanelProps) {
   const { windowId } = props;
-  const host = useMemo<AliaRuntimeHost>(
+  const host = useMemo<GemieRuntimeHost>(
     () => ({
       openConversation: (id) => showChatConversation(windowId, id),
       onTurnEnd: () => void researchTurns.delete(windowId),
@@ -103,8 +103,8 @@ export function ChatPanel(props: ChatPanelProps) {
         openArtifactTab(windowId, rememberLiveArtifact(conversationId, artifact), { background: false });
       },
       closeConversation: () => newChat(windowId),
-      turnRequest: (): AliaTurnRequest => {
-        const request: AliaTurnRequest = {};
+      turnRequest: (): GemieTurnRequest => {
+        const request: GemieTurnRequest = {};
         if (researchTurns.delete(windowId)) request.deepResearch = true;
         if (personalizationOff(windowChat(windowId).conversationId)) request.personalization = false;
         return request;
@@ -114,9 +114,9 @@ export function ChatPanel(props: ChatPanelProps) {
     [windowId, props.faviconUrl],
   );
   return (
-    <AliaRuntimeProvider host={host} app={ASTRO_APP}>
+    <GemieRuntimeProvider host={host} app={ASTRO_APP}>
       <ChatPanelBody {...props} />
-    </AliaRuntimeProvider>
+    </GemieRuntimeProvider>
   );
 }
 

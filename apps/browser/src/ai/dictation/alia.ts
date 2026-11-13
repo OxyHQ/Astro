@@ -1,4 +1,4 @@
-import { DictationError, requestTranscription, type AudioRequestAuthentication, type DictationErrorCode as SdkDictationErrorCode } from "@alia.onl/sdk/dictation";
+import { DictationError, requestTranscription, type AudioRequestAuthentication, type DictationErrorCode as SdkDictationErrorCode } from "@gemies/sdk/dictation";
 
 export type DictationErrorCode =
   | "mic-denied"

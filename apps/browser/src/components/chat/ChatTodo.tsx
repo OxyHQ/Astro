@@ -1,5 +1,5 @@
 import { AgentProgress } from "@oxy.so/bloom/agent-progress";
-import type { Message } from "@alia.onl/sdk/model";
+import type { Message } from "@gemies/sdk/model";
 import { useMemo } from "react";
 import { planOf, stepsDone, type TurnState } from "../../ai/chat/questions";
 

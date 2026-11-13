@@ -47,7 +47,7 @@ export default defineConfig({
     __ASTRO_NILO_API_URL__: JSON.stringify(process.env.ASTRO_NILO_API_URL ?? ""),
     __ASTRO_ALIA_API_URL__: JSON.stringify(process.env.ASTRO_ALIA_API_URL ?? ""),
     __ASTRO_KAANA_URL__: JSON.stringify(process.env.ASTRO_KAANA_URL ?? ""),
-    "process.env.EXPO_PUBLIC_ALIA_API_URL": "undefined",
+    "process.env.EXPO_PUBLIC_GEMIES_API_URL": "undefined",
     __ASTRO_OXY_CLIENT_ID__: JSON.stringify(process.env.ASTRO_OXY_CLIENT_ID ?? ""),
     __ASTRO_FEEDBACK_URL__: JSON.stringify(plistValue("ACFeedbackURL")),
     __ASTRO_FEEDBACK_EMAIL__: JSON.stringify(plistValue("ACFeedbackEmail")),
