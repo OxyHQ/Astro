@@ -31,7 +31,6 @@ const api = {
           ],
         },
       };
-    if (path === "/accounts") return { status: 200, data: { accounts: [{ id: "a1", platform: "gmail", email: "me@gmail.test", status: "active" }] } };
     if (path === "/integrations/available")
       return {
         status: 200,
@@ -69,14 +68,13 @@ const api = {
   delete: async (path) => (calls.push(`DELETE ${path}`), { status: 200, data: {} }),
 };
 
-test("the apps list reads Alia's integrations, connectors and accounts", async () => {
+test("the apps list reads Alia's integrations and connectors", async () => {
   registerAliaApi(api);
   useOxySession.setState({ account: { id: "u1" } });
   await apps.refreshApps();
   const s = apps.useApps.getState();
   assert.deepEqual(s.connections["google-calendar"], [{ id: "i1", label: "me@example.test", status: "active" }]);
   assert.equal(s.connections.notion[0].id, "m1");
-  assert.equal(s.connections.gmail[0].label, "me@gmail.test");
   assert.equal(s.configured["google-drive"], false);
   assert.deepEqual(s.connections["microsoft-outlook"], [{ id: "i2", label: "me@contoso.test", status: "active" }]);
   assert.equal(s.connections.atlassian[0].id, "m3");
@@ -91,7 +89,6 @@ test("an app Alia can't connect yet reads as not configured, whichever list it c
   assert.equal(s.configured.zoom, false);
   assert.equal(s.configured.figma, false);
   assert.equal(s.configured.linear, true);
-  assert.equal(s.configured.gmail, undefined);
   assert.equal(s.configured["microsoft-sharepoint"], false);
   assert.deepEqual(apps.configuredFrom({ available: [], registry: [] }), {});
 });
@@ -136,6 +133,6 @@ test("Alia's OAuth return on alia.onl is finished by Astro with the person's ses
   assert.equal(await apps.completeOAuth(ret), false);
   assert.ok(calls.includes('POST /integrations/google-calendar/complete {"state":"s1","code":"c1"}'));
   calls.length = 0;
-  await apps.disconnect(apps.APPS.find((a) => a.id === "gmail"), { id: "a1", label: "", status: "" });
-  assert.equal(calls[0], "DELETE /accounts/a1");
+  await apps.disconnect(apps.APPS.find((a) => a.id === "notion"), { id: "m1", label: "", status: "" });
+  assert.equal(calls[0], "DELETE /mcp/m1");
 });
