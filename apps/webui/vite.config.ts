@@ -23,7 +23,7 @@ const appBuild = (() => {
 const PRODUCTION_ORIGINS = {
   ASTRO_OXY_API_URL: "https://api.oxy.so",
   ASTRO_NILO_API_URL: "https://api.nilo.so",
-  ASTRO_ALIA_API_URL: "https://api.alia.onl",
+  ASTRO_ALIA_API_URL: "https://api.gemies.ai",
   ASTRO_KAANA_URL: "https://kaana.ai",
 };
 const stackOrigins = Object.keys(PRODUCTION_ORIGINS) as (keyof typeof PRODUCTION_ORIGINS)[];

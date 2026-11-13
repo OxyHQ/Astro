@@ -15,7 +15,7 @@ export const freePort = () =>
     });
   });
 
-const UNREACHABLE = ["api.oxy.so", "api.nilo.so", "api.alia.onl", "kaana.ai"].map((host) => `MAP ${host} 0.0.0.0:9`);
+const UNREACHABLE = ["api.oxy.so", "api.nilo.so", "api.gemies.ai", "api.alia.onl", "kaana.ai"].map((host) => `MAP ${host} 0.0.0.0:9`);
 
 export async function startEngine({ chrome, repo, scratch, ui = join(repo, "apps/webui/dist"), extraArgs = [] }) {
   rmSync(scratch, { recursive: true, force: true });

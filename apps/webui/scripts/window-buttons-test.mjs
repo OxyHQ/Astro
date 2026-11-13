@@ -173,7 +173,7 @@ async function main() {
   browser = spawn(engine, [
     `--user-data-dir=${data}`, `--astro-ui-dir=${ui}`, `--remote-debugging-port=${port}`, "--no-first-run", "--no-default-browser-check",
     "--password-store=basic", "--window-position=0,0", "--window-size=1440,900",
-    "--host-resolver-rules=MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.alia.onl ~NOTFOUND, MAP kaana.ai ~NOTFOUND",
+    "--host-resolver-rules=MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.gemies.ai ~NOTFOUND, MAP api.alia.onl ~NOTFOUND, MAP kaana.ai ~NOTFOUND",
   ], { env: { ...process.env, DISPLAY: display }, stdio: "ignore" });
   const { page, browser: cdp, target } = await connect();
   const evaluate = async (expression) => (await page.send("Runtime.evaluate", { expression: `(async () => { ${expression} })()`, awaitPromise: true, returnByValue: true })).result?.result?.value;

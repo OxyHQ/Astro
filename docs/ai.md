@@ -131,7 +131,7 @@ While nothing is registered, the bar shows no Chat row and no prompt actions, an
   a localhost URL and its own bearer, used instead of the session's, and leaves the account alone. Never fake the
   `account` in `useOxySession` in an instance that can reach production: the calendar then polls production Nilo with no
   session (2026-10-27, a test did, and Nilo logged a refusal every 20–30 s). Run test instances with
-  `--host-resolver-rules="MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.alia.onl ~NOTFOUND, MAP kaana.ai ~NOTFOUND"`.
+  `--host-resolver-rules="MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.gemies.ai ~NOTFOUND, MAP api.alia.onl ~NOTFOUND, MAP kaana.ai ~NOTFOUND"`.
 
 ## Dictation
 
@@ -240,7 +240,7 @@ as "Dictation isn't available right now."
 
 ## Chat
 
-Chat is a conversation, so it goes through Alia: `Astro -> Alia (api.alia.onl/v1) -> Oxy -> Kaana`. Astro is an Alia
+Chat is a conversation, so it goes through Alia: `Astro -> Alia (api.gemies.ai/v1) -> Oxy -> Kaana`. Astro is an Alia
 embedding host like Homiio or Mercaria (Alia `docs/agent-embedding.md`): it uses `@alia.onl/sdk`'s data layer
 (`@alia.onl/sdk/runtime` and `/model`: the turn stream, Stop through `POST /v1/chat/turns/:id/cancel`, edit, regenerate,
 retry, conversations) and draws the conversation itself with Bloom's own chat components: the panel is an `AppShell`
@@ -281,7 +281,7 @@ React tree never remounts, so a reply keeps streaming while the panel moves from
 tab. The interface page can't fetch the web itself, so the turn's stream goes through the engine:
 `astroAccountStream(id, url, method, headers, body)` answers with the status and headers, then fires
 `astro-account-stream` events (`{ data: base64 }`, `{ done }`, `{ error }`); `astroAccountStreamCancel(id)` stops it.
-Only the account hosts (`api.oxy.so`, `api.nilo.so`, `api.alia.onl`, loopback) are reachable this way. Every request
+Only the account hosts (`api.oxy.so`, `api.nilo.so`, `api.gemies.ai`, loopback; `api.alia.onl` too until it is retired) are reachable this way. Every request
 body crosses `chrome.send` as base64 of its bytes (`astroFetch`, `astroAccountFetch`, `astroAccountStream`), and the
 engine uploads exactly those bytes: a body read as text turned a PDF's 56 810 bytes into 105 724. The page's CSP lets it
 read `data:` and `blob:` URLs, which is how Oxy's SDK reads a file before it uploads it to Oxy Files.
@@ -655,8 +655,8 @@ is Expo's `expo/fetch`. On macOS Metro maps `expo-secure-store` to Astro's keych
   `astro.skills`, `astro.apps` and `astro.artifacts` are the stores above; `astro.agent` has the run, the open
   questions (`approvals`, `answer`), `tools(windowId).execute(action)` to call a host tool directly, `setPolicy` and
   `context(windowId)` (the turn's context); `astro.live` the live folders, `astro.library` the library index.
-  Launch it with `--host-resolver-rules="MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.alia.onl ~NOTFOUND,
-  MAP kaana.ai ~NOTFOUND"` so nothing can reach production.
+  Launch it with `--host-resolver-rules="MAP api.oxy.so ~NOTFOUND, MAP api.nilo.so ~NOTFOUND, MAP api.gemies.ai ~NOTFOUND,
+  MAP api.alia.onl ~NOTFOUND, MAP kaana.ai ~NOTFOUND"` so nothing can reach production.
 - Keys and the context menu are tested with real input on a private Xvfb (XTest): a CDP key event never reaches the
   engine's accelerator path, and Chromium's context menu is a native window CDP can't see. On 2026-10-27, with the page
   focused, Ctrl+E closed and reopened Chat and the page saw only the Control key; a right-click on selected text offered
