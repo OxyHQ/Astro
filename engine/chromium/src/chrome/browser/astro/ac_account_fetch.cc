@@ -33,7 +33,7 @@ namespace {
 constexpr size_t kMaxBody = 8 * 1024 * 1024;
 
 constexpr auto kAccountHosts = base::MakeFixedFlatSet<std::string_view>(
-    {"api.oxy.so", "api.nilo.so", "api.alia.onl"});
+    {"api.oxy.so", "api.nilo.so", "api.gemies.ai", "api.alia.onl"});
 
 constexpr auto kMethods = base::MakeFixedFlatSet<std::string_view>(
     {"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"});

@@ -375,7 +375,7 @@ test("a field going away cancels its dictation", async () => {
 });
 
 test("the test endpoint takes only loopback with a bearer", () => {
-  assert.equal(dictation.setDictationTestEndpoint("https://api.alia.onl", "x"), false);
+  assert.equal(dictation.setDictationTestEndpoint("https://api.gemies.ai", "x"), false);
   assert.equal(dictation.setDictationTestEndpoint("http://127.0.0.1:8796", ""), false);
   assert.equal(dictation.setDictationTestEndpoint("http://127.0.0.1:8796", "x"), true);
   assert.equal(dictation.setDictationTestEndpoint(null), true);
