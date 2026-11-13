@@ -529,7 +529,6 @@ connections, so a connection made in Astro works in the Alia app and back.
 | App | Alia | How it connects |
 | --- | --- | --- |
 | Inbox, Nilo and the other Oxy apps | first party (`oxy_<app>__*` tools) | nothing to connect: the page says so |
-| Gmail | channel account (`POST /accounts/gmail/connect`, `GET /accounts`, `DELETE /accounts/:id`) | Google's consent in a tab; Alia's callback finishes it |
 | Google Calendar, Google Drive | OAuth integrations (`GET /integrations/:service/oauth-url`, `POST /integrations/:service/complete`) | consent in a tab, finished by Astro (below) |
 | Outlook, Microsoft Teams, SharePoint and OneDrive | the same, on Microsoft Graph (`microsoft-outlook`, `microsoft-teams`, `microsoft-sharepoint`) | the same |
 | Notion, GitHub, Linear | remote MCP connectors (`POST /mcp/install { registryId }`, `POST /mcp/:id/oauth/start`, `POST /mcp/oauth/complete`) | the same |
@@ -541,14 +540,14 @@ connections, so a connection made in Astro works in the Alia app and back.
   addresses while a connect it started is pending (15 min, `ai/apps/oauthReturn.ts`), finishes the link itself with the
   Oxy session (Alia checks the state was issued to that person), and goes back to the Apps tab with "Connected". Only
   `https://alia.onl` matches.
-- Each app lists its accounts (Gmail, Google and Microsoft can have several: **Add Account**), each with
+- Each app lists its accounts (Google and Microsoft can have several: **Add Account**), each with
   **Disconnect**; a connector that lost its sign-in says so and offers **Reconnect**. An app Alia can't connect yet
   reads "Not available yet": an integration `GET /integrations/available` lists as not configured, or a connector
   `GET /mcp/registry` lists with `configured: false` (Zoom, Canva and Salesforce until their vendors issue Alia a
   client, Figma until it approves Alia, Microsoft until the Entra app exists; Alia's `docs/integrations.mdx` ›
   Connected apps). Disconnecting a connector revokes its tokens at the vendor where the vendor allows it.
 - LinkedIn isn't offered: its API terms forbid automated posting and keep reading posts to approved partners.
-- These routes (`/skills`, `/integrations`, `/mcp`, `/accounts`, `/suggestions`) are Alia's own, outside `/v1`: they
+- These routes (`/skills`, `/integrations`, `/mcp`, `/suggestions`) are Alia's own, outside `/v1`: they
   answer Alia's origins only to a browser, and Astro reaches them through the engine (`astroAccountFetch`, no Origin).
 - **Write actions with approval** (Dia's "Always allow for this chat") aren't possible for these apps: Alia runs every
   tool under the person's authority and asks for nothing (Alia ADR 0020 §3: no approval events). Astro asks only for

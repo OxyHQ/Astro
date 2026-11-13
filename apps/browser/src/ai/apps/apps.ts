@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { alia, aliaReady } from "../alia/api";
 
-export type AppKind = "integration" | "mcp" | "gmail";
+export type AppKind = "integration" | "mcp";
 
 export type AppEntry = {
   id: string;
@@ -16,7 +16,6 @@ export type AppEntry = {
 export type Connection = { id: string; label: string; status: string };
 
 export const APPS: AppEntry[] = [
-  { id: "gmail", name: "Gmail", description: "Read, search and send your mail", icon: "envelope", kind: "gmail", service: "gmail", oauth: true },
   { id: "google-calendar", name: "Google Calendar", description: "Your events and availability", icon: "calendar", kind: "integration", service: "google-calendar", oauth: true },
   { id: "google-drive", name: "Google Drive", description: "Find and read your documents", icon: "folder", kind: "integration", service: "google-drive", oauth: true },
   { id: "notion", name: "Notion", description: "Search, read and write pages", icon: "doc.text", kind: "mcp", service: "notion", oauth: true },
@@ -57,7 +56,7 @@ export const useApps = create<AppsState>()(() => ({ connections: {}, configured:
 const appOfIntegration = (service: string) => APPS.find((a) => a.kind === "integration" && a.service === service);
 const appOfMcp = (server: Raw) => APPS.find((a) => a.kind === "mcp" && (a.service === str(server.registryId) || a.service === str(server.name)));
 
-export function connectionsFrom(lists: { integrations: Raw[]; servers: Raw[]; accounts: Raw[] }): Record<string, Connection[]> {
+export function connectionsFrom(lists: { integrations: Raw[]; servers: Raw[] }): Record<string, Connection[]> {
   const out: Record<string, Connection[]> = {};
   const add = (app: AppEntry | undefined, c: Connection) => {
     if (app) (out[app.id] ??= []).push(c);
@@ -65,12 +64,6 @@ export function connectionsFrom(lists: { integrations: Raw[]; servers: Raw[]; ac
   for (const i of lists.integrations)
     add(appOfIntegration(str(i.service)), { id: str(i.id) || str(i._id), label: str(i.accountEmail) || str(i.email) || str(i.accountName) || "Connected", status: str(i.status) || "active" });
   for (const s of lists.servers) add(appOfMcp(s), { id: str(s.id) || str(s._id), label: str(s.displayName) || str(s.name), status: str(s.status) || "stopped" });
-  for (const a of lists.accounts)
-    if (str(a.platform) === "gmail")
-      add(
-        APPS.find((x) => x.id === "gmail"),
-        { id: str(a.id) || str(a._id), label: str(a.email) || str(a.accountEmail) || str(a.displayName) || "Gmail", status: str(a.status) || "active" },
-      );
   return out;
 }
 
@@ -87,20 +80,18 @@ const listOf = async (path: string, key: string): Promise<Raw[]> => {
 export async function refreshApps(): Promise<void> {
   if (!aliaReady()) return;
   useApps.setState({ loading: true });
-  const [integrations, servers, accounts, available, registry] = await Promise.all([
+  const [integrations, servers, available, registry] = await Promise.all([
     listOf("/integrations", "integrations"),
     listOf("/mcp/installed", "servers"),
-    listOf("/accounts", "accounts"),
     listOf("/integrations/available", "integrations"),
     listOf("/mcp/registry", "servers"),
   ]);
-  useApps.setState({ connections: connectionsFrom({ integrations, servers, accounts }), configured: configuredFrom({ available, registry }), loadedAt: Date.now(), loading: false, error: null });
+  useApps.setState({ connections: connectionsFrom({ integrations, servers }), configured: configuredFrom({ available, registry }), loadedAt: Date.now(), loading: false, error: null });
 }
 
 export function configuredFrom(lists: { available: Raw[]; registry: Raw[] }): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   for (const app of APPS) {
-    if (app.kind === "gmail") continue;
     const list = app.kind === "integration" ? lists.available : lists.registry;
     const source = list.find((entry) => str(app.kind === "integration" ? entry.service : entry.id) === app.service);
     if (source) out[app.id] = source.configured !== false;
@@ -111,14 +102,14 @@ export function configuredFrom(lists: { available: Raw[]; registry: Raw[] }): Re
 
 const PENDING_MS = 15 * 60_000;
 
-const markPending = (app: AppEntry) => useApps.setState((s) => ({ pending: { ...s.pending, [app.kind === "mcp" ? "mcp" : app.kind === "gmail" ? "gmail" : app.service]: Date.now() } }));
+const markPending = (app: AppEntry) => useApps.setState((s) => ({ pending: { ...s.pending, [app.kind === "mcp" ? "mcp" : app.service]: Date.now() } }));
 
-export const pendingFor = (key: string) => {
+const pendingFor = (key: string) => {
   const at = useApps.getState().pending[key];
   return !!at && Date.now() - at < PENDING_MS;
 };
 
-export function clearPending(key: string) {
+function clearPending(key: string) {
   useApps.setState((s) => {
     const { [key]: _gone, ...rest } = s.pending;
     return { pending: rest };
@@ -127,12 +118,6 @@ export function clearPending(key: string) {
 
 export async function connectUrl(app: AppEntry): Promise<string> {
   switch (app.kind) {
-    case "gmail": {
-      const r = await alia().post<{ authUrl?: string }>("/accounts/gmail/connect");
-      if (!r.data?.authUrl) throw new Error("Gmail can't be connected right now.");
-      markPending(app);
-      return r.data.authUrl;
-    }
     case "integration": {
       const r = await alia().get<{ authUrl?: string }>(`/integrations/${encodeURIComponent(app.service)}/oauth-url`);
       if (!r.data?.authUrl) throw new Error(`${app.name} can't be connected right now.`);
@@ -153,17 +138,11 @@ export async function connectUrl(app: AppEntry): Promise<string> {
 }
 
 export async function disconnect(app: AppEntry, connection: Connection) {
-  const path =
-    app.kind === "integration"
-      ? `/integrations/${encodeURIComponent(connection.id)}`
-      : app.kind === "mcp"
-        ? `/mcp/${encodeURIComponent(connection.id)}`
-        : `/accounts/${encodeURIComponent(connection.id)}`;
-  await alia().delete(path);
+  await alia().delete(app.kind === "integration" ? `/integrations/${encodeURIComponent(connection.id)}` : `/mcp/${encodeURIComponent(connection.id)}`);
   await refreshApps();
 }
 
-export type OAuthReturn = { kind: "integration"; service: string; state: string; code: string } | { kind: "mcp"; state: string; code: string } | { kind: "gmail" };
+export type OAuthReturn = { kind: "integration"; service: string; state: string; code: string } | { kind: "mcp"; state: string; code: string };
 
 const ALIA_APP_HOSTS = new Set(["alia.onl", "www.alia.onl"]);
 
@@ -180,19 +159,12 @@ export function oauthReturnOf(url: string): OAuthReturn | null {
     return { kind: "integration", service: q.get("service")!, state: q.get("int_oauth_state")!, code: q.get("int_oauth_code")! };
   if (u.pathname === "/settings/connectors" && q.get("mcp_oauth_state") && q.get("mcp_oauth_code"))
     return { kind: "mcp", state: q.get("mcp_oauth_state")!, code: q.get("mcp_oauth_code")! };
-  if (u.pathname === "/settings/accounts" && q.get("connected") === "gmail") return { kind: "gmail" };
   return null;
 }
 
 const completed = new Set<string>();
 
 export async function completeOAuth(ret: OAuthReturn): Promise<boolean> {
-  if (ret.kind === "gmail") {
-    if (!pendingFor("gmail")) return false;
-    clearPending("gmail");
-    await refreshApps();
-    return true;
-  }
   const key = ret.kind === "mcp" ? "mcp" : ret.service;
   if (!pendingFor(key) || completed.has(ret.state)) return false;
   completed.add(ret.state);

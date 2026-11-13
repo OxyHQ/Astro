@@ -118,7 +118,7 @@ const ROWS: Record<SettingsPane, Section[]> = {
         connections: {
           title: "Connected apps",
           description: "Apps Chat can use when you ask, through your Alia account: your mail, calendar, documents and issues.",
-          keywords: ["connect", "connectors", "integrations", "gmail", "google calendar", "google drive", "notion", "github", "linear", "slack", "disconnect", "reconnect"],
+          keywords: ["connect", "connectors", "integrations", "google calendar", "google drive", "notion", "github", "linear", "slack", "disconnect", "reconnect"],
         },
         manage: { title: "Apps page", description: "Every app, with its accounts, on its own page.", keywords: ["manage apps", "connect apps"] },
       },

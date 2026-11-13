@@ -65,7 +65,7 @@ export function AppsPane() {
           </Row>
         </Group>
       ) : (
-        <SignedOutRow description="Sign in with your Oxy account to connect Gmail, Google Calendar, Notion and more to Chat." />
+        <SignedOutRow description="Sign in with your Oxy account to connect Google Calendar, Notion and more to Chat." />
       )}
       <MorningBriefSection signedIn={!!ready} />
       <NewChatSection />

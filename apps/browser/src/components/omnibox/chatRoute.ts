@@ -31,7 +31,7 @@ const SKILLS_ACTIONS: CommandAction[] = [
   { id: "astroSkills:new", title: "New Skill", icon: "wand.and.stars", hint: "Chat", keywords: ["create skill", "skill builder"] },
   { id: "astroSkills:gallery", title: "Skills Gallery", icon: "sparkles", hint: "Chat", keywords: ["skills gallery", "browse skills"] },
   { id: "astroSkills:library", title: "Library", icon: "book", hint: "Chat", keywords: ["library", "chats", "chat history", "files", "artifacts", "reports", "past chats"] },
-  { id: "astroSkills:apps", title: "Connect Apps", icon: "puzzlepiece", hint: "Chat", keywords: ["apps", "connectors", "integrations", "gmail", "notion", "slack", "github", "linear", "google drive"] },
+  { id: "astroSkills:apps", title: "Connect Apps", icon: "puzzlepiece", hint: "Chat", keywords: ["apps", "connectors", "integrations", "notion", "slack", "github", "linear", "google drive"] },
 ];
 
 export const skillsBarActions = (signIn: boolean): CommandAction[] => (signIn ? [] : SKILLS_ACTIONS);

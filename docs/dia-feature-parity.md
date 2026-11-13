@@ -461,7 +461,7 @@ own sign-ins instead.
 | Feature | Dia | Astro | Gap |
 |---|---|---|---|
 | Apps hub (connect, per‑tool account, request an app) | ✓ | 🟡 | `astro://apps` (`docs/ai.md` › Connected apps), on Alia's connections: connect, accounts per app (Add Account, Disconnect, Reconnect), Oxy apps built in; "request an app" is Alia's More Connectors page |
-| Gmail, Google Calendar, Drive | ✓ | 🟡 | through Alia: Gmail (channel account), Google Calendar and Drive (OAuth integrations); Drive live folder done (§3) |
+| Gmail, Google Calendar, Drive | ✓ | 🟡 | through Alia: Google Calendar and Drive (OAuth integrations); Drive live folder done (§3). No Gmail: Gemies has no Gmail connection |
 | Slack | ✓ | 🟡 | Alia's Slack connector takes a bot token, set up in Alia (Set Up in Alia…) |
 | Notion, Confluence, Jira (Atlassian), Linear, Trello | ✓ | 🟡 | all through Alia's remote MCP connectors (OAuth finished by Astro): Notion, Linear, Atlassian's Rovo MCP (Jira, Confluence, Loom) and Trello's own, since Alia #919 (2026-10-28). Atlassian admits the OAuth redirect only from allowed domains, so it works once Atlassian (or each organization's admin) allows `api.alia.onl`; Notion / Confluence live folders done (§3) |
 | GitHub, Figma, Canva | ✓ | 🟡 | GitHub, Figma and Canva through Alia's remote MCP connectors (Alia #919); Figma reads "Not available yet" until Figma approves Alia's client, Canva until Canva issues Alia one; GitHub live folder done (§3) |
