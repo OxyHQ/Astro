@@ -1,4 +1,4 @@
-import { AliaRuntimeProvider, useAliaApi } from "@alia.onl/sdk/runtime";
+import { GemieRuntimeProvider, useGemieApi } from "@gemies/sdk/runtime";
 import { useOxy } from "@oxy.so/services";
 import { Portal } from "@astro-browser/shell";
 import { ButtonGroup, ButtonGroupItem } from "@oxy.so/bloom/button-group";
@@ -54,16 +54,16 @@ export type ChatHostProps = { windowId: string | null; aliaURL: string; streamFe
 export function ChatHost({ windowId, aliaURL, streamFetch, children }: ChatHostProps) {
   useEffect(() => registerChatOpener(openChatFromEntry), []);
   return (
-    <AliaRuntimeProvider apiUrl={aliaURL} streamFetch={streamFetch} app="astro">
+    <GemieRuntimeProvider apiUrl={aliaURL} streamFetch={streamFetch} app="astro">
       <AliaApiBridge aliaURL={aliaURL} />
       {children}
       {windowId ? <WindowChat key={windowId} windowId={windowId} /> : null}
-    </AliaRuntimeProvider>
+    </GemieRuntimeProvider>
   );
 }
 
 function AliaApiBridge({ aliaURL }: { aliaURL: string }) {
-  const sdk = useAliaApi();
+  const sdk = useGemieApi();
   const { oxyServices } = useOxy();
   useEffect(() => {
     const linked = oxyServices.createLinkedClient({ baseURL: aliaURL });

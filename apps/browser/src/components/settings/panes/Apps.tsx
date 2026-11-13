@@ -1,5 +1,5 @@
 import { Symbol } from "@astro-browser/shell";
-import { POWER_LEVELS } from "@alia.onl/sdk/model";
+import { POWER_LEVELS } from "@gemies/sdk/model";
 import { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Text, View } from "react-native";

@@ -1,4 +1,4 @@
-import type { AliaHostAction, AliaHostOutcome, AliaHostToolDefinition } from "@alia.onl/sdk/runtime";
+import type { GemieHostAction, GemieHostOutcome, GemieHostToolDefinition } from "@gemies/sdk/runtime";
 import { useBrowser } from "../../store/browser";
 import { activeTabId, viewTabIds } from "../../store/model";
 import { allowInChat, allowedInChat, ask, chatKey, type ApprovalItem } from "../chat/approvals";
@@ -17,7 +17,7 @@ const REF = { type: "string", description: "An element ref from page_snapshot, l
 
 const AFTER = "It answers with the page's new snapshot.";
 
-export const AGENT_TOOLS: AliaHostToolDefinition[] = [
+export const AGENT_TOOLS: GemieHostToolDefinition[] = [
   {
     name: "page_snapshot",
     description:
@@ -108,7 +108,7 @@ export const AGENT_TOOLS: AliaHostToolDefinition[] = [
   },
 ];
 
-const SCREENSHOT: AliaHostToolDefinition = {
+const SCREENSHOT: GemieHostToolDefinition = {
   name: "screenshot",
   description: "See what the person's tab shows right now, as an image of its visible part.",
   inputSchema: { type: "object", properties: { tabId: TAB_ID }, additionalProperties: false },
@@ -198,7 +198,7 @@ async function pageState(tabId: string) {
   return { title: snap.title, url: snap.url, snapshot: text.slice(0, 30_000), truncated: snap.truncated || text.length > 30_000 };
 }
 
-const rejected = (detail: string): AliaHostOutcome => ({ outcome: "rejected", detail });
+const rejected = (detail: string): GemieHostOutcome => ({ outcome: "rejected", detail });
 
 const FOCUSED_FACTS = `
 const el = document.activeElement;
@@ -221,7 +221,7 @@ async function enterFacts(tabId: string, ref: unknown) {
 
 const isTrue = (value: string) => /^(true|yes|on|checked|1|x|✓)$/i.test(value.trim());
 
-export async function runAgentTool(windowId: string, action: AliaHostAction): Promise<AliaHostOutcome> {
+export async function runAgentTool(windowId: string, action: GemieHostAction): Promise<GemieHostOutcome> {
   if (agentStopped(windowId)) return rejected("The person stopped Alia. Don't act in their tabs again until they ask.");
   if (!contentPolicy().agent) return rejected("The person's organization doesn't allow Alia to act in their browser.");
   const input = (action.input ?? {}) as Record<string, unknown>;
@@ -363,7 +363,7 @@ function siteOf(url: string) {
 
 type FieldPlan = { ref: string; value: string; label: string; kind: "text" | "select" | "check" };
 
-async function fillForm(windowId: string, tab: Tab, raw: unknown): Promise<AliaHostOutcome> {
+async function fillForm(windowId: string, tab: Tab, raw: unknown): Promise<GemieHostOutcome> {
   const fields = (Array.isArray(raw) ? raw : [])
     .flatMap((f): { ref: string; value: string }[] =>
       f && typeof f === "object" && typeof (f as { ref?: unknown }).ref === "string" && typeof (f as { value?: unknown }).value === "string"

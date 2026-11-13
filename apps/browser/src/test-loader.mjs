@@ -21,7 +21,7 @@ registerHooks({
     }
   },
   load(url, context, next) {
-    if (url.startsWith("file:") && url.includes("/node_modules/@alia.onl/sdk/") && url.endsWith(".ts")) {
+    if (url.startsWith("file:") && url.includes("/node_modules/@gemies/sdk/") && url.endsWith(".ts")) {
       return { format: "module", source: stripTypeScriptTypes(readFileSync(new URL(url), "utf8")), shortCircuit: true };
     }
     return next(url, context);

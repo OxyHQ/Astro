@@ -1,4 +1,4 @@
-import { openDictationStream, type DictationServerEvent, type DictationStreamErrorCode } from "@alia.onl/sdk/dictation";
+import { openDictationStream, type DictationServerEvent, type DictationStreamErrorCode } from "@gemies/sdk/dictation";
 import type { DictationErrorCode } from "./alia";
 import { joinTranscript } from "./transcript";
 

@@ -137,14 +137,14 @@ While nothing is registered, the bar shows no Chat row and no prompt actions, an
 
 The command bar's mic and the Chat composer's mic turn speech into text while you speak (Dia's streaming dictation).
 It goes through **Alia's dictation**, `POST {alia}/v1/audio/transcriptions` (Alia ADR 0017 §7, `docs/voice.mdx`): the
-surface `@alia.onl/sdk` ships for Oxy apps' dictation. Alia transcribes with a model it computes from Kaana's catalogue,
+surface `@gemies/sdk` ships for Oxy apps' dictation. Alia transcribes with a model it computes from Kaana's catalogue,
 under Oxy's `alia-kaana` `audio_transcriptions` terms (at most 300 000 ms and USD 0.05 a request,
 `~/Oxy/oxy/docs/inference/kaana-grants.md`), free on every plan, for a person's session only. So Astro needs no speech
 terms of its own on its `product_session` lane (ADR 0050 gives it `responses` only) and names no model. The browser's and
 the operating system's recognizers are not used, as in Alia since SDK 15.
 
 **Words as you speak, phrases as the fallback.** A dictation opens Alia's streaming dictation,
-`GET {alia}/v1/audio/transcriptions/stream` (Alia ADR 0024, `@alia.onl/sdk/dictation` `openDictationStream`), which
+`GET {alia}/v1/audio/transcriptions/stream` (Alia ADR 0024, `@gemies/sdk/dictation` `openDictationStream`), which
 Alia serves as one Kaana transcription session on xAI's streaming speech-to-text (Kaana ADR 0006): the microphone's audio
 is sent as it is captured, upsampled from 16 kHz to the stream's 24 kHz PCM16, and the field shows each utterance's
 provisional words about every half second, its locked words, then its final text, which replaces them. One dictation is
@@ -163,7 +163,7 @@ once.
 | Cutting at pauses (20 ms frames, an adaptive noise floor) | `ai/dictation/segmenter.ts` |
 | WAV encoding, the 24 kHz upsampler and the level meter | `ai/dictation/audio.ts` |
 | Alia's stream, its codes and the streamed transcript | `ai/dictation/stream.ts` (registered by `oxy/ChatHost.tsx` with the session's linked token) |
-| Alia's request and its refusals | `@alia.onl/sdk/dictation` (`requestTranscription`, the request Alia's own composer makes); `ai/dictation/alia.ts` turns its refusals into Astro's codes and is registered by `oxy/ChatHost.tsx` with the session's linked fetch for Alia |
+| Alia's request and its refusals | `@gemies/sdk/dictation` (`requestTranscription`, the request Alia's own composer makes); `ai/dictation/alia.ts` turns its refusals into Astro's codes and is registered by `oxy/ChatHost.tsx` with the session's linked fetch for Alia |
 | Joining phrases, putting them at the caret, the language | `ai/dictation/transcript.ts` |
 | The bar's mic (live level bars, spinner, error), the composer's strip | `components/dictation/DictationMic.tsx`, `components/chat/ChatComposer.tsx` |
 | The microphone and the hold shortcut (Windows, Linux) | `apps/webui/src/host/dictation.ts`, `apps/webui/public/dictation-worklet.js` |
@@ -241,8 +241,8 @@ as "Dictation isn't available right now."
 ## Chat
 
 Chat is a conversation, so it goes through Alia: `Astro -> Alia (api.gemies.ai/v1) -> Oxy -> Kaana`. Astro is an Alia
-embedding host like Homiio or Mercaria (Alia `docs/agent-embedding.md`): it uses `@alia.onl/sdk`'s data layer
-(`@alia.onl/sdk/runtime` and `/model`: the turn stream, Stop through `POST /v1/chat/turns/:id/cancel`, edit, regenerate,
+embedding host like Homiio or Mercaria (Alia `docs/agent-embedding.md`): it uses `@gemies/sdk`'s data layer
+(`@gemies/sdk/runtime` and `/model`: the turn stream, Stop through `POST /v1/chat/turns/:id/cancel`, edit, regenerate,
 retry, conversations) and draws the conversation itself with Bloom's own chat components: the panel is an `AppShell`
 bounded panel holding `AiChatContainer` (`PageHeader` with a `ButtonGroup` and a `DropdownMenu`, `AiChatThread`, the
 composer in its `PageFooter`) on a `Surface`; turns are `AiChatUserMessage` / `AiChatAssistantMessage` with

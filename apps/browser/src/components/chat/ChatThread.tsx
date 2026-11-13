@@ -1,5 +1,5 @@
-import { getImagesFromContent, getTextFromContent } from "@alia.onl/sdk/content";
-import { englishCopy, extractSources, toolLabel, turnLifecycle, type FailedTurn, type Message, type ToolInvocation } from "@alia.onl/sdk/model";
+import { getImagesFromContent, getTextFromContent } from "@gemies/sdk/content";
+import { englishCopy, extractSources, toolLabel, turnLifecycle, type FailedTurn, type Message, type ToolInvocation } from "@gemies/sdk/model";
 import { AgentLogToolCall, AgentLogToolCalls } from "@oxy.so/bloom/agent-log";
 import { AgentThinking } from "@oxy.so/bloom/agent-thinking";
 import { AiChatAssistantMessage, AiChatMessageLine, AiChatThread, AiChatUserMessage, type AiChatTurnAction } from "@oxy.so/bloom/ai-chat";
