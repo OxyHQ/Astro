@@ -43,6 +43,8 @@ scripts/agent/await --pid <pid> -- <test>               # wait with a deadline
 - Never click, type in, or read the user data of other browsers; they are read-only references.
 - Never kill processes you did not start; quit your own test instances and background jobs.
 - Ask first before a release, a site deploy or any other public action.
+- First-party never asks people for permissions: this app acts for a person with `actingFor` on what oxy's first-party
+  registry declares (oxy ADR 0066); permissions, scopes and consent are only for third parties.
 - `git checkout`, `restore`, `stash`, `reset --hard`, `clean` and `switch` in the shared checkout are blocked by
   `scripts/agent/guard-git`.
 
