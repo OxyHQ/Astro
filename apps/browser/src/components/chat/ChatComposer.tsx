@@ -234,7 +234,7 @@ export function ChatComposer({
       )}
       <DictationStatus dictationKey={dictationKey} />
       <ContextChips windowId={windowId} />
-      <ComposerLoader active={busy}>
+      <ComposerLoader phase={busy ? "streaming" : "idle"}>
         <ComposerPill
           surface={false}
           frosted={busy}
